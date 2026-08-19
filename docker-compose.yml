@@ -1,0 +1,147 @@
+name: zaptrace
+
+x-zaptrace-service: &zaptrace-service
+  image: zaptrace:${ZAPTRACE_IMAGE_TAG:-local}
+  build:
+    context: .
+  init: true
+  restart: "no"
+  volumes:
+    - ./data:/workspace/data:ro
+    - ./output:/workspace/output
+
+x-api-healthcheck: &api-healthcheck
+  test:
+    - CMD
+    - python
+    - -c
+    - |
+      import json, urllib.request
+      with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3) as response:
+          payload = json.load(response)
+          raise SystemExit(0 if response.status == 200 and payload.get("status") == "ok" else 1)
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 20s
+
+x-mcp-auth-healthcheck: &mcp-auth-healthcheck
+  test:
+    - CMD
+    - python
+    - -c
+    - |
+      import json, os, urllib.request
+      profile = os.environ.get("ZAPTRACE_MCP_AUTH_PROFILE", "").strip()
+      if profile == "oauth-jwt":
+          request = urllib.request.Request("http://127.0.0.1:8090/.well-known/oauth-protected-resource/mcp")
+          with urllib.request.urlopen(request, timeout=5) as response:
+              metadata = json.load(response)
+              healthy = response.status == 200 and metadata.get("resource") == os.environ.get("ZAPTRACE_MCP_AUTH_RESOURCE_URI")
+          raise SystemExit(0 if healthy else 1)
+      payload = json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"compose-health","version":"1"}}}).encode()
+      headers = {"Authorization":"Bearer " + os.environ["ZAPTRACE_MCP_HTTP_TOKEN"],"Content-Type":"application/json","Accept":"application/json, text/event-stream"}
+      request = urllib.request.Request("http://127.0.0.1:8090/mcp", data=payload, headers=headers)
+      with urllib.request.urlopen(request, timeout=5) as response:
+          body = response.read()
+          session_id = response.headers.get("mcp-session-id")
+          healthy = response.status == 200 and b'"serverInfo"' in body
+      if session_id:
+          close_headers = {**headers, "mcp-session-id": session_id}
+          close_request = urllib.request.Request("http://127.0.0.1:8090/mcp", headers=close_headers, method="DELETE")
+          with urllib.request.urlopen(close_request, timeout=5):
+              pass
+      raise SystemExit(0 if healthy else 1)
+  interval: 30s
+  timeout: 10s
+  retries: 8
+  start_period: 25s
+
+x-mcp-loopback-healthcheck: &mcp-loopback-healthcheck
+  test:
+    - CMD
+    - python
+    - -c
+    - |
+      import json, urllib.request
+      payload = json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"compose-health","version":"1"}}}).encode()
+      headers = {"Content-Type":"application/json","Accept":"application/json, text/event-stream"}
+      request = urllib.request.Request("http://127.0.0.1:8090/mcp", data=payload, headers=headers)
+      with urllib.request.urlopen(request, timeout=5) as response:
+          body = response.read()
+          session_id = response.headers.get("mcp-session-id")
+          healthy = response.status == 200 and b'"serverInfo"' in body
+      if session_id:
+          close_headers = {**headers, "mcp-session-id": session_id}
+          close_request = urllib.request.Request("http://127.0.0.1:8090/mcp", headers=close_headers, method="DELETE")
+          with urllib.request.urlopen(close_request, timeout=5):
+              pass
+      raise SystemExit(0 if healthy else 1)
+  interval: 30s
+  timeout: 10s
+  retries: 8
+  start_period: 25s
+
+services:
+  zaptrace-api:
+    <<: *zaptrace-service
+    entrypoint: ["zaptrace-api"]
+    environment:
+      ZAPTRACE_API_HOST: "0.0.0.0"
+      ZAPTRACE_API_PORT: "8000"
+      ZAPTRACE_API_TOKEN: "${ZAPTRACE_API_TOKEN:-}"
+      ZAPTRACE_API_TOKEN_SUBJECT: "${ZAPTRACE_API_TOKEN_SUBJECT:-compose-api}"
+      ZAPTRACE_API_TOKEN_SCOPES: "${ZAPTRACE_API_TOKEN_SCOPES:-read}"
+      ZAPTRACE_API_TOKEN_SESSIONS: "${ZAPTRACE_API_TOKEN_SESSIONS:-*}"
+    ports:
+      - "127.0.0.1:${ZAPTRACE_API_PUBLISHED_PORT:-8000}:8000"
+    healthcheck: *api-healthcheck
+
+  zaptrace-mcp-http:
+    <<: *zaptrace-service
+    entrypoint: ["zaptrace-mcp-http"]
+    environment:
+      ZAPTRACE_MCP_HTTP_HOST: "0.0.0.0"
+      ZAPTRACE_MCP_HTTP_PORT: "8090"
+      ZAPTRACE_MCP_AUTH_CONFIG_VERSION: "${ZAPTRACE_MCP_AUTH_CONFIG_VERSION:-}"
+      ZAPTRACE_MCP_AUTH_PROFILE: "${ZAPTRACE_MCP_AUTH_PROFILE:-}"
+      ZAPTRACE_MCP_HTTP_TOKEN: "${ZAPTRACE_MCP_HTTP_TOKEN:-}"
+      ZAPTRACE_MCP_TOKEN_SUBJECT: "${ZAPTRACE_MCP_TOKEN_SUBJECT-compose-mcp}"
+      ZAPTRACE_MCP_PUBLIC_BASE_URL: "${ZAPTRACE_MCP_PUBLIC_BASE_URL:-}"
+      ZAPTRACE_MCP_AUTH_RESOURCE_URI: "${ZAPTRACE_MCP_AUTH_RESOURCE_URI:-}"
+      ZAPTRACE_MCP_AUTHORIZATION_SERVER: "${ZAPTRACE_MCP_AUTHORIZATION_SERVER:-}"
+      ZAPTRACE_MCP_AUTH_JWKS_URI: "${ZAPTRACE_MCP_AUTH_JWKS_URI:-}"
+    ports:
+      - "127.0.0.1:${ZAPTRACE_MCP_HTTP_PUBLISHED_PORT:-8090}:8090"
+    healthcheck: *mcp-auth-healthcheck
+
+  zaptrace-ready:
+    <<: *zaptrace-service
+    profiles: ["smoke"]
+    entrypoint: ["python", "-c"]
+    command: ["print('ZapTrace API and MCP HTTP services are healthy')"]
+    depends_on:
+      zaptrace-api:
+        condition: service_healthy
+      zaptrace-mcp-http:
+        condition: service_healthy
+
+  zaptrace-api-loopback:
+    <<: *zaptrace-service
+    profiles: ["loopback-development"]
+    entrypoint: ["zaptrace-api"]
+    environment:
+      ZAPTRACE_API_HOST: "127.0.0.1"
+      ZAPTRACE_API_PORT: "8000"
+      ZAPTRACE_API_ALLOW_LOCAL_CAPABILITY_HEADERS: "1"
+    healthcheck: *api-healthcheck
+
+  zaptrace-mcp-loopback:
+    <<: *zaptrace-service
+    profiles: ["loopback-development"]
+    entrypoint: ["zaptrace-mcp-http"]
+    environment:
+      ZAPTRACE_MCP_HTTP_HOST: "127.0.0.1"
+      ZAPTRACE_MCP_HTTP_PORT: "8090"
+      ZAPTRACE_MCP_ALLOW_SESSION_CAPABILITY_GRANTS: "1"
+    healthcheck: *mcp-loopback-healthcheck

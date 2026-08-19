@@ -1,0 +1,110 @@
+schema_version: '2.0'
+id: ina219aidcnr
+name: INA219AIDCNR
+category: power
+manufacturer: Texas Instruments
+mpn: INA219AIDCNR
+description: 26 V, 12-bit I2C/SMBus bidirectional current, voltage and power monitor in DCN SOT-23-8
+datasheet: https://www.ti.com/lit/ds/symlink/ina219.pdf
+package: SOT-23-8
+footprint: INA219AIDCNR-SOT23-8
+lifecycle: active
+voltage_supply: 3.0-5.5 V
+pins:
+  IN+:
+    type: input
+    description: Positive differential shunt-voltage input; connect to positive side of shunt resistor
+  IN-:
+    type: input
+    description: Negative differential shunt-voltage input; bus voltage is measured from this pin to ground
+  GND:
+    type: power
+    description: Ground
+  VS:
+    type: power
+    description: Device supply, 3.0-5.5 V
+  SCL:
+    type: input
+    description: I2C/SMBus serial clock
+  SDA:
+    type: bidirectional
+    description: I2C/SMBus serial data, open-drain output when driven low
+  A0:
+    type: input
+    description: I2C address-select input 0
+  A1:
+    type: input
+    description: I2C address-select input 1
+package_pin_map:
+  '1': IN+
+  '2': IN-
+  '3': GND
+  '4': VS
+  '5': SCL
+  '6': SDA
+  '7': A0
+  '8': A1
+properties:
+  interface: [i2c, smbus]
+  manufacturer_package_name: SOT-23 (DCN)
+  resolution_bit: 12
+  supply_range_v: [3.0, 5.5]
+  bus_voltage_operating_max_v: 26.0
+  bus_adc_full_scale_ranges_v: [16.0, 32.0]
+  shunt_full_scale_max_mv: 320
+  absolute_max_supply_v: 6.0
+  absolute_max_common_mode_v: [-0.3, 26.0]
+  absolute_max_differential_v: [-26.0, 26.0]
+  typical_supply_current_ma: 0.7
+  maximum_supply_current_ma: 1.0
+  programmable_addresses: 16
+  temperature_range_c: [-40, 125]
+  package_body_nominal_mm: [2.9, 1.63]
+  thermal_rtheta_ja_c_per_w: 135.4
+  package_qty: 3000
+  carrier: large-tape-and-reel
+  part_marking: A219
+  repository_land_pattern:
+    source: KiCad official Package_TO_SOT_SMD.pretty/SOT-23-8.kicad_mod
+    source_revision: f35846091d26862be42fa412df7fb00c45b8f3d0
+    source_sha256: f4891c800213c5b817c42db6fd6dcd3f7e1614ae8460cec9e00c03859ad4004d
+    pad_size_mm: [1.325, 0.5]
+    pin_pitch: 0.65
+    review_note: KiCad SOT-23-8 is a JEDEC MO-178 BA generic land pattern; exact equivalence to the TI DCN package and assembly process still requires human footprint review before trust-tier promotion
+electrical_limits:
+  voltage_supply: 3.0-5.5 V operating supply; 6 V absolute maximum supply rating
+  temperature_range: [-40, 125]
+  max_voltage_v: 26.0
+  review_note: Bus inputs may operate from 0 to 26 V; the ADC has 16 V and 32 V scaling ranges but TI explicitly states that more than 26 V must not be applied to the device
+sourcing:
+  mpn: INA219AIDCNR
+  manufacturer: Texas Instruments
+  status: manufacturer-active-production
+  production_note: TI package option addendum dated 2026-03-05 lists INA219AIDCNR Active / Production, DCN SOT-23-8, 3000-piece large tape-and-reel; re-check live inventory and lead time before procurement
+compliance:
+  rohs: manufacturer-declared-compliant
+  reach: manufacturer-declared-compliant
+  production_note: TI current part-detail and orderable information report RoHS/REACH compliance; procurement-time material declarations remain authoritative
+provenance:
+  source: Texas Instruments INA219 SBOS448G Rev G datasheet with current package option addendum
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of the KiCad-versus-TI DCN land-pattern equivalence and current procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &ti_evidence
+    source_type: manufacturer_document
+    source_locator: https://www.ti.com/lit/ds/symlink/ina219.pdf
+    source_identity: SBOS448G
+    source_sha256: 58004eda854d07478e6fc6f4398c114f60a3bcf18d4877471c7c1a306d1fa1cb
+    source_version: Rev G (2015-12; package addendum 2026-03-05)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-18
+    confidence: medium
+  datasheet: *ti_evidence
+  pin_map: *ti_evidence
+  package: *ti_evidence
+  footprint: *ti_evidence
+  electrical_limits: *ti_evidence
+  lifecycle: *ti_evidence
+  sourcing: *ti_evidence

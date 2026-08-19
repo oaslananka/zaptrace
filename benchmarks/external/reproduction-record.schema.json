@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "ReproductionEnvironment": {
+      "additionalProperties": false,
+      "description": "Environment identity recorded by an external reproducer.",
+      "properties": {
+        "architecture": {
+          "title": "Architecture",
+          "type": "string"
+        },
+        "operating_system": {
+          "title": "Operating System",
+          "type": "string"
+        },
+        "python_version": {
+          "title": "Python Version",
+          "type": "string"
+        },
+        "tool_versions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Tool Versions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "operating_system",
+        "architecture",
+        "python_version",
+        "tool_versions"
+      ],
+      "title": "ReproductionEnvironment",
+      "type": "object"
+    },
+    "ReproductionFixtureResult": {
+      "additionalProperties": false,
+      "description": "Expected and observed canonical evidence for one external fixture.",
+      "properties": {
+        "expected_canonical_hash": {
+          "title": "Expected Canonical Hash",
+          "type": "string"
+        },
+        "fixture_id": {
+          "title": "Fixture Id",
+          "type": "string"
+        },
+        "match_mode": {
+          "enum": [
+            "byte-for-byte",
+            "normalized",
+            "not-run"
+          ],
+          "title": "Match Mode",
+          "type": "string"
+        },
+        "normalized_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Normalized Fields",
+          "type": "array"
+        },
+        "notes": {
+          "title": "Notes",
+          "type": "string"
+        },
+        "observed_canonical_hash": {
+          "title": "Observed Canonical Hash",
+          "type": "string"
+        },
+        "result": {
+          "enum": [
+            "pass",
+            "fail",
+            "not-run"
+          ],
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fixture_id",
+        "expected_canonical_hash",
+        "observed_canonical_hash",
+        "match_mode",
+        "normalized_fields",
+        "result",
+        "notes"
+      ],
+      "title": "ReproductionFixtureResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Tool-neutral record for template, submitted, or accepted reproduction evidence.",
+  "properties": {
+    "commands": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Commands",
+      "type": "array"
+    },
+    "environment": {
+      "$ref": "#/$defs/ReproductionEnvironment"
+    },
+    "evidence_status": {
+      "enum": [
+        "non-authoritative-example",
+        "submitted-independent-evidence",
+        "accepted-independent-evidence"
+      ],
+      "title": "Evidence Status",
+      "type": "string"
+    },
+    "evidence_urls": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence Urls",
+      "type": "array"
+    },
+    "fixture_results": {
+      "items": {
+        "$ref": "#/$defs/ReproductionFixtureResult"
+      },
+      "title": "Fixture Results",
+      "type": "array"
+    },
+    "independent_relationship": {
+      "title": "Independent Relationship",
+      "type": "boolean"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "manifest_sha256": {
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "normalized_field_policy": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Normalized Field Policy",
+      "type": "array"
+    },
+    "overall_result": {
+      "enum": [
+        "pass",
+        "fail",
+        "not-run"
+      ],
+      "title": "Overall Result",
+      "type": "string"
+    },
+    "performed_at": {
+      "title": "Performed At",
+      "type": "string"
+    },
+    "record_status": {
+      "enum": [
+        "template",
+        "submitted",
+        "accepted"
+      ],
+      "title": "Record Status",
+      "type": "string"
+    },
+    "relationship_note": {
+      "title": "Relationship Note",
+      "type": "string"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "reproducer_name": {
+      "title": "Reproducer Name",
+      "type": "string"
+    },
+    "reproduction_id": {
+      "title": "Reproduction Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_commit": {
+      "title": "Source Commit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "record_status",
+    "evidence_status",
+    "reproduction_id",
+    "reproducer_name",
+    "independent_relationship",
+    "relationship_note",
+    "performed_at",
+    "repository",
+    "source_commit",
+    "manifest_sha256",
+    "environment",
+    "commands",
+    "fixture_results",
+    "normalized_field_policy",
+    "overall_result",
+    "limitations",
+    "evidence_urls"
+  ],
+  "title": "ExternalReproductionRecord",
+  "type": "object"
+}

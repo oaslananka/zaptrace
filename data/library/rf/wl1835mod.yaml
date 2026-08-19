@@ -1,0 +1,143 @@
+schema_version: '2.0'
+id: wl1835mod
+name: WL1835MOD
+category: rf
+manufacturer: Texas Instruments
+mpn: WL1835MOD
+description: Wi-Fi 2.4/5GHz + BT 4.2 module, SDIO+UART
+datasheet: https://www.ti.com/lit/ds/symlink/wl1835mod.pdf
+package: Module-100pin
+footprint: WL1835MOD
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: Supply
+  GND:
+    type: power
+    description: Ground
+  SDIO_CLK:
+    type: input
+    description: SDIO clock
+  SDIO_CMD:
+    type: bidirectional
+    description: SDIO command
+  SDIO_D0:
+    type: bidirectional
+    description: SDIO data 0
+  SDIO_D1:
+    type: bidirectional
+    description: SDIO data 1
+  SDIO_D2:
+    type: bidirectional
+    description: SDIO data 2
+  SDIO_D3:
+    type: bidirectional
+    description: SDIO data 3
+  UART_TX:
+    type: output
+    description: UART transmit
+  UART_RX:
+    type: input
+    description: UART receive
+  WL_IRQ:
+    type: output
+    description: Wi-Fi interrupt
+  BT_IRQ:
+    type: output
+    description: BT interrupt
+  WL_EN:
+    type: input
+    description: Wi-Fi enable
+  BT_EN:
+    type: input
+    description: BT enable
+  ANT0:
+    type: rf
+    description: Antenna 0
+  ANT1:
+    type: rf
+    description: Antenna 1
+properties:
+  wireless:
+  - wifi_2.4ghz
+  - wifi_5ghz
+  - bluetooth_4.2
+  interface:
+  - sdio
+  - uart
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: WL1835MOD
+  manufacturer: Texas Instruments
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.ti.com/lit/ds/symlink/wl1835mod.pdf
+    source_identity: component:wl1835mod:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:wl1835mod:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

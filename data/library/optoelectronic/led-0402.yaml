@@ -1,0 +1,97 @@
+schema_version: '2.0'
+id: led-0402
+name: LED 0402
+category: optoelectronic
+manufacturer: Generic
+mpn: LED-0402
+description: Standard SMD LED, 0402 package
+datasheet: internal://zaptrace/component-family/led-0402
+package: '0402'
+footprint: LED-0402
+lifecycle: active
+voltage_supply: ''
+pins:
+  ANODE:
+    type: passive
+    description: Anode (+)
+  CATHODE:
+    type: passive
+    description: Cathode (-)
+properties:
+  color: varies
+  package_size: '0402'
+electrical_limits:
+  review_note: numeric limits not captured in starter library; verify against exact
+    supplier part before production
+sourcing:
+  mpn: LED-0402
+  manufacturer: Generic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: generic-family-placeholder
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/led-0402
+    source_identity: component:led-0402:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:led-0402:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

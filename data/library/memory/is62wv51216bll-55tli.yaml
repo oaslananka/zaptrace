@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: is62wv51216bll-55tli
+name: IS62WV51216B
+category: memory
+manufacturer: ISSI
+mpn: IS62WV51216BLL-55TLI
+description: SRAM 8Mb 55ns parallel
+datasheet: internal://zaptrace/component-family/is62wv51216bll-55tli
+package: TSOP-44
+footprint: TSOP-44
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VCC:
+    type: power
+    description: Supply voltage
+  GND:
+    type: power
+    description: Ground
+  CS:
+    type: input
+    description: Chip select
+  SCK:
+    type: input
+    description: Serial clock / CLK
+  MOSI:
+    type: input
+    description: Data input DI/DQ0
+  MISO:
+    type: output
+    description: Data output DO/DQ1
+  WP:
+    type: input
+    description: Write protect
+  HOLD:
+    type: input
+    description: Hold/Reset
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: IS62WV51216BLL-55TLI
+  manufacturer: ISSI
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:is62wv51216bll-55tli:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/is62wv51216bll-55tli
+    source_identity: component:is62wv51216bll-55tli:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:is62wv51216bll-55tli:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:is62wv51216bll-55tli:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:is62wv51216bll-55tli:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:is62wv51216bll-55tli:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:is62wv51216bll-55tli:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:is62wv51216bll-55tli:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

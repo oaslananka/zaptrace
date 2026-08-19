@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "rp2040_can_node",
+  "files": [
+    {
+      "kind": "project",
+      "path": "rp2040_can_node.kicad_pro",
+      "required": true,
+      "sha256": "4b71dbc90fc27ff30e839fc57beda25363d5f077609a9adf120f88f0cfa9addc",
+      "size_bytes": 185
+    },
+    {
+      "kind": "schematic",
+      "path": "rp2040_can_node.kicad_sch",
+      "required": true,
+      "sha256": "7ee2ef8722cf99a501f481ed94422cd4ed8e45de79d6f1aa1abb1ed7df4039f5",
+      "size_bytes": 238
+    },
+    {
+      "kind": "pcb",
+      "path": "rp2040_can_node.kicad_pcb",
+      "required": true,
+      "sha256": "063b0017d4f1655aeb2594e01c2f975f15c723a64ac2428be4fa94f7824678fe",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "rp2040_can_node_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

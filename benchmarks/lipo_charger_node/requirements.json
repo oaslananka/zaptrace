@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "family_id": "lipo_charger_node",
+  "benchmark_id": "lipo_charger_node_fixture_v1",
+  "title": "LiPo charger sensor node benchmark fixture",
+  "representative_intent": "Single-cell LiPo charger, protection, fuel gauge, MCU and sensor",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-LIPO-CHARGE-PATH",
+      "text": "Represent single-cell LiPo charging path with charger IC, charge-current limit, and battery connector review evidence.",
+      "category": "battery-charging",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-BATTERY-PROTECTION-FUEL",
+      "text": "Provide battery protection and fuel-gauge evidence, including explicit non-claims for safety certification.",
+      "category": "battery-protection",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-LOW-POWER-SENSOR",
+      "text": "Connect low-power MCU and sensor loads with sleep-current/current-budget review evidence.",
+      "category": "functional-power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-LIPO-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, rail current, regulator margin, thermal, and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": ["human-review-required", "autonomous-pass"]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not Li-ion battery safety certification or fabrication approval.",
+    "The fixture does not claim charge safety, pack protection adequacy, regulatory compliance, manufacturability, or production readiness."
+  ]
+}

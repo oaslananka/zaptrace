@@ -1,0 +1,227 @@
+schema_version: '2.0'
+id: stm32f103c8t6
+name: STM32F103C8T6
+category: mcu
+manufacturer: STMicroelectronics
+mpn: STM32F103C8T6
+description: ARM Cortex-M3 MCU, 72MHz, 64KB flash, 20KB SRAM, USB, CAN
+datasheet: https://www.st.com/resource/en/datasheet/stm32f103c8.pdf
+package: LQFP-48
+footprint: STM32F103C8T6-LQFP48
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  PA0:
+    type: bidirectional
+    description: GPIOA0 / WKUP / ADC0
+  PA1:
+    type: bidirectional
+    description: GPIOA1 / ADC1
+  PA2:
+    type: bidirectional
+    description: GPIOA2 / ADC2
+  PA3:
+    type: bidirectional
+    description: GPIOA3 / ADC3
+  PA4:
+    type: bidirectional
+    description: GPIOA4 / DAC_OUT1
+  PA5:
+    type: bidirectional
+    description: GPIOA5 / SPI1_SCK
+  PA6:
+    type: bidirectional
+    description: GPIOA6 / SPI1_MISO
+  PA7:
+    type: bidirectional
+    description: GPIOA7 / SPI1_MOSI
+  PA8:
+    type: bidirectional
+    description: GPIOA8 / MCO
+  PA9:
+    type: bidirectional
+    description: GPIOA9 / USART1_TX
+  PA10:
+    type: bidirectional
+    description: GPIOA10 / USART1_RX
+  PA11:
+    type: bidirectional
+    description: GPIOA11 / USB_DM
+  PA12:
+    type: bidirectional
+    description: GPIOA12 / USB_DP
+  PA13:
+    type: bidirectional
+    description: GPIOA13 / SWDIO
+  PA14:
+    type: bidirectional
+    description: GPIOA14 / SWCLK
+  PA15:
+    type: bidirectional
+    description: GPIOA15 / SPI1_NSS
+  PB0:
+    type: bidirectional
+    description: GPIOB0 / ADC8
+  PB1:
+    type: bidirectional
+    description: GPIOB1 / ADC9
+  PB2:
+    type: bidirectional
+    description: GPIOB2
+  PB3:
+    type: bidirectional
+    description: GPIOB3 / SPI1_SCK
+  PB4:
+    type: bidirectional
+    description: GPIOB4
+  PB5:
+    type: bidirectional
+    description: GPIOB5 / I2C1_SDA
+  PB6:
+    type: bidirectional
+    description: GPIOB6 / I2C1_SCL
+  PB7:
+    type: bidirectional
+    description: GPIOB7
+  PB8:
+    type: bidirectional
+    description: GPIOB8
+  PB9:
+    type: bidirectional
+    description: GPIOB9
+  PB10:
+    type: bidirectional
+    description: GPIOB10 / I2C2_SCL
+  PB11:
+    type: bidirectional
+    description: GPIOB11 / I2C2_SDA
+  PB12:
+    type: bidirectional
+    description: GPIOB12 / SPI2_NSS
+  PB13:
+    type: bidirectional
+    description: GPIOB13 / SPI2_SCK
+  PB14:
+    type: bidirectional
+    description: GPIOB14 / SPI2_MISO
+  PB15:
+    type: bidirectional
+    description: GPIOB15 / SPI2_MOSI
+  PC13:
+    type: bidirectional
+    description: GPIOC13
+  PC14:
+    type: bidirectional
+    description: GPIOC14
+  PC15:
+    type: bidirectional
+    description: GPIOC15
+  VDD:
+    type: power
+    description: 3.3V digital supply
+  GND:
+    type: power
+    description: Ground
+  NRST:
+    type: input
+    description: Reset (active low)
+  BOOT0:
+    type: input
+    description: Boot mode selection
+  VBAT:
+    type: power
+    description: Backup supply
+  VDDA:
+    type: power
+    description: Analog supply
+  VSSA:
+    type: power
+    description: Analog ground
+properties:
+  core: ARM Cortex-M3
+  frequency_mhz: 72
+  flash_kb: 64
+  sram_kb: 20
+  interfaces:
+  - usb
+  - can
+  - i2c
+  - spi
+  - usart
+  - adc
+  - dac
+electrical_limits:
+  frequency_mhz: 72
+  voltage_supply: '3.3'
+sourcing:
+  mpn: STM32F103C8T6
+  manufacturer: STMicroelectronics
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.st.com/resource/en/datasheet/stm32f103c8.pdf
+    source_identity: component:stm32f103c8t6:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:stm32f103c8t6:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

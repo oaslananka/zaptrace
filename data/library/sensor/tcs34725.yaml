@@ -1,0 +1,110 @@
+schema_version: '2.0'
+id: tcs34725
+name: TCS34725
+category: sensor
+manufacturer: ams-OSRAM
+mpn: TCS34725FN
+description: RGB color light sensor with IR filter, I2C
+datasheet: https://ams.com/documents/20143/36005/TCS3472_DS000390_3-00.pdf
+package: DFN-6
+footprint: TCS34725-DFN6
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 2.7-3.6V supply
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: I2C data
+  SCL:
+    type: input
+    description: I2C clock
+  INT:
+    type: output
+    description: Interrupt output
+  LED:
+    type: output
+    description: LED driver
+properties:
+  interface:
+  - i2c
+  resolution: 4 channels (RGB+clear)
+  gain: 1-60x
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: TCS34725FN
+  manufacturer: ams-OSRAM
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://ams.com/documents/20143/36005/TCS3472_DS000390_3-00.pdf
+    source_identity: component:tcs34725:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tcs34725:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

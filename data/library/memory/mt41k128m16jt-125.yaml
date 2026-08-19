@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: mt41k128m16jt-125
+name: MT41K128M16JT
+category: memory
+manufacturer: Micron
+mpn: MT41K128M16JT-125
+description: DDR3L 256MB 800MHz
+datasheet: internal://zaptrace/component-family/mt41k128m16jt-125
+package: FBGA-96
+footprint: FBGA-96
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VCC:
+    type: power
+    description: Supply voltage
+  GND:
+    type: power
+    description: Ground
+  CS:
+    type: input
+    description: Chip select
+  SCK:
+    type: input
+    description: Serial clock / CLK
+  MOSI:
+    type: input
+    description: Data input DI/DQ0
+  MISO:
+    type: output
+    description: Data output DO/DQ1
+  WP:
+    type: input
+    description: Write protect
+  HOLD:
+    type: input
+    description: Hold/Reset
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: MT41K128M16JT-125
+  manufacturer: Micron
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:mt41k128m16jt-125:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/mt41k128m16jt-125
+    source_identity: component:mt41k128m16jt-125:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:mt41k128m16jt-125:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:mt41k128m16jt-125:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:mt41k128m16jt-125:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:mt41k128m16jt-125:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:mt41k128m16jt-125:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:mt41k128m16jt-125:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,33 @@
+PROVENANCE
+==========
+
+File: minimal_schematic.SchDoc
+License: CC0-1.0
+Origin: Synthetic — hand-authored for ZapTrace test fixtures
+Author: ZapTrace contributors
+Date: 2026-07-05
+
+Description
+-----------
+A minimal Altium Designer ASCII schematic file containing:
+  - 2 components (R1/RES1 resistor, C1/CAP capacitor)
+  - Component pins (RECORD=2)
+  - Wire segments (RECORD=37)
+  - Labels (RECORD=4) for net annotation
+  - Ports (RECORD=209) for power/GND symbols
+  - One intentionally unsupported record type (RECORD=99)
+
+This file does NOT contain real design data. It is entirely synthetic and
+created for the purpose of unit-testing the ZapTrace Altium importer.
+
+Format notes
+------------
+The pipe-delimited ASCII format used here mirrors the export format produced
+by Altium Designer when saving schematics as ASCII text. Real binary .SchDoc
+files use OLE Compound Document (CFB) format; the ASCII subset is documented
+in the Altium scripting SDK.
+
+References
+----------
+- Altium Designer Scripting SDK documentation (public)
+- OLE Compound File Binary Format: [MS-CFB] specification (Microsoft Open Specifications)

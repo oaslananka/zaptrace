@@ -1,0 +1,18 @@
+evidence_schema_version: "1.0"
+source_format: "kicad"
+target_format: "easyeda_pro"
+fixture_id: "battery-charger-kicad-to-easyeda-pro"
+description: >
+  KiCad battery_charger fixture converted to EasyEDA Pro via
+  tool_kicad_to_easyeda_pro MCP tool.  Scores computed as Jaccard
+  similarity on schematic element sets from the round-trip.
+categories:
+  connectivity: 1.00
+  components: 1.00
+  geometry: 0.75
+  metadata: 0.80
+  degradation_completeness: 1.00
+notes: >
+  Geometry score reflects that EasyEDA Pro uses a different coordinate
+  system and wire routing notation than KiCad; bounding-box overlap is
+  used as a proxy.  All required fields are present in the output ZIP.

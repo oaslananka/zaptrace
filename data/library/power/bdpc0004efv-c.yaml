@@ -1,0 +1,99 @@
+schema_version: '2.0'
+id: bdpc0004efv-c
+name: BDPC0004EFV-C
+category: power
+manufacturer: Rohm
+mpn: BDPC0004
+description: 12V 4A gate driver
+datasheet: internal://zaptrace/component-family/bdpc0004efv-c
+package: VSON010X2
+footprint: VSON010X2
+lifecycle: active
+voltage_supply: ''
+pins:
+  VIN:
+    type: power
+    description: Input
+  VOUT:
+    type: output
+    description: Output
+  GND:
+    type: power
+    description: Ground
+  CTRL:
+    type: input
+    description: Control/Enable
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: BDPC0004
+  manufacturer: Rohm
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:bdpc0004efv-c:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/bdpc0004efv-c
+    source_identity: component:bdpc0004efv-c:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:bdpc0004efv-c:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:bdpc0004efv-c:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:bdpc0004efv-c:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:bdpc0004efv-c:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:bdpc0004efv-c:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:bdpc0004efv-c:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

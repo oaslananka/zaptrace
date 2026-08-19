@@ -1,0 +1,115 @@
+schema_version: '2.0'
+id: res-array-4x-0603
+name: Resistor Array 4x0603
+category: passive
+manufacturer: Generic
+mpn: RA-4x0603
+description: 4-resistor array, isolated, SMD
+datasheet: internal://zaptrace/component-family/res-array-4x-0603
+package: SOP-8
+footprint: RES-ARRAY-4x0603
+lifecycle: active
+voltage_supply: ''
+pins:
+  R1_P1:
+    type: passive
+    description: Resistor 1 pin 1
+  R1_P2:
+    type: passive
+    description: Resistor 1 pin 2
+  R2_P1:
+    type: passive
+    description: Resistor 2 pin 1
+  R2_P2:
+    type: passive
+    description: Resistor 2 pin 2
+  R3_P1:
+    type: passive
+    description: Resistor 3 pin 1
+  R3_P2:
+    type: passive
+    description: Resistor 3 pin 2
+  R4_P1:
+    type: passive
+    description: Resistor 4 pin 1
+  R4_P2:
+    type: passive
+    description: Resistor 4 pin 2
+properties:
+  elements: 4
+  circuit: isolated
+electrical_limits:
+  review_note: numeric limits not captured in starter library; verify against exact
+    supplier part before production
+sourcing:
+  mpn: RA-4x0603
+  manufacturer: Generic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: generic-family-placeholder
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/res-array-4x-0603
+    source_identity: component:res-array-4x-0603:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:res-array-4x-0603:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

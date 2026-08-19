@@ -1,0 +1,226 @@
+schema_version: '2.0'
+id: rp2040
+name: RP2040
+category: mcu
+manufacturer: Raspberry Pi
+mpn: RP2040B0
+description: Dual-core Cortex-M0+ MCU, 133MHz, 264KB SRAM, USB, PIO
+datasheet: https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf
+package: QFN-56
+footprint: RP2040-QFN-56
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  GP0:
+    type: bidirectional
+    description: GPIO0
+  GP1:
+    type: bidirectional
+    description: GPIO1
+  GP2:
+    type: bidirectional
+    description: GPIO2
+  GP3:
+    type: bidirectional
+    description: GPIO3
+  GP4:
+    type: bidirectional
+    description: GPIO4
+  GP5:
+    type: bidirectional
+    description: GPIO5
+  GP6:
+    type: bidirectional
+    description: GPIO6
+  GP7:
+    type: bidirectional
+    description: GPIO7
+  GP8:
+    type: bidirectional
+    description: GPIO8
+  GP9:
+    type: bidirectional
+    description: GPIO9
+  GP10:
+    type: bidirectional
+    description: GPIO10
+  GP11:
+    type: bidirectional
+    description: GPIO11
+  GP12:
+    type: bidirectional
+    description: GPIO12
+  GP13:
+    type: bidirectional
+    description: GPIO13
+  GP14:
+    type: bidirectional
+    description: GPIO14
+  GP15:
+    type: bidirectional
+    description: GPIO15
+  GP16:
+    type: bidirectional
+    description: GPIO16
+  GP17:
+    type: bidirectional
+    description: GPIO17
+  GP18:
+    type: bidirectional
+    description: GPIO18
+  GP19:
+    type: bidirectional
+    description: GPIO19
+  GP20:
+    type: bidirectional
+    description: GPIO20
+  GP21:
+    type: bidirectional
+    description: GPIO21
+  GP22:
+    type: bidirectional
+    description: GPIO22
+  GP23:
+    type: bidirectional
+    description: GPIO23
+  GP24:
+    type: bidirectional
+    description: GPIO24
+  GP25:
+    type: bidirectional
+    description: GPIO25 / LED
+  GP26:
+    type: bidirectional
+    description: GPIO26 / ADC0
+  GP27:
+    type: bidirectional
+    description: GPIO27 / ADC1
+  GP28:
+    type: bidirectional
+    description: GPIO28 / ADC2
+  GP29:
+    type: bidirectional
+    description: GPIO29 / ADC3
+  SWDIO:
+    type: bidirectional
+    description: SWD data
+  SWDCLK:
+    type: input
+    description: SWD clock
+  USB_DP:
+    type: bidirectional
+    description: USB D+
+  USB_DM:
+    type: bidirectional
+    description: USB D-
+  RUN:
+    type: input
+    description: Reset input
+  XIN:
+    type: input
+    description: Crystal input
+  XOUT:
+    type: output
+    description: Crystal output
+  TESTEN:
+    type: input
+    description: Test enable
+  IOVDD:
+    type: power
+    description: I/O supply 3.3V
+  VDD:
+    type: power
+    description: Core supply 1.1V
+  USB_VDD:
+    type: power
+    description: USB supply 3.3V
+  ADC_AVDD:
+    type: power
+    description: ADC supply 3.3V
+  VREG_VIN:
+    type: power
+    description: Regulator input
+  VREG_VOUT:
+    type: output
+    description: Regulator output 1.1V
+properties:
+  core: Dual Cortex-M0+
+  frequency_mhz: 133
+  sram_kb: 264
+  pio_blocks: 2
+  adc_channels: 4
+electrical_limits:
+  frequency_mhz: 133
+  voltage_supply: '3.3'
+sourcing:
+  mpn: RP2040B0
+  manufacturer: Raspberry Pi
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf
+    source_identity: component:rp2040:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rp2040:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,105 @@
+schema_version: '2.0'
+id: a71ch020ahna4
+name: A71CH020
+category: security
+manufacturer: NXP
+mpn: A71CH020AHNA4
+description: A71CH I2C secure element HSM
+datasheet: internal://zaptrace/component-family/a71ch020ahna4
+package: HVQFN-32
+footprint: HVQFN-32
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VCC:
+    type: power
+    description: Supply 1.62V–3.6V
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: I2C SDA
+  SCL:
+    type: input
+    description: I2C SCL
+  RESET:
+    type: input
+    description: Reset
+  INT:
+    type: output
+    description: Interrupt / Alert
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: A71CH020AHNA4
+  manufacturer: NXP
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:a71ch020ahna4:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/a71ch020ahna4
+    source_identity: component:a71ch020ahna4:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:a71ch020ahna4:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:a71ch020ahna4:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:a71ch020ahna4:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:a71ch020ahna4:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:a71ch020ahna4:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:a71ch020ahna4:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

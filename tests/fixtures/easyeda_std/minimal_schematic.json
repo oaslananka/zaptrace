@@ -1,0 +1,46 @@
+{
+  "head": {
+    "docType": "1",
+    "editorVersion": "6.5.40",
+    "c_para": {
+      "sourceProvenance": "CC0-1.0",
+      "description": "Minimal synthetic EasyEDA Standard schematic fixture"
+    }
+  },
+  "schematic": {
+    "components": [
+      {"id": "gge001", "ref": "R1", "value": "10k", "packageName": "R_0402", "x": 100.0, "y": 200.0},
+      {"id": "gge002", "ref": "C1", "value": "100nF", "packageName": "C_0402", "x": 150.0, "y": 200.0},
+      {"id": "gge003", "ref": "D1", "value": "1N4148", "packageName": "SOD-323", "x": 200.0, "y": 200.0}
+    ],
+    "nets": [
+      {
+        "id": "net001",
+        "name": "VCC",
+        "pins": [
+          {"componentId": "gge001", "pinNumber": "1"},
+          {"componentId": "gge002", "pinNumber": "1"}
+        ]
+      },
+      {
+        "id": "net002",
+        "name": "GND",
+        "pins": [
+          {"componentId": "gge001", "pinNumber": "2"},
+          {"componentId": "gge002", "pinNumber": "2"},
+          {"componentId": "gge003", "pinNumber": "2"}
+        ]
+      }
+    ],
+    "wires": [
+      {
+        "id": "wire001",
+        "strokeColor": "#000000",
+        "points": [[100.0, 180.0], [150.0, 180.0]]
+      }
+    ],
+    "shapes": [
+      {"type": "~RECT~10~10~90~90~", "data": "~RECT~10~10~90~90~"}
+    ]
+  }
+}

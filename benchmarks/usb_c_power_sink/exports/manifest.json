@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "family_id": "usb_c_power_sink",
+  "artifact_kind": "manufacturing-export-manifest",
+  "status": "starter-fixture",
+  "artifacts": [],
+  "blocked": false,
+  "warnings": [
+    "No fabrication-ready Gerber/drill/BOM files are claimed by this starter fixture.",
+    "USB-C compliance, USB-IF certification, safety and high-current thermal validation are outside this fixture manifest."
+  ],
+  "non_claims": [
+    "not fabrication-ready",
+    "not USB-IF-certified",
+    "not safety-approved",
+    "not manufacturer-approved",
+    "not production-ready"
+  ]
+}

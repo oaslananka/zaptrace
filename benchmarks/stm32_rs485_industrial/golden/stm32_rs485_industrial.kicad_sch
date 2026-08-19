@@ -1,0 +1,6 @@
+(kicad_sch (version 20250114) (generator "zaptrace-benchmark-fixture")
+  (paper "A4")
+  (title_block
+    (title "STM32 RS485 Industrial Benchmark Fixture")
+    (comment 1 "Hash fixture only; not industrial safety or fabrication-ready evidence"))
+)

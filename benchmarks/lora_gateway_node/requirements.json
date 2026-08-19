@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "family_id": "lora_gateway_node",
+  "benchmark_id": "lora_gateway_node_fixture_v1",
+  "title": "LoRa gateway node benchmark fixture",
+  "representative_intent": "ESP32 LoRa gateway with RF front-end, antenna keepout and power filtering",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-LORA-RF-FRONTEND",
+      "text": "Represent LoRa RF front-end, antenna connector/keepout and RF non-claims evidence.",
+      "category": "wireless-rf",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-ESP32-GATEWAY-POWER",
+      "text": "Provide ESP32 gateway power filtering, rail current and decoupling review evidence.",
+      "category": "power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-DIGITAL-RF-PARTITION",
+      "text": "Track digital/RF partitioning, return-path and SI/PI review evidence.",
+      "category": "layout-rf",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-LORA-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, RF/SI/PI, current budget and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": [
+      "human-review-required",
+      "autonomous-pass"
+    ]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not RF certification or fabrication approval.",
+    "The fixture does not claim antenna performance, LoRaWAN certification, regulatory compliance, manufacturability or production readiness."
+  ]
+}

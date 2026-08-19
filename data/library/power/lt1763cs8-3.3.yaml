@@ -1,0 +1,102 @@
+schema_version: '2.0'
+id: lt1763cs8-3.3
+name: LT1763CS8-3.3
+category: power
+manufacturer: Linear/ADI
+mpn: LT1763
+description: Ultra-low-noise LDO 3.3V 500mA
+datasheet: internal://zaptrace/component-family/lt1763cs8-3.3
+package: SO-8
+footprint: SO-8
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VIN:
+    type: power
+    description: Input voltage
+  VOUT:
+    type: output
+    description: Regulated output
+  GND:
+    type: power
+    description: Ground
+  EN:
+    type: input
+    description: Enable
+  BYP:
+    type: input
+    description: Bypass/NC
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: LT1763
+  manufacturer: Linear/ADI
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:lt1763cs8-3.3:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/lt1763cs8-3.3
+    source_identity: component:lt1763cs8-3.3:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:lt1763cs8-3.3:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:lt1763cs8-3.3:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:lt1763cs8-3.3:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:lt1763cs8-3.3:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:lt1763cs8-3.3:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:lt1763cs8-3.3:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

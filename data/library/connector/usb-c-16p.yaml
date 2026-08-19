@@ -1,0 +1,128 @@
+schema_version: '2.0'
+id: usb-c-16p
+name: GCT USB4105-15-A-120
+category: connector
+manufacturer: GCT
+mpn: USB4105-15-A-120
+description: USB 2.0 Type-C 16-contact receptacle, SMT top-mount horizontal, 15 microinch gold, 1.20 mm shell stakes
+datasheet: https://gct.co/files/drawings/usb4105.pdf
+package: SMD-16P
+footprint: USB-C-16P-SMD
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VBUS:
+    type: power
+    description: USB VBUS; package contacts A4, A9, B4, and B9
+  GND:
+    type: power
+    description: Ground; package contacts A1, A12, B1, and B12
+  D+:
+    type: bidirectional
+    description: USB 2.0 D+; package contacts A6 and B6
+  D-:
+    type: bidirectional
+    description: USB 2.0 D-; package contacts A7 and B7
+  CC1:
+    type: bidirectional
+    description: Configuration channel contact A5
+  CC2:
+    type: bidirectional
+    description: Configuration channel contact B5
+  SBU1:
+    type: bidirectional
+    description: Sideband-use contact A8
+  SBU2:
+    type: bidirectional
+    description: Sideband-use contact B8
+  SHIELD:
+    type: power
+    description: Connector shell; footprint pad S1 is repeated across four shell stakes
+package_pin_map:
+  A1: GND
+  A4: VBUS
+  A5: CC1
+  A6: D+
+  A7: D-
+  A8: SBU1
+  A9: VBUS
+  A12: GND
+  B1: GND
+  B4: VBUS
+  B5: CC2
+  B6: D+
+  B7: D-
+  B8: SBU2
+  B9: VBUS
+  B12: GND
+  S1: SHIELD
+properties:
+  type: USB-C
+  series: USB4105
+  manufacturer_package_name: GCT USB4105-15-A-120
+  legacy_package_name: SMD-16P
+  usb_version: '2.0'
+  contact_count: 16
+  pcb_mount_type: surface-mount
+  orientation: horizontal
+  mount_position: top-mount
+  shell_stake_length_mm: 1.20
+  contact_plating: 15 microinch gold
+  packing: tape-and-reel
+  mating_cycles: 20000
+  operating_temperature_c: [-40, 85]
+  power_rating_w: 240
+  vbus_collective_current_a: 5.0
+  gnd_collective_current_a: 6.25
+  cc_pin_current_a: 1.25
+  other_pin_current_a: 0.25
+  repository_land_pattern:
+    source: KiCad official Connector_USB.pretty/USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal.kicad_mod
+    source_revision: f10d74936d09738be218aba778f3655cc230fbfc
+    source_sha256: db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c
+    supported_variant: USB4105-15-A-120
+    review_note: The vendored KiCad footprint explicitly covers USB4105-xx-A-120 variants and matches the manufacturer series pin identities; high-risk USB-C footprint geometry and orientation still require human review before trust-tier promotion
+electrical_limits:
+  rated_voltage_v: 48
+  current_rating_a: 5.0
+  temperature_range: [-40, 85]
+  review_note: 5.0 A is the collective VBUS contact rating from the GCT drawing; GND is rated 6.25 A collectively, CC contacts 1.25 A, and other signal contacts 0.25 A each
+sourcing:
+  mpn: USB4105-15-A-120
+  manufacturer: GCT
+  status: manufacturer-catalog-active
+  production_note: GCT currently lists the USB4105 series active and publishes the exact USB4105-15-A-120 variant; re-check authorized distributor stock, lead time, and ordering suffix before procurement
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: Component metadata is not project-specific regulatory certification; confirm current declarations during procurement
+provenance:
+  source: GCT USB4105 product drawing Revision B / PCN B4 and current manufacturer product page
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of the high-risk USB-C land pattern, shell-stake geometry, orientation, pin map, and current procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &drawing_evidence
+    source_type: manufacturer_document
+    source_locator: https://gct.co/files/drawings/usb4105.pdf
+    source_identity: GCT USB4105 product drawing
+    source_sha256: fb331fbabee8392ed2937ed757c1610cb0f174b84625147c0b580a18eea8c0e5
+    source_version: Revision B / PCN B4 (2023-12-18)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-10
+    confidence: medium
+  datasheet: *drawing_evidence
+  pin_map: *drawing_evidence
+  package: *drawing_evidence
+  footprint: *drawing_evidence
+  electrical_limits: *drawing_evidence
+  lifecycle: &product_page_evidence
+    source_type: manufacturer_web
+    source_locator: https://gct.co/connector/usb4105
+    source_identity: gct:usb4105-product-page
+    source_version: accessed-2026-08-10
+    extraction_method: manufacturer-product-page-capture
+    extracted_at: 2026-08-10
+    confidence: medium
+  sourcing: *product_page_evidence

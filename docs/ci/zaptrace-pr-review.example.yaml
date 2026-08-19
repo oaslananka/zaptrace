@@ -1,0 +1,10 @@
+mode: pr-review
+fail_on: [error, critical]
+fab_profile: jlcpcb-2layer
+public_logs: false
+upload_artifacts: true
+artifact_names:
+  - zaptrace-proof-pack
+  - zaptrace-validation-reports
+  - zaptrace-manufacturing-artifacts
+  - zaptrace-kicad-oracle

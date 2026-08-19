@@ -1,0 +1,103 @@
+schema_version: '2.0'
+id: ws2812b-2020
+name: WS2812B-2020
+category: optoelectronic
+manufacturer: Worldsemi
+mpn: WS2812B-2020
+description: Addressable RGB LED, 2020 package, 5V, embedded driver IC, 1-wire control
+datasheet: https://www.worldsemi.com/download/WS2812B-2020_datasheet.pdf
+package: '2020'
+footprint: WS2812B-2020
+lifecycle: active
+voltage_supply: '5'
+pins:
+  VDD:
+    type: power
+    description: 5V supply
+  GND:
+    type: power
+    description: Ground
+  DIN:
+    type: input
+    description: Data input
+  DOUT:
+    type: output
+    description: Data output (daisy-chain)
+properties:
+  led_color: RGB
+  control_interface: 1-wire
+  forward_current_ma: 20
+electrical_limits:
+  voltage_supply: '5'
+sourcing:
+  mpn: WS2812B-2020
+  manufacturer: Worldsemi
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.worldsemi.com/download/WS2812B-2020_datasheet.pdf
+    source_identity: component:ws2812b-2020:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ws2812b-2020:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

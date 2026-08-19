@@ -1,0 +1,60 @@
+version = 1
+SPDX-PackageName = "ZapTrace"
+SPDX-PackageSupplier = "oaslananka <oaslananka@users.noreply.github.com>"
+SPDX-PackageDownloadLocation = "https://github.com/oaslananka/zaptrace"
+
+# Project-authored and generated tracked files use the repository MIT license.
+# More specific third-party overrides must appear after this annotation.
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "data/library/**/*.yaml"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
+SPDX-License-Identifier = "MIT"
+SPDX-FileComment = "Generated library part entries. Manufacturer names, part numbers, and datasheet URLs are factual data."
+
+[[annotations]]
+path = "tests/fixtures/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
+SPDX-License-Identifier = "MIT"
+SPDX-FileComment = "Synthetic test fixtures created for the ZapTrace test suite."
+
+[[annotations]]
+path = ["uv.lock", "Cargo.lock", "**/*.lock"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
+SPDX-License-Identifier = "MIT"
+SPDX-FileComment = "Automatically generated dependency or tool lock file."
+
+# These land patterns are vendored verbatim from the KiCad and Espressif
+# libraries. The override prevents the repository-wide MIT annotation from
+# being applied to third-party footprint content.
+[[annotations]]
+path = "data/footprints/vendor/*.kicad_mod"
+precedence = "override"
+SPDX-FileCopyrightText = "KiCad project contributors and upstream footprint authors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+SPDX-FileComment = "Vendored upstream land patterns under CC-BY-SA-4.0 with the KiCad library exception; see data/footprints/vendor/ATTRIBUTION.md."
+
+# External benchmark fixtures are vendored verbatim from pinned upstream
+# hardware repositories. These narrow overrides prevent the repository-wide
+# MIT annotation from being applied to third-party source files.
+[[annotations]]
+path = "benchmarks/external/sparkfun-qwiic-navigation/source/*"
+precedence = "override"
+SPDX-FileCopyrightText = "SparkFun Electronics and upstream contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+SPDX-FileComment = "Vendored verbatim from pinned upstream revision; see benchmarks/external/manifest.json."
+
+[[annotations]]
+path = "benchmarks/external/mitayi-pico-d1/source/*"
+precedence = "override"
+SPDX-FileCopyrightText = "2020 CIRCUITSTATE Electronics LLP"
+SPDX-License-Identifier = "MIT"
+SPDX-FileComment = "Vendored verbatim from pinned upstream revision; see benchmarks/external/manifest.json."

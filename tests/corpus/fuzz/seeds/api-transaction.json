@@ -1,0 +1,5 @@
+{
+  "operation": "board_update",
+  "params": {"width_mm": 75.0},
+  "reason": "bounded fuzz seed"
+}

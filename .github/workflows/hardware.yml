@@ -1,0 +1,168 @@
+name: Hardware
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "zaptrace/export/**"
+      - "zaptrace/erc/**"
+      - "zaptrace/algo/**"
+      - "zaptrace/ee/**"
+      - "examples/**"
+      - "benchmarks/**"
+      - "tests/corpus/**"
+      - "scripts/ci_*.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - "zaptrace/export/**"
+      - "zaptrace/erc/**"
+      - "zaptrace/algo/**"
+      - "zaptrace/ee/**"
+      - "examples/**"
+      - "benchmarks/**"
+      - "tests/corpus/**"
+      - "scripts/ci_*.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+  UV_VERSION: "0.11"
+  PYTHONPATH: "."
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: Export regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Run export regression tests
+        run: .venv/bin/pytest tests/test_export_regression.py -v --tb=short
+
+      - name: Run Gerber smoke test
+        run: .venv/bin/python scripts/ci_smoke.py gerber
+
+      - name: Run proof pack smoke test
+        run: .venv/bin/python scripts/ci_smoke.py proof
+
+      - name: Run KiCad round-trip scorecard
+        run: .venv/bin/python scripts/ci_kicad_roundtrip_scorecard.py --strict --root . --output kicad-roundtrip-scorecard.json --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload KiCad round-trip scorecard
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: kicad-roundtrip-scorecard
+          path: kicad-roundtrip-scorecard.json
+
+  examples:
+    name: Example designs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Validate all examples through full pipeline
+        run: .venv/bin/python scripts/ci_examples.py
+
+  kicad:
+    name: KiCad oracle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Install KiCad 10 CLI
+        run: |
+          bash scripts/ci_install_kicad.sh kicad
+
+      - name: Record KiCad availability
+        run: .venv/bin/python scripts/ci_kicad_oracle.py --check --output kicad-oracle-check.json
+
+      - name: Run KiCad oracle
+        run: .venv/bin/python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json
+
+      - name: Upload KiCad oracle evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: kicad-oracle-evidence
+          path: |
+            kicad-oracle-check.json
+            kicad-oracle-summary.json
+          if-no-files-found: warn
+
+      - name: Run KiCad export regression
+        run: |
+          .venv/bin/python -c "
+          from pathlib import Path
+          from zaptrace.export.kicad import export_kicad_pcb, export_kicad_schematic
+          from zaptrace.core.models import BoardConfig, Component, Design, DesignMeta, Net, NetNode
+          from zaptrace.ee.classifier import classify_design
+          from zaptrace.algo.placer import place_components
+          from zaptrace.algo.router import route_design_smart
+          import tempfile
+
+          with tempfile.TemporaryDirectory(prefix='zaptrace-kicad-regression-') as tmpdir:
+              out = Path(tmpdir)
+              for name, board in [('50x40_2layer', (50, 40, 2)), ('100x80_4layer', (100, 80, 4))]:
+                  d = Design(
+                      meta=DesignMeta(name=name),
+                      board=BoardConfig(width_mm=board[0], height_mm=board[1], layers=board[2]),
+                  )
+                  d.components['u1'] = Component(id='u1', ref='U1', type='mcu', value='TestMCU', footprint='QFN-32')
+                  d.nets['vcc'] = Net(id='VCC', name='VCC', nodes=[NetNode(component_ref='U1', pin_name='VCC')])
+                  d.nets['gnd'] = Net(id='GND', name='GND', nodes=[NetNode(component_ref='U1', pin_name='GND')])
+                  classify_design(d)
+                  positions = place_components(d)
+                  _, d.routing, _ = route_design_smart(d, positions)
+                  sch = export_kicad_schematic(d, out / name)
+                  pcb = export_kicad_pcb(d, out / name)
+                  for kind, fpath in {**sch, **pcb}.items():
+                      p = Path(fpath)
+                      assert p.exists() and p.stat().st_size > 0, f'{kind} missing or empty: {p}'
+                      print(f'  {name}/{kind}: {p.stat().st_size} bytes')
+          "

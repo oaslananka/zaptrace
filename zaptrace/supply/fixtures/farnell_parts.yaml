@@ -1,0 +1,75 @@
+provider: "farnell-fixture"
+cache_policy: "fixture-only"
+parts:
+  ESP32-S3-WROOM-1-N8:
+    manufacturer: "Espressif"
+    distributor: "Farnell/Newark"
+    distributor_part_number: "3891234"
+    stock: 420
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH", "RoHS"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 4.15
+        currency: "GBP"
+      - quantity: 10
+        unit_price: 3.78
+        currency: "GBP"
+      - quantity: 100
+        unit_price: 3.42
+        currency: "GBP"
+    alternates:
+      - mpn: "ESP32-S3-WROOM-1-N16R8"
+        manufacturer: "Espressif"
+        distributor_part_number: "3891235"
+        reason: "Larger flash variant"
+        footprint: "ESP32-S3-WROOM-1"
+        lifecycle: "active"
+    footprint: "ESP32-S3-WROOM-1"
+  BME280:
+    manufacturer: "Bosch Sensortec"
+    distributor: "Farnell/Newark"
+    distributor_part_number: "2845678"
+    stock: 310
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH", "RoHS"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 5.22
+        currency: "GBP"
+      - quantity: 10
+        unit_price: 4.85
+        currency: "GBP"
+    alternates:
+      - mpn: "BMP280"
+        manufacturer: "Bosch Sensortec"
+        distributor_part_number: "2845679"
+        reason: "Lower cost, no humidity sensor"
+        footprint: "LGA-8"
+        lifecycle: "active"
+    footprint: "LGA-8"
+  AP2112K-3.3:
+    manufacturer: "Diodes Incorporated"
+    distributor: "Farnell/Newark"
+    distributor_part_number: "2987654"
+    stock: 1850
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH", "RoHS"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 0.48
+        currency: "GBP"
+      - quantity: 100
+        unit_price: 0.32
+        currency: "GBP"
+    alternates:
+      - mpn: "AP2112K-3.3TRG1"
+        manufacturer: "Diodes Incorporated"
+        distributor_part_number: "2987655"
+        reason: "Same part, reel packaging"
+        footprint: "SOT-23-5"
+        lifecycle: "active"
+    footprint: "SOT-23-5"

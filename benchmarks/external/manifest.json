@@ -1,0 +1,97 @@
+{
+  "corpus_id": "zaptrace-external-kicad-v1",
+  "corpus_version": "2026.07",
+  "fixtures": [
+    {
+      "canonical_run_hash": "aba9f8f043b5867fdc57c47d0bfcafd9ac354087f0305a4638e4a16a6c0e8836",
+      "conversion_notes": "Vendored verbatim; no format conversion or semantic edits.",
+      "copyright_holder": "SparkFun Electronics and upstream contributors",
+      "files": [
+        {
+          "kind": "pcb",
+          "local_path": "benchmarks/external/sparkfun-qwiic-navigation/source/SparkFun_Qwiic_Navigation.kicad_pcb",
+          "required": true,
+          "sha256": "0e27f8eb07741a84f98a3d7cabccfc4153c3070ad8e04dce31ca57c9d27016bb",
+          "size_bytes": 676230,
+          "upstream_path": "Hardware/SparkFun_Qwiic_Navigation.kicad_pcb"
+        },
+        {
+          "kind": "project",
+          "local_path": "benchmarks/external/sparkfun-qwiic-navigation/source/SparkFun_Qwiic_Navigation.kicad_pro",
+          "required": true,
+          "sha256": "c0cd12cdf421aefc9fd8884e94316c97bcc10d80d9a1b399bdd6712bea097a19",
+          "size_bytes": 14759,
+          "upstream_path": "Hardware/SparkFun_Qwiic_Navigation.kicad_pro"
+        },
+        {
+          "kind": "schematic",
+          "local_path": "benchmarks/external/sparkfun-qwiic-navigation/source/SparkFun_Qwiic_Navigation.kicad_sch",
+          "required": true,
+          "sha256": "e70e7157c51686cf97304aa6520cab91bb875f37073a195076203deb7897012e",
+          "size_bytes": 271174,
+          "upstream_path": "Hardware/SparkFun_Qwiic_Navigation.kicad_sch"
+        }
+      ],
+      "fixture_id": "sparkfun-qwiic-navigation",
+      "kicad_major": 8,
+      "license_expression": "CC-BY-SA-4.0",
+      "license_source": "LICENSE.md hardware section",
+      "source_digest": "c4d8f524f5710a102aab4f4aa4688b88b88ad708055f548163f3388a1cdf41dc",
+      "source_format": "kicad",
+      "task_run_hash": "aae503aaee5496d8c8da18803cc257917d63d3237ea2cc6c1ab90e766a72bda6",
+      "title": "SparkFun Qwiic Navigation Switch",
+      "upstream_commit": "b64c0dac2134d69963bf28120305bd79aad3c8ac",
+      "upstream_repository": "https://github.com/sparkfun/SparkFun_Qwiic_Navigation_Switch",
+      "upstream_source_path": "Hardware"
+    },
+    {
+      "canonical_run_hash": "d8ea803cadcc4abf70397a0d0110d0db8cab5e43377b95b0b49c1c380b53629a",
+      "conversion_notes": "Vendored verbatim; no format conversion or semantic edits.",
+      "copyright_holder": "2020 CIRCUITSTATE Electronics LLP",
+      "files": [
+        {
+          "kind": "pcb",
+          "local_path": "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_pcb",
+          "required": true,
+          "sha256": "52dc529d6caf77d947c25f8b7f68d2c8a43f0ee5f05bff3ceaec1c7d0698aa5c",
+          "size_bytes": 1973491,
+          "upstream_path": "Mitayi-Pico-D1.kicad_pcb"
+        },
+        {
+          "kind": "project",
+          "local_path": "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_pro",
+          "required": true,
+          "sha256": "c8bd3909f11916aad6b412a94fa4a0ac9223b5cc251b5ee2d64ffd8778430c99",
+          "size_bytes": 22051,
+          "upstream_path": "Mitayi-Pico-D1.kicad_pro"
+        },
+        {
+          "kind": "schematic",
+          "local_path": "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch",
+          "required": true,
+          "sha256": "5b1fa60d4533faeab9e57619577a4fa6d3f2dc7ae45bac338610bd9e82635808",
+          "size_bytes": 460359,
+          "upstream_path": "Mitayi-Pico-D1.kicad_sch"
+        }
+      ],
+      "fixture_id": "mitayi-pico-d1",
+      "kicad_major": 9,
+      "license_expression": "MIT",
+      "license_source": "LICENSE",
+      "source_digest": "ddcabb9c3723f6be484a2762033a68d80d24ac0c801dcad786d6dbd9b63e2d24",
+      "source_format": "kicad",
+      "task_run_hash": "aae503aaee5496d8c8da18803cc257917d63d3237ea2cc6c1ab90e766a72bda6",
+      "title": "Mitayi-Pico-D1",
+      "upstream_commit": "8411224b5795dd74843ff87e8ead096f1e13e11d",
+      "upstream_repository": "https://github.com/CIRCUITSTATE/Mitayi-Pico-D1",
+      "upstream_source_path": "."
+    }
+  ],
+  "non_claims": [
+    "vendored external designs are benchmark inputs, not ZapTrace-authored reference designs",
+    "hash equality and task pass do not establish electrical correctness or fabrication readiness",
+    "repository-controlled reruns are not independent third-party reproduction"
+  ],
+  "schema_version": "1.0",
+  "task_path": "benchmarks/kicad-task-v1/task.yaml"
+}

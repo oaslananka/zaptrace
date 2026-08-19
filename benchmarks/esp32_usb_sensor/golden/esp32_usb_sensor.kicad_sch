@@ -1,0 +1,6 @@
+(kicad_sch (version 20250114) (generator "zaptrace-benchmark-fixture")
+  (paper "A4")
+  (title_block
+    (title "ESP32 USB Sensor Benchmark Fixture")
+    (comment 1 "Hash fixture only; not fabrication-ready evidence"))
+)

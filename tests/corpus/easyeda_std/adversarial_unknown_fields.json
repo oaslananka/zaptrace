@@ -1,0 +1,17 @@
+{
+  "head": {"docType": "1", "editorVersion": "6.5.10", "c_para": {}},
+  "schematic": {
+    "components": [
+      {"id": "X1", "ref": "X1", "value": "UNKNOWN_PART", "packageName": null, "x": 100, "y": 100}
+    ],
+    "nets": [
+      {"id": "N1", "name": "SIG", "pins": [{"componentId": "X1", "pinNumber": "1"}]},
+      {"id": "N2", "name": "SIG", "pins": [{"componentId": "X1", "pinNumber": "2"}]}
+    ],
+    "wires": [],
+    "shapes": [
+      {"type": "~UNKNOWN_SHAPE_FUTURE~data~that~wont~parse"},
+      {"type": null}
+    ]
+  }
+}

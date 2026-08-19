@@ -1,0 +1,96 @@
+schema_version: '2.0'
+id: cap-0805-220pf-c0g
+name: Cap MLCC 0805 220pF C0G
+category: passive
+manufacturer: Generic
+mpn: CAP-0805-220P-C0G
+description: MLCC capacitor 220pF C0G 0805 C0G 100V
+datasheet: internal://zaptrace/component-family/cap-0805-220pf-c0g
+package: 0805
+footprint: 0805
+lifecycle: active
+voltage_supply: ''
+pins:
+  P1:
+    type: passive
+    description: Terminal 1
+  P2:
+    type: passive
+    description: Terminal 2
+properties:
+  capacitance: 220pF C0G
+  dielectric: C0G
+  voltage_v: 100
+electrical_limits:
+  rated_voltage_v: 100
+sourcing:
+  mpn: CAP-0805-220P-C0G
+  manufacturer: Generic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:cap-0805-220pf-c0g:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/cap-0805-220pf-c0g
+    source_identity: component:cap-0805-220pf-c0g:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:cap-0805-220pf-c0g:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:cap-0805-220pf-c0g:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:cap-0805-220pf-c0g:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:cap-0805-220pf-c0g:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:cap-0805-220pf-c0g:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:cap-0805-220pf-c0g:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

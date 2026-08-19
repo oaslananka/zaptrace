@@ -1,0 +1,180 @@
+schema_version: '2.0'
+id: atmega328p-au
+name: ATmega328P-AU
+category: mcu
+manufacturer: Microchip
+mpn: ATMEGA328P-AU
+description: 8-bit AVR MCU, 20MHz, 32KB flash, 2KB SRAM, 1KB EEPROM
+datasheet: https://www.microchip.com/wwwproducts/en/ATMEGA328P
+package: TQFP-32
+footprint: ATmega328P-TQFP32
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  PC0:
+    type: bidirectional
+    description: ADC0 / PC0
+  PC1:
+    type: bidirectional
+    description: ADC1 / PC1
+  PC2:
+    type: bidirectional
+    description: ADC2 / PC2
+  PC3:
+    type: bidirectional
+    description: ADC3 / PC3
+  PC4:
+    type: bidirectional
+    description: ADC4 / SDA / PC4
+  PC5:
+    type: bidirectional
+    description: ADC5 / SCL / PC5
+  PD0:
+    type: bidirectional
+    description: RX / PD0
+  PD1:
+    type: bidirectional
+    description: TX / PD1
+  PD2:
+    type: bidirectional
+    description: INT0 / PD2
+  PD3:
+    type: bidirectional
+    description: INT1 / PD3
+  PD4:
+    type: bidirectional
+    description: OC1B / PD4
+  PD5:
+    type: bidirectional
+    description: OC0B / PD5
+  PD6:
+    type: bidirectional
+    description: OC0A / PD6
+  PD7:
+    type: bidirectional
+    description: PD7
+  PB0:
+    type: bidirectional
+    description: ICP1 / PB0
+  PB1:
+    type: bidirectional
+    description: OC1A / PB1
+  PB2:
+    type: bidirectional
+    description: SS / PB2
+  PB3:
+    type: bidirectional
+    description: MOSI / PB3
+  PB4:
+    type: bidirectional
+    description: MISO / PB4
+  PB5:
+    type: bidirectional
+    description: SCK / PB5
+  PB6:
+    type: bidirectional
+    description: XTAL1 / PB6
+  PB7:
+    type: bidirectional
+    description: XTAL2 / PB7
+  VCC:
+    type: power
+    description: Supply voltage
+  GND:
+    type: power
+    description: Ground
+  AVCC:
+    type: power
+    description: ADC supply
+  AREF:
+    type: input
+    description: ADC reference
+  RESET:
+    type: input
+    description: Reset (active low)
+properties:
+  core: AVR 8-bit
+  frequency_mhz: 20
+  flash_kb: 32
+  sram_kb: 2
+  eeprom_kb: 1
+  interfaces:
+  - i2c
+  - spi
+  - uart
+  - adc
+electrical_limits:
+  frequency_mhz: 20
+  voltage_supply: '5.0'
+sourcing:
+  mpn: ATMEGA328P-AU
+  manufacturer: Microchip
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.microchip.com/wwwproducts/en/ATMEGA328P
+    source_identity: component:atmega328p-au:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:atmega328p-au:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,157 @@
+schema_version: '2.0'
+id: w5500
+name: W5500
+category: interface
+manufacturer: WIZnet
+mpn: W5500
+description: SPI to Ethernet MAC+PHY controller, TCP/IP offload, IPv4, LQFP-48
+datasheet: https://www.wiznet.io/support/download/w5500/
+package: LQFP-48
+footprint: W5500-LQFP48
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 3.3V supply
+  GND:
+    type: power
+    description: Ground
+  SCLK:
+    type: input
+    description: SPI clock
+  MOSI:
+    type: input
+    description: SPI data in
+  MISO:
+    type: output
+    description: SPI data out
+  SCS:
+    type: input
+    description: SPI chip select
+  RST:
+    type: input
+    description: Active-low reset
+  INT:
+    type: output
+    description: Interrupt output
+  TXP:
+    type: output
+    description: Ethernet TX+
+  TXN:
+    type: output
+    description: Ethernet TX-
+  RXP:
+    type: input
+    description: Ethernet RX+
+  RXN:
+    type: input
+    description: Ethernet RX-
+  XTAL1:
+    type: passive
+    description: 25MHz crystal input
+  XTAL2:
+    type: passive
+    description: 25MHz crystal output
+  VDDPLL:
+    type: power
+    description: PLL supply
+  VDDIO:
+    type: power
+    description: I/O supply
+  PMODE1:
+    type: input
+    description: PHY mode select 1
+  PMODE2:
+    type: input
+    description: PHY mode select 2
+  PMODE3:
+    type: input
+    description: PHY mode select 3
+  LED_LINK:
+    type: output
+    description: Link status LED
+  LED_ACT:
+    type: output
+    description: Activity LED
+  TEST:
+    type: input
+    description: Test mode (tie low)
+properties:
+  interface: spi
+  ethernet_speed: 10/100
+  tcp_offload: true
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: W5500
+  manufacturer: WIZnet
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.wiznet.io/support/download/w5500/
+    source_identity: component:w5500:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:w5500:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

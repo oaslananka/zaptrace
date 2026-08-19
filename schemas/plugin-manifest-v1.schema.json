@@ -1,0 +1,288 @@
+{
+  "$defs": {
+    "FilesystemPermissions": {
+      "additionalProperties": false,
+      "description": "Relative filesystem scopes declared by a plugin.",
+      "properties": {
+        "read": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Read",
+          "type": "array"
+        },
+        "write": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Write",
+          "type": "array"
+        }
+      },
+      "title": "FilesystemPermissions",
+      "type": "object"
+    },
+    "NetworkPermissions": {
+      "additionalProperties": false,
+      "description": "Network scopes declared by a plugin.",
+      "properties": {
+        "allowed_domains": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Domains",
+          "type": "array"
+        },
+        "allowed_schemes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Schemes",
+          "type": "array"
+        }
+      },
+      "title": "NetworkPermissions",
+      "type": "object"
+    },
+    "PluginCapability": {
+      "description": "Declared plugin capability strings.",
+      "enum": [
+        "design:read",
+        "design:write",
+        "design:metadata",
+        "proof:read",
+        "proof:write",
+        "library:read",
+        "library:write",
+        "filesystem:read",
+        "filesystem:write",
+        "network:connect",
+        "subprocess:run",
+        "plugin:load",
+        "mcp:tool_call",
+        "host:log",
+        "host:notify"
+      ],
+      "title": "PluginCapability",
+      "type": "string"
+    },
+    "PluginDependency": {
+      "additionalProperties": false,
+      "description": "Optional dependency on another plugin.",
+      "properties": {
+        "plugin_id": {
+          "minLength": 1,
+          "title": "Plugin Id",
+          "type": "string"
+        },
+        "version_range": {
+          "default": "*",
+          "title": "Version Range",
+          "type": "string"
+        }
+      },
+      "required": [
+        "plugin_id"
+      ],
+      "title": "PluginDependency",
+      "type": "object"
+    },
+    "PluginEntry": {
+      "additionalProperties": false,
+      "description": "Plugin entry point declaration.",
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "type": {
+          "default": "python_module",
+          "enum": [
+            "python_module",
+            "executable",
+            "wasm"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "PluginEntry",
+      "type": "object"
+    },
+    "PluginPermissions": {
+      "additionalProperties": false,
+      "description": "Resource access bounds for plugin admission.",
+      "properties": {
+        "filesystem": {
+          "$ref": "#/$defs/FilesystemPermissions"
+        },
+        "network": {
+          "$ref": "#/$defs/NetworkPermissions"
+        },
+        "subprocess": {
+          "default": false,
+          "title": "Subprocess",
+          "type": "boolean"
+        }
+      },
+      "title": "PluginPermissions",
+      "type": "object"
+    },
+    "PluginSigning": {
+      "additionalProperties": false,
+      "description": "Manifest signing metadata.",
+      "properties": {
+        "algorithm": {
+          "const": "ed25519",
+          "default": "ed25519",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "public_key_fingerprint": {
+          "minLength": 1,
+          "title": "Public Key Fingerprint",
+          "type": "string"
+        },
+        "signature": {
+          "minLength": 1,
+          "title": "Signature",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signature",
+        "public_key_fingerprint"
+      ],
+      "title": "PluginSigning",
+      "type": "object"
+    }
+  },
+  "$id": "https://zaptrace.dev/schemas/plugin-manifest-v1.json",
+  "additionalProperties": false,
+  "description": "Stable ZapTrace plugin manifest v1 contract.",
+  "properties": {
+    "$schema": {
+      "default": "https://zaptrace.dev/schemas/plugin-manifest-v1.json",
+      "title": "$Schema",
+      "type": "string"
+    },
+    "api_version": {
+      "default": "1.0",
+      "title": "Api Version",
+      "type": "string"
+    },
+    "author": {
+      "default": "",
+      "title": "Author",
+      "type": "string"
+    },
+    "capabilities": {
+      "items": {
+        "$ref": "#/$defs/PluginCapability"
+      },
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "dependencies": {
+      "items": {
+        "$ref": "#/$defs/PluginDependency"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+    },
+    "documentation": {
+      "default": "",
+      "title": "Documentation",
+      "type": "string"
+    },
+    "entry": {
+      "$ref": "#/$defs/PluginEntry"
+    },
+    "extension_points": {
+      "items": {
+        "enum": [
+          "importer",
+          "exporter",
+          "drc_rule",
+          "dfm_rule",
+          "synthesis_block",
+          "fab_profile",
+          "part_provider",
+          "report_generator"
+        ],
+        "type": "string"
+      },
+      "title": "Extension Points",
+      "type": "array"
+    },
+    "homepage": {
+      "default": "",
+      "title": "Homepage",
+      "type": "string"
+    },
+    "max_zaptrace_version": {
+      "minLength": 1,
+      "title": "Max Zaptrace Version",
+      "type": "string"
+    },
+    "min_zaptrace_version": {
+      "minLength": 1,
+      "title": "Min Zaptrace Version",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "permissions": {
+      "$ref": "#/$defs/PluginPermissions"
+    },
+    "plugin_id": {
+      "minLength": 3,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]+$",
+      "title": "Plugin Id",
+      "type": "string"
+    },
+    "repository": {
+      "default": "",
+      "title": "Repository",
+      "type": "string"
+    },
+    "signing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PluginSigning"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "plugin_id",
+    "name",
+    "version",
+    "min_zaptrace_version",
+    "max_zaptrace_version",
+    "entry"
+  ],
+  "title": "ZapTrace Plugin Manifest v1",
+  "type": "object"
+}

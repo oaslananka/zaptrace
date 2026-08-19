@@ -1,0 +1,108 @@
+schema_version: '2.0'
+id: usb-micro-b
+name: USB Micro-B
+category: connector
+manufacturer: Generic
+mpn: USB-MICRO-B-SMD
+description: USB Micro-B 5-pin receptacle
+datasheet: https://www.usb.org/document-library/usb-20-specification
+package: SMD-5P
+footprint: USB-MICRO-B-SMD
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VBUS:
+    type: power
+    description: 5V bus power
+  GND:
+    type: power
+    description: Ground
+  D+:
+    type: bidirectional
+    description: USB D+
+  D-:
+    type: bidirectional
+    description: USB D-
+  ID:
+    type: input
+    description: ID pin (OTG)
+  SHIELD:
+    type: power
+    description: Shield
+properties:
+  type: USB Micro-B
+  pins: 5
+electrical_limits:
+  voltage_supply: '5.0'
+sourcing:
+  mpn: USB-MICRO-B-SMD
+  manufacturer: Generic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.usb.org/document-library/usb-20-specification
+    source_identity: component:usb-micro-b:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:usb-micro-b:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

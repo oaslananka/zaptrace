@@ -1,0 +1,1281 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 1 * * *"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+  UV_VERSION: "0.11"
+  PYTHONPATH: "."
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Change classification
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      full_ci: ${{ steps.classify.outputs.full_ci }}
+      full_matrix: ${{ steps.classify.outputs.full_matrix }}
+      heavy_ci: ${{ steps.classify.outputs.heavy_ci }}
+      test_mode: ${{ steps.classify.outputs.test_mode }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - id: classify
+        name: Classify changed paths
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed_file_list="changed-files.txt"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$changed_file_list"
+          else
+            printf '%s\n' "__non_pr__" > "$changed_file_list"
+          fi
+          python scripts/ci_change_policy.py \
+            --event "$EVENT_NAME" \
+            --changed-files "$changed_file_list" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+  validation-environment:
+    name: Validation environment parity
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip heavyweight validation for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping validation environment parity."
+          echo "Non-heavy PR; validation environment parity skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Install KiCad 10 CLI
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          bash scripts/ci_install_kicad.sh kicad ngspice
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install locked identity dependencies
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Run validation environment gate
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_validation_environment.py \
+            --role authoritative-release \
+            --strict \
+            --output validation-environment.json
+
+      - name: Upload validation environment report
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: validation-environment
+          path: validation-environment.json
+
+
+  distribution-clean-install:
+    name: Distribution clean-install
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Skip distribution clean-install for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping distribution clean-install."
+          echo "Non-heavy PR; distribution clean-install skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        if: needs.changes.outputs.heavy_ci == 'true'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Build source distribution
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          uv lock --check
+          uv build --sdist
+
+      - name: Create clean locked environment
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke" uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+            --python "$PYTHON_VERSION"
+
+      - name: Install exact source distribution
+        if: needs.changes.outputs.heavy_ci == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdist="$(realpath dist/*.tar.gz)"
+          sdist_hash="$(sha256sum "$sdist" | awk '{print $1}')"
+          printf 'zaptrace-eda @ file://%s --hash=sha256:%s\n' "$sdist" "$sdist_hash" \
+            > "$RUNNER_TEMP/sdist.requirements.txt"
+          uv pip install \
+            --python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python" \
+            --no-deps \
+            --require-hashes \
+            -r "$RUNNER_TEMP/sdist.requirements.txt"
+          uv pip check --python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"
+
+      - name: Run clean-install distribution smoke
+        if: needs.changes.outputs.heavy_ci == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdist="$(realpath dist/*.tar.gz)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$sdist" \
+            --artifact-root "$GITHUB_WORKSPACE/dist" \
+            --artifact-type source-distribution \
+            --target sdist-linux-x86_64-cp313 \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native absent \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload distribution clean-install evidence
+        if: needs.changes.outputs.heavy_ci == 'true' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: distribution-smoke-sdist-linux-x86_64-cp313
+          path: |
+            distribution-smoke-sdist-linux-x86_64-cp313.json
+            distribution-smoke-sdist-linux-x86_64-cp313.md
+          if-no-files-found: error
+
+  lint:
+    name: Lint & Typecheck
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip heavyweight lint/typecheck for docs-only PR
+        if: needs.changes.outputs.full_ci != 'true'
+        run: |
+          echo "Docs-only PR; skipping Python lint/typecheck."
+          echo "Docs-only PR; Python lint/typecheck skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+        if: needs.changes.outputs.full_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.full_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.full_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.full_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Verify version consistency
+        if: needs.changes.outputs.full_ci == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_CONTEXT="development"
+          VERSION_SOURCE_REF="$GITHUB_REF"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$GITHUB_HEAD_REF" == release/v* ]]; then
+            VERSION_CONTEXT="release-preparation"
+            VERSION_SOURCE_REF="refs/heads/$GITHUB_HEAD_REF"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            PACKAGE_VERSION="$(.venv/bin/python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+            if [[ "$PACKAGE_VERSION" != *.dev* ]]; then
+              VERSION_CONTEXT="release-preparation"
+            fi
+          fi
+          .venv/bin/python scripts/ci_version_consistency.py \
+            --context "$VERSION_CONTEXT" \
+            --source-ref "$VERSION_SOURCE_REF" \
+            --source-commit "$(git rev-parse HEAD)" \
+            --output version-consistency.json \
+            --markdown version-consistency.md \
+            --strict
+          cat version-consistency.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload version consistency evidence
+        if: always() && needs.changes.outputs.full_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: version-consistency
+          path: |
+            version-consistency.json
+            version-consistency.md
+          if-no-files-found: error
+
+      - name: Ruff lint
+        if: needs.changes.outputs.full_ci == 'true'
+        run: .venv/bin/ruff check .
+
+      - name: Ruff format check
+        if: needs.changes.outputs.full_ci == 'true'
+        run: .venv/bin/ruff format --check .
+
+      - name: Pyright
+        if: needs.changes.outputs.full_ci == 'true'
+        run: .venv/bin/pyright
+
+      - name: Component metadata gate
+        if: needs.changes.outputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_component_metadata_gate.py \
+            --trust-baseline config/component-trust-baseline.json \
+            --max-errors 0 \
+            --max-warnings 0 \
+            --strict \
+            --output component-metadata-gate.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Component evidence gate
+        if: needs.changes.outputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_component_evidence_gate.py \
+            --manifest config/component-evidence-manifest.json \
+            --strict \
+            --output component-evidence-gate.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload component evidence gate
+        if: always() && needs.changes.outputs.full_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: component-evidence-gate
+          path: component-evidence-gate.json
+          if-no-files-found: error
+
+      - name: Component selection coverage gate
+        if: needs.changes.outputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_component_selection_gate.py \
+            --corpus tests/fixtures/component_selection/prompts.yaml \
+            --minimum-governed-parts 100 \
+            --strict \
+            --output component-selection-coverage.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Requirements architecture compiler gate
+        if: needs.changes.outputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_architecture_compiler_gate.py \
+            --corpus tests/fixtures/architecture/prompts.yaml \
+            --minimum-ready-cases 5 \
+            --strict \
+            --schema-output electronics-architecture-v1.schema.json \
+            --output architecture-compiler-coverage.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+          cmp electronics-architecture-v1.schema.json docs/schemas/electronics-architecture-v1.schema.json
+          cmp architecture-compiler-coverage.json docs/reports/architecture-compiler-coverage-2026-07-27.json
+
+      - name: Upload architecture compiler evidence
+        if: always() && needs.changes.outputs.full_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: architecture-compiler-evidence
+          path: |
+            architecture-compiler-coverage.json
+            electronics-architecture-v1.schema.json
+          if-no-files-found: error
+
+  mcp-compatibility:
+    name: MCP compatibility contract
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip MCP compatibility for docs-only PR
+        if: needs.changes.outputs.full_ci != 'true'
+        run: |
+          echo "Docs-only PR; skipping MCP compatibility contract."
+          echo "Docs-only PR; MCP compatibility contract skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.full_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.full_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.full_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install locked dependencies
+        if: needs.changes.outputs.full_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Run MCP dependency and transport contracts
+        if: needs.changes.outputs.full_ci == 'true'
+        run: |
+          .venv/bin/pytest -q \
+            tests/test_mcp_dependency_contract.py \
+            tests/test_mcp_server.py \
+            tests/test_network_transport_security.py
+
+      - name: Generate MCP dependency evidence
+        if: needs.changes.outputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_dependency_evidence.py \
+            --output mcp-dependency-evidence.json \
+            --strict
+
+      - name: Upload MCP dependency evidence
+        if: needs.changes.outputs.full_ci == 'true' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: mcp-dependency-evidence
+          path: mcp-dependency-evidence.json
+          if-no-files-found: error
+
+  test-lane-policy:
+    name: Test lane policy
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install locked dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Validate lane policy and shard inventory
+        run: |
+          .venv/bin/python scripts/ci_test_lane_policy.py \
+            --output test-lane-inventory.json \
+            --strict
+          .venv/bin/pytest -p tests.lane_policy \
+            --collect-only \
+            --lane "all" \
+            --lane-report test-lane-collection.json
+
+      - name: Upload test lane inventory
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: test-lane-inventory
+          path: |
+            test-lane-inventory.json
+            test-lane-collection.json
+          if-no-files-found: error
+
+  test:
+    name: Test lane ${{ matrix.artifact }}
+    needs: [changes, test-lane-policy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: unit
+            artifact: unit-1
+            shard_index: "1"
+            shard_count: "3"
+            install_external: false
+            build_native: false
+          - lane: unit
+            artifact: unit-2
+            shard_index: "2"
+            shard_count: "3"
+            install_external: false
+            build_native: false
+          - lane: unit
+            artifact: unit-3
+            shard_index: "3"
+            shard_count: "3"
+            install_external: false
+            build_native: false
+          - lane: integration
+            artifact: integration
+            shard_index: ""
+            shard_count: ""
+            install_external: false
+            build_native: false
+          - lane: benchmark
+            artifact: benchmark-1
+            shard_index: "1"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: benchmark
+            artifact: benchmark-2
+            shard_index: "2"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: hardware
+            artifact: hardware-1
+            shard_index: "1"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: hardware
+            artifact: hardware-2
+            shard_index: "2"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: external_tool
+            artifact: external-tool
+            shard_index: ""
+            shard_count: ""
+            install_external: true
+            build_native: false
+          - lane: native
+            artifact: native
+            shard_index: ""
+            shard_count: ""
+            install_external: false
+            build_native: true
+    env:
+      LANE: ${{ matrix.lane }}
+      ARTIFACT: ${{ matrix.artifact }}
+      SHARD_INDEX: ${{ matrix.shard_index }}
+      SHARD_COUNT: ${{ matrix.shard_count }}
+      JUNIT_PATH: junit-lane-${{ matrix.artifact }}.xml
+      LANE_REPORT: test-lane-report-${{ matrix.artifact }}.json
+
+    steps:
+      - name: Skip Python lanes for docs-only PR
+        if: needs.changes.outputs.test_mode == 'docs'
+        run: echo "Docs-only PR; $LANE lane skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        if: needs.changes.outputs.test_mode != 'docs'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install uv
+        if: needs.changes.outputs.test_mode != 'docs'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python 3.12
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build --python 3.12
+
+      - name: Install external test tools
+        if: needs.changes.outputs.test_mode != 'docs' && matrix.install_external
+        run: |
+          bash scripts/ci_install_kicad.sh kicad ngspice
+
+      - name: Build native extension for native lane
+        if: needs.changes.outputs.test_mode != 'docs' && matrix.build_native
+        run: .venv/bin/maturin develop --release --manifest-path zaptrace_core/Cargo.toml
+
+      - name: Run bounded test lane
+        if: needs.changes.outputs.test_mode != 'docs'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shard_args=()
+          if [[ -n "$SHARD_INDEX" ]]; then
+            shard_args+=(--lane-shard-index "$SHARD_INDEX" --lane-shard-count "$SHARD_COUNT")
+          fi
+          COVERAGE_FILE=".coverage.$ARTIFACT" .venv/bin/coverage run \
+            --parallel-mode \
+            --source=zaptrace \
+            -m pytest \
+            -p tests.lane_policy \
+            --lane "$LANE" \
+            "${shard_args[@]}" \
+            --require-lane-execution \
+            --enforce-lane-budget \
+            --lane-report "$LANE_REPORT" \
+            --junitxml "$JUNIT_PATH" \
+            -o junit_family=legacy \
+            -q
+
+      - name: Upload lane evidence
+        if: needs.changes.outputs.test_mode != 'docs' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: test-lane-results-${{ matrix.artifact }}
+          path: |
+            .coverage.*
+            ${{ env.JUNIT_PATH }}
+            ${{ env.LANE_REPORT }}
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Upload lane test results to Codecov
+        if: >-
+          !cancelled() &&
+          needs.changes.outputs.test_mode != 'docs' &&
+          (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ env.JUNIT_PATH }}
+          flags: lane-${{ matrix.artifact }}
+          report_type: test_results
+          disable_search: true
+          fail_ci_if_error: true
+
+  test-compatibility:
+    name: Fast compatibility (Python ${{ matrix.python-version }})
+    needs: [changes, test-lane-policy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14"]
+    steps:
+      - name: Skip compatibility lanes for docs-only PR
+        if: needs.changes.outputs.test_mode == 'docs'
+        run: echo "Docs-only PR; Python compatibility lanes skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        if: needs.changes.outputs.test_mode != 'docs'
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        if: needs.changes.outputs.test_mode != 'docs'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python ${{ matrix.python-version }}
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build --python ${{ matrix.python-version }}
+
+      - name: Run fast compatibility lanes
+        if: needs.changes.outputs.test_mode != 'docs'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for lane in unit integration; do
+            .venv/bin/pytest -p tests.lane_policy \
+              --lane "$lane" \
+              --enforce-lane-budget \
+              --lane-report "test-lane-${lane}-${{ matrix.python-version }}.json" \
+              --junitxml "junit-${lane}-${{ matrix.python-version }}.xml" \
+              -o junit_family=legacy \
+              -q
+          done
+
+      - name: Upload compatibility evidence
+        if: needs.changes.outputs.test_mode != 'docs' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: test-compatibility-${{ matrix.python-version }}
+          path: |
+            test-lane-*-${{ matrix.python-version }}.json
+            junit-*-${{ matrix.python-version }}.xml
+          if-no-files-found: error
+
+  coverage:
+    name: Combined Python coverage
+    needs: [changes, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip coverage aggregation for docs-only PR
+        if: needs.changes.outputs.test_mode == 'docs'
+        run: echo "Docs-only PR; coverage aggregation skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        if: needs.changes.outputs.test_mode != 'docs'
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        if: needs.changes.outputs.test_mode != 'docs'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python 3.12
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: uv python install 3.12
+
+      - name: Install coverage tooling
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: uv lock --check && uv sync --locked --group test --no-install-project --no-build --python 3.12
+
+      - name: Download lane coverage data
+        if: needs.changes.outputs.test_mode != 'docs'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: test-lane-results-*
+          path: test-lane-artifacts
+          merge-multiple: true
+
+      - name: Combine coverage and enforce critical floors
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: |
+          .venv/bin/coverage combine test-lane-artifacts
+          .venv/bin/coverage report
+          .venv/bin/coverage xml -o coverage.xml
+          .venv/bin/coverage json -o coverage.json
+          .venv/bin/python scripts/ci_critical_runtime_coverage.py \
+            --coverage coverage.json \
+            --policy config/critical-runtime-coverage.json \
+            --mode snapshot \
+            --output critical-runtime-coverage.json \
+            --markdown critical-runtime-coverage.md \
+            --strict
+          cat critical-runtime-coverage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload critical runtime coverage evidence
+        if: needs.changes.outputs.test_mode != 'docs' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: critical-runtime-coverage
+          path: |
+            coverage.xml
+            coverage.json
+            critical-runtime-coverage.json
+            critical-runtime-coverage.md
+          if-no-files-found: error
+
+      - name: Upload combined coverage
+        if: needs.changes.outputs.test_mode != 'docs'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          disable_search: true
+          fail_ci_if_error: true
+
+  rust:
+    name: Build Rust extension
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip Rust build for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping Rust extension build."
+          echo "Non-heavy PR; Rust extension build skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Check Rust formatting
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: cargo fmt --manifest-path zaptrace_core/Cargo.toml --check
+
+      - name: Run Clippy
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: cargo clippy --manifest-path zaptrace_core/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run Rust tests
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: cargo test --manifest-path zaptrace_core/Cargo.toml
+
+      - name: Build Rust extension
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: .venv/bin/maturin build --manifest-path zaptrace_core/Cargo.toml --out native-dist -i .venv/bin/python
+
+      - name: Install built Rust wheel
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-native-smoke" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+            --python "$PYTHON_VERSION"
+          wheel="$(realpath native-dist/*.whl)"
+          wheel_hash="$(sha256sum "$wheel" | awk '{print $1}')"
+          printf 'zaptrace-eda @ file://%s --hash=sha256:%s\n' "$wheel" "$wheel_hash" \
+            > "$RUNNER_TEMP/native-wheel.requirements.txt"
+          uv pip install \
+            --python "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
+            --no-deps \
+            --require-hashes \
+            -r "$RUNNER_TEMP/native-wheel.requirements.txt"
+
+      - name: Run mandatory native boundary verification
+        if: needs.changes.outputs.heavy_ci == 'true'
+        env:
+          ZAPTRACE_REQUIRE_NATIVE: "1"
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_native_boundary.py" \
+            --wheel "$GITHUB_WORKSPACE"/native-dist/*.whl \
+            --source-root "$GITHUB_WORKSPACE" \
+            --target x86_64-unknown-linux-gnu \
+            --output "$GITHUB_WORKSPACE/native-boundary-evidence.json" \
+            --markdown "$GITHUB_WORKSPACE/native-boundary-evidence.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/native-boundary-evidence.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload native boundary evidence
+        if: needs.changes.outputs.heavy_ci == 'true' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: native-boundary-evidence
+          path: |
+            native-boundary-evidence.json
+            native-boundary-evidence.md
+          if-no-files-found: error
+
+  benchmark-001:
+    name: Benchmark 001 acceptance
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip benchmark for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping benchmark 001 acceptance."
+          echo "Non-heavy PR; benchmark 001 acceptance skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Run identity-bound benchmark evidence gates
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_benchmark_001.py \
+            --strict \
+            --output benchmark-001-report.json \
+            --markdown benchmark-001-report.md
+          .venv/bin/python scripts/ci_benchmark_fixture_coverage.py \
+            --strict \
+            --min-complete-families 12 \
+            --output benchmark-fixture-coverage.json \
+            --markdown benchmark-fixture-coverage.md
+          .venv/bin/python scripts/ci_benchmark_fixture_integrity.py \
+            --strict \
+            --output benchmark-fixture-integrity.json \
+            --markdown benchmark-fixture-integrity.md
+          .venv/bin/python scripts/ci_external_benchmark_corpus.py \
+            --root . \
+            --manifest benchmarks/external/manifest.json \
+            --strict \
+            --output external-benchmark-corpus.json \
+            --markdown external-benchmark-corpus.md
+          .venv/bin/python scripts/ci_benchmark_reproduce.py \
+            --strict \
+            --output benchmark-reproduction.json \
+            --markdown benchmark-reproduction.md
+          .venv/bin/python scripts/ci_human_reference_scorecard.py \
+            --strict \
+            --output human-reference-scorecard.json \
+            --markdown human-reference-scorecard.md
+          agent_evaluation_mode="ci"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            agent_evaluation_mode="nightly"
+          fi
+          .venv/bin/python scripts/ci_agent_evaluation.py \
+            --mode "$agent_evaluation_mode" \
+            --artifact-dir agent-evaluation-artifacts \
+            --output agent-evaluation-report.json \
+            --markdown agent-evaluation-report.md \
+            --strict
+          .venv/bin/python scripts/ci_release_verify_repair.py \
+            --artifact-dir release-verify-repair-artifacts \
+            --output release-convergence-report.json \
+            --markdown release-convergence-report.md \
+            --strict
+          cat \
+            benchmark-001-report.md \
+            benchmark-fixture-coverage.md \
+            benchmark-fixture-integrity.md \
+            external-benchmark-corpus.md \
+            benchmark-reproduction.md \
+            human-reference-scorecard.md \
+            agent-evaluation-report.md \
+            release-convergence-report.md \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install simulation runtime
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          bash scripts/ci_install_kicad.sh ngspice
+
+      - name: Run simulation-backed sign-off evidence gate
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_simulation_signoff.py \
+            --artifact-dir simulation-signoff-artifacts \
+            --output simulation-signoff-report.json \
+            --markdown simulation-signoff-report.md \
+            --require-live-simulation \
+            --strict
+          cat simulation-signoff-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark evidence
+        if: always() && needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: benchmark-evidence
+          path: |
+            benchmark-001-report.json
+            benchmark-fixture-coverage.json
+            benchmark-fixture-integrity.json
+            external-benchmark-corpus.json
+            benchmark-reproduction.json
+            human-reference-scorecard.json
+            agent-evaluation-report.json
+            agent-evaluation-artifacts
+            release-convergence-report.json
+            release-verify-repair-artifacts
+            simulation-signoff-report.json
+            simulation-signoff-artifacts
+            benchmark-001-report.md
+            benchmark-fixture-coverage.md
+            benchmark-fixture-integrity.md
+            external-benchmark-corpus.md
+            benchmark-reproduction.md
+            human-reference-scorecard.md
+            agent-evaluation-report.md
+            release-convergence-report.md
+            simulation-signoff-report.md
+          if-no-files-found: error
+          retention-days: 30
+
+  generated-board-release-gate:
+    name: Generated board release gate
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip generated-board gate for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping generated-board release gate."
+          echo "Non-heavy PR; generated-board release gate skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Run generated-board release gate
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_generated_board_release_gate.py \
+            --output generated-board-release-gate.json \
+            --markdown "$GITHUB_STEP_SUMMARY" \
+            --risky-package-reviewed \
+            --risky-package-approval-id "GENERATED-BOARD-BASELINE-REVIEW-2026-07-22" \
+            --strict
+
+      - name: Upload generated-board release gate report
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: generated-board-release-gate
+          path: generated-board-release-gate.json
+
+      - name: Validate physical reference-board plan
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_physical_validation_plan.py \
+            --plan benchmarks/esp32_usb_sensor/physical-validation-plan.json \
+            --output physical-validation-plan-gate.json \
+            --markdown physical-validation-plan-gate.md \
+            --strict
+          cat physical-validation-plan-gate.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload physical validation plan gate
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: physical-validation-plan-gate
+          path: |
+            physical-validation-plan-gate.json
+            physical-validation-plan-gate.md
+
+  docker-image-smoke:
+    name: Docker image smoke
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Skip Docker smoke for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping Docker image smoke."
+          echo "Non-heavy PR; Docker image smoke skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Exercise Compose REST and MCP runtimes
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: python3 scripts/ci_compose_smoke.py
+
+      - name: Upload Compose smoke evidence
+        if: always() && needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: compose-runtime-smoke
+          path: artifacts/compose-smoke/
+          if-no-files-found: error
+          retention-days: 14
+
+  kicad-oracle:
+    name: KiCad Oracle
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip KiCad oracle for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping KiCad oracle."
+          echo "Non-heavy PR; KiCad oracle skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Install KiCad 10 CLI
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          bash scripts/ci_install_kicad.sh kicad
+
+      - name: Run KiCad oracle
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: .venv/bin/python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json
+
+      - name: Run atomic KiCad 10 jobset oracle
+        if: needs.changes.outputs.heavy_ci == 'true'
+        env:
+          ZAPTRACE_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: .venv/bin/python scripts/ci_kicad_jobset_oracle.py --output kicad-jobset-oracle-summary.json
+
+      - name: Run KiCad benchmark corpus gate
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_kicad_task_runner.py             --task-dir benchmarks/kicad-task-v1             --project-dir tests/corpus/kicad             --json-out kicad-benchmark-corpus.json
+
+      - name: Capture physical candidate readiness
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_physical_candidate_readiness.py \
+            --output physical-candidate-readiness.json \
+            --markdown physical-candidate-readiness.md \
+            --require-kicad
+          cat physical-candidate-readiness.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload KiCad oracle summary
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: kicad-oracle-summary
+          path: |
+            kicad-oracle-summary.json
+            kicad-jobset-oracle-summary.json
+            kicad-review-exports/
+            kicad-benchmark-corpus.json
+          if-no-files-found: error
+
+      - name: Upload physical candidate readiness
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: physical-candidate-readiness
+          path: |
+            physical-candidate-readiness.json
+            physical-candidate-readiness.md
+          if-no-files-found: error
+          retention-days: 30
+
+  build:
+    name: Build package
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip package build for non-heavy PR
+        if: needs.changes.outputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping package build."
+          echo "Non-heavy PR; package build skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+        if: needs.changes.outputs.heavy_ci == 'true'
+
+      - name: Install uv
+        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Build package
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: uv build
+
+      - name: Validate package inventory
+        if: needs.changes.outputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_package_inventory.py \
+            --dist-dir dist \
+            --output package-inventory.json \
+            --strict
+
+      - name: Upload package inventory
+        if: needs.changes.outputs.heavy_ci == 'true' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: package-inventory
+          path: package-inventory.json
+          if-no-files-found: error
+
+  docs-stale:
+    name: Check stale docs
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Check MCP tools reference is up to date
+        run: .venv/bin/python scripts/generate_mcp_docs.py --check
+
+      - name: Check docs status-sync guard
+        run: |
+          .venv/bin/python scripts/ci_docs_status_sync.py \
+            --output docs-status-sync.json
+
+      - name: Upload docs status-sync report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: docs-status-sync
+          path: docs-status-sync.json
+
+      - name: Check evidence identity policy
+        run: |
+          .venv/bin/python scripts/ci_evidence_identity.py \
+            --output evidence-identity-policy.json \
+            --strict
+
+      - name: Upload evidence identity policy
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: evidence-identity-policy
+          path: evidence-identity-policy.json
+          if-no-files-found: error
+
+      - name: Check JSON Schema matches generated
+        run: |
+          .venv/bin/python -c "
+          from zaptrace.core.parser import generate_json_schema, write_json_schema
+          import json, sys
+          from pathlib import Path
+          generated = generate_json_schema()
+          committed = json.loads(Path('docs/schemas/design-v1.json').read_text(encoding='utf-8'))
+          if generated != committed:
+              print('ERROR: docs/schemas/design-v1.json is stale. Run write_json_schema() to regenerate.')
+              sys.exit(1)
+          print('OK: JSON Schema is up to date')
+          "
+
+  release-gate-summary:
+    name: Release gate summary
+    runs-on: ubuntu-latest
+    needs: [changes, validation-environment, lint, mcp-compatibility, test-lane-policy, test, test-compatibility, coverage, rust, build, docs-stale, benchmark-001, generated-board-release-gate, kicad-oracle, docker-image-smoke]
+    if: always()
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Generate snapshot gate summary
+        run: |
+          .venv/bin/python scripts/ci_release_gate.py \
+            --mode snapshot \
+            --gate "validation-environment=${{ needs.validation-environment.result }}" \
+            --gate "lint=${{ needs.lint.result }}" \
+            --gate "mcp-compatibility=${{ needs.mcp-compatibility.result }}" \
+            --gate "test-lane-policy=${{ needs.test-lane-policy.result }}" \
+            --gate "tests=${{ needs.test.result }}" \
+            --gate "test-compatibility=${{ needs.test-compatibility.result }}" \
+            --gate "coverage=${{ needs.coverage.result }}" \
+            --gate "rust=${{ needs.rust.result }}" \
+            --gate "build=${{ needs.build.result }}" \
+            --gate "docs-stale=${{ needs.docs-stale.result }}" \
+            --gate "benchmark-001=${{ needs.benchmark-001.result }}" \
+            --gate "generated-board-release-gate=${{ needs.generated-board-release-gate.result }}" \
+            --gate "kicad-oracle=${{ needs.kicad-oracle.result }}" \
+            --gate "docker-image-smoke=${{ needs.docker-image-smoke.result }}" \
+            --required-oracle "kicad-oracle" \
+            --output snapshot-gate-summary.json \
+            --markdown "$GITHUB_STEP_SUMMARY" \
+            --strict
+
+      - name: Upload release gate summary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: snapshot-gate-summary
+          path: snapshot-gate-summary.json

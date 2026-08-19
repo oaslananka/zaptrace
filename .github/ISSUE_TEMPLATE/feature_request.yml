@@ -1,0 +1,110 @@
+name: Feature Request
+description: Propose a bounded engineering capability or workflow improvement
+title: "[Feature] "
+labels: ["type/feature", "status/needs-design"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Which user, agent, verification, or manufacturing problem should be solved?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Define the bounded capability and public behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] Deterministic behavior is tested
+        - [ ] Machine-readable evidence is produced
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+      description: Identify CI artifacts, fixtures, proof records, or reports needed for closure.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Work type
+      options:
+        - type/feature
+        - type/hardening
+        - type/research
+        - type/test
+        - type/refactor
+        - type/docs
+        - type/ci
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - area/agent-runtime
+        - area/benchmark
+        - area/ci
+        - area/component-library
+        - area/datasheet
+        - area/dfm
+        - area/drc
+        - area/erc
+        - area/footprints
+        - area/governance
+        - area/interop
+        - area/kicad
+        - area/layout
+        - area/manufacturing
+        - area/plugin
+        - area/proof-pack
+        - area/requirements
+        - area/review-studio
+        - area/router
+        - area/security
+        - area/simulation
+        - area/supply-chain
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Suggested priority
+      options:
+        - priority/P0 - foundational or release blocking
+        - priority/P1 - next milestone
+        - priority/P2 - important but not blocking
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: Link prerequisite issues and external decisions. Write “None” when independent.
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: State excluded behaviors and claims.
+    validations:
+      required: true

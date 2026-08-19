@@ -1,0 +1,118 @@
+schema_version: '2.0'
+id: tps63020
+name: TPS63020DSJR
+category: power
+manufacturer: Texas Instruments
+mpn: TPS63020DSJR
+description: Buck-boost converter, 1.8-5.5V input, up to 3.6A switch, VQFN-14
+datasheet: https://www.ti.com/lit/ds/symlink/tps63020.pdf
+package: VQFN-14
+footprint: TPS63020-VQFN14
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VIN:
+    type: power
+    description: 1.8-5.5V input
+  GND:
+    type: power
+    description: Power ground
+  VOUT:
+    type: output
+    description: Regulated output
+  EN:
+    type: input
+    description: Enable
+  VINA:
+    type: power
+    description: Analog supply
+  L1:
+    type: passive
+    description: Inductor connection 1
+  L2:
+    type: passive
+    description: Inductor connection 2
+  FB:
+    type: input
+    description: Feedback
+  PG:
+    type: output
+    description: Power good
+properties:
+  input_range_v: 1.8-5.5
+  switch_current_a: 3.6
+  switching_freq_hz: 2500000
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: TPS63020DSJR
+  manufacturer: Texas Instruments
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.ti.com/lit/ds/symlink/tps63020.pdf
+    source_identity: component:tps63020:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps63020:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,6 @@
+(kicad_pcb (version 20250114) (generator "zaptrace-benchmark-fixture")
+  (general)
+  (paper "A4")
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
+  (gr_rect (start 0 0) (end 54 36) (stroke (width 0.1) (type solid)) (fill none) (layer "Edge.Cuts"))
+)

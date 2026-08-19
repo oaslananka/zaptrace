@@ -1,0 +1,112 @@
+schema_version: '2.0'
+id: tp4056
+name: TP4056
+category: power
+manufacturer: TPower
+mpn: TP4056
+description: Li-Ion/Li-Po battery charger, 1A, SOP-8
+datasheet: https://www.tpower.com/tp4056-datasheet.pdf
+package: SOP-8
+footprint: TP4056-SOP8
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VCC:
+    type: power
+    description: 4.5-5.5V input
+  GND:
+    type: power
+    description: Ground
+  BAT:
+    type: output
+    description: Battery connection
+  CHRG:
+    type: output
+    description: Charge status (active low)
+  STDBY:
+    type: output
+    description: Standby status
+  RPROG:
+    type: input
+    description: Charge current program
+  TE:
+    type: input
+    description: Temperature enable
+properties:
+  charge_current_ma: 1000
+  cell_type: 1S Li-Ion/Li-Po
+  charge_voltage_v: 4.2
+electrical_limits:
+  voltage_supply: '5.0'
+sourcing:
+  mpn: TP4056
+  manufacturer: TPower
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.tpower.com/tp4056-datasheet.pdf
+    source_identity: component:tp4056:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tp4056:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

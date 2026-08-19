@@ -1,0 +1,119 @@
+schema_version: '2.0'
+id: ina226
+name: INA226AIDGSR
+category: sensor
+manufacturer: Texas Instruments
+mpn: INA226AIDGSR
+description: 36 V 16-bit high- or low-side I2C current, voltage and power monitor with alert
+datasheet: https://www.ti.com/lit/ds/symlink/ina226.pdf
+package: MSOP-10
+footprint: INA226-MSOP10
+lifecycle: active
+voltage_supply: 2.7-5.5 V
+pins:
+  A1:
+    type: input
+    description: I2C address-select input 1
+  A0:
+    type: input
+    description: I2C address-select input 0
+  ALERT:
+    type: output
+    description: Open-drain multi-function alert output
+  SDA:
+    type: bidirectional
+    description: I2C/SMBus serial data
+  SCL:
+    type: input
+    description: I2C/SMBus serial clock
+  VS:
+    type: power
+    description: Device supply, 2.7-5.5 V
+  GND:
+    type: power
+    description: Ground
+  VBUS:
+    type: input
+    description: Bus-voltage sense input, operating common-mode bus range 0-36 V
+  IN-:
+    type: input
+    description: Load-side shunt sense input
+  IN+:
+    type: input
+    description: Supply-side shunt sense input
+package_pin_map:
+  '1': A1
+  '2': A0
+  '3': ALERT
+  '4': SDA
+  '5': SCL
+  '6': VS
+  '7': GND
+  '8': VBUS
+  '9': IN-
+  '10': IN+
+properties:
+  interface: [i2c, smbus]
+  manufacturer_package_name: VSSOP (DGS)
+  legacy_package_name: MSOP-10
+  resolution_bit: 16
+  supply_range_v: [2.7, 5.5]
+  bus_voltage_range_v: [0.0, 36.0]
+  absolute_max_supply_v: 6.0
+  absolute_max_input_common_mode_v: [-0.3, 40.0]
+  absolute_max_shunt_differential_v: [-40.0, 40.0]
+  gain_error_max_percent: 0.1
+  input_offset_max_uv: 10
+  typical_supply_current_ua: 330
+  programmable_addresses: 16
+  temperature_range_c: [-40, 125]
+  package_body_nominal_mm: [3.0, 3.0]
+  package_overall_nominal_mm: [3.0, 4.9]
+  manufacturer_land_pattern_mm:
+    pad_length: 1.45
+    pad_width: 0.30
+    pin_pitch: 0.50
+  repository_land_pattern:
+    source: KiCad official Package_SO.pretty/MSOP-10_3x3mm_P0.5mm.kicad_mod
+    source_revision: e4191d1fd7b9522beb2980b83ae3c0c2fe41a9e1
+    source_sha256: 8d2841a74e13e6aa9ff353b36a4946df71e473655a2ec824de8486d5adb3b7b9
+    pad_size_mm: [1.50, 0.35]
+    pin_pitch: 0.50
+    review_note: KiCad MSOP-10 land pattern is package-compatible but not dimension-identical to the TI DGS example board layout; human footprint review remains required before trust-tier promotion
+electrical_limits:
+  voltage_supply: 2.7-5.5 V operating supply; 6 V absolute maximum supply rating
+  temperature_range: [-40, 125]
+  max_voltage_v: 40.0
+  review_note: Bus operating range is 0-36 V; absolute maximum common-mode input is -0.3 to 40 V and shunt differential absolute maximum is -40 to 40 V
+sourcing:
+  mpn: INA226AIDGSR
+  manufacturer: Texas Instruments
+  status: manufacturer-active-production
+  production_note: TI SBOS547B orderable addendum identifies INA226AIDGSR as Active / Production, DGS VSSOP-10, 2500-piece large tape-and-reel; re-check live inventory and lead time before procurement
+compliance:
+  rohs: manufacturer-declared-compliant
+  reach: manufacturer-declared-compliant
+  production_note: TI orderable information reports RoHS compliance; current procurement material declarations remain the release authority
+provenance:
+  source: Texas Instruments INA226 SBOS547B Rev B datasheet and embedded packaging/orderable information
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of the KiCad-versus-TI DGS land-pattern equivalence and procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &ti_evidence
+    source_type: manufacturer_document
+    source_locator: https://www.ti.com/lit/ds/symlink/ina226.pdf
+    source_identity: SBOS547B
+    source_sha256: 99885a0f3a52c837376c6e86411b9ea623dea9f0cf278c06cddb68d5b31b3137
+    source_version: Rev B (2024-09)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-10
+    confidence: medium
+  datasheet: *ti_evidence
+  pin_map: *ti_evidence
+  package: *ti_evidence
+  footprint: *ti_evidence
+  electrical_limits: *ti_evidence
+  lifecycle: *ti_evidence
+  sourcing: *ti_evidence

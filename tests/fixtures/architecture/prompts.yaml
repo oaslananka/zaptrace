@@ -1,0 +1,63 @@
+- id: esp32-usb-i2c-sensor
+  intent: ESP32 USB-C temperature sensor board with I2C sensor and 3.3V logic rail
+  expected_status: ready
+  expected_subsystems: [SUBSYS-MCU, SUBSYS-SENSOR, SUBSYS-USB]
+  expected_interfaces: [i2c, usb]
+  expected_rails: [VBUS, VDD_3V3]
+  expected_conflicts: []
+
+- id: stm32-rs485-controller
+  intent: STM32 3.3V industrial controller with RS-485 Modbus interface
+  expected_status: ready
+  expected_subsystems: [SUBSYS-MCU, SUBSYS-RS485]
+  expected_interfaces: [rs485]
+  expected_rails: [VDD_3V3]
+  expected_conflicts: []
+
+- id: rp2040-can-node
+  intent: RP2040 3.3V CAN bus sensor node with MCU
+  expected_status: ready
+  expected_subsystems: [SUBSYS-CAN, SUBSYS-MCU, SUBSYS-SENSOR]
+  expected_interfaces: [can]
+  expected_rails: [VDD_3V3]
+  expected_conflicts: []
+
+- id: battery-spi-datalogger
+  intent: Battery powered MCU datalogger with SPI storage and 3.3V logic rail
+  expected_status: ready
+  expected_subsystems: [SUBSYS-BATTERY, SUBSYS-MCU, SUBSYS-STORAGE]
+  expected_interfaces: [spi]
+  expected_rails: [VBAT, VDD_3V3]
+  expected_conflicts: []
+
+- id: lora-sensor-node
+  intent: Battery powered MCU LoRa sensor node with SPI radio and 3.3V logic rail
+  expected_status: ready
+  expected_subsystems: [SUBSYS-BATTERY, SUBSYS-MCU, SUBSYS-RADIO, SUBSYS-SENSOR]
+  expected_interfaces: [lora, spi]
+  expected_rails: [VBAT, VDD_3V3]
+  expected_conflicts: []
+
+- id: ambiguous-board
+  intent: make a small board
+  expected_status: needs-clarification
+  expected_subsystems: []
+  expected_interfaces: []
+  expected_rails: []
+  expected_conflicts: []
+
+- id: battery-conflict
+  intent: Battery powered MCU datalogger with no battery allowed, SPI storage and 3.3V logic rail
+  expected_status: needs-clarification
+  expected_subsystems: []
+  expected_interfaces: []
+  expected_rails: []
+  expected_conflicts: [battery-presence-conflict]
+
+- id: unsafe-mains-medical
+  intent: 230V mains medical controller with sensor
+  expected_status: unsafe-blocked
+  expected_subsystems: []
+  expected_interfaces: []
+  expected_rails: []
+  expected_conflicts: []

@@ -1,0 +1,74 @@
+profile_version: "1.0"
+name: oshpark
+manufacturer: OSH Park
+description: "OSH Park — vibrant purple solder mask, 2-layer, USA-based prototyping"
+url: "https://docs.oshpark.com/services/"
+source_urls:
+  - "https://docs.oshpark.com/services/"
+last_verified: "2026-06-20"
+stale_after_days: 180
+
+min_board_width_mm: 5.0
+min_board_height_mm: 5.0
+max_board_width_mm: 177.8
+max_board_height_mm: 127.0
+min_board_thickness_mm: 0.8
+max_board_thickness_mm: 1.6
+
+min_trace_mm: 0.15
+min_space_mm: 0.15
+min_trace_power_mm: 0.3
+
+min_drill_mm: 0.3
+max_drill_mm: 6.5
+min_annular_ring_mm: 0.15
+min_via_diameter_mm: 0.38
+min_via_hole_mm: 0.25
+max_via_hole_mm: 1.0
+
+min_solder_mask_sliver_mm: 0.1
+min_solder_mask_clearance_mm: 0.05
+min_silkscreen_width_mm: 0.15
+min_silkscreen_clearance_mm: 0.15
+
+capabilities:
+  surface_finishes:
+    - HASL
+    - lead-free HASL
+  solder_mask_colors:
+    - purple
+    - green
+    - red
+    - blue
+    - black
+    - white
+  silkscreen_colors:
+    - white
+    - black
+  materials:
+    - FR-4
+  copper_weights_oz:
+    - 1.0
+  layer_counts:
+    - 2
+
+assembly:
+  class_name: fabrication-only
+  service_available: false
+  source_urls:
+    - "https://docs.oshpark.com/services/"
+    - "https://docs.oshpark.com/troubleshooting/panelized-designs/"
+  last_verified: "2026-07-29"
+  min_component_pitch_mm: null
+  min_bga_pitch_mm: null
+  min_stencil_aperture_mm: null
+  max_component_height_mm: null
+  supports_double_sided_assembly: false
+  supports_through_hole_assembly: false
+castellated_pads: false
+edge_plating: false
+countersunk_holes: false
+impedance_control: false
+via_in_pad: false
+blind_buried_vias: false
+embedded_components: false

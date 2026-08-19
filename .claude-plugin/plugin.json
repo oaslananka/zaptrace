@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "zaptrace",
+  "version": "0.3.4-dev.0",
+  "description": "Verification-first ZapTrace workflows for local design validation, proof-pack review, and bounded benchmark evaluation.",
+  "skills": [
+    "./skills/zaptrace-design-validation",
+    "./skills/zaptrace-proof-pack-review",
+    "./skills/zaptrace-benchmark-evaluation"
+  ],
+  "author": {
+    "name": "oaslananka",
+    "url": "https://github.com/oaslananka"
+  }
+}

@@ -1,0 +1,322 @@
+name: Container Security
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: Enforcement mode for the container policy
+        required: false
+        default: release
+        type: string
+      upload_sarif:
+        description: Upload container SARIF to GitHub code scanning
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Container security change classification
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      scan_required: ${{ steps.classify.outputs.scan_required }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - id: classify
+        name: Classify container/runtime changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_call" ]]; then
+            echo "scan_required=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" > changed-files.txt
+          elif [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "scan_required=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            git diff --name-only "$PUSH_BEFORE_SHA" HEAD > changed-files.txt
+          fi
+
+          scan_required=false
+          while IFS= read -r path; do
+            case "$path" in
+              Dockerfile|pyproject.toml|uv.lock|requirements/container-runtime.txt|requirements/container-apk.txt|requirements/container-builder.txt|data/*|zaptrace/*|zaptrace_core/*|scripts/ci_container_reproducibility.py|scripts/ci_container_scan_policy.py|security/container-scan-exceptions.json|.github/workflows/container-security.yml)
+                scan_required=true
+                break
+                ;;
+            esac
+          done < changed-files.txt
+          echo "scan_required=$scan_required" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Exact image vulnerability scan
+    needs: changes
+    if: needs.changes.outputs.scan_required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: 0.11.29
+
+      - name: Verify committed container dependency lock
+        run: |
+          python3 scripts/ci_container_reproducibility.py check-lock \
+            --manifest requirements/container-runtime.txt \
+            --apk-manifest requirements/container-apk.txt \
+            --output container-lock-evidence.json \
+            --markdown container-lock-evidence.md \
+            --strict
+          cat container-lock-evidence.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve enforcement mode
+        id: mode
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_call" ]]; then
+            mode="$REQUESTED_MODE"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            mode="advisory"
+          else
+            mode="release"
+          fi
+          if [[ "$mode" != "advisory" && "$mode" != "release" ]]; then
+            echo "Unsupported container scan mode: $mode" >&2
+            exit 2
+          fi
+          echo "value=$mode" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve reproducible build inputs
+        id: build-inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(git rev-parse HEAD)"
+          base_digest="$(sed -n 's/^FROM python@\(sha256:[0-9a-f]\{64\}\).*/\1/p' Dockerfile | sort -u)"
+          if [[ "$(printf '%s\n' "$base_digest" | sed '/^$/d' | wc -l)" -ne 1 ]]; then
+            echo "Dockerfile must resolve exactly one pinned Python base digest" >&2
+            exit 2
+          fi
+          container_lock_sha256="$(sha256sum requirements/container-runtime.txt | cut -d' ' -f1)"
+          container_apk_lock_sha256="$(sha256sum requirements/container-apk.txt | cut -d' ' -f1)"
+          container_builder_lock_sha256="$(sha256sum requirements/container-builder.txt | cut -d' ' -f1)"
+          {
+            echo "source_commit=$source_commit"
+            echo "base_digest=$base_digest"
+            echo "container_lock_sha256=$container_lock_sha256"
+            echo "container_apk_lock_sha256=$container_apk_lock_sha256"
+            echo "container_builder_lock_sha256=$container_builder_lock_sha256"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build exact Docker image
+        env:
+          SOURCE_COMMIT: ${{ steps.build-inputs.outputs.source_commit }}
+          BASE_IMAGE_DIGEST: ${{ steps.build-inputs.outputs.base_digest }}
+          CONTAINER_LOCK_SHA256: ${{ steps.build-inputs.outputs.container_lock_sha256 }}
+          CONTAINER_APK_LOCK_SHA256: ${{ steps.build-inputs.outputs.container_apk_lock_sha256 }}
+          CONTAINER_BUILDER_LOCK_SHA256: ${{ steps.build-inputs.outputs.container_builder_lock_sha256 }}
+        run: |
+          docker build --pull --iidfile image-iid.txt -t zaptrace:scan \
+            --build-arg SOURCE_COMMIT="$SOURCE_COMMIT" \
+            --build-arg BASE_IMAGE_DIGEST="$BASE_IMAGE_DIGEST" \
+            --build-arg CONTAINER_LOCK_SHA256="$CONTAINER_LOCK_SHA256" \
+            --build-arg CONTAINER_APK_LOCK_SHA256="$CONTAINER_APK_LOCK_SHA256" \
+            --build-arg CONTAINER_BUILDER_LOCK_SHA256="$CONTAINER_BUILDER_LOCK_SHA256" \
+            .
+
+      - name: Record image digest
+        run: docker image inspect zaptrace:scan --format='{{.Id}}' > image-digest.txt
+
+      - name: Extract image build provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker create zaptrace:scan)"
+          trap 'docker rm -f "$container_id" >/dev/null 2>&1 || true' EXIT
+          docker cp \
+            "$container_id:/usr/share/zaptrace/container-build-provenance.json" \
+            container-build-provenance.json
+          docker rm "$container_id" >/dev/null
+          trap - EXIT
+
+      - name: Verify exact image provenance
+        env:
+          SOURCE_COMMIT: ${{ steps.build-inputs.outputs.source_commit }}
+          BASE_IMAGE_DIGEST: ${{ steps.build-inputs.outputs.base_digest }}
+        run: |
+          python3 scripts/ci_container_reproducibility.py verify-image \
+            --provenance container-build-provenance.json \
+            --manifest requirements/container-runtime.txt \
+            --apk-manifest requirements/container-apk.txt \
+            --builder-dependency-manifest requirements/container-builder.txt \
+            --source-commit "$SOURCE_COMMIT" \
+            --base-digest "$BASE_IMAGE_DIGEST" \
+            --image-digest "$(cat image-digest.txt)" \
+            --output container-reproducibility-evidence.json \
+            --markdown container-reproducibility-evidence.md \
+            --strict
+          cat container-reproducibility-evidence.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke test exact image
+        run: docker run --rm zaptrace:scan --help
+
+      - name: Generate CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          version: v0.72.0
+          scan-type: image
+          image-ref: zaptrace:scan
+          scanners: vuln
+          format: cyclonedx
+          output: container-sbom.cdx.json
+          cache: true
+
+      - name: Generate Trivy JSON
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          version: v0.72.0
+          skip-setup-trivy: true
+          scan-type: image
+          image-ref: zaptrace:scan
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          format: json
+          output: trivy-results.json
+          exit-code: "0"
+
+      - name: Generate Trivy SARIF
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          version: v0.72.0
+          skip-setup-trivy: true
+          scan-type: image
+          image-ref: zaptrace:scan
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"
+          limit-severities-for-sarif: true
+
+      - name: Enforce container vulnerability policy
+        env:
+          ENFORCEMENT_MODE: ${{ steps.mode.outputs.value }}
+        run: |
+          python3 scripts/ci_container_scan_policy.py \
+            --scan trivy-results.json \
+            --exceptions security/container-scan-exceptions.json \
+            --image-digest image-digest.txt \
+            --sbom container-sbom.cdx.json \
+            --mode "$ENFORCEMENT_MODE" \
+            --strict
+          cat container-scan-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Trivy SARIF
+        if: >-
+          always() &&
+          hashFiles('trivy-results.sarif') != '' &&
+          (
+            github.event_name != 'workflow_call' || inputs.upload_sarif
+          ) &&
+          (
+            github.event_name != 'pull_request' ||
+            (
+              github.event.pull_request.head.repo.fork == false &&
+              github.actor != 'dependabot[bot]'
+            )
+          )
+        uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a  # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container
+
+      - name: Upload container security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: container-security-evidence
+          path: |
+            image-iid.txt
+            image-digest.txt
+            container-lock-evidence.json
+            container-lock-evidence.md
+            container-build-provenance.json
+            container-reproducibility-evidence.json
+            container-reproducibility-evidence.md
+            container-sbom.cdx.json
+            trivy-results.json
+            trivy-results.sarif
+            container-scan-policy.json
+            container-scan-summary.md
+          if-no-files-found: warn
+          retention-days: 30
+
+  container-security-gate:
+    name: Container security gate
+    permissions: {}
+    needs: [changes, scan]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce container security result
+        shell: bash
+        env:
+          CHANGE_RESULT: ${{ needs.changes.result }}
+          SCAN_REQUIRED: ${{ needs.changes.outputs.scan_required }}
+          SCAN_RESULT: ${{ needs.scan.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANGE_RESULT" != "success" ]]; then
+            echo "Container change classification failed: $CHANGE_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$SCAN_REQUIRED" == "true" && "$SCAN_RESULT" != "success" ]]; then
+            echo "Required container scan did not pass: $SCAN_RESULT" >&2
+            exit 1
+          fi
+          if [[ "$SCAN_REQUIRED" != "true" && "$SCAN_RESULT" != "skipped" ]]; then
+            echo "Non-applicable container scan had unexpected result: $SCAN_RESULT" >&2
+            exit 1
+          fi
+          echo "Container security gate passed (scan_required=$SCAN_REQUIRED, scan_result=$SCAN_RESULT)."

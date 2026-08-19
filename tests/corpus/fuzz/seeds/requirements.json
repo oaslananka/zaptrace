@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "product_class": "iot_sensor_node",
+  "environment": {
+    "temperature_c": [
+      0.0,
+      50.0
+    ],
+    "ingress_rating": null,
+    "enclosure": "plastic"
+  },
+  "power": {
+    "inputs": [
+      "usb_c_5v"
+    ],
+    "rails_v": [
+      3.3
+    ],
+    "max_current_a": 0.5
+  },
+  "interfaces": [
+    "usb",
+    "i2c"
+  ],
+  "safety": {
+    "mains": false,
+    "battery": false,
+    "isolation_required": false,
+    "safety_critical": false
+  },
+  "manufacturing": {
+    "fab_profile": "jlcpcb-2layer",
+    "layers": 2,
+    "min_trace_width_mm": 0.15,
+    "min_clearance_mm": 0.15,
+    "assembly": "smt"
+  },
+  "compliance_targets": [
+    "RoHS"
+  ]
+}

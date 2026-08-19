@@ -1,0 +1,224 @@
+# JSON Schema for ZapTrace design files
+# Defines the structure of .zaptrace.yaml design files.
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://zaptrace.dev/schemas/design.schema.yaml
+title: ZapTrace Design
+description: Schema for ZapTrace agent-native electronics design files
+type: object
+required:
+  - meta
+properties:
+  meta:
+    type: object
+    description: Design metadata
+    required:
+      - name
+    properties:
+      name:
+        type: string
+        description: Design name (must be unique per session)
+      author:
+        type: string
+        description: Author or creator
+      description:
+        type: string
+        description: Design description / purpose
+      created:
+        type: string
+        format: date-time
+        description: ISO 8601 creation timestamp
+      version:
+        type: string
+        description: Design version string
+    additionalProperties: false
+
+  components:
+    type: object
+    description: Component definitions, keyed by component ID
+    default: {}
+    patternProperties:
+      "^[a-zA-Z_][a-zA-Z0-9_]*$":
+        type: object
+        description: A single component
+        required:
+          - ref
+          - type
+        properties:
+          ref:
+            type: string
+            description: Reference designator (e.g. R1, C2, U3)
+            pattern: "^[A-Z][0-9]+$"
+          type:
+            type: string
+            description: Component type (e.g. resistor, capacitor, mcu)
+          value:
+            type: string
+            description: Component value (e.g. 10k, 100nF)
+          footprint:
+            type: string
+            description: PCB footprint name
+          lifecycle:
+            type: string
+            enum: [active, nrfnd, nrnd, eol, obsolete]
+            description: Component lifecycle status
+          manufacturer:
+            type: string
+            description: Manufacturer name
+          mpn:
+            type: string
+            description: Manufacturer part number
+          datasheet:
+            type: string
+            format: uri
+            description: Datasheet URL
+          pins:
+            type: object
+            description: Pin definitions, keyed by pin name
+            default: {}
+            additionalProperties:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [input, output, bidir, power, ground, passive, analog, open_collector, open_drain, tri_state, not_connected]
+                  description: Pin electrical type
+                net:
+                  type: string
+                  description: Expected net name for this pin
+                position:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: number
+                  description: Pin position (x, y) in grid units
+                description:
+                  type: string
+                  description: Pin function description
+                voltage_level:
+                  type: string
+                  description: Pin voltage level (e.g. 3.3V, 5V)
+              additionalProperties: false
+          properties:
+            type: object
+            description: Additional component properties
+            default: {}
+        additionalProperties: false
+
+  nets:
+    type: object
+    description: Net definitions, keyed by net ID
+    default: {}
+    patternProperties:
+      "^[a-zA-Z_][a-zA-Z0-9_]*$":
+        type: object
+        description: A single net
+        required:
+          - name
+        properties:
+          name:
+            type: string
+            description: Net name
+          type:
+            type: string
+            enum: [signal, power, ground, clock, bus, analog, i2c, spi, uart, usb, differential]
+            description: Net type
+            default: signal
+          class:
+            type: string
+            description: Net class for routing constraints
+          voltage:
+            type: string
+            description: Expected voltage on this net
+          nodes:
+            type: array
+            description: Net connections
+            items:
+              oneOf:
+                - type: string
+                  description: Shorthand "<ref>.<pin>" syntax
+                  pattern: "^[A-Z][0-9]+\.[A-Za-z0-9_]+$"
+                - type: object
+                  description: Full node object
+                  required:
+                    - component_ref
+                    - pin_name
+                  properties:
+                    component_ref:
+                      type: string
+                      description: Reference designator
+                    pin_name:
+                      type: string
+                      description: Pin name
+                  additionalProperties: false
+        additionalProperties: false
+
+  board:
+    type: object
+    description: Board configuration
+    properties:
+      width_mm:
+        type: number
+        description: Board width in millimeters
+        default: 100.0
+        minimum: 1.0
+        maximum: 1000.0
+      height_mm:
+        type: number
+        description: Board height in millimeters
+        default: 80.0
+        minimum: 1.0
+        maximum: 1000.0
+      layers:
+        type: integer
+        description: Number of copper layers
+        default: 2
+        minimum: 1
+        maximum: 64
+      edge_clearance_mm:
+        type: number
+        description: Edge clearance in millimeters
+        default: 3.0
+        minimum: 0.0
+      board_type:
+        type: string
+        description: Board type
+        enum: [rigid, flex, rigid_flex]
+        default: rigid
+      material:
+        type: string
+        description: PCB substrate material
+        default: FR4
+    additionalProperties: false
+
+  blocks:
+    type: object
+    description: Functional block definitions
+    default: {}
+    patternProperties:
+      "^[a-zA-Z_][a-zA-Z0-9_]*$":
+        type: object
+        required:
+          - name
+        properties:
+          name:
+            type: string
+            description: Block name
+          description:
+            type: string
+            description: Block purpose
+          components:
+            type: array
+            items:
+              type: string
+            description: Component IDs in this block
+          position:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: number
+            description: Block placement position (x, y)
+        additionalProperties: false
+
+additionalProperties: false

@@ -1,0 +1,337 @@
+{
+  "corpus_id": "zaptrace-human-reference-corpus-v1",
+  "corpus_version": "2026.07",
+  "non_claims": [
+    "upstream projects are human-engineered references but are not ZapTrace-reviewed",
+    "hash-pinned normalized summaries do not prove electrical correctness or fabrication readiness",
+    "the 12 ZapTrace starter fixtures remain synthetic regression evidence"
+  ],
+  "references": [
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "a10d5b29905778d649d7f7ad5266d8ecf10ee71696593cf1fbeb7c0e302a1e14",
+      "artifacts": [
+        {
+          "format": "modern-kicad-project-json",
+          "kind": "project",
+          "path": "SparkFun_Qwiic_Navigation.kicad_pro",
+          "sha256": "c0cd12cdf421aefc9fd8884e94316c97bcc10d80d9a1b399bdd6712bea097a19",
+          "size_bytes": 14759
+        },
+        {
+          "format": "modern-kicad-schematic-20231120",
+          "kind": "schematic",
+          "path": "SparkFun_Qwiic_Navigation.kicad_sch",
+          "sha256": "e70e7157c51686cf97304aa6520cab91bb875f37073a195076203deb7897012e",
+          "size_bytes": 271174
+        },
+        {
+          "format": "kicad-pcb-20240108",
+          "kind": "pcb",
+          "path": "SparkFun_Qwiic_Navigation.kicad_pcb",
+          "sha256": "0e27f8eb07741a84f98a3d7cabccfc4153c3070ad8e04dce31ca57c9d27016bb",
+          "size_bytes": 676230
+        }
+      ],
+      "domain": "i2c-spi-expansion",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "CC-BY-SA-4.0",
+      "license_source_path": "LICENSE.md hardware section",
+      "limitations": [
+        "source identity is pinned but no qualified ZapTrace human review is recorded",
+        "reference metadata does not prove electrical correctness or fabrication readiness"
+      ],
+      "reference_id": "sparkfun-qwiic-navigation",
+      "review_record": null,
+      "source_verification": "vendored-byte-exact",
+      "title": "SparkFun Qwiic Navigation Switch",
+      "total_bytes": 962163,
+      "upstream_commit": "b64c0dac2134d69963bf28120305bd79aad3c8ac",
+      "upstream_repository": "https://github.com/sparkfun/SparkFun_Qwiic_Navigation_Switch",
+      "upstream_source_root": "Hardware",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "ecd692f88c74a556ff674f96287e478c5df00178d2c288def248b46b8da1e86a",
+      "artifacts": [
+        {
+          "format": "modern-kicad-project-json",
+          "kind": "project",
+          "path": "Mitayi-Pico-D1.kicad_pro",
+          "sha256": "c8bd3909f11916aad6b412a94fa4a0ac9223b5cc251b5ee2d64ffd8778430c99",
+          "size_bytes": 22051
+        },
+        {
+          "format": "modern-kicad-schematic-20250114",
+          "kind": "schematic",
+          "path": "Mitayi-Pico-D1.kicad_sch",
+          "sha256": "5b1fa60d4533faeab9e57619577a4fa6d3f2dc7ae45bac338610bd9e82635808",
+          "size_bytes": 460359
+        },
+        {
+          "format": "kicad-pcb-20241229",
+          "kind": "pcb",
+          "path": "Mitayi-Pico-D1.kicad_pcb",
+          "sha256": "52dc529d6caf77d947c25f8b7f68d2c8a43f0ee5f05bff3ceaec1c7d0698aa5c",
+          "size_bytes": 1973491
+        }
+      ],
+      "domain": "mcu-development-board",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "MIT",
+      "license_source_path": "LICENSE",
+      "limitations": [
+        "source identity is pinned but no qualified ZapTrace human review is recorded",
+        "reference metadata does not prove electrical correctness or fabrication readiness"
+      ],
+      "reference_id": "mitayi-pico-d1",
+      "review_record": null,
+      "source_verification": "vendored-byte-exact",
+      "title": "Mitayi-Pico-D1",
+      "total_bytes": 2455901,
+      "upstream_commit": "8411224b5795dd74843ff87e8ead096f1e13e11d",
+      "upstream_repository": "https://github.com/CIRCUITSTATE/Mitayi-Pico-RP2040",
+      "upstream_source_root": ".",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "97f2da714bd3031d0247135f4c4c39cb61a5999e0b860340cf3584d36f4ce746",
+      "artifacts": [
+        {
+          "format": "legacy-kicad-project",
+          "kind": "project",
+          "path": "iCE40HX1K-EVB_Rev_B.pro",
+          "sha256": "727dd69270e1f722ac1a61ef06b9515cafa7ad9cf57bee61cc1e8b5974652c21",
+          "size_bytes": 1223
+        },
+        {
+          "format": "legacy-kicad-schematic-2",
+          "kind": "schematic",
+          "path": "iCE40HX1K-EVB_Rev_B.sch",
+          "sha256": "552e6e266c27d640adb7e7257045f79fd34559dc4bd709067d1eafc4cb3dc6bc",
+          "size_bytes": 65393
+        },
+        {
+          "format": "kicad-pcb-4",
+          "kind": "pcb",
+          "path": "iCE40HX1K-EVB_Rev_B.kicad_pcb",
+          "sha256": "18407352cb5c31bc5c93804af764220f158017b8d2e7f2da5585a5155d188ca1",
+          "size_bytes": 859725
+        }
+      ],
+      "domain": "fpga-expansion-board",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "Apache-2.0",
+      "license_source_path": "LICENSE",
+      "limitations": [
+        "source identity is pinned but no qualified ZapTrace human review is recorded",
+        "reference metadata does not prove electrical correctness or fabrication readiness"
+      ],
+      "reference_id": "olimex-ice40hx1k-evb-revb",
+      "review_record": null,
+      "source_verification": "reference-only-hash-pinned",
+      "title": "Olimex iCE40HX1K-EVB Rev B",
+      "total_bytes": 926341,
+      "upstream_commit": "91f3b5aff50258ddb40c021a21d4fd871633fc80",
+      "upstream_repository": "https://github.com/OLIMEX/iCE40HX1K-EVB",
+      "upstream_source_root": ".",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "1251b94aeae74408396bdafff183da03376d12f21a7df320d9014ab2cf38e157",
+      "artifacts": [
+        {
+          "format": "legacy-kicad-project",
+          "kind": "project",
+          "path": "HARDWARE/ESP32-DevKit-LiPo-Rev.D/ESP32-DevKit-Lipo_Rev_D.pro",
+          "sha256": "b5fcc3cb304e3e24c8907a801f6d84a162c6abff8000833bde8278e83debe57f",
+          "size_bytes": 1726
+        },
+        {
+          "format": "legacy-kicad-schematic-4",
+          "kind": "schematic",
+          "path": "HARDWARE/ESP32-DevKit-LiPo-Rev.D/ESP32-DevKit-Lipo_Rev_D.sch",
+          "sha256": "c273003d7bbd19e9d95af52919b817a9dda184250a1ecc9147ff2eeb523e39a8",
+          "size_bytes": 1876258
+        },
+        {
+          "format": "kicad-pcb-20171130",
+          "kind": "pcb",
+          "path": "HARDWARE/ESP32-DevKit-LiPo-Rev.D/ESP32-DevKit-Lipo_Rev_D.kicad_pcb",
+          "sha256": "eb6916c0d523665b694a1fbd38be6568acc2bc03eb46891d0e295c85b6449d73",
+          "size_bytes": 462394
+        }
+      ],
+      "domain": "battery-powered-mcu",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "Apache-2.0",
+      "license_source_path": "README.md hardware license section and LICENSE",
+      "limitations": [
+        "source identity is pinned but no qualified ZapTrace human review is recorded",
+        "reference metadata does not prove electrical correctness or fabrication readiness"
+      ],
+      "reference_id": "olimex-esp32-devkit-lipo-revd",
+      "review_record": null,
+      "source_verification": "reference-only-hash-pinned",
+      "title": "Olimex ESP32-DevKit-LiPo Rev D",
+      "total_bytes": 2340378,
+      "upstream_commit": "1ebbbb5ceaa84b1d67631d8d542d7f6128c19fc1",
+      "upstream_repository": "https://github.com/OLIMEX/ESP32-DevKit-LiPo",
+      "upstream_source_root": "HARDWARE/ESP32-DevKit-LiPo-Rev.D",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "4692ae64fe04e6be182a1e84c4eb2be9d6f52ca308caf6c78ca752903abfebd1",
+      "artifacts": [
+        {
+          "format": "legacy-kicad-project",
+          "kind": "project",
+          "path": "BB-PWR-3608_revA.pro",
+          "sha256": "e33fe95a5eff982f7256fb8d70ee3cad2104842adad097149f0f3c83a512912e",
+          "size_bytes": 1269
+        },
+        {
+          "format": "legacy-kicad-schematic-2",
+          "kind": "schematic",
+          "path": "BB-PWR-3608_revA.sch",
+          "sha256": "5acc259967bb28278a7e5c7a8bbb8698ef37323a5900e253ae2c8d62d2bd0437",
+          "size_bytes": 6386
+        },
+        {
+          "format": "kicad-pcb-4",
+          "kind": "pcb",
+          "path": "BB-PWR-3608_revA.kicad_pcb",
+          "sha256": "71024ad4c4fd62cb05c6e1bf0b1daecb1eb90e5b46c51b153ccc6d9373a8729a",
+          "size_bytes": 64054
+        }
+      ],
+      "domain": "power-converter",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "Apache-2.0",
+      "license_source_path": "LICENSE",
+      "limitations": [
+        "source identity is pinned but no qualified ZapTrace human review is recorded",
+        "reference metadata does not prove electrical correctness or fabrication readiness"
+      ],
+      "reference_id": "olimex-bb-pwr-3608-reva",
+      "review_record": null,
+      "source_verification": "reference-only-hash-pinned",
+      "title": "Olimex BB-PWR-3608 Rev A",
+      "total_bytes": 71709,
+      "upstream_commit": "fbd5d7a62807edf2343c445dd1cd43e81bbbb84e",
+      "upstream_repository": "https://github.com/OLIMEX/BB-PWR-3608",
+      "upstream_source_root": ".",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "d3ba8f26e090acec9fdf7f5eec3dc2e67f63d8e7edfa1f8131aaf298bda54149",
+      "artifacts": [
+        {
+          "format": "legacy-kicad-project",
+          "kind": "project",
+          "path": "HARDWARE/REV-A/TuxCon_Kitty_Rev_A.pro",
+          "sha256": "af6ca4cd5016b6dbd76a19e7de910d813a1d79c9b360992f2fa34fbbbf88186f",
+          "size_bytes": 1689
+        },
+        {
+          "format": "legacy-kicad-schematic-3",
+          "kind": "schematic",
+          "path": "HARDWARE/REV-A/TuxCon_Kitty_Rev_A.sch",
+          "sha256": "dfbebb198f43e6df3b4ab859665c0158105af7b47efabeb6347407ab3fa47756",
+          "size_bytes": 9836
+        },
+        {
+          "format": "kicad-pcb-20170922",
+          "kind": "pcb",
+          "path": "HARDWARE/REV-A/TuxCon_Kitty_Rev_A.kicad_pcb",
+          "sha256": "11d0cc00965f9f420e8b51c9172ae319b0b98bc90d8017c5927bfbacb5cba981",
+          "size_bytes": 185270
+        }
+      ],
+      "domain": "led-interactive-badge",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "Apache-2.0",
+      "license_source_path": "README.md hardware license section and LICENSE",
+      "limitations": [
+        "source identity is pinned but no qualified ZapTrace human review is recorded",
+        "reference metadata does not prove electrical correctness or fabrication readiness"
+      ],
+      "reference_id": "olimex-tuxcon-kitty-reva",
+      "review_record": null,
+      "source_verification": "reference-only-hash-pinned",
+      "title": "Olimex TuxCon Kitty Rev A",
+      "total_bytes": 196795,
+      "upstream_commit": "64cba773ca8a0d9f5a3612d73fa627ddeef0312d",
+      "upstream_repository": "https://github.com/OLIMEX/TuxCon-Kitty",
+      "upstream_source_root": "HARDWARE/REV-A",
+      "zaptrace_review_status": "pending-human-review"
+    }
+  ],
+  "rubric_path": "benchmarks/human-reference-corpus/rubric.json",
+  "schema_version": "1.0"
+}

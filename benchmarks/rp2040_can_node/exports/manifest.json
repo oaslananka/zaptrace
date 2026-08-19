@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "family_id": "rp2040_can_node",
+  "artifact_kind": "manufacturing-export-manifest",
+  "status": "starter-fixture",
+  "artifacts": [],
+  "blocked": false,
+  "warnings": [
+    "No fabrication-ready Gerber/drill/BOM files are claimed by this starter fixture.",
+    "CAN compliance, EMC, surge and physical-layer validation are outside this fixture manifest."
+  ],
+  "non_claims": [
+    "not fabrication-ready",
+    "not CAN-compliance-approved",
+    "not EMC-approved",
+    "not manufacturer-approved",
+    "not production-ready"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "corpus_version": "2026.07",
+  "families": [
+    {
+      "family_id": "switching_regulator_module",
+      "simulation_gate": "buck-transient",
+      "require_live_simulation": true,
+      "required_domains": ["transient", "power-integrity", "thermal", "current-density"]
+    },
+    {
+      "family_id": "usb_c_power_sink",
+      "simulation_gate": "usb-c-inrush",
+      "require_live_simulation": false,
+      "required_domains": ["transient", "power-integrity", "current-density"]
+    },
+    {
+      "family_id": "lipo_charger_node",
+      "simulation_gate": "lipo-ac-stability",
+      "require_live_simulation": false,
+      "required_domains": ["ac", "thermal"]
+    },
+    {
+      "family_id": "esp32_usb_sensor",
+      "simulation_gate": "analytical-sipi",
+      "require_live_simulation": false,
+      "required_domains": ["signal-integrity"]
+    }
+  ],
+  "non_claims": [
+    "A corpus pass proves evidence production and policy behavior, not electrical correctness or fabrication readiness.",
+    "Analytical and heuristic evidence requires qualified human review and is not solver-grade SI/PI or thermal sign-off.",
+    "Family fixtures are governed regression models and are not selected-device, board-extracted, or lab-correlated models.",
+    "Physical bring-up, EMC, safety, manufacturer approval, and qualified engineering approval remain separate evidence."
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "family_id": "usb_c_power_sink",
+  "benchmark_id": "usb_c_power_sink_fixture_v1",
+  "title": "USB-C power sink benchmark fixture",
+  "representative_intent": "USB-C 5V/3A sink with CC resistors, fuse, and regulator",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-USBC-CC-SINK",
+      "text": "Represent USB-C sink CC1/CC2 pull-down evidence for default 5 V power negotiation.",
+      "category": "usb-c-power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-VBUS-PROTECTION",
+      "text": "Provide VBUS input protection evidence including fuse/current-limit and transient protection review hooks.",
+      "category": "power-protection",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-5V3A-CURRENT-BUDGET",
+      "text": "Track 5 V sink current budget and high-current copper-width/current-density review evidence.",
+      "category": "power-current",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-USBC-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, rail current, regulator margin, current-density, and SI/PI review evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 85,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": ["human-review-required", "autonomous-pass"]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not USB-IF certification or fabrication approval.",
+    "The fixture does not claim USB-C compliance, PD negotiation correctness, safety certification, manufacturability, or production readiness."
+  ]
+}

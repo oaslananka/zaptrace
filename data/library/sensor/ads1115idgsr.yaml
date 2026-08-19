@@ -1,0 +1,119 @@
+schema_version: '2.0'
+id: ads1115idgsr
+name: ADS1115IDGSR Legacy ID
+category: sensor
+manufacturer: Texas Instruments
+mpn: ADS1115IDGSR
+description: 16-bit 860-SPS 4-channel delta-sigma ADC with PGA, comparator and I2C interface
+datasheet: https://www.ti.com/lit/ds/symlink/ads1115.pdf
+package: MSOP-10
+footprint: ADS1115IDGSR-DGS10
+lifecycle: active
+voltage_supply: 2.0-5.5 V
+pins:
+  ADDR:
+    type: input
+    description: I2C target-address select input
+  ALERT:
+    type: output
+    description: Open-drain ALERT/RDY comparator or conversion-ready output
+  GND:
+    type: power
+    description: Analog ground
+  AIN0:
+    type: input
+    description: Analog input 0
+  AIN1:
+    type: input
+    description: Analog input 1
+  AIN2:
+    type: input
+    description: Analog input 2
+  AIN3:
+    type: input
+    description: Analog input 3
+  VDD:
+    type: power
+    description: 2.0-5.5 V power supply
+  SDA:
+    type: bidirectional
+    description: I2C serial data
+  SCL:
+    type: input
+    description: I2C serial clock
+package_pin_map:
+  '1': ADDR
+  '2': ALERT
+  '3': GND
+  '4': AIN0
+  '5': AIN1
+  '6': AIN2
+  '7': AIN3
+  '8': VDD
+  '9': SDA
+  '10': SCL
+properties:
+  canonical_component_id: ads1115
+  compatibility_role: legacy-id-mirror
+  interface: [i2c]
+  manufacturer_package_name: VSSOP (DGS)
+  legacy_package_name: MSOP-10
+  resolution_bit: 16
+  channels_single_ended: 4
+  channels_differential: 2
+  sample_rate_sps: 860
+  supply_range_v: [2.0, 5.5]
+  absolute_max_vdd_v: 7.0
+  temperature_range_c: [-40, 125]
+  continuous_conversion_current_ua: 150
+  pga_full_scale_ranges_v: [6.144, 4.096, 2.048, 1.024, 0.512, 0.256]
+  package_body_nominal_mm: [3.0, 3.0]
+  package_overall_nominal_mm: [3.0, 4.9]
+  manufacturer_land_pattern_mm:
+    pad_length: 1.45
+    pad_width: 0.30
+    pin_pitch: 0.50
+  repository_land_pattern:
+    source: KiCad official Package_SO.pretty/MSOP-10_3x3mm_P0.5mm.kicad_mod
+    source_revision: e4191d1fd7b9522beb2980b83ae3c0c2fe41a9e1
+    source_sha256: 8d2841a74e13e6aa9ff353b36a4946df71e473655a2ec824de8486d5adb3b7b9
+    pad_size_mm: [1.50, 0.35]
+    pin_pitch: 0.50
+    review_note: KiCad MSOP-10 land pattern is package-compatible but not dimension-identical to the TI DGS example board layout; human footprint review remains required before trust-tier promotion
+electrical_limits:
+  voltage_supply: 2.0-5.5 V recommended operating supply
+  temperature_range: [-40, 125]
+  max_voltage_v: 7.0
+  review_note: Absolute maximum VDD-to-GND is 7 V; analog and digital input limits remain governed by the TI Rev E datasheet and operating supply conditions
+sourcing:
+  mpn: ADS1115IDGSR
+  manufacturer: Texas Instruments
+  status: manufacturer-active-production
+  production_note: TI Rev E orderable information identifies ADS1115IDGSR as Active / Production, DGS VSSOP-10, 2500-piece large tape-and-reel; re-check live inventory and lead time before procurement
+compliance:
+  rohs: manufacturer-declared-compliant
+  reach: manufacturer-declared-compliant
+  production_note: TI current product information reports RoHS and REACH compliance; procurement-time material declarations remain the release authority
+provenance:
+  source: Texas Instruments ADS111x SBAS444E Rev E datasheet and embedded orderable/package information
+  review_status: candidate-evidence-unreviewed
+  production_note: Legacy component ID compatibility mirror of ads1115; human review of the KiCad-versus-TI DGS land-pattern equivalence and procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &ti_evidence
+    source_type: manufacturer_document
+    source_locator: https://www.ti.com/lit/ds/symlink/ads1115.pdf
+    source_identity: SBAS444E
+    source_sha256: 5fe00cf9509daba7ca311cd0a461debc563dd57598c5de3bf9c31903dc2238da
+    source_version: Rev E (2024-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-10
+    confidence: medium
+  datasheet: *ti_evidence
+  pin_map: *ti_evidence
+  package: *ti_evidence
+  footprint: *ti_evidence
+  electrical_limits: *ti_evidence
+  lifecycle: *ti_evidence
+  sourcing: *ti_evidence

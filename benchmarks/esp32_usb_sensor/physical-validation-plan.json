@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0",
+  "plan_id": "esp32-usb-sensor-physical-validation-v1",
+  "family_id": "esp32_usb_sensor",
+  "status": "pre-fabrication-candidate",
+  "purpose": "Define the bounded, low-energy first physical-validation program before any fabrication order is allowed.",
+  "selection_record": {
+    "candidate_design": "esp32_usb_sensor_generated_v1",
+    "requirements_path": "benchmarks/esp32_usb_sensor/requirements.json",
+    "starter_fixture_status": "coverage-only",
+    "rationale": [
+      "USB-C 5 V sink to 3.3 V logic is bounded to extra-low-voltage operation.",
+      "The ESP32-C3 plus I2C environmental-sensor path has observable power and functional checkpoints.",
+      "The first program excludes mains, battery charging, high-energy loads, medical, automotive-safety, and production qualification claims."
+    ]
+  },
+  "selection_decision": {
+    "status": "approved",
+    "scope": "board-selection-only",
+    "decided_by": "oaslananka",
+    "decided_at": "2026-08-19T03:18:09Z",
+    "selected_family": "esp32_usb_sensor",
+    "non_claim": "This decision approves the bounded reference-board selection only; it is not schematic, layout, component, manufacturing, procurement, or fabrication approval."
+  },
+  "identity_binding": {
+    "source_revision": {
+      "mode": "ci-captured-exact-commit",
+      "required_before_fabrication": true
+    },
+    "generated_design_evidence": {
+      "kind": "generated-board-release-gate",
+      "required_before_fabrication": true
+    },
+    "ordered_manufacturing_bundle": {
+      "sha256_required_before_fabrication": true,
+      "must_bind_released_source_revision": true
+    }
+  },
+  "design_readiness": {
+    "status": "blocked",
+    "candidate_pipeline": "composition-synthesis",
+    "candidate_design": "esp32_usb_sensor_physical_rev_a",
+    "required_checks": [
+      "exact_component_identity",
+      "usb_c_sink_cc_termination",
+      "footprint_resolution_complete",
+      "placement_complete",
+      "internal_erc_clean",
+      "internal_drc_clean",
+      "kicad_erc_clean",
+      "kicad_drc_clean",
+      "profile_bound_dfm_non_hard_fail"
+    ],
+    "blocking_reasons": [
+      "The legacy template-generated esp32_usb_sensor_generated_v1 candidate uses ESP32-WROOM-32 and does not satisfy the selected ESP32-C3 USB-C sink contract; it is not a fabrication source.",
+      "The composition-synthesis candidate has the required ESP32-C3 and dual 5.1k USB-C CC pull-down topology and routes all six non-ground nets, but GND pour connectivity is not yet proven and internal DRC remains blocked; official KiCad DRC and profile-bound DFM also remain blocking.",
+      "The current generic KiCad schematic export is not ERC-clean because it emits floating net-name labels; an ERC-clean reviewed schematic is still required.",
+      "Profile-bound DFM is currently hard-fail for the candidate layout and must be cleared before an ordered bundle can be frozen.",
+      "Exact orderable identities and qualified review for all populated components and high-risk footprints remain to be frozen before procurement or fabrication."
+    ]
+  },
+  "human_review": {
+    "status": "pending",
+    "reviewer": null,
+    "reviewed_at": null,
+    "required_scopes": [
+      "schematic",
+      "layout",
+      "component-and-footprint",
+      "manufacturing"
+    ]
+  },
+  "fabrication": {
+    "eligible": false,
+    "source_path": null,
+    "ordered_bundle_sha256": null,
+    "prototype_quantity": null,
+    "blocking_reasons": [
+      "design readiness is blocked until exact component identity, ERC/DRC, and profile-bound DFM checks are satisfied",
+      "Qualified human schematic/layout/component/manufacturing review is not recorded.",
+      "No exact ordered manufacturing bundle is hash-bound to a released source revision.",
+      "The committed benchmark golden files are starter fixtures and are forbidden as fabrication sources."
+    ],
+    "forbidden_source_patterns": [
+      "benchmarks/esp32_usb_sensor/golden/",
+      "starter-fixture"
+    ]
+  },
+  "power_scope": {
+    "voltage_scope": "extra-low-voltage",
+    "supply_nominal_v": 5.0,
+    "supply_current_limit_a": 0.5,
+    "current_limit_role": "initial bench protection, not a design-rating claim",
+    "planned_rail_checks": [
+      {
+        "measurement_id": "vbus_voltage",
+        "nominal_v": 5.0,
+        "planning_range_v": [
+          4.75,
+          5.25
+        ],
+        "basis": "planning assumption; replace or confirm from reviewed source evidence before fabrication"
+      },
+      {
+        "measurement_id": "rail_3v3_voltage",
+        "nominal_v": 3.3,
+        "planning_range_v": [
+          3.135,
+          3.465
+        ],
+        "basis": "planning assumption; replace or confirm from reviewed regulator/load evidence before fabrication"
+      }
+    ],
+    "stop_conditions": [
+      "bench supply enters current limit or measured input current exceeds 0.5 A",
+      "visible smoke, odor, discoloration, arcing, or unexpected component heating is observed",
+      "VBUS or the 3.3 V rail is outside the reviewed pre-fabrication acceptance range",
+      "a continuity or short check fails before power application",
+      "any component surface measurement reaches 70 C during the bounded initial bring-up"
+    ]
+  },
+  "measurement_program": {
+    "required_measurements": [
+      "vbus_voltage",
+      "rail_3v3_voltage",
+      "i2c_functional",
+      "idle_current",
+      "active_current",
+      "component_temperature"
+    ],
+    "instrument_metadata_required": [
+      "manufacturer",
+      "model",
+      "serial_or_asset_id",
+      "calibration_status",
+      "range",
+      "resolution",
+      "uncertainty"
+    ],
+    "measurement_record_required_fields": [
+      "measurement_id",
+      "timestamp",
+      "instrument_id",
+      "value",
+      "units",
+      "uncertainty",
+      "test_state",
+      "result"
+    ]
+  },
+  "correlation_report": {
+    "formats": [
+      "json",
+      "markdown"
+    ],
+    "preserve_original_prediction": true,
+    "required_fields": [
+      "measurement_id",
+      "predicted_source",
+      "predicted_value_or_range",
+      "measured_value",
+      "units",
+      "uncertainty",
+      "result",
+      "discrepancy_id"
+    ]
+  },
+  "non_claims": [
+    "The committed benchmark starter fixture is coverage evidence only and must not be used as a fabrication source.",
+    "This pre-fabrication plan is not fabrication approval, human engineering approval, electrical correctness, EMC evidence, regulatory evidence, certification, or production readiness.",
+    "Planning voltage ranges, current limits, and temperature stops are conservative test-planning assumptions until confirmed against the exact reviewed component and board evidence.",
+    "No physical board, assembly, bring-up, measurement, or lab correlation result is claimed by this record."
+  ]
+}

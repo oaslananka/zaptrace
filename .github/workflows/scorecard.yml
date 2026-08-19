@@ -1,0 +1,51 @@
+name: OpenSSF Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 6 * * 1"
+  workflow_dispatch:
+
+# Workflow-level default: read-only to satisfy Scorecard's token-permissions check.
+# Write permissions are scoped to the job that requires them.
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    name: Scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for CI-Tests to inspect successful checks on merged PR head SHAs.
+      checks: read
+      # Required to upload Scorecard SARIF to GitHub code scanning.
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@99c09fe975337306107572b4fdf4db224cf8e2f2  # v2.4.3
+        with:
+          results_format: sarif
+          results_file: scorecard.sarif
+          # The local SARIF artifact remains available and is uploaded to GitHub
+          # code scanning below. External scorecard.dev publication is disabled
+          # because the publisher rejects this pinned-SHA workflow verification.
+          publish_results: false
+
+      - name: Upload SARIF to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@b1722c1245f90604c2c348f9d1624af97ea8fc6e  # v3.29.0
+        with:
+          sarif_file: scorecard.sarif
+          category: openssf-scorecard
+
+      - name: Upload Scorecard SARIF artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: scorecard-sarif
+          path: scorecard.sarif
+          if-no-files-found: error

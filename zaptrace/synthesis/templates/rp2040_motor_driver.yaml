@@ -1,0 +1,73 @@
+meta:
+  name: "RP2040 Motor Driver"
+  version: "0.1.0"
+  description: "RP2040-based dual DC motor driver with PID control and encoder inputs"
+  tags: ["rp2040", "motor", "dc-motor", "pid", "encoder", "pwm"]
+
+board:
+  width_mm: 55
+  height_mm: 45
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "RP2040"
+    footprint: "RP2040-QFN-56"
+    pins:
+      IOVDD:  {type: "power", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+      VREG_VIN: {type: "power", net: "VCC_5V"}
+      GP0:    {type: "bidirectional", net: "MOTOR_1_PWM"}
+      GP1:    {type: "bidirectional", net: "MOTOR_1_DIR"}
+      GP2:    {type: "bidirectional", net: "MOTOR_2_PWM"}
+      GP3:    {type: "bidirectional", net: "MOTOR_2_DIR"}
+      GP4:    {type: "bidirectional", net: "ENC_1_A"}
+      GP5:    {type: "bidirectional", net: "ENC_1_B"}
+      GP6:    {type: "bidirectional", net: "ENC_2_A"}
+      GP7:    {type: "bidirectional", net: "ENC_2_B"}
+  U2:
+    id: "U2"
+    ref: "U2"
+    type: "AMS1117-3.3"
+    footprint: "SOT-223"
+    pins:
+      INPUT:  {type: "power", net: "VCC_5V"}
+      OUTPUT: {type: "output", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "10uF"
+    footprint: "0805"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  J1:
+    id: "J1"
+    ref: "J1"
+    type: "Terminal Block 2P 5mm"
+    footprint: "TERMINAL-2P-5MM"
+    pins:
+      P1: {type: "passive", net: "VCC_5V"}
+      P2: {type: "passive", net: "GND"}
+
+nets:
+  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.P1","U1.VREG_VIN","U2.INPUT"]}
+  VCC_3V3:   {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U2.OUTPUT","U1.IOVDD","C1.P1","C2.P1"]}
+  GND:       {id: "GND",name: "GND",type: "ground", nodes:["J1.P2","U1.GND","U2.GND","C1.P2","C2.P2"]}
+  MOTOR_1_PWM: {id: "MOTOR_1_PWM",name: "MOTOR_1_PWM",type: "signal",nodes:["U1.GP0"]}
+  MOTOR_1_DIR: {id: "MOTOR_1_DIR",name: "MOTOR_1_DIR",type: "signal",nodes:["U1.GP1"]}
+  MOTOR_2_PWM: {id: "MOTOR_2_PWM",name: "MOTOR_2_PWM",type: "signal",nodes:["U1.GP2"]}
+  MOTOR_2_DIR: {id: "MOTOR_2_DIR",name: "MOTOR_2_DIR",type: "signal",nodes:["U1.GP3"]}

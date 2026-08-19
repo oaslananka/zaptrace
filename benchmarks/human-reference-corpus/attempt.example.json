@@ -1,0 +1,83 @@
+{
+  "attempt_id": "human-reference-attempt-example",
+  "attempt_status": "template",
+  "dimensions": [
+    {
+      "dimension_id": "requirements-coverage",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "erc-drc-oracle",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "schematic-parity",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "component-evidence",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "layout-quality",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "dfm-readiness",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "simulation-analysis",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    },
+    {
+      "dimension_id": "human-review",
+      "evidence_authority": "missing",
+      "evidence_references": [],
+      "notes": "replace with identity-bound evidence from a real attempt",
+      "reviewer": null,
+      "score": 0
+    }
+  ],
+  "evidence_status": "non-authoritative-example",
+  "limitations": [
+    "template only; no autonomous attempt or human review was performed"
+  ],
+  "non_claims": [
+    "this example is not benchmark evidence"
+  ],
+  "reference_artifact_set_sha256": "a10d5b29905778d649d7f7ad5266d8ecf10ee71696593cf1fbeb7c0e302a1e14",
+  "reference_id": "sparkfun-qwiic-navigation",
+  "schema_version": "1.0",
+  "source_commit": "0000000000000000000000000000000000000000",
+  "tool_name": "example-only",
+  "tool_version": "not-run"
+}

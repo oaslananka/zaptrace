@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zaptrace.dev/schemas/hardware-ir-v1.json",
+  "title": "ZapTrace Canonical Hardware IR v1",
+  "description": "Versioned canonical intermediate representation for agent-native hardware design, validation, interop, manufacturing, supply-chain, and evidence records.",
+  "type": "object",
+  "required": ["ir_version", "design_id", "domains"],
+  "additionalProperties": false,
+  "properties": {
+    "ir_version": {"type": "string", "const": "1.0.0"},
+    "design_id": {"type": "string", "minLength": 1},
+    "source": {"$ref": "#/$defs/source"},
+    "domains": {
+      "type": "object",
+      "required": ["electrical", "physical", "constraints", "manufacturing", "supply_chain", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "electrical": {"$ref": "#/$defs/electrical_graph"},
+        "physical": {"$ref": "#/$defs/physical_graph"},
+        "constraints": {"$ref": "#/$defs/constraint_graph"},
+        "manufacturing": {"$ref": "#/$defs/manufacturing_graph"},
+        "supply_chain": {"$ref": "#/$defs/supply_chain_graph"},
+        "evidence": {"$ref": "#/$defs/evidence_graph"}
+      }
+    },
+    "unsupported_data": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/unsupported_record"},
+      "default": []
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1},
+    "ref": {"type": "string", "minLength": 1},
+    "mm": {"type": "number", "description": "Millimetres"},
+    "point": {
+      "type": "array",
+      "prefixItems": [{"$ref": "#/$defs/mm"}, {"$ref": "#/$defs/mm"}],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "polygon": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/point"},
+      "minItems": 3
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {"type": "string"},
+        "tool": {"type": "string"},
+        "tool_version": {"type": "string"},
+        "source_fingerprint": {"type": "string"},
+        "imported_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "electrical_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "components": {"type": "array", "items": {"$ref": "#/$defs/electrical_component"}, "default": []},
+        "symbols": {"type": "array", "items": {"$ref": "#/$defs/symbol"}, "default": []},
+        "nets": {"type": "array", "items": {"$ref": "#/$defs/net"}, "default": []},
+        "buses": {"type": "array", "items": {"$ref": "#/$defs/bus"}, "default": []},
+        "hierarchy": {"type": "array", "items": {"$ref": "#/$defs/hierarchy_node"}, "default": []},
+        "power_domains": {"type": "array", "items": {"$ref": "#/$defs/power_domain"}, "default": []}
+      }
+    },
+    "electrical_component": {
+      "type": "object",
+      "required": ["id", "ref", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "ref": {"type": "string"},
+        "type": {"type": "string"},
+        "value": {"type": ["string", "null"]},
+        "symbol_id": {"type": ["string", "null"]},
+        "footprint_id": {"type": ["string", "null"]},
+        "pins": {"type": "array", "items": {"$ref": "#/$defs/pin"}, "default": []},
+        "properties": {"type": "object", "additionalProperties": true, "default": {}}
+      }
+    },
+    "pin": {
+      "type": "object",
+      "required": ["id", "name", "electrical_type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string"},
+        "electrical_type": {"enum": ["power", "input", "output", "bidirectional", "passive", "no_connect"]},
+        "net_id": {"type": ["string", "null"]},
+        "voltage_level": {"type": ["string", "null"]}
+      }
+    },
+    "symbol": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "source_library": {"type": ["string", "null"]},
+        "pins": {"type": "array", "items": {"$ref": "#/$defs/ref"}, "default": []}
+      }
+    },
+    "net": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "type": {"enum": ["power", "signal", "differential", "clock", "data", "analog", "ground"]},
+        "nodes": {"type": "array", "items": {"$ref": "#/$defs/net_node"}, "default": []}
+      }
+    },
+    "net_node": {
+      "type": "object",
+      "required": ["component_ref", "pin_name"],
+      "additionalProperties": false,
+      "properties": {
+        "component_ref": {"$ref": "#/$defs/ref"},
+        "pin_name": {"type": "string"}
+      }
+    },
+    "bus": {
+      "type": "object",
+      "required": ["id", "member_net_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string"},
+        "member_net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}
+      }
+    },
+    "hierarchy_node": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string"},
+        "parent_id": {"type": ["string", "null"]}
+      }
+    },
+    "power_domain": {
+      "type": "object",
+      "required": ["id", "source_net_ids", "return_net_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string"},
+        "source_net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}},
+        "return_net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}
+      }
+    },
+    "physical_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "footprints": {"type": "array", "items": {"$ref": "#/$defs/footprint"}, "default": []},
+        "pads": {"type": "array", "items": {"$ref": "#/$defs/pad"}, "default": []},
+        "placements": {"type": "array", "items": {"$ref": "#/$defs/placement"}, "default": []},
+        "board_outline": {"$ref": "#/$defs/polygon"},
+        "layers": {"type": "array", "items": {"$ref": "#/$defs/layer"}, "default": []},
+        "vias": {"type": "array", "items": {"$ref": "#/$defs/via"}, "default": []},
+        "traces": {"type": "array", "items": {"$ref": "#/$defs/trace"}, "default": []},
+        "zones": {"type": "array", "items": {"$ref": "#/$defs/zone"}, "default": []},
+        "keepouts": {"type": "array", "items": {"$ref": "#/$defs/keepout"}, "default": []}
+      }
+    },
+    "footprint": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {"id": {"$ref": "#/$defs/id"}, "source_library": {"type": ["string", "null"]}}
+    },
+    "pad": {
+      "type": "object",
+      "required": ["id", "footprint_id", "position", "size"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "footprint_id": {"$ref": "#/$defs/ref"},
+        "pin_id": {"type": ["string", "null"]},
+        "layer": {"type": "string"},
+        "shape": {"enum": ["rect", "circle", "oval", "custom"]},
+        "position": {"$ref": "#/$defs/point"},
+        "size": {"$ref": "#/$defs/point"},
+        "drill_mm": {"type": ["number", "null"]},
+        "plated": {"type": "boolean"}
+      }
+    },
+    "placement": {
+      "type": "object",
+      "required": ["component_id", "position"],
+      "additionalProperties": false,
+      "properties": {
+        "component_id": {"$ref": "#/$defs/ref"},
+        "position": {"$ref": "#/$defs/point"},
+        "rotation_deg": {"type": "number", "default": 0},
+        "side": {"enum": ["top", "bottom"]}
+      }
+    },
+    "layer": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string"},
+        "type": {"enum": ["signal", "power", "ground", "dielectric", "silkscreen", "mask", "paste", "mechanical"]},
+        "thickness_mm": {"type": ["number", "null"]},
+        "material": {"type": ["string", "null"]}
+      }
+    },
+    "via": {
+      "type": "object",
+      "required": ["id", "position", "net_id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "position": {"$ref": "#/$defs/point"},
+        "net_id": {"$ref": "#/$defs/ref"},
+        "diameter_mm": {"type": "number"},
+        "drill_mm": {"type": "number"},
+        "from_layer": {"type": "string"},
+        "to_layer": {"type": "string"}
+      }
+    },
+    "trace": {
+      "type": "object",
+      "required": ["id", "net_id", "layer", "start", "end", "width_mm"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "net_id": {"$ref": "#/$defs/ref"},
+        "layer": {"type": "string"},
+        "start": {"$ref": "#/$defs/point"},
+        "end": {"$ref": "#/$defs/point"},
+        "width_mm": {"type": "number"}
+      }
+    },
+    "zone": {
+      "type": "object",
+      "required": ["id", "net_id", "layer", "polygon"],
+      "additionalProperties": true,
+      "properties": {"id": {"$ref": "#/$defs/id"}, "net_id": {"$ref": "#/$defs/ref"}, "layer": {"type": "string"}, "polygon": {"$ref": "#/$defs/polygon"}}
+    },
+    "keepout": {
+      "type": "object",
+      "required": ["id", "polygon"],
+      "additionalProperties": true,
+      "properties": {"id": {"$ref": "#/$defs/id"}, "polygon": {"$ref": "#/$defs/polygon"}, "applies_to": {"type": "array", "items": {"type": "string"}}}
+    },
+    "constraint_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "net_classes": {"type": "array", "items": {"$ref": "#/$defs/net_class"}, "default": []},
+        "impedance_targets": {"type": "array", "items": {"$ref": "#/$defs/impedance_target"}, "default": []},
+        "differential_pairs": {"type": "array", "items": {"$ref": "#/$defs/differential_pair"}, "default": []},
+        "length_match_groups": {"type": "array", "items": {"$ref": "#/$defs/length_match_group"}, "default": []},
+        "max_lengths": {"type": "array", "items": {"$ref": "#/$defs/max_length"}, "default": []},
+        "high_current_regions": {"type": "array", "items": {"$ref": "#/$defs/high_current_region"}, "default": []},
+        "decoupling_relations": {"type": "array", "items": {"$ref": "#/$defs/decoupling_relation"}, "default": []},
+        "return_path_hints": {"type": "array", "items": {"$ref": "#/$defs/return_path_hint"}, "default": []},
+        "keepout_regions": {"type": "array", "items": {"$ref": "#/$defs/keepout_region"}, "default": []}
+      }
+    },
+    "net_class": {"type": "object", "required": ["id", "net_ids"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}}},
+    "impedance_target": {"type": "object", "required": ["id", "net_ids", "target_ohms"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}, "target_ohms": {"type": "number"}, "tolerance_ohms": {"type": ["number", "null"]}}},
+    "differential_pair": {"type": "object", "required": ["id", "positive_net_id", "negative_net_id"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "positive_net_id": {"$ref": "#/$defs/ref"}, "negative_net_id": {"$ref": "#/$defs/ref"}, "target_gap_mm": {"type": ["number", "null"]}, "length_tolerance_mm": {"type": ["number", "null"]}}},
+    "length_match_group": {"type": "object", "required": ["id", "net_ids"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}, "tolerance_mm": {"type": ["number", "null"]}}},
+    "max_length": {"type": "object", "required": ["net_id", "max_length_mm"], "additionalProperties": true, "properties": {"net_id": {"$ref": "#/$defs/ref"}, "max_length_mm": {"type": "number"}}},
+    "high_current_region": {"type": "object", "required": ["id"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "net_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}, "current_a": {"type": ["number", "null"]}, "polygon": {"$ref": "#/$defs/polygon"}}},
+    "decoupling_relation": {"type": "object", "required": ["target_component_id", "capacitor_component_ids"], "additionalProperties": true, "properties": {"target_component_id": {"$ref": "#/$defs/ref"}, "capacitor_component_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}, "power_net_id": {"type": ["string", "null"]}, "return_net_id": {"type": ["string", "null"]}}},
+    "return_path_hint": {"type": "object", "required": ["id", "net_id"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "net_id": {"$ref": "#/$defs/ref"}, "preferred_return_net_id": {"type": ["string", "null"]}}},
+    "keepout_region": {"type": "object", "required": ["id", "polygon"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "polygon": {"$ref": "#/$defs/polygon"}, "reason": {"type": "string"}}},
+    "manufacturing_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fab_profile": {"type": ["string", "object", "null"]},
+        "stackup": {"type": "array", "items": {"$ref": "#/$defs/layer"}, "default": []},
+        "drill_rules": {"type": "array", "items": {"$ref": "#/$defs/drill_rule"}, "default": []},
+        "assembly_variants": {"type": "array", "items": {"$ref": "#/$defs/assembly_variant"}, "default": []},
+        "bom_population": {"type": "array", "items": {"$ref": "#/$defs/bom_population"}, "default": []},
+        "export_targets": {"type": "array", "items": {"$ref": "#/$defs/export_target"}, "default": []}
+      }
+    },
+    "drill_rule": {"type": "object", "required": ["id"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "min_hole_mm": {"type": ["number", "null"]}, "min_annular_ring_mm": {"type": ["number", "null"]}}},
+    "assembly_variant": {"type": "object", "required": ["id"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "description": {"type": "string"}}},
+    "bom_population": {"type": "object", "required": ["component_id", "populate"], "additionalProperties": false, "properties": {"component_id": {"$ref": "#/$defs/ref"}, "variant_id": {"type": ["string", "null"]}, "populate": {"type": "boolean"}}},
+    "export_target": {"type": "object", "required": ["format"], "additionalProperties": true, "properties": {"format": {"type": "string"}, "profile": {"type": ["string", "null"]}, "intent": {"type": ["string", "null"]}}},
+    "supply_chain_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parts": {"type": "array", "items": {"$ref": "#/$defs/supply_part"}, "default": []},
+        "substitutes": {"type": "array", "items": {"$ref": "#/$defs/substitute"}, "default": []},
+        "provenance": {"type": "array", "items": {"$ref": "#/$defs/provenance"}, "default": []}
+      }
+    },
+    "supply_part": {"type": "object", "required": ["component_id"], "additionalProperties": true, "properties": {"component_id": {"$ref": "#/$defs/ref"}, "mpn": {"type": ["string", "null"]}, "manufacturer": {"type": ["string", "null"]}, "distributor_ids": {"type": "object", "additionalProperties": {"type": "string"}}, "lifecycle": {"enum": ["active", "nrnd", "obsolete", "unknown"]}, "stock": {"type": ["integer", "null"]}, "price": {"type": ["number", "null"]}}},
+    "substitute": {"type": "object", "required": ["component_id", "substitute_mpn"], "additionalProperties": true, "properties": {"component_id": {"$ref": "#/$defs/ref"}, "substitute_mpn": {"type": "string"}, "compatibility_notes": {"type": "string"}}},
+    "provenance": {"type": "object", "required": ["source"], "additionalProperties": true, "properties": {"source": {"type": "string"}, "fetched_at": {"type": ["string", "null"], "format": "date-time"}, "confidence": {"type": ["number", "null"]}}},
+    "evidence_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "validation_results": {"type": "array", "items": {"$ref": "#/$defs/validation_result"}, "default": []},
+        "oracle_reports": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}, "default": []},
+        "proof_pack_artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact_ref"}, "default": []},
+        "artifact_hashes": {"type": "array", "items": {"$ref": "#/$defs/artifact_hash"}, "default": []},
+        "tool_versions": {"type": "array", "items": {"$ref": "#/$defs/tool_version"}, "default": []},
+        "agent_decisions": {"type": "array", "items": {"$ref": "#/$defs/agent_decision"}, "default": []},
+        "human_approvals": {"type": "array", "items": {"$ref": "#/$defs/human_approval"}, "default": []}
+      }
+    },
+    "validation_result": {"type": "object", "required": ["id", "tool", "status"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "tool": {"type": "string"}, "status": {"enum": ["passed", "failed", "warning", "not_run"]}, "errors": {"type": "integer"}, "warnings": {"type": "integer"}, "artifact_ids": {"type": "array", "items": {"$ref": "#/$defs/ref"}}}},
+    "artifact_ref": {"type": "object", "required": ["id", "path", "sha256"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "path": {"type": "string"}, "sha256": {"type": "string"}}},
+    "artifact_hash": {"type": "object", "required": ["artifact_id", "sha256"], "additionalProperties": false, "properties": {"artifact_id": {"$ref": "#/$defs/ref"}, "sha256": {"type": "string"}}},
+    "tool_version": {"type": "object", "required": ["tool", "version"], "additionalProperties": true, "properties": {"tool": {"type": "string"}, "version": {"type": "string"}}},
+    "agent_decision": {"type": "object", "required": ["id", "actor", "timestamp", "rationale"], "additionalProperties": true, "properties": {"id": {"$ref": "#/$defs/id"}, "actor": {"type": "string"}, "timestamp": {"type": "string", "format": "date-time"}, "input_state_hash": {"type": ["string", "null"]}, "output_state_hash": {"type": ["string", "null"]}, "rationale": {"type": "string"}}},
+    "human_approval": {"type": "object", "required": ["approval_id", "scope", "timestamp"], "additionalProperties": true, "properties": {"approval_id": {"type": "string"}, "approver": {"type": ["string", "null"]}, "scope": {"type": "string"}, "timestamp": {"type": "string", "format": "date-time"}}},
+    "unsupported_record": {
+      "type": "object",
+      "required": ["id", "behavior", "source_location", "message"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "behavior": {"enum": ["preserve", "warn", "degrade", "reject"]},
+        "severity": {"enum": ["info", "warning", "error", "blocking"]},
+        "source_location": {"type": "string"},
+        "message": {"type": "string"},
+        "raw_payload_sha256": {"type": ["string", "null"]},
+        "remediation_hint": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

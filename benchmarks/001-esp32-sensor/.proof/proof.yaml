@@ -1,0 +1,53 @@
+version: "1.0"
+name: "benchmark-001-esp32-sensor"
+description: "Proof manifest stub for the ESP32 USB-C Li-ion I2C sensor benchmark harness."
+design_path: "../artifacts/benchmark-001.design.yaml"
+
+model:
+  min_clearance_mm: 0.15
+  min_trace_width_mm: 0.15
+  min_annular_ring_mm: 0.05
+  max_layer_count: 2
+  allowed_layer_counts: [2]
+
+checks:
+  - name: "erc-clean"
+    description: "No ERC errors or warnings for release-blocking benchmark acceptance."
+    category: erc
+    type: erc
+    severity: critical
+    expected_count: 0
+  - name: "drc-clean"
+    description: "No DRC errors or warnings under the selected fab profile."
+    category: drc
+    type: drc
+    severity: critical
+    expected_count: 0
+  - name: "dfm-clean"
+    description: "No critical or high-severity DFM findings."
+    category: manufacturing
+    type: dfm
+    severity: critical
+    expected_count: 0
+  - name: "bom-resolved"
+    description: "All required BOM parts resolve without obsolete required components."
+    category: bom
+    type: bom
+    severity: error
+    expected_count: 0
+  - name: "kicad-roundtrip-fidelity"
+    description: "KiCad export/import round-trip fidelity remains above benchmark threshold."
+    category: custom
+    type: round_trip
+    severity: critical
+    params:
+      min_fidelity_score: 0.95
+  - name: "proof-artifacts-hashed"
+    description: "Proof-pack evidence includes artifact hashes and audit metadata."
+    category: custom
+    type: artifact_hashes
+    severity: critical
+
+author: "ZapTrace Core Team"
+tags: ["benchmark", "esp32", "sensor", "release-gate", "issue-67"]
+requires: ["zaptrace>=0.2.2"]

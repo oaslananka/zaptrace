@@ -1,0 +1,153 @@
+schema_version: '2.0'
+id: sx1276-868m
+name: SX1276IMLTRT 868MHz
+category: rf
+manufacturer: Semtech
+mpn: SX1276IMLTRT
+description: 868MHz LoRa transceiver, +20dBm, QFN-28
+datasheet: https://www.semtech.com/products/wireless-rf/lora-core/sx1276
+package: QFN-28
+footprint: SX1276-QFN28
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: Supply 2.4-3.6V
+  GND:
+    type: power
+    description: Ground
+  DIO0:
+    type: output
+    description: Digital I/O 0
+  DIO1:
+    type: bidirectional
+    description: Digital I/O 1
+  DIO2:
+    type: bidirectional
+    description: Digital I/O 2
+  DIO3:
+    type: bidirectional
+    description: Digital I/O 3
+  DIO4:
+    type: bidirectional
+    description: Digital I/O 4
+  DIO5:
+    type: bidirectional
+    description: Digital I/O 5
+  SCK:
+    type: input
+    description: SPI clock
+  MISO:
+    type: output
+    description: SPI data out
+  MOSI:
+    type: input
+    description: SPI data in
+  NSS:
+    type: input
+    description: SPI chip select
+  RESET:
+    type: input
+    description: Reset
+  RXTX:
+    type: output
+    description: RX/TX switch control
+  PA_BOOST:
+    type: output
+    description: PA boost output
+  RFI_LF:
+    type: input
+    description: RF input LF
+  RFO_LF:
+    type: output
+    description: RF output LF
+  XTA:
+    type: passive
+    description: Crystal A
+  XTB:
+    type: passive
+    description: Crystal B
+properties:
+  frequency_mhz: 868
+  modulation:
+  - LoRa
+  - FSK
+  - OOK
+  max_power_dbm: 20
+  interface: spi
+electrical_limits:
+  frequency_mhz: 868
+  voltage_supply: '3.3'
+sourcing:
+  mpn: SX1276IMLTRT
+  manufacturer: Semtech
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.semtech.com/products/wireless-rf/lora-core/sx1276
+    source_identity: component:sx1276-868m:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:sx1276-868m:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,114 @@
+schema_version: '2.0'
+id: mcp9808-e-ms
+name: MCP9808
+category: sensor
+manufacturer: Microchip Technology
+mpn: MCP9808-E/MS
+description: High-accuracy I2C/SMBus digital temperature sensor in 8-lead MSOP
+
+datasheet: https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/MCP9808-0.5C-Maximum-Accuracy-Digital-Temperature-Sensor-Data-Sheet-DS20005095B.pdf
+package: MSOP-8
+footprint: MCP9808-E-MS-MSOP8
+lifecycle: active
+voltage_supply: 2.7-5.5 V
+pins:
+  SDA:
+    type: bidirectional
+    description: I2C/SMBus serial data
+  SCL:
+    type: input
+    description: I2C/SMBus serial clock
+  ALERT:
+    type: output
+    description: Open-drain temperature alert output
+  GND:
+    type: power
+    description: Ground
+  A2:
+    type: input
+    description: I2C address-select input 2
+  A1:
+    type: input
+    description: I2C address-select input 1
+  A0:
+    type: input
+    description: I2C address-select input 0
+  VDD:
+    type: power
+    description: Device supply, 2.7-5.5 V
+package_pin_map:
+  '1': SDA
+  '2': SCL
+  '3': ALERT
+  '4': GND
+  '5': A2
+  '6': A1
+  '7': A0
+  '8': VDD
+properties:
+  manufacturer_package_name: 8-Lead MSOP (MS)
+  interface: [i2c, smbus]
+  supply_range_v: [2.7, 5.5]
+  i2c_max_khz: 400
+  temperature_range_c: [-40, 125]
+  accuracy_typ_c: 0.25
+  accuracy_max_c:
+    -20_to_100: 0.5
+    -40_to_125: 1.0
+  resolution_c: 0.0625
+  operating_current_typ_ua: 200
+  shutdown_current_typ_ua: 0.1
+  absolute_max_supply_v: 6.0
+  package_body_mm: [3.0, 3.0]
+  package_pitch_mm: 0.65
+  repository_land_pattern:
+    source: KiCad official Package_SO.pretty/MSOP-8_3x3mm_P0.65mm.kicad_mod
+    source_revision: c75e8f3ddc65439a5140e7c5b8c6e5b40be0f90e
+    source_sha256: c85207be7edf4b5e1a128249fb05f91b67d622f536fc832d7a9f2a7f1e9a1223
+    pad_size_mm: [1.625, 0.4]
+    pin_pitch: 0.65
+    review_note: KiCad official generic MSOP-8 is package-class compatible, but this candidate does not claim dimension-identical equivalence to the Microchip recommended land pattern; human package and footprint review remains required before trust-tier promotion or fabrication
+electrical_limits:
+  voltage_supply: 2.7-5.5 V operating supply; 6.0 V absolute maximum
+  temperature_range: [-40, 125]
+  max_voltage_v: 6.0
+  review_note: Temperature accuracy limits are recorded from DS20005095B; board-level self-heating, thermal coupling, bus pull-ups, placement, and alert behavior remain design-level review items
+sourcing:
+  mpn: MCP9808-E/MS
+  manufacturer: Microchip Technology
+  status: manufacturer-in-production
+  production_note: Microchip currently lists MCP9808 as In Production; this record binds the E/MS extended-temperature 8-lead MSOP orderable identity, while live authorized-distributor stock and lead time must be re-checked before procurement
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: procurement-time material declarations remain the compliance authority
+provenance:
+  source: Microchip MCP9808 DS20005095B datasheet and current manufacturer product page
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of package-land-pattern equivalence, current sourcing status, board thermal coupling, and intended alert/bus behavior remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &datasheet_evidence
+    source_type: manufacturer_document
+    source_locator: https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/MCP9808-0.5C-Maximum-Accuracy-Digital-Temperature-Sensor-Data-Sheet-DS20005095B.pdf
+    source_identity: DS20005095B
+    source_sha256: e7b6502f744c3e605a424d7b784a23baa471a41f8bc6d51f6321027b0c43972f
+    source_version: DS20005095B
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-18
+    confidence: medium
+  datasheet: *datasheet_evidence
+  pin_map: *datasheet_evidence
+  package: *datasheet_evidence
+  footprint: *datasheet_evidence
+  electrical_limits: *datasheet_evidence
+  lifecycle:
+    source_type: manufacturer_web
+    source_locator: https://www.microchip.com/en-us/product/mcp9808
+    source_identity: MCP9808 product page
+    source_version: accessed 2026-08-18
+    extraction_method: manufacturer-product-page-review
+    extracted_at: 2026-08-18
+    confidence: medium
+  sourcing: *datasheet_evidence

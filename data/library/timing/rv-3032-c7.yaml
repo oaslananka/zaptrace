@@ -1,0 +1,121 @@
+schema_version: '2.0'
+id: rv-3032-c7
+name: RV-3032-C7
+category: timing
+manufacturer: Micro Crystal
+mpn: RV-3032-C7
+description: 32.768kHz I2C RTC module with integrated crystal, TCXO, ±3ppm accuracy
+datasheet: https://www.microcrystal.com/fileadmin/Media/Products/RTC/App.Manual/RV-3032-C7_AppManual.pdf
+package: QFN-10
+footprint: RV3032C7-QFN10
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 1.2-5.5V supply
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: I2C data
+  SCL:
+    type: input
+    description: I2C clock
+  INT:
+    type: output
+    description: Periodic interrupt / timer output
+  CLKOUT:
+    type: output
+    description: Programmable clock output
+  EVI:
+    type: input
+    description: Event input / timestamp
+  NCE:
+    type: input
+    description: Crystal enable (active low)
+  TST:
+    type: passive
+    description: Test pin (leave open)
+  VBACKUP:
+    type: power
+    description: Backup battery supply
+properties:
+  interface: i2c
+  accuracy_ppm: 3
+  backup_battery: true
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: RV-3032-C7
+  manufacturer: Micro Crystal
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.microcrystal.com/fileadmin/Media/Products/RTC/App.Manual/RV-3032-C7_AppManual.pdf
+    source_identity: component:rv-3032-c7:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rv-3032-c7:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

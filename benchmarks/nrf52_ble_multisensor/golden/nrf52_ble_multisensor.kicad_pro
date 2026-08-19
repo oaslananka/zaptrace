@@ -1,0 +1,5 @@
+{
+  "board": {"design_settings": {"defaults": {"board_outline_line_width": 0.1}}},
+  "meta": {"filename": "nrf52_ble_multisensor.kicad_pro", "family_id": "nrf52_ble_multisensor"},
+  "version": 1
+}

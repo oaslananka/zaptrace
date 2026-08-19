@@ -1,0 +1,200 @@
+schema_version: '2.0'
+id: stm32g0b1cet6
+name: STM32G0B1CET6
+category: mcu
+manufacturer: STMicroelectronics
+mpn: STM32G0B1CET6
+description: Arm Cortex-M0+ MCU, 64 MHz, 512 KB flash, 144 KB SRAM, USB-C PD, USB 2.0 and FDCAN
+datasheet: https://www.st.com/resource/en/datasheet/stm32g0b1ce.pdf
+package: LQFP-48
+footprint: STM32G0B1CET6-LQFP48
+lifecycle: active
+voltage_supply: 1.7-3.6 V
+pins:
+  PC13:
+    type: bidirectional
+    description: GPIO PC13
+  PC14_OSC32_IN:
+    type: bidirectional
+    description: GPIO PC14 / LSE oscillator input
+  PC15_OSC32_OUT:
+    type: bidirectional
+    description: GPIO PC15 / LSE oscillator output
+  VBAT:
+    type: power
+    description: Backup-domain supply, 1.55-3.6 V
+  VREF_PLUS:
+    type: power
+    description: ADC/DAC positive reference
+  VDD:
+    type: power
+    description: Combined VDD/VDDA supply pin, 1.7-3.6 V system supply
+  VSS:
+    type: power
+    description: Combined VSS/VSSA ground pin
+  PF0_OSC_IN:
+    type: bidirectional
+    description: GPIO PF0 / HSE oscillator input
+  PF1_OSC_OUT:
+    type: bidirectional
+    description: GPIO PF1 / HSE oscillator output
+  NRST:
+    type: input
+    description: Active-low reset
+  PA0: {type: bidirectional, description: GPIO PA0}
+  PA1: {type: bidirectional, description: GPIO PA1}
+  PA2: {type: bidirectional, description: GPIO PA2}
+  PA3: {type: bidirectional, description: GPIO PA3}
+  PA4: {type: bidirectional, description: GPIO PA4}
+  PA5: {type: bidirectional, description: GPIO PA5}
+  PA6: {type: bidirectional, description: GPIO PA6}
+  PA7: {type: bidirectional, description: GPIO PA7}
+  PB0: {type: bidirectional, description: GPIO PB0}
+  PB1: {type: bidirectional, description: GPIO PB1}
+  PB2: {type: bidirectional, description: GPIO PB2}
+  PB10: {type: bidirectional, description: GPIO PB10}
+  PB11: {type: bidirectional, description: GPIO PB11}
+  PB12: {type: bidirectional, description: GPIO PB12}
+  PB13: {type: bidirectional, description: GPIO PB13}
+  PB14: {type: bidirectional, description: GPIO PB14}
+  PB15: {type: bidirectional, description: GPIO PB15 / UCPD1_CC2 alternate function}
+  PA8: {type: bidirectional, description: GPIO PA8 / UCPD1_CC1 alternate function}
+  PA9: {type: bidirectional, description: GPIO PA9}
+  PC6: {type: bidirectional, description: GPIO PC6}
+  PC7: {type: bidirectional, description: GPIO PC7}
+  PA10: {type: bidirectional, description: GPIO PA10}
+  PA11: {type: bidirectional, description: GPIO PA11 / USB_DM alternate function}
+  PA12: {type: bidirectional, description: GPIO PA12 / USB_DP alternate function}
+  PA13: {type: bidirectional, description: GPIO PA13 / SWDIO alternate function}
+  PA14_BOOT0: {type: bidirectional, description: GPIO PA14 / SWCLK / BOOT0}
+  PA15: {type: bidirectional, description: GPIO PA15}
+  PD0: {type: bidirectional, description: GPIO PD0}
+  PD1: {type: bidirectional, description: GPIO PD1}
+  PD2: {type: bidirectional, description: GPIO PD2}
+  PD3: {type: bidirectional, description: GPIO PD3}
+  PB3: {type: bidirectional, description: GPIO PB3}
+  PB4: {type: bidirectional, description: GPIO PB4}
+  PB5: {type: bidirectional, description: GPIO PB5}
+  PB6: {type: bidirectional, description: GPIO PB6}
+  PB7: {type: bidirectional, description: GPIO PB7}
+  PB8: {type: bidirectional, description: GPIO PB8}
+  PB9: {type: bidirectional, description: GPIO PB9}
+package_pin_map:
+  '1': PC13
+  '2': PC14_OSC32_IN
+  '3': PC15_OSC32_OUT
+  '4': VBAT
+  '5': VREF_PLUS
+  '6': VDD
+  '7': VSS
+  '8': PF0_OSC_IN
+  '9': PF1_OSC_OUT
+  '10': NRST
+  '11': PA0
+  '12': PA1
+  '13': PA2
+  '14': PA3
+  '15': PA4
+  '16': PA5
+  '17': PA6
+  '18': PA7
+  '19': PB0
+  '20': PB1
+  '21': PB2
+  '22': PB10
+  '23': PB11
+  '24': PB12
+  '25': PB13
+  '26': PB14
+  '27': PB15
+  '28': PA8
+  '29': PA9
+  '30': PC6
+  '31': PC7
+  '32': PA10
+  '33': PA11
+  '34': PA12
+  '35': PA13
+  '36': PA14_BOOT0
+  '37': PA15
+  '38': PD0
+  '39': PD1
+  '40': PD2
+  '41': PD3
+  '42': PB3
+  '43': PB4
+  '44': PB5
+  '45': PB6
+  '46': PB7
+  '47': PB8
+  '48': PB9
+properties:
+  core: Arm Cortex-M0+
+  frequency_mhz: 64
+  flash_kb: 512
+  sram_kb: 144
+  supply_range_v: [1.7, 3.6]
+  vbat_range_v: [1.55, 3.6]
+  temperature_range_c: [-40, 85]
+  interfaces: [usb_c_pd, usb_2, fdcan, i2c, spi, uart]
+  alternate_functions:
+    PA8: [UCPD1_CC1]
+    PB15: [UCPD1_CC2]
+    PA11: [USB_DM]
+    PA12: [USB_DP]
+    PA13: [SWDIO]
+    PA14_BOOT0: [SWCLK, BOOT0]
+  manufacturer_footprint_recommendation_mm:
+    pad_width: 0.30
+    pad_length: 1.20
+    pin_pitch: 0.50
+  repository_land_pattern:
+    source: KiCad official Package_QFP.pretty/LQFP-48_7x7mm_P0.5mm.kicad_mod
+    source_revision: e4191d1fd7b9522beb2980b83ae3c0c2fe41a9e1
+    source_sha256: ec36273cf5fa99acf022c2f5af17310d123fa4b5ccfe98a2f562fedabe7f3f46
+    pad_size_mm: [1.475, 0.30]
+    pin_pitch: 0.50
+    review_note: Upstream KiCad LQFP land pattern is close to but not dimension-identical with ST Figure 44; human footprint review remains required before trust-tier promotion
+electrical_limits:
+  frequency_mhz: 64
+  temperature_range: [-40, 85]
+  voltage_supply: VDD 1.7-3.6 V; VBAT 1.55-3.6 V
+sourcing:
+  mpn: STM32G0B1CET6
+  manufacturer: STMicroelectronics
+  status: manufacturer-catalog-active
+  production_note: ST eStore snapshot captured 2026-08-09 identifies the exact order code as active and LQFP48; stock varies by listing/region and must be re-checked before procurement
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: Component evidence is not a substitute for project-specific regulatory certification
+provenance:
+  source: STMicroelectronics DS13560 Rev 6 datasheet plus ST eStore evidence captured 2026-08-09
+  review_status: candidate-evidence-unreviewed
+  production_note: ST datasheet SHA-256 could not be captured because direct byte transfer timed out; capture the authoritative PDF digest and complete human review before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &datasheet_evidence
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/stm32g0b1ce.pdf
+    source_identity: DS13560
+    source_version: Rev 6 (2026-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  datasheet: *datasheet_evidence
+  pin_map: *datasheet_evidence
+  package: *datasheet_evidence
+  footprint: *datasheet_evidence
+  electrical_limits: *datasheet_evidence
+  lifecycle: &estore_evidence
+    source_type: manufacturer_web
+    source_locator: https://estore.st.com/en/products/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus/stm32-mainstream-mcus/stm32g0-series/stm32g0x1/stm32g0b1ce.html
+    source_identity: st:stm32g0b1ce-estore
+    source_sha256: a404632caffb132168cdd779cd9700a67c5fa6c43c665958305fb8353c598e30
+    source_version: captured-2026-08-09
+    extraction_method: manufacturer-estore-page-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  sourcing: *estore_evidence

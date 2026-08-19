@@ -1,0 +1,39 @@
+{
+  "$schema": "https://zaptrace.dev/schemas/plugin-manifest-v1.json",
+  "api_version": "1.0",
+  "plugin_id": "dev.zaptrace.examples.future-only",
+  "name": "Hello Analyzer",
+  "version": "0.1.0",
+  "min_zaptrace_version": "99.0.0",
+  "max_zaptrace_version": "99.1.0",
+  "entry": {
+    "type": "python_module",
+    "path": "hello_analyzer"
+  },
+  "extension_points": [
+    "report_generator"
+  ],
+  "capabilities": [
+    "design:read",
+    "proof:read",
+    "host:log"
+  ],
+  "permissions": {
+    "filesystem": {
+      "read": [],
+      "write": []
+    },
+    "network": {
+      "allowed_domains": [],
+      "allowed_schemes": []
+    },
+    "subprocess": false
+  },
+  "signing": {
+    "algorithm": "ed25519",
+    "signature": "dev-fixture-signature",
+    "public_key_fingerprint": "sha256:dev-fixture"
+  },
+  "description": "Deterministic no-exec example manifest for CI admission tests.",
+  "author": "ZapTrace Core Team"
+}

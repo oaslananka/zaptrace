@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "family_id": "lipo_charger_node",
+  "artifact_kind": "manufacturing-export-manifest",
+  "status": "starter-fixture",
+  "artifacts": [],
+  "blocked": false,
+  "warnings": [
+    "No fabrication-ready Gerber/drill/BOM files are claimed by this starter fixture.",
+    "Li-ion charge safety, battery protection and thermal validation are outside this fixture manifest."
+  ],
+  "non_claims": [
+    "not fabrication-ready",
+    "not battery-safety-certified",
+    "not regulatory-approved",
+    "not manufacturer-approved",
+    "not production-ready"
+  ]
+}

@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: stm32u585cit6q
+name: STM32U585CIT6Q
+category: mcu
+manufacturer: STMicro
+mpn: STM32U585CIT6Q
+description: Cortex-M33 160MHz TrustZone
+datasheet: internal://zaptrace/component-family/stm32u585cit6q
+package: UFBGA-169
+footprint: UFBGA-169
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: Supply voltage
+  GND:
+    type: power
+    description: Ground
+  RESET:
+    type: input
+    description: Reset (active low)
+  XTAL1:
+    type: input
+    description: Crystal input
+  XTAL2:
+    type: output
+    description: Crystal output
+  GPIO:
+    type: bidirectional
+    description: General purpose I/O
+  SWDIO:
+    type: bidirectional
+    description: SWD data
+  SWCLK:
+    type: input
+    description: SWD clock
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: STM32U585CIT6Q
+  manufacturer: STMicro
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:stm32u585cit6q:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/stm32u585cit6q
+    source_identity: component:stm32u585cit6q:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:stm32u585cit6q:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:stm32u585cit6q:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:stm32u585cit6q:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:stm32u585cit6q:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:stm32u585cit6q:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:stm32u585cit6q:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

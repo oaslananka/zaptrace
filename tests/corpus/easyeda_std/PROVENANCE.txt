@@ -1,0 +1,13 @@
+SPDX-License-Identifier: CC0-1.0
+
+These EasyEDA Standard format corpus fixtures are released under CC0 1.0
+Universal (CC0 1.0) Public Domain Dedication.
+
+Files
+-----
+opamp_buffer.json       — synthetic op-amp buffer schematic (5 components, 4 nets)
+mcu_schematic.json      — synthetic ATmega328P MCU schematic (8 components, 6 nets)
+adversarial_unknown_fields.json  — adversarial fixture with unknown shapes and null fields
+
+All fixtures were created by hand for ZapTrace test purposes and contain
+no copyrighted or proprietary data.

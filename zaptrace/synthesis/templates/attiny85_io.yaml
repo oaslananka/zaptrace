@@ -1,0 +1,74 @@
+meta:
+  name: "ATtiny85 I/O Controller"
+  version: "0.1.0"
+  description: "ATtiny85-based simple I/O controller with button and LED"
+  tags: ["attiny85", "gpio", "button", "led", "simple"]
+
+board:
+  width_mm: 25
+  height_mm: 20
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "ATtiny85-20PU"
+    footprint: "DIP-8"
+    pins:
+      VCC: {type: "power", net: "VCC_5V"}
+      GND: {type: "power", net: "GND"}
+      PB0: {type: "bidirectional", net: "LED_OUT"}
+      PB1: {type: "bidirectional", net: "BTN_IN"}
+      PB2: {type: "bidirectional", net: "SENSOR_IN"}
+      PB3: {type: "input", net: "VCC_5V"}
+  R1:
+    id: "R1"
+    ref: "R1"
+    type: "RES"
+    value: "330"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_5V"}
+      P2: {type: "passive", net: "LED_OUT"}
+  R2:
+    id: "R2"
+    ref: "R2"
+    type: "RES"
+    value: "10k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "BTN_IN"}
+      P2: {type: "passive", net: "GND"}
+  D1:
+    id: "D1"
+    ref: "D1"
+    type: "LED-0603"
+    footprint: "LED-0603"
+    pins:
+      ANODE:  {type: "passive", net: "LED_OUT"}
+      CATHODE: {type: "passive", net: "GND"}
+  SW1:
+    id: "SW1"
+    ref: "SW1"
+    type: "Button Tactile"
+    footprint: "TACT-6x6"
+    pins:
+      P1: {type: "passive", net: "BTN_IN"}
+      P2: {type: "passive", net: "GND"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_5V"}
+      P2: {type: "passive", net: "GND"}
+
+nets:
+  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["U1.VCC","U1.PB3","R1.P1","C1.P1"]}
+  GND:       {id: "GND",name: "GND",type: "ground", nodes:["U1.GND","R2.P2","D1.CATHODE","SW1.P2","C1.P2"]}
+  LED_OUT:   {id: "LED_OUT",name: "LED_OUT",type: "signal", nodes:["U1.PB0","R1.P2","D1.ANODE"]}
+  BTN_IN:    {id: "BTN_IN",name: "BTN_IN",type: "signal", nodes:["U1.PB1","R2.P1","SW1.P1"]}
+  SENSOR_IN: {id: "SENSOR_IN",name: "SENSOR_IN",type: "signal", nodes:["U1.PB2"]}

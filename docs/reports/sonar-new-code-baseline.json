@@ -1,0 +1,43 @@
+{
+  "application": {
+    "applied_at": "2026-07-21T20:27:54.382410Z",
+    "commit": "9739110cf427f0f1ac098d7571a52dadd02eb84a",
+    "settings": {
+      "sonar.leak.period": "2026-07-21",
+      "sonar.leak.period.type": "date"
+    },
+    "verified": true,
+    "workflow": "Sonar New Code Baseline",
+    "workflow_run_id": 29865850166
+  },
+  "captured_at": "2026-07-21T20:28:11Z",
+  "evidence_status": "historical-governance-snapshot",
+  "historical_snapshot": true,
+  "policy": {
+    "definition_type": "date",
+    "historical_backlog_policy": "visible-and-triaged-separately",
+    "value": "2026-07-21"
+  },
+  "project_key": "oaslananka_zaptrace",
+  "schema_version": "1.0",
+  "tracking_issue": 296,
+  "verification": {
+    "analysis_date": "2026-07-21T20:27:04Z",
+    "analysis_revision": "9739110cf427f0f1ac098d7571a52dadd02eb84a",
+    "github_check_completed_at": "2026-07-21T20:28:11Z",
+    "new_code": {
+      "duplicated_lines_density": 0.0,
+      "maintainability_rating": "A",
+      "reliability_rating": "A",
+      "security_hotspots": 0,
+      "security_hotspots_reviewed": 100.0,
+      "security_rating": "A",
+      "unresolved_issues": 0
+    },
+    "overall_code": {
+      "backlog_remains_visible": true,
+      "unresolved_issues": 774
+    },
+    "quality_gate": "OK"
+  }
+}

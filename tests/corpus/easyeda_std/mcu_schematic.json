@@ -1,0 +1,35 @@
+{
+  "head": {
+    "docType": "1",
+    "editorVersion": "6.4.12",
+    "c_para": {"schematicVersion": "1"}
+  },
+  "schematic": {
+    "components": [
+      {"id": "U1", "ref": "U1", "value": "ATmega328P", "packageName": "TQFP-32", "x": 200, "y": 200},
+      {"id": "C1", "ref": "C1", "value": "100n", "packageName": "C0402", "x": 100, "y": 150},
+      {"id": "C2", "ref": "C2", "value": "100n", "packageName": "C0402", "x": 100, "y": 250},
+      {"id": "X1", "ref": "X1", "value": "16MHz", "packageName": "XTAL-2", "x": 300, "y": 200},
+      {"id": "R1", "ref": "R1", "value": "10k", "packageName": "R0402", "x": 150, "y": 100},
+      {"id": "LED1", "ref": "LED1", "value": "LED_RED", "packageName": "LED0402", "x": 350, "y": 100},
+      {"id": "PWR1", "ref": "VCC", "value": "VCC", "packageName": "VCC", "x": 200, "y": 50},
+      {"id": "GND1", "ref": "GND", "value": "GND", "packageName": "GND", "x": 200, "y": 350}
+    ],
+    "nets": [
+      {"id": "N_VCC", "name": "VCC", "pins": [{"componentId": "U1", "pinNumber": "VCC"}, {"componentId": "C1", "pinNumber": "1"}, {"componentId": "C2", "pinNumber": "1"}, {"componentId": "R1", "pinNumber": "1"}, {"componentId": "PWR1", "pinNumber": "1"}]},
+      {"id": "N_GND", "name": "GND", "pins": [{"componentId": "U1", "pinNumber": "GND"}, {"componentId": "C1", "pinNumber": "2"}, {"componentId": "C2", "pinNumber": "2"}, {"componentId": "GND1", "pinNumber": "1"}]},
+      {"id": "N_XTAL1", "name": "XTAL1", "pins": [{"componentId": "U1", "pinNumber": "XTAL1"}, {"componentId": "X1", "pinNumber": "1"}]},
+      {"id": "N_XTAL2", "name": "XTAL2", "pins": [{"componentId": "U1", "pinNumber": "XTAL2"}, {"componentId": "X1", "pinNumber": "2"}]},
+      {"id": "N_LED", "name": "PB5", "pins": [{"componentId": "U1", "pinNumber": "PB5"}, {"componentId": "LED1", "pinNumber": "A"}, {"componentId": "R1", "pinNumber": "2"}]},
+      {"id": "N_RESET", "name": "RESET", "pins": [{"componentId": "U1", "pinNumber": "RESET"}]}
+    ],
+    "wires": [
+      {"id": "W1", "strokeColor": "#000000", "points": [[200, 50], [200, 100]]},
+      {"id": "W2", "strokeColor": "#000000", "points": [[200, 300], [200, 350]]}
+    ],
+    "shapes": [
+      {"type": "~TEXT~N~100~50~0~#000000~16~~Comment: MCU schematic for ATmega328P"},
+      {"type": "~ARC~unknown_shape_type~unsupported"}
+    ]
+  }
+}

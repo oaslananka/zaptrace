@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "modules": [
+    {
+      "path": "zaptrace/mcp/server.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 78.94,
+      "rationale": "MCP registration, object authorization, capability enforcement, timeout, cancellation, audit, and session lifecycle boundary."
+    },
+    {
+      "path": "zaptrace/agent/execution.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 77.22,
+      "rationale": "Isolated mutating execution, worker termination, staged artifact publication, rollback, and same-session serialization boundary."
+    },
+    {
+      "path": "zaptrace/api/server.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 91.34,
+      "rationale": "REST transport authentication, security headers, client address handling, rate limiting, and network startup policy."
+    },
+    {
+      "path": "zaptrace/api/abuse_control.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 90.0,
+      "rationale": "Trusted-proxy resolution, streaming body limits, bounded rate-limit state, deployment validation, and rejection evidence."
+    },
+    {
+      "path": "zaptrace/api/routes/_session.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 95.65,
+      "rationale": "REST principal resolution, session allowlists, object authorization, capability enforcement, and authorization audit evidence."
+    },
+    {
+      "path": "zaptrace/security/objects.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 99.21,
+      "rationale": "Object ownership, delegation, inheritance, authorization, and cascading removal policy."
+    },
+    {
+      "path": "zaptrace/security/policy.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 93.54,
+      "rationale": "Capability authorization, audit event construction, dangerous-action policy, and secret handling boundary."
+    },
+    {
+      "path": "zaptrace/security/release.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 92.08,
+      "rationale": "State-bound release evidence, approval identity, component coverage, and fabrication export enforcement."
+    },
+    {
+      "path": "zaptrace/api/routes/release_export.py",
+      "owner": "@oaslananka",
+      "minimum_line_coverage": 100.0,
+      "rationale": "REST manufacturing and release-export denial and evidence response boundary."
+    }
+  ],
+  "exceptions": [],
+  "allowed_exclusions": []
+}

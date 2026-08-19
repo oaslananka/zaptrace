@@ -1,0 +1,156 @@
+version: '3'
+
+tasks:
+  doctor:
+    desc: Check local validation toolchain parity
+    cmds:
+      - python scripts/ci_validation_environment.py --strict --output validation-environment.json
+
+  install:
+    desc: Install all dependencies
+    cmds:
+      - uv sync --all-extras --all-groups
+
+  test:
+    desc: Run test suite
+    cmds:
+      - uv run pytest --cov=zaptrace --cov-report=term-missing
+
+  test-fast:
+    desc: Run the bounded unit and integration feedback lanes
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "unit" --enforce-lane-budget --lane-report test-lane-unit.json
+      - uv run pytest -p tests.lane_policy --lane "integration" --enforce-lane-budget --lane-report test-lane-integration.json
+
+  test-lane-policy:
+    desc: Validate lane classification and duration-weighted shard inventory
+    cmds:
+      - uv run python scripts/ci_test_lane_policy.py --output test-lane-inventory.json --strict
+      - uv run pytest -p tests.lane_policy --collect-only --lane "all" --lane-report test-lane-collection.json
+
+  test-unit:
+    desc: Run the default fast unit lane
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "unit" --enforce-lane-budget --lane-report test-lane-unit.json
+
+  test-integration:
+    desc: Run cross-module and service-contract tests
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "integration" --enforce-lane-budget --lane-report test-lane-integration.json
+
+  test-benchmark:
+    desc: Run deterministic benchmark and convergence tests
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "benchmark" --require-lane-execution --enforce-lane-budget --lane-report test-lane-benchmark.json
+
+  test-hardware:
+    desc: Run EDA format and generated-hardware tests
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "hardware" --require-lane-execution --enforce-lane-budget --lane-report test-lane-hardware.json
+
+  test-external-tool:
+    desc: Run tests delegated to installed external tools
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "external_tool" --require-lane-execution --enforce-lane-budget --lane-report test-lane-external-tool.json
+
+  test-native:
+    desc: Run Rust native-boundary tests
+    cmds:
+      - uv run pytest -p tests.lane_policy --lane "native" --require-lane-execution --enforce-lane-budget --lane-report test-lane-native.json
+
+  lint:
+    desc: Check code quality
+    cmds:
+      - uv run ruff check .
+      - uv run ruff format --check .
+
+  typecheck:
+    desc: Type-check application sources
+    cmds:
+      - uv run pyright
+
+  format:
+    desc: Auto-format all code
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --fix .
+
+  build:
+    desc: Build source and wheel distributions
+    cmds:
+      - uv build
+
+  release:
+    desc: Run the release quality gate and build artifacts
+    deps: [doctor, lint, typecheck, test-unit, test-integration, test-benchmark, test-hardware, test-external-tool, test-native, test-rust, build, oracle-kicad-strict]
+
+  test-rust:
+    desc: Rust unit tests
+    cmds:
+      - cargo fmt --manifest-path zaptrace_core/Cargo.toml --check
+      - cargo clippy --manifest-path zaptrace_core/Cargo.toml -- -D warnings
+      - cargo test --manifest-path zaptrace_core/Cargo.toml
+      - cargo build --release --manifest-path zaptrace_core/Cargo.toml
+
+  build-dev:
+    desc: Build Rust extension in dev mode
+    cmds:
+      - maturin develop --release --manifest-path zaptrace_core/Cargo.toml
+
+  serve:
+    desc: Start REST API server (dev)
+    cmds:
+      - uv run zaptrace-api --host 0.0.0.0 --port 8080
+
+  mcp:
+    desc: Start MCP server
+    cmds:
+      - uv run zaptrace-mcp
+
+  docs-mcp:
+    desc: Regenerate MCP tools reference from TOOL_REGISTRY
+    cmds:
+      - uv run python scripts/generate_mcp_docs.py
+
+  check-docs:
+    desc: Verify generated MCP docs are up to date with TOOL_REGISTRY
+    cmds:
+      - uv run python scripts/generate_mcp_docs.py --check
+
+  oracle-kicad:
+    desc: Run KiCad CLI oracle (skips if kicad-cli not installed)
+    cmds:
+      - uv run python scripts/ci_kicad_oracle.py
+
+  oracle-kicad-check:
+    desc: Verify kicad-cli is available for the oracle
+    cmds:
+      - uv run python scripts/ci_kicad_oracle.py --check
+
+  oracle-kicad-strict:
+    desc: Run KiCad CLI oracle and fail on unapproved skips
+    cmds:
+      - uv run python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json
+
+  kicad-roundtrip-scorecard:
+    desc: Run deterministic KiCad round-trip fidelity scorecard
+    cmds:
+      - uv run python scripts/ci_kicad_roundtrip_scorecard.py --strict --output kicad-roundtrip-scorecard.json
+
+  oracle-smoke:
+    desc: Run Gerber + Proof smoke tests
+    cmds:
+      - uv run python scripts/ci_smoke.py gerber
+      - uv run python scripts/ci_smoke.py proof
+
+  benchmark-001:
+    desc: Run deterministic ESP32 benchmark 001 acceptance harness
+    cmds:
+      - uv run python scripts/ci_benchmark_001.py --strict --output benchmark-001-report.json
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null; true
+      - find . -name "*.pyc" -delete 2>/dev/null; true
+      - rm -rf dist/ build/ .coverage htmlcov/ *.egg-info/

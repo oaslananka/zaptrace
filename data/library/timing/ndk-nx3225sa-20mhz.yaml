@@ -1,0 +1,99 @@
+schema_version: '2.0'
+id: ndk-nx3225sa-20mhz
+name: NX3225SA 20MHz OSC
+category: timing
+manufacturer: NDK
+mpn: NX3225SA-20M-EXS00A-CS18354
+description: 20MHz CMOS oscillator ±25ppm
+datasheet: internal://zaptrace/component-family/ndk-nx3225sa-20mhz
+package: SMD-4P
+footprint: SMD-4P
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  XOUT:
+    type: output
+    description: Crystal/clock output
+  XIN:
+    type: input
+    description: Crystal/reference input
+  VCC:
+    type: power
+    description: Supply
+  GND:
+    type: power
+    description: Ground
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: NX3225SA-20M-EXS00A-CS18354
+  manufacturer: NDK
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:ndk-nx3225sa-20mhz:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/ndk-nx3225sa-20mhz
+    source_identity: component:ndk-nx3225sa-20mhz:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:ndk-nx3225sa-20mhz:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:ndk-nx3225sa-20mhz:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:ndk-nx3225sa-20mhz:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:ndk-nx3225sa-20mhz:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:ndk-nx3225sa-20mhz:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:ndk-nx3225sa-20mhz:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

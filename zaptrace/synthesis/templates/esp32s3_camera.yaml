@@ -1,0 +1,84 @@
+meta:
+  name: "ESP32-S3 Camera Node"
+  version: "0.1.0"
+  description: "ESP32-S3 with OV2640 camera, USB OTG, and PSRAM for AI processing"
+  tags: ["esp32-s3", "camera", "usb", "psram", "ai"]
+
+board:
+  width_mm: 55
+  height_mm: 45
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "ESP32-S3-WROOM-1"
+    footprint: "ESP32-S3-WROOM-1"
+    pins:
+      VCC:    {type: "power", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+      USB_D+: {type: "bidirectional", net: "USB_DP"}
+      USB_D-: {type: "bidirectional", net: "USB_DM"}
+      GPIO4:  {type: "bidirectional", net: "CAM_SDA"}
+      GPIO5:  {type: "bidirectional", net: "CAM_SCL"}
+      GPIO6:  {type: "bidirectional", net: "CAM_VSYNC"}
+      GPIO7:  {type: "bidirectional", net: "CAM_HREF"}
+      GPIO8:  {type: "bidirectional", net: "CAM_PCLK"}
+      GPIO9:  {type: "bidirectional", net: "CAM_XCLK"}
+      GPIO15: {type: "bidirectional", net: "CAM_D7"}
+      GPIO16: {type: "bidirectional", net: "CAM_D6"}
+      GPIO17: {type: "bidirectional", net: "CAM_D5"}
+      GPIO18: {type: "bidirectional", net: "CAM_D4"}
+      GPIO19: {type: "bidirectional", net: "CAM_D3"}
+      GPIO20: {type: "bidirectional", net: "CAM_D2"}
+      GPIO21: {type: "bidirectional", net: "CAM_D1"}
+      GPIO14: {type: "bidirectional", net: "CAM_D0"}
+      EN:     {type: "input", net: "VCC_3V3"}
+  U2:
+    id: "U2"
+    ref: "U2"
+    type: "AMS1117-3.3"
+    footprint: "SOT-223"
+    pins:
+      INPUT:  {type: "power", net: "VCC_5V"}
+      OUTPUT: {type: "output", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "10uF"
+    footprint: "0805"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  J1:
+    id: "J1"
+    ref: "J1"
+    type: "USB-C-16P"
+    footprint: "USB-C-16P-SMD"
+    pins:
+      VBUS: {type: "power", net: "VCC_5V"}
+      GND:  {type: "power", net: "GND"}
+      D+:   {type: "bidirectional", net: "USB_DP"}
+      D-:   {type: "bidirectional", net: "USB_DM"}
+
+nets:
+  VCC_5V:   {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.VBUS","U2.INPUT"]}
+  VCC_3V3:  {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U2.OUTPUT","U1.VCC","U1.EN","C1.P1","C2.P1"]}
+  GND:      {id: "GND",name: "GND",type: "ground", nodes:["J1.GND","U1.GND","U2.GND","C1.P2","C2.P2"]}
+  USB_DP:   {id: "USB_DP",name: "USB_DP",type: "signal", nodes:["J1.D+","U1.USB_D+"]}
+  USB_DM:   {id: "USB_DM",name: "USB_DM",type: "signal", nodes:["J1.D-","U1.USB_D-"]}
+  CAM_SDA:  {id: "CAM_SDA",name: "CAM_SDA",type: "data",   nodes:["U1.GPIO4"]}
+  CAM_SCL:  {id: "CAM_SCL",name: "CAM_SCL",type: "clock",  nodes:["U1.GPIO5"]}
+  CAM_XCLK: {id: "CAM_XCLK",name: "CAM_XCLK",type: "clock",  nodes:["U1.GPIO9"]}

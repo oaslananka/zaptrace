@@ -1,0 +1,129 @@
+schema_version: '2.0'
+id: ds3231sn
+name: DS3231SN
+category: timing
+manufacturer: Maxim Integrated
+mpn: DS3231SN#
+description: Extremely accurate I2C RTC with integrated crystal, TCXO, ±2ppm accuracy,
+  SOIC-16
+datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ds3231.pdf
+package: SOIC-16
+footprint: DS3231N-SOIC16
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VCC:
+    type: power
+    description: 2.3-5.5V supply
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: I2C data
+  SCL:
+    type: input
+    description: I2C clock
+  INT:
+    type: output
+    description: Active-low interrupt
+  SQW:
+    type: output
+    description: Square-wave output
+  RST:
+    type: input
+    description: Active-low reset
+  VBAT:
+    type: power
+    description: Backup battery supply
+  NC1:
+    type: no_connect
+    description: No connect (leave open)
+  NC2:
+    type: no_connect
+    description: No connect (leave open)
+  NC3:
+    type: no_connect
+    description: No connect (leave open)
+  NC4:
+    type: no_connect
+    description: No connect (leave open)
+properties:
+  interface: i2c
+  accuracy_ppm: 2
+  backup_battery: true
+  temp_compensated: true
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: DS3231SN#
+  manufacturer: Maxim Integrated
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.analog.com/media/en/technical-documentation/data-sheets/ds3231.pdf
+    source_identity: component:ds3231sn:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds3231sn:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

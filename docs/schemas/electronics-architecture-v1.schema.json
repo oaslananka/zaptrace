@@ -1,0 +1,627 @@
+{
+  "$defs": {
+    "AcceptanceMethod": {
+      "enum": [
+        "erc",
+        "drc",
+        "simulation",
+        "kicad-oracle",
+        "dfm",
+        "human-review"
+      ],
+      "type": "string"
+    },
+    "ArchitectureAcceptanceTest": {
+      "additionalProperties": false,
+      "description": "Acceptance test planned from requirements.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "expected_result": {
+          "minLength": 1,
+          "title": "Expected Result",
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "method": {
+          "$ref": "#/$defs/AcceptanceMethod"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "expected_result"
+      ],
+      "title": "ArchitectureAcceptanceTest",
+      "type": "object"
+    },
+    "ArchitectureAssumption": {
+      "additionalProperties": false,
+      "description": "Assumption that must be carried into proof packs and review.",
+      "properties": {
+        "confidence": {
+          "default": "medium",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "related_requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Requirement Ids",
+          "type": "array"
+        },
+        "requires_confirmation": {
+          "default": true,
+          "title": "Requires Confirmation",
+          "type": "boolean"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "ArchitectureAssumption",
+      "type": "object"
+    },
+    "ArchitectureCompileStatus": {
+      "description": "Status emitted by the requirements-to-architecture compiler.",
+      "enum": [
+        "ready",
+        "needs-clarification",
+        "unsafe-blocked"
+      ],
+      "title": "ArchitectureCompileStatus",
+      "type": "string"
+    },
+    "ArchitectureConflict": {
+      "additionalProperties": false,
+      "description": "Explicit contradiction that prevents a ready architecture decision.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "resolution_required": {
+          "minLength": 1,
+          "title": "Resolution Required",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "description",
+        "resolution_required"
+      ],
+      "title": "ArchitectureConflict",
+      "type": "object"
+    },
+    "ArchitectureConstraint": {
+      "additionalProperties": false,
+      "description": "Machine-checkable constraint derived from the architecture.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "domain": {
+          "enum": [
+            "erc",
+            "drc",
+            "dfm",
+            "layout",
+            "simulation",
+            "supply-chain",
+            "review"
+          ],
+          "title": "Domain",
+          "type": "string"
+        },
+        "evidence_required": {
+          "default": true,
+          "title": "Evidence Required",
+          "type": "boolean"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "release_blocking": {
+          "default": true,
+          "title": "Release Blocking",
+          "type": "boolean"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "domain",
+        "text"
+      ],
+      "title": "ArchitectureConstraint",
+      "type": "object"
+    },
+    "ArchitectureRequirement": {
+      "additionalProperties": false,
+      "description": "Traceable requirement derived from an electronics intent.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/RequirementCategory"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "release_blocking": {
+          "default": true,
+          "title": "Release Blocking",
+          "type": "boolean"
+        },
+        "source": {
+          "default": "user-intent",
+          "title": "Source",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "category"
+      ],
+      "title": "ArchitectureRequirement",
+      "type": "object"
+    },
+    "ArchitectureRisk": {
+      "additionalProperties": false,
+      "description": "Risk-register entry for architecture review.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "domain": {
+          "minLength": 1,
+          "title": "Domain",
+          "type": "string"
+        },
+        "evidence_required": {
+          "default": true,
+          "title": "Evidence Required",
+          "type": "boolean"
+        },
+        "human_review_required": {
+          "default": true,
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "mitigation": {
+          "minLength": 1,
+          "title": "Mitigation",
+          "type": "string"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "severity": {
+          "default": "medium",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "domain",
+        "description",
+        "mitigation"
+      ],
+      "title": "ArchitectureRisk",
+      "type": "object"
+    },
+    "ArchitectureSubsystem": {
+      "additionalProperties": false,
+      "description": "Planned design subsystem.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "default": "generic",
+          "enum": [
+            "mcu",
+            "power",
+            "sensor",
+            "interface",
+            "protection",
+            "mechanical",
+            "generic"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ArchitectureSubsystem",
+      "type": "object"
+    },
+    "InterfacePlan": {
+      "additionalProperties": false,
+      "description": "Planned interface and associated nets.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "controlled_impedance": {
+          "default": false,
+          "title": "Controlled Impedance",
+          "type": "boolean"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "nets": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Nets",
+          "type": "array"
+        },
+        "protocol": {
+          "minLength": 1,
+          "title": "Protocol",
+          "type": "string"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "role": {
+          "default": "unspecified",
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "protocol"
+      ],
+      "title": "InterfacePlan",
+      "type": "object"
+    },
+    "PowerRailPlan": {
+      "additionalProperties": false,
+      "description": "Planned rail or supply domain.",
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumption Ids",
+          "type": "array"
+        },
+        "load_subsystems": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Load Subsystems",
+          "type": "array"
+        },
+        "margin_target_pct": {
+          "default": 20.0,
+          "minimum": 0,
+          "title": "Margin Target Pct",
+          "type": "number"
+        },
+        "max_current_a": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Current A"
+        },
+        "net_name": {
+          "minLength": 1,
+          "title": "Net Name",
+          "type": "string"
+        },
+        "nominal_voltage_v": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nominal Voltage V"
+        },
+        "requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requirement Ids",
+          "type": "array"
+        },
+        "source": {
+          "default": "architecture-compiler",
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "net_name"
+      ],
+      "title": "PowerRailPlan",
+      "type": "object"
+    },
+    "RequirementCategory": {
+      "description": "Requirement categories used by the architecture artifact.",
+      "enum": [
+        "functional",
+        "power",
+        "interface",
+        "mechanical",
+        "manufacturing",
+        "safety"
+      ],
+      "title": "RequirementCategory",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Structured architecture artifact produced before schematic and PCB synthesis.",
+  "properties": {
+    "acceptance_tests": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureAcceptanceTest"
+      },
+      "title": "Acceptance Tests",
+      "type": "array"
+    },
+    "assumptions": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureAssumption"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "blocking_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Blocking Reasons",
+      "type": "array"
+    },
+    "conflicts": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureConflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "constraints": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureConstraint"
+      },
+      "title": "Constraints",
+      "type": "array"
+    },
+    "design_name": {
+      "minLength": 1,
+      "title": "Design Name",
+      "type": "string"
+    },
+    "human_review_required": {
+      "default": true,
+      "title": "Human Review Required",
+      "type": "boolean"
+    },
+    "interfaces": {
+      "items": {
+        "$ref": "#/$defs/InterfacePlan"
+      },
+      "title": "Interfaces",
+      "type": "array"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "power_tree": {
+      "items": {
+        "$ref": "#/$defs/PowerRailPlan"
+      },
+      "title": "Power Tree",
+      "type": "array"
+    },
+    "requirements": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureRequirement"
+      },
+      "minItems": 1,
+      "title": "Requirements",
+      "type": "array"
+    },
+    "risks": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureRisk"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_intent": {
+      "minLength": 1,
+      "title": "Source Intent",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ArchitectureCompileStatus"
+    },
+    "subsystems": {
+      "items": {
+        "$ref": "#/$defs/ArchitectureSubsystem"
+      },
+      "title": "Subsystems",
+      "type": "array"
+    }
+  },
+  "required": [
+    "status",
+    "design_name",
+    "source_intent",
+    "requirements"
+  ],
+  "title": "ElectronicsArchitectureArtifact",
+  "type": "object"
+}

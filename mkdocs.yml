@@ -1,0 +1,223 @@
+site_name: ZapTrace
+site_description: Agent-native electronics design core — PCB EDA via LLM agents and MCP
+site_url: https://oaslananka.github.io/zaptrace
+repo_url: https://github.com/oaslananka/zaptrace
+repo_name: oaslananka/zaptrace
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep-orange
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep-orange
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - search.highlight
+    - search.suggest
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+  - tables
+  - attr_list
+
+nav:
+  - Home: index.md
+  - Getting Started: GETTING_STARTED.md
+  - Distribution Support: installation/distribution-support.md
+  - Persistent State: storage/persistent-state.md
+  - Architecture: ARCHITECTURE.md
+  - API Reference: api-rest-production.md
+  - Safety & Non-claims: SAFETY.md
+  - Roadmap: ROADMAP.md
+  - FAQ: FAQ.md
+
+  - Repository Maturity:
+      - Maturity Report: repo-maturity-report.md
+      - OpenSSF Evidence: openssf-evidence.md
+      - OpenSSF Evidence Map: openssf-evidence-map.md
+      - OpenSSF Gap Analysis: openssf-gap-analysis.md
+      - OpenSSF Proposal Links: openssf-proposal-links.md
+
+  - Governance:
+      - Main Branch Ruleset: governance/main-branch-ruleset.md
+      - Access Continuity: governance/access-continuity.md
+      - Maintainer Access: governance/maintainer-access.md
+
+  - Community:
+      - Good First Issues: community/good-first-issues.md
+
+  - Documentation System:
+      - Tutorial - Getting Started: tutorials/getting-started.md
+      - How-to Guides: how-to/index.md
+      - Reference:
+          - Overview: reference/index.md
+          - Glossary: reference/glossary.md
+      - Explanation - Architecture: explanation/architecture.md
+
+  - Development:
+      - CI for Contributors: ci-for-contributors.md
+      - CI Observability: development/ci-observability.md
+      - Agent Tool Architecture: development/agent-tool-architecture.md
+      - Coding Standards: development/coding-standards.md
+      - Testing Policy: development/testing-policy.md
+      - Critical Runtime Coverage: development/critical-runtime-coverage.md
+      - Version Policy: development/version-policy.md
+      - Release Process: development/release-process.md
+      - Dependency Management: development/dependency-management.md
+      - Commit Conventions: development/commit-conventions.md
+      - Validation Environment: development/validation-environment.md
+      - Test Lanes: development/test-lanes.md
+
+  - Security Assurance:
+      - Threat Model: security/threat-model.md
+      - Network Transport Authentication: security/network-transport-authentication.md
+      - REST API Abuse Controls: security/api-abuse-controls.md
+      - Object Authorization: security/object-authorization.md
+      - Path Injection Alert Disposition: security/path-injection-alert-disposition.md
+      - Dependency and Static Analysis: security/dependency-and-static-analysis.md
+      - Container Vulnerability Management: security/container-vulnerability-management.md
+      - Untrusted-input Fuzzing: security/fuzzing.md
+      - Release Integrity: security/release-integrity.md
+      - Release Verification: security/release-verification.md
+      - Complete Release Evidence: security/release-evidence.md
+      - Evidence Source Identity: security/evidence-identity.md
+      - Vulnerability Response: security/vulnerability-response.md
+      - Input Validation: security/input-validation.md
+      - Native Rust and PyO3 Boundary: security/native-extension-boundary.md
+      - Cancellation-Safe Tool Execution: security/cancellation-safe-tool-execution.md
+      - Assurance Case: security/assurance-case.md
+
+  - MCP Integration:
+      - Quickstart: mcp/quickstart.md
+      - Agent Plugin Publication: agent-plugin-publication.md
+      - HTTP Deployment: mcp-http-deployment.md
+      - HTTP Authorization Contract: security/mcp-http-authorization-contract.md
+      - Tools Reference: mcp/tools-reference.md
+      - Examples: mcp/examples.md
+      - Security: mcp/security.md
+
+  - Analysis:
+      - Electrical Analysis: analysis/electrical-analysis.md
+      - Requirements Schema v1: requirements/schema-v1.md
+      - Requirements-to-Architecture Compiler: requirements/architecture-compiler.md
+      - Component Derating: analysis/component-derating.md
+      - Current Density: analysis/current-density.md
+      - Rail Current Budget: analysis/rail-current-budget.md
+      - Regulator Margin: analysis/regulator-margin.md
+      - SI/PI Risk: analysis/sipi-risk.md
+      - Simulation Sign-off Evidence: analysis/simulation-signoff.md
+
+  - Supply Chain and Component Evidence:
+      - Dependency Policy: supply-chain/dependency-policy.md
+      - Component Library Governance Schema: component-library-governance-schema-v2.md
+      - Datasheet-backed Component Selection: component-selection.md
+      - Datasheet Fact Provenance: datasheet/fact-provenance-model.md
+      - Footprint Proof Schema: footprints/footprint-proof-schema.md
+      - IPC-7351 Skeleton: footprints/ipc7351-skeleton.md
+
+  - Quality:
+      - Testing and Quality Policy: quality/testing-policy.md
+      - Historical Sonar Debt Budget: quality/sonar-historical-debt.md
+
+  - Manufacturing:
+      - BOM Export: manufacturing/bom-export.md
+      - Gerber Export: manufacturing/gerber-export.md
+      - Evidence Adapters: manufacturing/evidence-adapters.md
+      - Export Capability Matrix: manufacturing/export-capability-matrix.md
+      - BOM Provider Contract: manufacturing/bom-provider-contract.md
+      - Supply Chain Risk: manufacturing/supply-chain-risk.md
+
+  - Layout Evidence:
+      - Layout Quality and Placement: layout/placement-scorecard.md
+      - Differential-pair Length Evidence: layout/diffpair-length-evidence.md
+      - Impedance and Return-path Risk: layout/impedance-return-path-risk.md
+      - Repair Proposal Evidence: layout/repair-proposal-evidence.md
+
+  - Interoperability:
+      - Cross-EDA Readiness: interop/cross-eda-readiness.md
+      - Test Corpus Plan: interop/test-corpus-plan.md
+
+  - Design:
+      - Agent Workflow Runtime: design/agent-workflow-runtime.md
+      - Autonomous Specialist Agents: design/autonomous-specialist-agents.md
+      - Autonomous Synthesis & Verification Loop: design/autonomous-synthesis.md
+      - Hardware IR: design/hardware-ir.md
+      - Plugin Runtime: design/plugin-runtime.md
+      - Board Generation Intent: design/board-generation-intent.md
+      - Intent to Design IR: design/intent-to-design-ir.md
+      - Generated KiCad Schematic: design/generated-kicad-schematic.md
+      - Generated KiCad PCB: design/generated-kicad-pcb.md
+      - Generated Project Evidence: design/generated-project-evidence.md
+      - Generated Board Acceptance: design/generated-board-acceptance.md
+
+  - Strategy and Historical Snapshots:
+      - Status Reconciliation (2026-06-19): strategy/2026-06-19-status-reconciliation.md
+      - Current State Audit: strategy/current-state-audit.md
+      - Documentation Strategy: strategy/docs-strategy.md
+      - MCP Strategy: strategy/mcp-strategy.md
+      - Proof Pack Specification: strategy/proof-pack-spec.md
+      - Transaction Runtime: strategy/transaction-runtime.md
+      - Triage Policy: strategy/triage-policy.md
+      - v0.2.3 Verification Gate: strategy/v0.2.3-verification-gate.md
+      - Community Growth (Historical Plan): strategy/community-growth.md
+
+  - Product:
+      - Manifesto: product/manifesto.md
+      - Review Studio: product/review-studio.md
+      - Static Review Viewer: product/static-review-viewer.md
+      - Competitor Matrix: strategy/competitor-matrix.md
+
+  - Security:
+      - Agent Runtime Threat Model: security/agent-runtime-threat-model.md
+
+  - Plugins:
+      - Development Guide: plugins/development-guide.md
+
+  - CI/CD:
+      - GitHub PR Bot: ci/github-pr-bot.md
+
+  - Benchmarks:
+      - Agent Evaluation Harness: benchmarks/agent-evaluation-harness.md
+      - Release Verify/Repair Convergence: benchmarks/release-verify-repair-convergence.md
+      - KiCad Round-trip Scorecard: benchmarks/kicad-roundtrip-scorecard.md
+      - External Corpus Reproduction: benchmarks/external-corpus-reproduction.md
+      - Human Reference Scorecards: benchmarks/human-reference-scorecards.md
+      - Board Family Manifest: benchmarks/board-family-manifest.md
+      - Fixture Coverage: benchmarks/fixture-coverage.md
+      - Fixture Integrity: benchmarks/fixture-integrity.md
+      - Golden KiCad Fixtures: benchmarks/golden-kicad-fixtures.md
+      - KiCad Corpus Gate: benchmarks/kicad-corpus-gate.md
+      - Known Failure Mutations: benchmarks/known-failure-mutations.md
+      - Generated Board Release Gate: benchmarks/generated-board-release-gate.md
+
+  - Releases:
+      - v0.3.0 Evidence Hardening: releases/v0.3.0-evidence-hardening.md
+      - v0.2.3 Verification Gate: releases/v0.2.3-verification-gate.md

@@ -1,0 +1,117 @@
+schema_version: '2.0'
+id: atecc608b
+name: ATECC608B
+category: security
+manufacturer: Microchip Technology
+mpn: ATECC608B-SSHDA-T
+description: I2C cryptographic authentication device with secure key storage and hardware crypto acceleration
+datasheet: https://ww1.microchip.com/downloads/aemDocuments/documents/SCBU/ProductDocuments/DataSheets/ATECC608B-CryptoAuthentication-Device-Summary-Data-Sheet-DS40002239B.pdf
+package: SOIC-8
+footprint: ATECC608B-SSHDA-T-SOIC8
+lifecycle: not-recommended-for-new-designs
+voltage_supply: 2.0-5.5 V
+pins:
+  NC:
+    type: no_connect
+    description: No connect; physical package pins 1, 2, 3, and 7 remain unconnected
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: I2C serial data
+  SCL:
+    type: input
+    description: I2C serial clock
+  VCC:
+    type: power
+    description: Device supply, 2.0-5.5 V
+package_pin_map:
+  '1': NC
+  '2': NC
+  '3': NC
+  '4': GND
+  '5': SDA
+  '6': SCL
+  '7': NC
+  '8': VCC
+properties:
+  manufacturer_package_name: 8-Lead 0.150" SOIC (SSH)
+  interface: i2c
+  crypto:
+    - ECDSA
+    - ECDH
+    - SHA-256
+    - AES-128
+  key_slots: 16
+  supply_range_v: [2.0, 5.5]
+  io_voltage_range_v: [1.8, 5.5]
+  i2c_max_mhz: 1.0
+  sleep_current_max_na: 150
+  temperature_range_c: [-40, 85]
+  absolute_max_supply_v: 6.0
+  package_body_mm: [3.9, 4.9]
+  package_pitch_mm: 1.27
+  manufacturer_recommended_pad_mm: [1.55, 0.6]
+  repository_land_pattern:
+    source: KiCad official Package_SO.pretty/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod
+    source_revision: c75e8f3ddc65439a5140e7c5b8c6e5b40be0f90e
+    source_sha256: 074ecb2092b24fa4b4b9cdd7c926fc587b0d7d6d21e7341e57935fd42d36894f
+    pad_size_mm: [1.95, 0.6]
+    pin_pitch: 1.27
+    review_note: KiCad generic narrow SOIC-8 uses 1.95 mm pad length versus the Microchip 1.55 mm recommended land pattern; human footprint review remains required before trust-tier promotion or fabrication
+  orderable_packaging:
+    carrier: Tape and Reel
+    quantity: 4000
+electrical_limits:
+  voltage_supply: 2.0-5.5 V operating supply; 6.0 V absolute maximum
+  temperature_range: [-40, 85]
+  max_voltage_v: 6.0
+  review_note: Standard-industrial SSHDA ordering is bounded here; board-level pull-ups, bus timing, power integrity, and provisioning policy still require design review
+sourcing:
+  mpn: ATECC608B-SSHDA-T
+  manufacturer: Microchip Technology
+  status: manufacturer-nrnd
+  production_note: Microchip product identification lists ATECC608B-SSHDA-T as 8-lead 0.150-inch SOIC, I2C, Tape and Reel, 4,000 per reel; current product page marks ATECC608B Not Recommended for New Designs, so availability must be re-checked before procurement
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: procurement-time material declarations remain the compliance authority
+provenance:
+  source: Microchip ATECC608B DS40002239B summary datasheet, product identification system, and current product status page
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of package-land-pattern equivalence, current sourcing status, provisioning policy, and intended security architecture remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &ordering_evidence
+    source_type: manufacturer_web
+    source_locator: https://onlinedocs.microchip.com/oxy/GUID-5C346303-A9CB-4341-B67F-4354AB92FE04-en-US-3/GUID-ADB76E99-DC24-4AF5-9900-BED214AAAF86.html
+    source_identity: ATECC608B product identification system
+    source_sha256: 9d790a0fe64acaf312070243862e22d027d0a82148c2f9a03fa73187a7b82f5a
+    source_version: accessed 2026-08-18
+    extraction_method: structured-manufacturer-ordering-page-capture
+    extracted_at: 2026-08-18
+    confidence: medium
+  datasheet: &datasheet_evidence
+    source_type: manufacturer_document
+    source_locator: https://ww1.microchip.com/downloads/aemDocuments/documents/SCBU/ProductDocuments/DataSheets/ATECC608B-CryptoAuthentication-Device-Summary-Data-Sheet-DS40002239B.pdf
+    source_identity: DS40002239B
+    source_sha256: 1b21d7b0d5c6265fcca2bbd28e88174e9d3a3d05c57be30712e8951c75503acc
+    source_version: DS40002239B
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-18
+    confidence: medium
+  pin_map: *datasheet_evidence
+  package: *datasheet_evidence
+  footprint: *datasheet_evidence
+  electrical_limits: *datasheet_evidence
+  lifecycle:
+    source_type: manufacturer_web
+    source_locator: https://www.microchip.com/en-us/product/atecc608b
+    source_identity: ATECC608B product page
+    source_version: accessed 2026-08-18
+    extraction_method: manufacturer-product-page-review
+    extracted_at: 2026-08-18
+    confidence: medium
+  sourcing: *ordering_evidence

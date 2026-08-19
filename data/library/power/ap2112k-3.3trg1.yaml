@@ -1,0 +1,120 @@
+schema_version: '2.0'
+id: ap2112k-3.3trg1
+name: AP2112K-3.3TRG1
+category: power
+manufacturer: Diodes Incorporated
+mpn: AP2112K-3.3TRG1
+description: 600 mA fixed 3.3 V CMOS LDO regulator with enable in Diodes SOT25 package
+datasheet: https://www.diodes.com/assets/Datasheets/AP2112.pdf
+package: SOT-23-5
+footprint: AP2112K-3.3TRG1-SOT25
+lifecycle: active
+voltage_supply: 2.5-6.0 V
+pins:
+  VIN:
+    type: power
+    description: Regulator input supply, 2.5-6.0 V recommended operating range
+  GND:
+    type: power
+    description: Ground
+  EN:
+    type: input
+    description: Active-high enable input with internal pull-down
+  NC:
+    type: no_connect
+    description: No internal connection
+  VOUT:
+    type: output
+    description: Fixed 3.3 V regulated output
+package_pin_map:
+  '1': VIN
+  '2': GND
+  '3': EN
+  '4': NC
+  '5': VOUT
+properties:
+  canonical_component_id: ap2112k-3.3
+  compatibility_role: legacy-id-mirror
+  manufacturer_package_name: SOT25
+  legacy_package_name: SOT-23-5
+  output_voltage_v: 3.3
+  output_current_ma: 600
+  input_voltage_range_v: [2.5, 6.0]
+  absolute_max_input_voltage_v: 6.5
+  temperature_range_c: [-40, 85]
+  dropout_voltage_mv_at_600ma:
+    typical: 250
+    maximum: 400
+  enable_threshold_v:
+    high_min: 1.5
+    low_max: 0.4
+  output_accuracy_percent: 1.5
+  marking_id: G3P
+  packing: 3000-per-7in-tape-and-reel
+  manufacturer_footprint_recommendation_mm:
+    pad_width: 0.55
+    pad_length: 0.80
+    pin_pitch: 0.95
+    row_center_spacing: 2.40
+    overall_pad_span: 3.20
+    inner_row_gap: 1.60
+  repository_land_pattern:
+    source: KiCad official Package_TO_SOT_SMD.pretty/SOT-23-5.kicad_mod
+    source_revision: e4191d1fd7b9522beb2980b83ae3c0c2fe41a9e1
+    source_sha256: 2a5c9e030fb192cd2393b5f95872fe796deb29ae7570c83050e19f7b78ceea71
+    pad_size_mm: [1.325, 0.60]
+    pin_pitch: 0.95
+    review_note: KiCad official SOT-23-5 land pattern is package-compatible but not dimension-identical to the Diodes SOT25 suggested pad layout; human footprint review remains required before trust-tier promotion
+electrical_limits:
+  voltage_supply: 2.5-6.0 V recommended input; 6.5 V absolute maximum supply rating
+  temperature_range: [-40, 85]
+  max_voltage_v: 6.5
+  current_rating_a: 0.6
+  review_note: For AP2112-3.3 the datasheet specifies 250 mV typical and 400 mV maximum dropout at 600 mA under its stated test conditions
+sourcing:
+  mpn: AP2112K-3.3TRG1
+  manufacturer: Diodes Incorporated
+  status: manufacturer-catalog-active
+  production_note: Diodes current AP2112 product/package catalog pages list AP2112 and SOT25; re-check authorized distributor stock and lead time before procurement
+compliance:
+  rohs: manufacturer-green-package
+  reach: supplier-confirmation-required
+  production_note: G1 is the manufacturer Green-package suffix; project-specific compliance evidence still requires procurement-time confirmation
+provenance:
+  source: Diodes Incorporated AP2112 DS39724 Rev 2-2 datasheet, SOT25 package document, and current manufacturer catalog pages
+  review_status: candidate-evidence-unreviewed
+  production_note: Legacy component ID compatibility mirror of ap2112k-3.3; human review of the KiCad-versus-Diodes land-pattern equivalence and current procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &datasheet_evidence
+    source_type: manufacturer_document
+    source_locator: https://www.diodes.com/assets/Datasheets/AP2112.pdf
+    source_identity: DS39724
+    source_sha256: ef8d376f2ec356e29172eb9e053819a0ebdcc576dba7fc9ab0505c568427920f
+    source_version: Rev 2-2 (2017-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-10
+    confidence: medium
+  datasheet: *datasheet_evidence
+  pin_map: *datasheet_evidence
+  package: *datasheet_evidence
+  footprint:
+    source_type: manufacturer_document
+    source_locator: https://www.diodes.com/assets/Package-Files/SOT25.pdf
+    source_identity: Diodes SOT25 Package Information
+    source_sha256: acb75d3d3d00fd80c33ab471832cc90a26746de7867aa98f9abb165676f9c66c
+    source_version: Rev 2017-04-11
+    extraction_method: structured-manufacturer-package-capture
+    extracted_at: 2026-08-10
+    confidence: medium
+  electrical_limits: *datasheet_evidence
+  lifecycle: &catalog_evidence
+    source_type: manufacturer_web
+    source_locator: https://www.diodes.com/part/view/AP2112
+    source_identity: diodes:ap2112-product-page
+    source_version: accessed-2026-08-10
+    extraction_method: manufacturer-product-page-review
+    extracted_at: 2026-08-10
+    confidence: medium
+  sourcing: *catalog_evidence

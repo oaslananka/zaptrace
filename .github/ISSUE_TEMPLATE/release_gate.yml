@@ -1,0 +1,52 @@
+name: Release Gate
+description: Define a release-blocking validation gate
+title: "[Release Gate] "
+labels: ["type/hardening", "area/proof-pack", "status/needs-design", "evidence-required", "release-blocking"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Risk or gap
+      description: Which release claim or failure mode needs a gate?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Gate scope
+      description: Define inputs, tools, boundaries, and supported environments.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Pass, fail, and skip criteria
+      description: Define PASS, FAIL, SKIP-APPROVED, and SKIP-UNAPPROVED.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Required evidence
+      description: List exact commands, reports, proof records, and retained artifacts.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: Link prerequisite implementation, environments, or approvals.
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: State claims this gate does not establish.
+    validations:
+      required: true

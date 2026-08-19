@@ -1,0 +1,600 @@
+{
+  "evidence_status": "generated-policy-not-runtime-evidence",
+  "policy_artifact": true,
+  "schema_version": "tool-policy-matrix-v1",
+  "tool_count": 93,
+  "tools": [
+    {
+      "capability": "read",
+      "name": "altium_import_fidelity",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "audit_list_events",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "board_classify_nets",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "board_export",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "board_plan",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "board_summarize_nets",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "board_update",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_buck_lc",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_decoupling",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_e_series",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_i2c_pullup",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_led_resistor",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_lipo_charge",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_rc_filter",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_usb_c_cc",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "calc_voltage_divider",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "compliance_checklist",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "component_add",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "component_remove",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "dc_bias_check",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "design_classify_nets",
+      "path_parameters": []
+    },
+    {
+      "capability": "approved-commit",
+      "name": "design_commit",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "design_diff",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "design_inspect",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "design_list_nets",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "design_list_snapshots",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "design_parse_file",
+      "path_parameters": [
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "preview-write",
+      "name": "design_parse_str",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "design_rollback",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "design_route_smart",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "design_snapshot",
+      "path_parameters": []
+    },
+    {
+      "capability": "approved-commit",
+      "name": "design_transaction_commit",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "design_transaction_list",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "design_transaction_preview",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "design_transaction_rollback",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "design_transaction_validate",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "drc_get_result",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "drc_list_rules",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "drc_run",
+      "path_parameters": [
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "fab_profile",
+          "path_suffixes": [
+            ".yaml",
+            ".yml"
+          ],
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "read",
+      "name": "easyeda_std_roundtrip",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "electrical_analysis",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "erc_get_result",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "erc_list_rules",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "erc_validate",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "export_bom_csv",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "export_bom_json",
+      "path_parameters": []
+    },
+    {
+      "capability": "release-export",
+      "name": "export_excellon",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "release-export",
+      "name": "export_gerber",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "release-export",
+      "name": "export_kicad",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "release-export",
+      "name": "export_manufacturing",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "release-export",
+      "name": "export_pick_and_place",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "export_report",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "read",
+      "name": "export_spice",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "export_svg",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "read",
+      "name": "footprint_generate",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "footprint_get",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "footprint_list_packages",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "footprint_search",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "kicad_3d_model_coverage",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "kicad_import_project",
+      "path_parameters": [
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "project_path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "kicad_step_export",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "kicad_to_easyeda_pro",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_path",
+          "root": "workspace"
+        },
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "project_path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "read",
+      "name": "library_get",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "library_list_categories",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "library_search",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "list_synthesis_templates",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "mechanical_review",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "patch_suggest",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "pipeline_run",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        },
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "source",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "preview-write",
+      "name": "pipeline_run_stage",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        },
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "source",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "read",
+      "name": "pipeline_status",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "place_components",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "power_tree_plan",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "proof_list_checks",
+      "path_parameters": [
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "proof_run",
+      "path_parameters": [
+        {
+          "access": "input",
+          "must_exist": true,
+          "name": "path",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "proof_run_design",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "requirements_parse",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "requirements_review",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "resolve_footprints",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "route_nets",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "schematic_render",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "security_review",
+      "path_parameters": []
+    },
+    {
+      "capability": "sandbox-write",
+      "name": "simulation_gate",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "synthesis_benchmark",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_and_check",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_board",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_board_and_check",
+      "path_parameters": []
+    },
+    {
+      "capability": "release-export",
+      "name": "synthesize_board_manufacture",
+      "path_parameters": [
+        {
+          "access": "output",
+          "must_exist": false,
+          "name": "output_dir",
+          "root": "workspace"
+        }
+      ]
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_board_repair",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_board_score",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_design",
+      "path_parameters": []
+    },
+    {
+      "capability": "preview-write",
+      "name": "synthesize_power_tree",
+      "path_parameters": []
+    },
+    {
+      "capability": "read",
+      "name": "testability_report",
+      "path_parameters": []
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+schema_version: '2.0'
+id: hcsr04
+name: HC-SR04
+category: sensor
+manufacturer: Cytron
+mpn: HC-SR04
+description: Ultrasonic distance sensor, 2cm-400cm, 5V
+datasheet: https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf
+package: Module-45x20mm
+footprint: HC-SR04-MOD
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VCC:
+    type: power
+    description: 5V supply
+  GND:
+    type: power
+    description: Ground
+  TRIG:
+    type: input
+    description: Trigger pulse (10us)
+  ECHO:
+    type: output
+    description: Echo pulse output
+properties:
+  range_cm: 2-400
+  accuracy_mm: 3
+  beam_angle_deg: 15
+electrical_limits:
+  voltage_supply: '5.0'
+sourcing:
+  mpn: HC-SR04
+  manufacturer: Cytron
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf
+    source_identity: component:hcsr04:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:hcsr04:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

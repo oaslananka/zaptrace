@@ -1,0 +1,436 @@
+schema_version: '2.0'
+id: nrf52840-qiaa
+name: nRF52840-QIAA-F-R7
+category: mcu
+manufacturer: Nordic Semiconductor
+mpn: nRF52840-QIAA-F-R7
+description: nRF52840 multiprotocol Arm Cortex-M4F SoC, 1 MB flash, 256 kB RAM, USB, NFC and 2.4 GHz radio in aQFN73
+datasheet: https://docs.nordicsemi.com/r/bundle/ps_nrf52840
+package: aQFN-73-1EP
+footprint: nRF52840-QIAA
+lifecycle: active
+voltage_supply: 1.7-3.6 V
+pins:
+  P0_00:
+    type: bidirectional
+    description: GPIO P0.00 / XL1 (32.768 kHz crystal)
+  P0_01:
+    type: bidirectional
+    description: GPIO P0.01 / XL2 (32.768 kHz crystal)
+  P0_02:
+    type: bidirectional
+    description: GPIO P0.02 / AIN0
+  P0_03:
+    type: bidirectional
+    description: GPIO P0.03 / AIN1
+  P0_04:
+    type: bidirectional
+    description: GPIO P0.04 / AIN2
+  P0_05:
+    type: bidirectional
+    description: GPIO P0.05 / AIN3
+  P0_06:
+    type: bidirectional
+    description: General-purpose I/O P0.06
+  P0_07:
+    type: bidirectional
+    description: General-purpose I/O P0.07
+  P0_08:
+    type: bidirectional
+    description: General-purpose I/O P0.08
+  P0_09:
+    type: bidirectional
+    description: GPIO P0.09 / NFC1
+  P0_10:
+    type: bidirectional
+    description: GPIO P0.10 / NFC2
+  P0_11:
+    type: bidirectional
+    description: General-purpose I/O P0.11
+  P0_12:
+    type: bidirectional
+    description: General-purpose I/O P0.12
+  P0_13:
+    type: bidirectional
+    description: General-purpose I/O P0.13
+  P0_14:
+    type: bidirectional
+    description: General-purpose I/O P0.14
+  P0_15:
+    type: bidirectional
+    description: General-purpose I/O P0.15
+  P0_16:
+    type: bidirectional
+    description: General-purpose I/O P0.16
+  P0_17:
+    type: bidirectional
+    description: General-purpose I/O P0.17
+  P0_18:
+    type: bidirectional
+    description: GPIO P0.18 / configurable nRESET / QSPI CSN
+  P0_19:
+    type: bidirectional
+    description: General-purpose I/O P0.19
+  P0_20:
+    type: bidirectional
+    description: General-purpose I/O P0.20
+  P0_21:
+    type: bidirectional
+    description: General-purpose I/O P0.21
+  P0_22:
+    type: bidirectional
+    description: General-purpose I/O P0.22
+  P0_23:
+    type: bidirectional
+    description: General-purpose I/O P0.23
+  P0_24:
+    type: bidirectional
+    description: General-purpose I/O P0.24
+  P0_25:
+    type: bidirectional
+    description: General-purpose I/O P0.25
+  P0_26:
+    type: bidirectional
+    description: General-purpose I/O P0.26
+  P0_27:
+    type: bidirectional
+    description: General-purpose I/O P0.27
+  P0_28:
+    type: bidirectional
+    description: GPIO P0.28 / AIN4
+  P0_29:
+    type: bidirectional
+    description: GPIO P0.29 / AIN5
+  P0_30:
+    type: bidirectional
+    description: GPIO P0.30 / AIN6
+  P0_31:
+    type: bidirectional
+    description: GPIO P0.31 / AIN7
+  P1_00:
+    type: bidirectional
+    description: GPIO P1.00 / TRACEDATA0 / SWO / QSPI
+  P1_01:
+    type: bidirectional
+    description: General-purpose I/O P1.01
+  P1_02:
+    type: bidirectional
+    description: General-purpose I/O P1.02
+  P1_03:
+    type: bidirectional
+    description: General-purpose I/O P1.03
+  P1_04:
+    type: bidirectional
+    description: General-purpose I/O P1.04
+  P1_05:
+    type: bidirectional
+    description: General-purpose I/O P1.05
+  P1_06:
+    type: bidirectional
+    description: General-purpose I/O P1.06
+  P1_07:
+    type: bidirectional
+    description: General-purpose I/O P1.07
+  P1_08:
+    type: bidirectional
+    description: General-purpose I/O P1.08
+  P1_09:
+    type: bidirectional
+    description: General-purpose I/O P1.09
+  P1_10:
+    type: bidirectional
+    description: General-purpose I/O P1.10
+  P1_11:
+    type: bidirectional
+    description: General-purpose I/O P1.11
+  P1_12:
+    type: bidirectional
+    description: General-purpose I/O P1.12
+  P1_13:
+    type: bidirectional
+    description: General-purpose I/O P1.13
+  P1_14:
+    type: bidirectional
+    description: General-purpose I/O P1.14
+  P1_15:
+    type: bidirectional
+    description: General-purpose I/O P1.15
+  VDD:
+    type: power
+    description: Normal-voltage supply, 1.7-3.6 V
+  VSS:
+    type: power
+    description: Ground; includes VSS, VSS_PA, and exposed die pad
+  VDDH:
+    type: passive
+    description: High-voltage supply input, 2.5-5.5 V; requires explicit power-mode design
+  VBUS:
+    type: passive
+    description: USB supply input, 4.35-5.5 V; do not connect to generic 3.3 V rail
+  DEC1:
+    type: passive
+    description: 1.1 V regulator decoupling
+  DEC2:
+    type: passive
+    description: 1.3 V regulator supply decoupling
+  DEC3:
+    type: passive
+    description: Power-supply decoupling
+  DEC4:
+    type: passive
+    description: 1.3 V regulator supply decoupling; connect per reference circuitry
+  DEC6:
+    type: passive
+    description: 1.3 V regulator supply decoupling; connect per reference circuitry
+  DECUSB:
+    type: passive
+    description: USB 3.3 V regulator supply decoupling
+  DCC:
+    type: passive
+    description: DC/DC converter output; connect only for selected regulator topology
+  DCCH:
+    type: passive
+    description: High-voltage DC/DC converter output; connect only for selected topology
+  ANT:
+    type: passive
+    description: Single-ended 2.4 GHz radio antenna connection; use Nordic reference circuitry/layout
+  XC1:
+    type: passive
+    description: 32 MHz crystal connection
+  XC2:
+    type: passive
+    description: 32 MHz crystal connection
+  SWDIO:
+    type: bidirectional
+    description: Serial-wire debug data I/O
+  SWDCLK:
+    type: input
+    description: Serial-wire debug clock input
+  USB_DM:
+    type: bidirectional
+    description: USB D-
+  USB_DP:
+    type: bidirectional
+    description: USB D+
+  NC:
+    type: passive
+    description: Not connected for current Fxx-and-later QIAA build codes
+package_pin_map:
+  A8: P0_31
+  A10: P0_29
+  A12: P0_02
+  A14: P1_15
+  A16: P1_13
+  A18: DEC2
+  A20: P1_10
+  A22: VDD
+  A23: XC2
+  B1: VDD
+  B3: DCC
+  B5: DEC4
+  B7: VSS
+  B9: P0_30
+  B11: P0_28
+  B13: P0_03
+  B15: P1_14
+  B17: P1_12
+  B19: P1_11
+  B24: XC1
+  C1: DEC1
+  D2: P0_00
+  D23: DEC3
+  E24: DEC6
+  F2: P0_01
+  F23: VSS
+  G1: P0_26
+  H2: P0_27
+  H23: ANT
+  J1: P0_04
+  J24: P0_10
+  K2: P0_05
+  L1: P0_06
+  L24: P0_09
+  M2: P0_07
+  N1: P0_08
+  N24: NC
+  P2: P1_08
+  P23: P1_07
+  R1: P1_09
+  R24: P1_06
+  T2: P0_11
+  T23: P1_05
+  U1: P0_12
+  U24: P1_04
+  V23: P1_03
+  W1: VDD
+  W24: P1_02
+  Y2: VDDH
+  Y23: P1_01
+  AA24: SWDCLK
+  AB2: DCCH
+  AC5: DECUSB
+  AC9: P0_14
+  AC11: P0_16
+  AC13: P0_18
+  AC15: P0_19
+  AC17: P0_21
+  AC19: P0_23
+  AC21: P0_25
+  AC24: SWDIO
+  AD2: VBUS
+  AD4: USB_DM
+  AD6: USB_DP
+  AD8: P0_13
+  AD10: P0_15
+  AD12: P0_17
+  AD14: VDD
+  AD16: P0_20
+  AD18: P0_22
+  AD20: P0_24
+  AD22: P1_00
+  AD23: VDD
+  EP: VSS
+properties:
+  core: Arm Cortex-M4F
+  frequency_mhz: 64
+  flash_kb: 1024
+  sram_kb: 256
+  gpio_count: 48
+  wireless:
+  - bluetooth_5
+  - ieee_802_15_4
+  - proprietary_2_4ghz
+  - nfc_a
+  function_variant: AA-F
+  access_port_protection: hardware-and-software
+  package_dimensions_mm:
+  - 7.0
+  - 7.0
+  manufacturer_ball_count: 73
+  exposed_die_pad_count: 1
+  ball_pitch_mm: 0.5
+  soc_revision: 3
+  container: 7" reel
+  minimum_order_quantity: 800
+  vdd_range_v:
+  - 1.7
+  - 3.6
+  vddh_range_v:
+  - 2.5
+  - 5.5
+  vbus_range_v:
+  - 4.35
+  - 5.5
+  operating_ambient_c:
+  - -40
+  - 85
+  junction_temperature_max_c: 90
+  dec5_status: not-connected-for-Fxx-and-later
+  repository_land_pattern:
+    source: KiCad official Package_DFN_QFN.pretty/Nordic_AQFN-73-1EP_7x7mm_P0.5mm.kicad_mod
+    source_revision: a2cd6bea801640f3b5c0067744ac7f84dc324f1e
+    source_sha256: b1d3fb2b429e53beda8001f4604c456f4561cffd88c65af1f795f147828c0105
+    ball_pad_size_mm:
+    - 0.25
+    - 0.25
+    ball_pitch_mm: 0.5
+    exposed_pad_size_mm:
+    - 4.85
+    - 4.85
+    physical_identity_count: 74
+    review_note: Current KiCad geometry matches the Nordic aQFN73 ball identity set plus exposed die pad. Generic footprint
+      proof cannot express ball-grid pin-1 evidence and therefore remains blocked; RF matching/layout, exposed-pad paste/thermal
+      design, orientation, supply topology, and reference-circuit compliance require qualified human review.
+electrical_limits:
+  voltage_supply: 1.7-3.6 V
+  frequency_mhz: 64
+  temperature_range:
+  - -40
+  - 85
+  max_voltage_v: 3.6
+  review_note: Normal-voltage VDD range is 1.7-3.6 V. VDDH and VBUS have separate operating ranges and are deliberately not
+    auto-wired by generic MCU synthesis; select the Nordic reference supply topology explicitly.
+sourcing:
+  mpn: nRF52840-QIAA-F-R7
+  manufacturer: Nordic Semiconductor
+  status: manufacturer-current-option
+  production_note: Current Nordic ordering information lists this AA-F 7-inch reel option without an NRND note; re-check lifecycle,
+    build code, authorized-distributor stock, and reference circuitry before procurement.
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: No project-level regulatory claim is inferred from the Product Specification; obtain current manufacturer/supplier
+    material declarations for procurement.
+provenance:
+  source: Nordic nRF52840 Product Specification 1.11 current HTML plus ordering information
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of ball-map/orientation, RF reference circuitry, exposed pad, power-mode topology, DEC/DC-DC
+    network, USB/NFC use, build code, and procurement evidence remains required before trust-tier promotion, fabrication,
+    or procurement.
+  datasheet_reference_type: manufacturer-web
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/ordering_info.html
+    source_identity: Nordic nRF52840 ordering information
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840
+    source_identity: Nordic nRF52840 Product Specification
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  pin_map:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/pin.html
+    source_identity: Nordic nRF52840 aQFN73 pin assignments
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  package:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/pin.html
+    source_identity: Nordic nRF52840 aQFN73 pin assignments
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  footprint:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/pin.html
+    source_identity: Nordic nRF52840 aQFN73 pin assignments
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  electrical_limits:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/recommended_op_conditions.html
+    source_identity: Nordic nRF52840 recommended operating conditions
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  lifecycle:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/ordering_info.html
+    source_identity: Nordic nRF52840 ordering information
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  sourcing:
+    source_type: manufacturer_web
+    source_locator: https://docs.nordicsemi.com/r/bundle/ps_nrf52840/page/ordering_info.html
+    source_identity: Nordic nRF52840 ordering information
+    source_version: 1.11 (2024-10)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium

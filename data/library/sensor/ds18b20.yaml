@@ -1,0 +1,103 @@
+schema_version: '2.0'
+id: ds18b20
+name: DS18B20
+category: sensor
+manufacturer: Maxim Integrated
+mpn: DS18B20+
+description: Programmable resolution 1-Wire digital thermometer
+datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ds18b20.pdf
+package: TO-92
+footprint: DS18B20-TO92
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 3.0-5.5V supply
+  GND:
+    type: power
+    description: Ground
+  DQ:
+    type: bidirectional
+    description: 1-Wire data
+properties:
+  interface:
+  - 1-wire
+  temperature_range: -55..125 C
+  resolution_bit: 9-12
+  accuracy: +/-0.5 C
+electrical_limits:
+  temperature_range: -55..125 C
+  voltage_supply: '3.3'
+sourcing:
+  mpn: DS18B20+
+  manufacturer: Maxim Integrated
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.analog.com/media/en/technical-documentation/data-sheets/ds18b20.pdf
+    source_identity: component:ds18b20:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ds18b20:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

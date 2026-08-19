@@ -1,0 +1,486 @@
+{
+  "$defs": {
+    "FailureEvidence": {
+      "description": "One normalized failure emitted by a domain gate.",
+      "properties": {
+        "affected_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Affected Refs",
+          "type": "array"
+        },
+        "details": {
+          "additionalProperties": true,
+          "title": "Details",
+          "type": "object"
+        },
+        "domain": {
+          "$ref": "#/$defs/GateDomain"
+        },
+        "failure_id": {
+          "minLength": 1,
+          "title": "Failure Id",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "repairability": {
+          "$ref": "#/$defs/Repairability"
+        },
+        "requires_human_review": {
+          "default": false,
+          "title": "Requires Human Review",
+          "type": "boolean"
+        },
+        "rule_id": {
+          "minLength": 1,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/FailureSeverity"
+        },
+        "verdict": {
+          "$ref": "#/$defs/GateVerdict"
+        }
+      },
+      "required": [
+        "failure_id",
+        "domain",
+        "rule_id",
+        "severity",
+        "verdict",
+        "repairability",
+        "message"
+      ],
+      "title": "FailureEvidence",
+      "type": "object"
+    },
+    "FailureSeverity": {
+      "description": "Normalized engineering severity.",
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "critical"
+      ],
+      "title": "FailureSeverity",
+      "type": "string"
+    },
+    "GateDomain": {
+      "description": "Verification domains coordinated by the release orchestrator.",
+      "enum": [
+        "erc",
+        "drc",
+        "kicad-oracle",
+        "dfm",
+        "simulation",
+        "supply-chain",
+        "proof-pack"
+      ],
+      "title": "GateDomain",
+      "type": "string"
+    },
+    "GateEvidence": {
+      "description": "State-bound result from one configured verification domain.",
+      "properties": {
+        "blocks_autonomous_release": {
+          "default": false,
+          "title": "Blocks Autonomous Release",
+          "type": "boolean"
+        },
+        "design_state_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Design State Hash",
+          "type": "string"
+        },
+        "domain": {
+          "$ref": "#/$defs/GateDomain"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/FailureEvidence"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "human_review_required": {
+          "default": false,
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "summary": {
+          "default": "",
+          "title": "Summary",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/GateVerdict"
+        }
+      },
+      "required": [
+        "domain",
+        "verdict",
+        "design_state_hash"
+      ],
+      "title": "GateEvidence",
+      "type": "object"
+    },
+    "GateHistoryEntry": {
+      "description": "One immutable snapshot of all configured gates at a design state.",
+      "properties": {
+        "blocking_count": {
+          "minimum": 0,
+          "title": "Blocking Count",
+          "type": "integer"
+        },
+        "design_state_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Design State Hash",
+          "type": "string"
+        },
+        "gates": {
+          "items": {
+            "$ref": "#/$defs/GateEvidence"
+          },
+          "title": "Gates",
+          "type": "array"
+        },
+        "human_review_count": {
+          "minimum": 0,
+          "title": "Human Review Count",
+          "type": "integer"
+        },
+        "iteration": {
+          "minimum": 0,
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "phase": {
+          "enum": [
+            "initial",
+            "post-repair"
+          ],
+          "title": "Phase",
+          "type": "string"
+        }
+      },
+      "required": [
+        "iteration",
+        "phase",
+        "design_state_hash",
+        "blocking_count",
+        "human_review_count",
+        "gates"
+      ],
+      "title": "GateHistoryEntry",
+      "type": "object"
+    },
+    "GateVerdict": {
+      "description": "Normalized verdict for one gate or finding.",
+      "enum": [
+        "pass",
+        "warning",
+        "blocked",
+        "human-review-required",
+        "skipped",
+        "error"
+      ],
+      "title": "GateVerdict",
+      "type": "string"
+    },
+    "RepairEvidence": {
+      "description": "Hash-bound before/after evidence for an applied repair batch.",
+      "properties": {
+        "after_blocking_count": {
+          "minimum": 0,
+          "title": "After Blocking Count",
+          "type": "integer"
+        },
+        "after_state_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "After State Hash",
+          "type": "string"
+        },
+        "before_blocking_count": {
+          "minimum": 0,
+          "title": "Before Blocking Count",
+          "type": "integer"
+        },
+        "before_state_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Before State Hash",
+          "type": "string"
+        },
+        "decisions": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Decisions",
+          "type": "array"
+        },
+        "domains": {
+          "items": {
+            "$ref": "#/$defs/GateDomain"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "human_review_required": {
+          "default": false,
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "improved": {
+          "title": "Improved",
+          "type": "boolean"
+        },
+        "iteration": {
+          "minimum": 1,
+          "title": "Iteration",
+          "type": "integer"
+        },
+        "patches": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Patches",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "repair_id": {
+          "title": "Repair Id",
+          "type": "string"
+        },
+        "semantic_diff": {
+          "items": {
+            "$ref": "#/$defs/SemanticDiffEvidence"
+          },
+          "title": "Semantic Diff",
+          "type": "array"
+        }
+      },
+      "required": [
+        "iteration",
+        "repair_id",
+        "domains",
+        "rationale",
+        "before_state_hash",
+        "after_state_hash",
+        "before_blocking_count",
+        "after_blocking_count",
+        "improved"
+      ],
+      "title": "RepairEvidence",
+      "type": "object"
+    },
+    "Repairability": {
+      "description": "Whether one failure can be handled autonomously.",
+      "enum": [
+        "auto-repairable",
+        "human-repairable",
+        "non-repairable"
+      ],
+      "title": "Repairability",
+      "type": "string"
+    },
+    "SemanticDiffEvidence": {
+      "description": "One semantic design change recorded for a repair.",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "new_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Value"
+        },
+        "old_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Value"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "ref",
+        "detail"
+      ],
+      "title": "SemanticDiffEvidence",
+      "type": "object"
+    },
+    "VerifyRepairStopReason": {
+      "description": "Deterministic terminal reasons for a verify/repair run.",
+      "enum": [
+        "all-gates-passed",
+        "human-review-required",
+        "non-repairable",
+        "no-progress",
+        "iteration-budget-exhausted",
+        "gate-execution-error",
+        "repair-execution-error"
+      ],
+      "title": "VerifyRepairStopReason",
+      "type": "string"
+    }
+  },
+  "description": "Complete machine-readable verify/repair convergence evidence.",
+  "properties": {
+    "blocks_autonomous_release": {
+      "title": "Blocks Autonomous Release",
+      "type": "boolean"
+    },
+    "converged": {
+      "title": "Converged",
+      "type": "boolean"
+    },
+    "design_name": {
+      "title": "Design Name",
+      "type": "string"
+    },
+    "enabled_domains": {
+      "items": {
+        "$ref": "#/$defs/GateDomain"
+      },
+      "title": "Enabled Domains",
+      "type": "array"
+    },
+    "final_design_state_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Final Design State Hash",
+      "type": "string"
+    },
+    "final_gates": {
+      "items": {
+        "$ref": "#/$defs/GateEvidence"
+      },
+      "title": "Final Gates",
+      "type": "array"
+    },
+    "gate_history": {
+      "items": {
+        "$ref": "#/$defs/GateHistoryEntry"
+      },
+      "title": "Gate History",
+      "type": "array"
+    },
+    "human_review_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Human Review Reasons",
+      "type": "array"
+    },
+    "human_review_required": {
+      "title": "Human Review Required",
+      "type": "boolean"
+    },
+    "initial_design_state_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Initial Design State Hash",
+      "type": "string"
+    },
+    "iteration_budget": {
+      "minimum": 1,
+      "title": "Iteration Budget",
+      "type": "integer"
+    },
+    "iterations_used": {
+      "minimum": 0,
+      "title": "Iterations Used",
+      "type": "integer"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "policy_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Sha256",
+      "type": "string"
+    },
+    "policy_version": {
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "repairs": {
+      "items": {
+        "$ref": "#/$defs/RepairEvidence"
+      },
+      "title": "Repairs",
+      "type": "array"
+    },
+    "report_sha256": {
+      "default": "",
+      "title": "Report Sha256",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "stop_reason": {
+      "$ref": "#/$defs/VerifyRepairStopReason"
+    }
+  },
+  "required": [
+    "design_name",
+    "policy_version",
+    "policy_sha256",
+    "enabled_domains",
+    "initial_design_state_hash",
+    "final_design_state_hash",
+    "converged",
+    "stop_reason",
+    "blocks_autonomous_release",
+    "human_review_required",
+    "iteration_budget",
+    "iterations_used",
+    "gate_history",
+    "repairs",
+    "final_gates"
+  ],
+  "title": "VerifyRepairReport",
+  "type": "object"
+}

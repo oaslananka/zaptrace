@@ -1,0 +1,138 @@
+schema_version: '2.0'
+id: adxl355
+name: ADXL355
+category: sensor
+manufacturer: Analog Devices
+mpn: ADXL355BEZ
+description: Low-noise, low-drift, 3-axis MEMS accelerometer, SPI/I2C, ±2/4/8g
+datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL354_355.pdf
+package: LGA-14
+footprint: ADXL355-LGA14
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 3.3V supply
+  VDDIO:
+    type: power
+    description: I/O supply
+  GND:
+    type: power
+    description: Ground
+  CS:
+    type: input
+    description: SPI chip select / I2C address
+  SCL:
+    type: input
+    description: SPI clock / I2C clock
+  SDA:
+    type: bidirectional
+    description: SPI data in / I2C data
+  SDO:
+    type: output
+    description: SPI data out / I2C address select
+  DRDY:
+    type: output
+    description: Data ready interrupt
+  INT1:
+    type: output
+    description: Interrupt 1
+  INT2:
+    type: output
+    description: Interrupt 2
+  FILT:
+    type: passive
+    description: Filter capacitor connection
+  ASEL:
+    type: input
+    description: I2C address select
+  NC1:
+    type: no_connect
+    description: No connect (leave open)
+  NC2:
+    type: no_connect
+    description: No connect (leave open)
+properties:
+  interface:
+  - spi
+  - i2c
+  range_g:
+  - 2
+  - 4
+  - 8
+  noise_ug_per_root_hz: 25
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: ADXL355BEZ
+  manufacturer: Analog Devices
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL354_355.pdf
+    source_identity: component:adxl355:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:adxl355:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

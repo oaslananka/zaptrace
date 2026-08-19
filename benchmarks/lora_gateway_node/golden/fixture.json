@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "lora_gateway_node",
+  "files": [
+    {
+      "kind": "project",
+      "path": "lora_gateway_node.kicad_pro",
+      "required": true,
+      "sha256": "fbcb573812f4e92a1d81315f3931774bc078c4ad6c90568bf03506bae1a75cbe",
+      "size_bytes": 237
+    },
+    {
+      "kind": "schematic",
+      "path": "lora_gateway_node.kicad_sch",
+      "required": true,
+      "sha256": "62e7284b8caed8f1d95ca79791e57fab332dfcec04ade134b2cc15e694c0b8bf",
+      "size_bytes": 239
+    },
+    {
+      "kind": "pcb",
+      "path": "lora_gateway_node.kicad_pcb",
+      "required": true,
+      "sha256": "9b34a9e58a4c355b4b3b745620bebb73a6f5d407140518c9c13693010fe0211d",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "lora_gateway_node_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

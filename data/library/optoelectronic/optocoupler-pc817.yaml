@@ -1,0 +1,103 @@
+schema_version: '2.0'
+id: optocoupler-pc817
+name: Optocoupler PC817
+category: optoelectronic
+manufacturer: Sharp
+mpn: PC817X
+description: Photocoupler, DIP-4, transistor output
+datasheet: https://www.sharpsde.com/fileadmin/products/optocouplers/PC817X.pdf
+package: DIP-4
+footprint: DIP-4
+lifecycle: active
+voltage_supply: ''
+pins:
+  ANODE:
+    type: input
+    description: LED anode
+  CATHODE:
+    type: input
+    description: LED cathode
+  EMITTER:
+    type: output
+    description: Photo-transistor emitter
+  COLLECTOR:
+    type: output
+    description: Photo-transistor collector
+properties:
+  isolation_voltage_vrms: 5000
+  current_transfer_ratio: 50-600%
+electrical_limits:
+  review_note: numeric limits not captured in starter library; verify against exact
+    supplier part before production
+sourcing:
+  mpn: PC817X
+  manufacturer: Sharp
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.sharpsde.com/fileadmin/products/optocouplers/PC817X.pdf
+    source_identity: component:optocoupler-pc817:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:optocoupler-pc817:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

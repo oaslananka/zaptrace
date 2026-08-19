@@ -1,0 +1,52 @@
+name: Research Task
+description: Track a bounded research or design investigation
+title: "[Research] "
+labels: ["type/research", "status/needs-design"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Research question
+      description: What concrete decision should this research enable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and sources
+      description: Define included standards, repositories, tools, datasets, and exclusions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What makes the result complete, reproducible, and actionable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+      description: Name the decision record, benchmark, prototype, scorecard, or report to produce.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: Link required access, standards, datasets, or issues. Write “None” when independent.
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: Which conclusions or implementation claims are outside this investigation?
+    validations:
+      required: true

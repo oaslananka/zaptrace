@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "requirement_id": "req-example-esp32-sensor",
+  "selected_candidate_id": "cand-02",
+  "candidates": [
+    {
+      "candidate_id": "cand-01",
+      "status": "rejected",
+      "validation_status": "failed",
+      "rejected_reasons": ["DRC clearance violation"],
+      "lineage": {"parent_design": "BaseDesign", "transaction_id": "tx-req-example-cand-01", "rollback_id": "rb-req-example-cand-01", "sandbox_first": true}
+    },
+    {
+      "candidate_id": "cand-02",
+      "status": "selected",
+      "validation_status": "passed",
+      "rejected_reasons": [],
+      "lineage": {"parent_design": "BaseDesign", "transaction_id": "tx-req-example-cand-02", "rollback_id": "rb-req-example-cand-02", "sandbox_first": true}
+    }
+  ],
+  "non_claims": ["sandbox candidates are not committed design state", "release export still requires validation and approval gates"]
+}

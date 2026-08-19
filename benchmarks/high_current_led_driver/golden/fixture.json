@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "high_current_led_driver",
+  "files": [
+    {
+      "kind": "project",
+      "path": "high_current_led_driver.kicad_pro",
+      "required": true,
+      "sha256": "c012b0decd48efb0ec7c516d29c428543a9a75a76cd1970c48fd675054149ca8",
+      "size_bytes": 249
+    },
+    {
+      "kind": "schematic",
+      "path": "high_current_led_driver.kicad_sch",
+      "required": true,
+      "sha256": "b7c102e89eae793fa0d6f8ee8a805211e85e294d8b05464ef46b38c0e5dede1f",
+      "size_bytes": 245
+    },
+    {
+      "kind": "pcb",
+      "path": "high_current_led_driver.kicad_pcb",
+      "required": true,
+      "sha256": "efce158757e40a3bbf343144f2d2ca8b2b14c1f9f948be8bc434fee826357211",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "high_current_led_driver_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

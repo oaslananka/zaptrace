@@ -1,0 +1,27 @@
+{
+  "head": {
+    "docType": "1",
+    "editorVersion": "6.5.40",
+    "c_para": {"schematicVersion": "1"}
+  },
+  "schematic": {
+    "components": [
+      {"id": "R1", "ref": "R1", "value": "10k", "packageName": "R0402", "x": 100, "y": 100},
+      {"id": "R2", "ref": "R2", "value": "4.7k", "packageName": "R0402", "x": 200, "y": 100},
+      {"id": "C1", "ref": "C1", "value": "100n", "packageName": "C0402", "x": 300, "y": 100},
+      {"id": "U1", "ref": "U1", "value": "LM358", "packageName": "SOIC-8", "x": 150, "y": 200},
+      {"id": "VCC1", "ref": "VCC1", "value": "VCC", "packageName": "VCC", "x": 100, "y": 50}
+    ],
+    "nets": [
+      {"id": "N1", "name": "VCC", "pins": [{"componentId": "R1", "pinNumber": "1"}, {"componentId": "U1", "pinNumber": "8"}, {"componentId": "VCC1", "pinNumber": "1"}]},
+      {"id": "N2", "name": "GND", "pins": [{"componentId": "C1", "pinNumber": "2"}, {"componentId": "U1", "pinNumber": "4"}]},
+      {"id": "N3", "name": "IN_PLUS", "pins": [{"componentId": "R2", "pinNumber": "2"}, {"componentId": "U1", "pinNumber": "3"}]},
+      {"id": "N4", "name": "OUT", "pins": [{"componentId": "U1", "pinNumber": "1"}, {"componentId": "R1", "pinNumber": "2"}]}
+    ],
+    "wires": [
+      {"id": "W1", "strokeColor": "#000000", "points": [[100, 100], [100, 50]]},
+      {"id": "W2", "strokeColor": "#000000", "points": [[150, 200], [200, 100]]}
+    ],
+    "shapes": []
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "stm32_rs485_industrial",
+  "files": [
+    {
+      "kind": "project",
+      "path": "stm32_rs485_industrial.kicad_pro",
+      "required": true,
+      "sha256": "7697ec5103abd8e00d69124197207ca1a26210d60dd1ccdb55d0b9e41c2d4fde",
+      "size_bytes": 199
+    },
+    {
+      "kind": "schematic",
+      "path": "stm32_rs485_industrial.kicad_sch",
+      "required": true,
+      "sha256": "2e4b3159ffc98d9c516dd0517b94db4cd0e8d727c04ae43a495a80c1fd260f4d",
+      "size_bytes": 248
+    },
+    {
+      "kind": "pcb",
+      "path": "stm32_rs485_industrial.kicad_pcb",
+      "required": true,
+      "sha256": "97a0103380fce199ff73bdfd9a68fb704a605748a0d6434f883b72b0133ce86a",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "stm32_rs485_industrial_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

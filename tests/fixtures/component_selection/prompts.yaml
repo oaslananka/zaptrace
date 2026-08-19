@@ -1,0 +1,139 @@
+- id: power-sot23-ldo
+  position: U1
+  category: power
+  candidate_ids: [ams1117-3.3, ap2112k-3.3trg1, ap2112k-3.3]
+  allowed_packages: [SOT-23-5]
+  expected_selected_id: ap2112k-3.3
+
+- id: mcu-tqfp32
+  position: U2
+  category: mcu
+  candidate_ids: [atmega328pb-au, atmega328p-au, ap2112k-3.3]
+  allowed_packages: [TQFP-32]
+  expected_selected_id: atmega328p-au
+
+- id: environmental-sensor-lga8
+  position: U3
+  category: sensor
+  candidate_ids: [bme688, bme280, cc1101]
+  allowed_packages: [LGA-8]
+  expected_selected_id: bme280
+
+- id: memory-soic8
+  position: U4
+  category: memory
+  candidate_ids: [gd25q64cwig, cat24c256wi-gt3, at24c02d-sshm-t]
+  allowed_packages: [SOIC-8]
+  expected_selected_id: at24c02d-sshm-t
+
+- id: interface-rs485-soic8
+  position: U5
+  category: interface
+  candidate_ids: [tja1042t-3-1j, max3485esd-t, at24c02d-sshm-t]
+  allowed_packages: [SOIC-8]
+  expected_selected_id: max3485esd-t
+
+- id: connector-usb-c-16p
+  position: J1
+  category: connector
+  candidate_ids: [usb-micro-b, usb-c-6p-mid-mount, usb-c-16p]
+  allowed_packages: [SMD-16P]
+  required_footprint: USB-C-16P-SMD
+  expected_selected_id: usb-c-16p
+
+- id: rf-qfn20
+  position: U6
+  category: rf
+  candidate_ids: [cc2500rget, cc1101, bme280]
+  allowed_packages: [QFN-20]
+  expected_selected_id: cc1101
+
+- id: secure-element-soic8
+  position: U7
+  category: security
+  candidate_ids: [stsafe-a100, atecc608b, at24c02d-sshm-t]
+  allowed_packages: [SOIC-8]
+  expected_selected_id: atecc608b
+
+- id: rtc-soic16
+  position: U8
+  category: timing
+  candidate_ids: [ds3231sn-t-r, ds3231sn, max3485esd-t]
+  allowed_packages: [SOIC-16]
+  expected_selected_id: ds3231sn
+
+- id: indicator-led-0603
+  position: D1
+  category: optoelectronic
+  candidate_ids: [led-red-0603, led-green-0603, led-blue-0603]
+  allowed_packages: ["0603"]
+  expected_selected_id: led-blue-0603
+
+- id: protection-mosfet-sot23
+  position: Q1
+  category: protection
+  candidate_ids: [bc847blt1g, 2n7002k-7, ao3400a]
+  allowed_packages: [SOT-23]
+  expected_selected_id: 2n7002k-7
+
+- id: passive-capacitor-0402
+  position: C1
+  category: passive
+  candidate_ids: [cap-0402-1nf, cap-0402-10nf, cap-0402-100pf]
+  allowed_packages: ["0402"]
+  expected_selected_id: cap-0402-100pf
+
+- id: charger-qfn24
+  position: U9
+  category: power
+  candidate_ids: [bq24297rget, bmp388, cc1101]
+  allowed_packages: [QFN-24]
+  expected_selected_id: bq24297rget
+
+- id: riscv-mcu-qfn28
+  position: U10
+  category: mcu
+  candidate_ids: [cp2102n-a02-gqfn28, ch32v203g6u6, bq24297rget]
+  allowed_packages: [QFN-28]
+  expected_selected_id: ch32v203g6u6
+
+- id: pressure-sensor-lga10
+  position: U11
+  category: sensor
+  candidate_ids: [ccs811b, bmp390, bmp388]
+  allowed_packages: [LGA-10]
+  expected_selected_id: bmp388
+
+- id: ethernet-magjack
+  position: J2
+  category: connector
+  candidate_ids: [rj45-8p, ethernet-rj45-magjack, usb-c-16p]
+  allowed_packages: [RJ45-MD-MAGJACK]
+  expected_selected_id: ethernet-rj45-magjack
+
+- id: sram-bga48
+  position: U12
+  category: memory
+  candidate_ids: [mt41k128m16jt-125, cy62157ev30ll-45zsxi, at24c02d-sshm-t]
+  allowed_packages: [BGA-48]
+  expected_selected_id: cy62157ev30ll-45zsxi
+
+- id: level-shifter-tssop20
+  position: U13
+  category: interface
+  candidate_ids: [pca9548adwr, txs0108epwr, atmega328p-au]
+  allowed_packages: [TSSOP-20]
+  expected_selected_id: txs0108epwr
+
+- id: blocked-category-only
+  position: U14
+  category: power
+  candidate_ids: [ads1115, adxl355, bme280]
+  expected_blocked: true
+
+- id: blocked-package-only
+  position: C2
+  category: passive
+  candidate_ids: [cap-0402-100pf, cap-0402-10nf, cap-0402-1nf]
+  allowed_packages: ["0201"]
+  expected_blocked: true

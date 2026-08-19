@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "targets": [
+    {
+      "name": "design_yaml",
+      "description": "ZapTrace YAML design ingestion",
+      "seed_paths": [
+        "examples/esp32_i2c_sensor_node/design.yaml"
+      ]
+    },
+    {
+      "name": "requirements_schema",
+      "description": "Requirements schema JSON/YAML validation",
+      "seed_paths": [
+        "tests/corpus/fuzz/seeds/requirements.json"
+      ]
+    },
+    {
+      "name": "kicad_schematic",
+      "description": "KiCad schematic S-expression importer",
+      "seed_paths": [
+        "tests/fixtures/kicad_project/top.kicad_sch",
+        "tests/corpus/fuzz/seeds/kicad-standalone-backslash.kicad_sch"
+      ]
+    },
+    {
+      "name": "kicad_pcb",
+      "description": "KiCad PCB S-expression importer",
+      "seed_paths": [
+        "tests/fixtures/kicad_project/top.kicad_pcb"
+      ]
+    },
+    {
+      "name": "easyeda_std",
+      "description": "EasyEDA Standard JSON reader",
+      "seed_paths": [
+        "tests/fixtures/easyeda_std/minimal_schematic.json"
+      ]
+    },
+    {
+      "name": "easyeda_pro_zip",
+      "description": "EasyEDA Pro ZIP/archive reader",
+      "seed_paths": [
+        "tests/fixtures/easyeda/test_project.epro",
+        "tests/corpus/fuzz/seeds/easyeda-pro-bad-member-header.epro"
+      ]
+    },
+    {
+      "name": "eagle_xml",
+      "description": "Eagle XML importer",
+      "seed_paths": [
+        "tests/fixtures/eagle/minimal_board.brd"
+      ]
+    },
+    {
+      "name": "altium_ascii",
+      "description": "Altium ASCII schematic importer",
+      "seed_paths": [
+        "tests/corpus/altium/mcu_breakout.asc"
+      ]
+    },
+    {
+      "name": "plugin_manifest",
+      "description": "Plugin manifest JSON/Pydantic validation",
+      "seed_paths": [
+        "tests/fixtures/plugins/valid/zaptrace-plugin.json"
+      ]
+    },
+    {
+      "name": "workspace_path",
+      "description": "Agent workspace path containment",
+      "seed_paths": [
+        "tests/corpus/fuzz/seeds/path-selectors.txt"
+      ]
+    },
+    {
+      "name": "gerber_prefix",
+      "description": "Gerber exporter filename-prefix containment",
+      "seed_paths": [
+        "tests/corpus/fuzz/seeds/export-prefix.txt"
+      ]
+    },
+    {
+      "name": "excellon_prefix",
+      "description": "Excellon exporter filename-prefix containment",
+      "seed_paths": [
+        "tests/corpus/fuzz/seeds/export-prefix.txt"
+      ]
+    },
+    {
+      "name": "api_transaction_request",
+      "description": "REST transaction request-body validation",
+      "seed_paths": [
+        "tests/corpus/fuzz/seeds/api-transaction.json"
+      ]
+    },
+    {
+      "name": "mcp_tool_parameters",
+      "description": "MCP tool-registry parameter and path validation",
+      "seed_paths": [
+        "tests/corpus/fuzz/seeds/mcp-parameters.json"
+      ]
+    }
+  ]
+}

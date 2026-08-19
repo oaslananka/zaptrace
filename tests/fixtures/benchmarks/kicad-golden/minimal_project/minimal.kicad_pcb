@@ -1,0 +1,5 @@
+(kicad_pcb (version 20250114) (generator "zaptrace-test-fixture")
+  (general)
+  (paper "A4")
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
+)

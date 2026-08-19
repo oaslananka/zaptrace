@@ -1,0 +1,5 @@
+Ref,Type,Value,Footprint,MPN,Manufacturer,Lifecycle,Datasheet,LCSC#,Basic/Extended,Populate/DNP,Flags
+C1,capacitor,100n,0805,,,active,,,,Populate,Missing LCSC#
+J1,connector,Header_2x1,PinHeader_2x1_P2.54mm,,,active,,,,Populate,Missing LCSC#
+R1,resistor,10k,0805,,,active,,,,Populate,Missing LCSC#
+R2,resistor,1k,0805,,,active,,,,Populate,Missing LCSC#

@@ -1,0 +1,62 @@
+{
+  "assumptions": [
+    "governed golden pass model"
+  ],
+  "blocked": false,
+  "check_count": 1,
+  "checks": [
+    {
+      "blocking": false,
+      "check_id": "golden-live-pass",
+      "domain": "transient",
+      "engine_status": "pass",
+      "human_review_required": false,
+      "live_simulation_passed": true,
+      "method": "ngspice",
+      "metrics": {},
+      "model_ids": [
+        "golden-ngspice-model"
+      ],
+      "raw_result": {},
+      "repair_hints": [],
+      "risk_class": "low",
+      "status": "pass",
+      "summary": "all governed live checks passed",
+      "tool_version": "ngspice-42"
+    }
+  ],
+  "design_state_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+  "fail_count": 0,
+  "family_id": "golden-pass",
+  "human_review_count": 0,
+  "human_review_required": false,
+  "live_simulation_pass_count": 1,
+  "models": [
+    {
+      "artifact_path": "",
+      "assumptions": [
+        "governed golden pass model"
+      ],
+      "binding": "family-fixture",
+      "confidence": 0.95,
+      "degraded": false,
+      "limitations": [
+        "schema regression fixture only"
+      ],
+      "method": "ngspice",
+      "model_id": "golden-ngspice-model",
+      "model_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "netlist_path": "",
+      "netlist_sha256": "",
+      "source": "fixture:golden-pass",
+      "version": "1.0"
+    }
+  ],
+  "pass_count": 1,
+  "policy_version": "1.0",
+  "repair_hints": [],
+  "report_sha256": "e2077b2c61f16ec04baf7cd60e91734758209a1280e104cb3059ed797be80de3",
+  "schema_version": "1.0",
+  "skipped_count": 0,
+  "title": "Golden live simulation pass"
+}

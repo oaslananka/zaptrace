@@ -1,0 +1,105 @@
+meta:
+  name: "Switching Regulator Module"
+  version: "0.1.0"
+  description: "12V to 3.3V synchronous buck switching regulator module with thermal margin and current budget"
+  tags: ["switching", "regulator", "module", "buck", "12v", "3v3", "thermal", "current", "power"]
+
+board:
+  width_mm: 40
+  height_mm: 35
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "MP2307"
+    footprint: "SOIC-8"
+    properties:
+      topology: "buck"
+      switching_regulator: true
+    pins:
+      VIN:  {type: "power",  net: "VIN_12V"}
+      GND:  {type: "power",  net: "GND"}
+      SW:   {type: "output", net: "SW_NODE"}
+      EN:   {type: "input",  net: "ENABLE"}
+      FB:   {type: "input",  net: "VOUT_FB"}
+      VOUT: {type: "output", net: "VOUT_3V3"}
+  L1:
+    id: "L1"
+    ref: "L1"
+    type: "IND"
+    value: "4.7uH"
+    footprint: "INDUCTOR-0805"
+    pins:
+      P1: {type: "passive", net: "SW_NODE"}
+      P2: {type: "passive", net: "VOUT_3V3"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100uF"
+    footprint: "ELEC-8X12"
+    pins:
+      P1: {type: "passive", net: "VIN_12V"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "100uF"
+    footprint: "ELEC-8X12"
+    pins:
+      P1: {type: "passive", net: "VOUT_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C3:
+    id: "C3"
+    ref: "C3"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VOUT_3V3"}
+      P2: {type: "passive", net: "GND"}
+  R1:
+    id: "R1"
+    ref: "R1"
+    type: "RES"
+    value: "60.4k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VOUT_3V3"}
+      P2: {type: "passive", net: "VOUT_FB"}
+  R2:
+    id: "R2"
+    ref: "R2"
+    type: "RES"
+    value: "19.1k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VOUT_FB"}
+      P2: {type: "passive", net: "GND"}
+  J1:
+    id: "J1"
+    ref: "J1"
+    type: "Terminal Block 2P 5mm"
+    footprint: "TERMINAL-2P-5MM"
+    pins:
+      P1: {type: "passive", net: "VIN_12V"}
+      P2: {type: "passive", net: "GND"}
+  J2:
+    id: "J2"
+    ref: "J2"
+    type: "Terminal Block 2P 5mm"
+    footprint: "TERMINAL-2P-5MM"
+    pins:
+      P1: {type: "passive", net: "VOUT_3V3"}
+      P2: {type: "passive", net: "GND"}
+
+nets:
+  VIN_12V:  {id: "VIN_12V",  name: "VIN_12V",  type: "power",  nodes: ["J1.P1","U1.VIN","C1.P1"]}
+  GND:      {id: "GND",      name: "GND",      type: "ground", nodes: ["J1.P2","J2.P2","U1.GND","C1.P2","C2.P2","C3.P2","R2.P2"]}
+  SW_NODE:  {id: "SW_NODE",  name: "SW_NODE",  type: "signal", nodes: ["U1.SW","L1.P1"]}
+  VOUT_3V3: {id: "VOUT_3V3", name: "VOUT_3V3", type: "power",  nodes: ["L1.P2","U1.VOUT","C2.P1","C3.P1","R1.P1","J2.P1"]}
+  VOUT_FB:  {id: "VOUT_FB",  name: "VOUT_FB",  type: "signal", nodes: ["R1.P2","R2.P1","U1.FB"]}
+  ENABLE:   {id: "ENABLE",   name: "ENABLE",   type: "signal", nodes: ["U1.EN"]}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "source_eda": "EasyEDA",
+  "target_workflow": "planned JSON import with explicit known-loss report",
+  "adapter_status": "planned",
+  "round_trip_claim": "planned_only",
+  "fidelity_score": 0.0,
+  "corpus_reference": "planned: docs/interop/test-corpus-plan.md#easyeda",
+  "degradations": [
+    {
+      "category": "constraints",
+      "severity": "unsupported",
+      "feature": "custom design-rule constraints",
+      "impact": "constraints must be re-authored in ZapTrace/KiCad before signoff",
+      "mitigation": "emit blocking Review Studio warning and require human review"
+    },
+    {
+      "category": "stackup",
+      "severity": "lossy",
+      "feature": "board stackup metadata",
+      "impact": "stackup may be reduced to layer count and coarse material assumptions",
+      "mitigation": "attach degradation report to proof pack and mark impedance claims as not-supported"
+    }
+  ],
+  "non_claims": [
+    "EasyEDA support is planned-only until a committed corpus exists",
+    "No universal EDA compatibility is claimed",
+    "Degraded imports require human review before fabrication"
+  ]
+}

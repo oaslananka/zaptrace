@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: epcos-saw-2450mhz
+name: SAW Filter 2.45GHz
+category: rf
+manufacturer: TDK EPCOS
+mpn: B5157
+description: SAW bandpass filter 2450MHz
+datasheet: internal://zaptrace/component-family/epcos-saw-2450mhz
+package: SMD-6
+footprint: SMD-6
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VCC:
+    type: power
+    description: Supply
+  GND:
+    type: power
+    description: Ground
+  ANT:
+    type: bidirectional
+    description: RF antenna
+  MOSI:
+    type: input
+    description: SPI MOSI
+  MISO:
+    type: output
+    description: SPI MISO
+  SCK:
+    type: input
+    description: SPI SCK
+  CS:
+    type: input
+    description: SPI CS
+  IRQ:
+    type: output
+    description: Interrupt
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: B5157
+  manufacturer: TDK EPCOS
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:epcos-saw-2450mhz:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/epcos-saw-2450mhz
+    source_identity: component:epcos-saw-2450mhz:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:epcos-saw-2450mhz:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:epcos-saw-2450mhz:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:epcos-saw-2450mhz:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:epcos-saw-2450mhz:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:epcos-saw-2450mhz:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:epcos-saw-2450mhz:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

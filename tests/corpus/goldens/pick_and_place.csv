@@ -1,0 +1,5 @@
+Ref,Value,Package,PosX,PosY,Rotation,Side
+C1,100n,0805,30.000,60.000,0.0,top
+J1,Header_2x1,PinHeader_2x1_P2.54mm,80.000,40.000,0.0,top
+R1,10k,0805,20.000,40.000,0.0,top
+R2,1k,0805,40.000,40.000,0.0,top

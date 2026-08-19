@@ -1,0 +1,100 @@
+schema_version: '2.0'
+id: pir-am312
+name: AM312 PIR
+category: sensor
+manufacturer: Senba
+mpn: AM312
+description: Miniature PIR motion sensor module, 2.7-12V, 3m range
+datasheet: https://www.electroduino.com/am312-pir-sensor-module/
+package: Module-7x7mm
+footprint: AM312-MOD
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VCC:
+    type: power
+    description: 2.7-12V supply
+  GND:
+    type: power
+    description: Ground
+  OUT:
+    type: output
+    description: Motion detect output (active high)
+properties:
+  range_m: 3
+  trigger_mode: repeatable
+  delay_s: 2.0
+electrical_limits:
+  voltage_supply: '5.0'
+sourcing:
+  mpn: AM312
+  manufacturer: Senba
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.electroduino.com/am312-pir-sensor-module/
+    source_identity: component:pir-am312:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:pir-am312:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

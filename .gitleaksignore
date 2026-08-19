@@ -1,0 +1,15 @@
+# Synthetic secret-redaction and supply-chain fixture fingerprints from the initial test corpus.
+# Exact historical fingerprints are used instead of path/rule wildcards so future leaks still fail.
+dac7350f0bd866491d1bec57c8761320a4dd162e:tests/test_agent_security.py:generic-api-key:208
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:generic-api-key:208
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:github-pat:192
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:jwt:196
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:aws-access-token:187
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:aws-access-token:189
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:aws-access-token:238
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_agent_security.py:aws-access-token:321
+506e35ee5b55f7fcf1f086060877f27d764a5664:tests/test_models.py:generic-api-key:391
+506e35ee5b55f7fcf1f086060877f27d764a5664:docs/schemas/design-v1.json:generic-api-key:644
+506e35ee5b55f7fcf1f086060877f27d764a5664:docs/schemas/design-v1.json:generic-api-key:2562
+506e35ee5b55f7fcf1f086060877f27d764a5664:zaptrace/core/models.py:generic-api-key:190
+506e35ee5b55f7fcf1f086060877f27d764a5664:zaptrace/core/models.py:generic-api-key:620

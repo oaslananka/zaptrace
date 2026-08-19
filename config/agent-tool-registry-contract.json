@@ -1,0 +1,1800 @@
+{
+  "schema": "zaptrace-agent-tool-registry-contract-v1",
+  "tool_count": 93,
+  "tool_order": [
+    "design_parse_file",
+    "design_parse_str",
+    "design_inspect",
+    "design_list_nets",
+    "synthesize_design",
+    "list_synthesis_templates",
+    "erc_validate",
+    "erc_get_result",
+    "erc_list_rules",
+    "place_components",
+    "route_nets",
+    "library_search",
+    "library_get",
+    "library_list_categories",
+    "export_bom_csv",
+    "export_bom_json",
+    "export_report",
+    "export_svg",
+    "export_kicad",
+    "kicad_import_project",
+    "design_diff",
+    "kicad_to_easyeda_pro",
+    "pipeline_run",
+    "pipeline_run_stage",
+    "pipeline_status",
+    "patch_suggest",
+    "board_update",
+    "component_add",
+    "component_remove",
+    "export_gerber",
+    "export_excellon",
+    "drc_run",
+    "drc_get_result",
+    "drc_list_rules",
+    "mechanical_review",
+    "security_review",
+    "testability_report",
+    "electrical_analysis",
+    "requirements_parse",
+    "requirements_review",
+    "power_tree_plan",
+    "synthesize_power_tree",
+    "synthesize_and_check",
+    "board_plan",
+    "synthesize_board",
+    "synthesize_board_and_check",
+    "synthesize_board_repair",
+    "synthesize_board_manufacture",
+    "synthesis_benchmark",
+    "synthesize_board_score",
+    "resolve_footprints",
+    "dc_bias_check",
+    "simulation_gate",
+    "compliance_checklist",
+    "board_classify_nets",
+    "board_summarize_nets",
+    "design_route_smart",
+    "design_classify_nets",
+    "footprint_search",
+    "footprint_get",
+    "design_snapshot",
+    "design_rollback",
+    "design_list_snapshots",
+    "design_commit",
+    "design_transaction_preview",
+    "design_transaction_validate",
+    "design_transaction_commit",
+    "design_transaction_rollback",
+    "design_transaction_list",
+    "board_export",
+    "schematic_render",
+    "footprint_generate",
+    "footprint_list_packages",
+    "export_manufacturing",
+    "export_pick_and_place",
+    "proof_run",
+    "proof_run_design",
+    "proof_list_checks",
+    "audit_list_events",
+    "export_spice",
+    "calc_led_resistor",
+    "calc_voltage_divider",
+    "calc_rc_filter",
+    "calc_i2c_pullup",
+    "calc_e_series",
+    "calc_usb_c_cc",
+    "calc_decoupling",
+    "calc_lipo_charge",
+    "calc_buck_lc",
+    "easyeda_std_roundtrip",
+    "altium_import_fidelity",
+    "kicad_3d_model_coverage",
+    "kicad_step_export"
+  ],
+  "tools": [
+    {
+      "capability": "preview-write",
+      "description": "Parse a design YAML file into a Design object",
+      "name": "design_parse_file",
+      "params": {
+        "path": {
+          "description": "Path to design YAML file",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Parse a YAML string into a Design object",
+      "name": "design_parse_str",
+      "params": {
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "yaml_content": {
+          "description": "YAML content string",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Inspect a parsed design and return its full details",
+      "name": "design_inspect",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List all nets in a design with their connections",
+      "name": "design_list_nets",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Select and load the best-matching pre-built design template for an intent string (template selection by keyword match, not from-scratch circuit synthesis)",
+      "name": "synthesize_design",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List available synthesis templates",
+      "name": "list_synthesis_templates",
+      "params": {}
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Run all ERC rules on a design",
+      "name": "erc_validate",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Get the latest ERC result summary for a design",
+      "name": "erc_get_result",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List all registered ERC rules with descriptions",
+      "name": "erc_list_rules",
+      "params": {}
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Place all components on the board",
+      "name": "place_components",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Route all nets using Manhattan MST routing",
+      "name": "route_nets",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Search the component library by keyword",
+      "name": "library_search",
+      "params": {
+        "max_results": {
+          "description": "Max results",
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search query",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Get full details for a library component",
+      "name": "library_get",
+      "params": {
+        "component_id": {
+          "description": "Component ID",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List all component library categories",
+      "name": "library_list_categories",
+      "params": {}
+    },
+    {
+      "capability": "read",
+      "description": "Generate Bill of Materials as CSV",
+      "name": "export_bom_csv",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Generate Bill of Materials as JSON",
+      "name": "export_bom_json",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Generate a Markdown design report",
+      "name": "export_report",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "output_path": {
+          "description": "Optional output path",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Render a schematic overview as SVG",
+      "name": "export_svg",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "output_path": {
+          "description": "Optional output path",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "release-export",
+      "description": "Export design to KiCad-compatible files",
+      "name": "export_kicad",
+      "params": {
+        "approval_id": {
+          "description": "External approval or release gate identifier",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "fab_profile_skip_approval_id": {
+          "description": "Approval identifier authorizing the fabrication-profile skip reason",
+          "type": "string"
+        },
+        "fab_profile_skip_reason": {
+          "description": "Explicit approved reason when a manufacturer fabrication profile is not applicable",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Output directory",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "risky_package_approval_id": {
+          "description": "Approval identifier for risky package footprint evidence",
+          "type": "string"
+        },
+        "risky_package_reviewed": {
+          "description": "Whether risky package footprint evidence received explicit human review",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Import a KiCad project (hierarchical or flat) from the workspace. Accepts a project directory, .kicad_pro file, or .kicad_sch file. Returns design identity, sheet hierarchy, net score, and degradation findings. The imported design is stored in the session under the project name.",
+      "name": "kicad_import_project",
+      "params": {
+        "project_path": {
+          "description": "Path to project directory, .kicad_pro, or .kicad_sch file",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Diff two designs and report changes",
+      "name": "design_diff",
+      "params": {
+        "design_a_name": {
+          "description": "First design name",
+          "type": "string"
+        },
+        "design_b_name": {
+          "description": "Second design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Import a KiCad project and convert it to EasyEDA Pro format in one call. Runs the complete KiCad \u2192 EasyEDA Pro pipeline: import, write, re-read, score. Returns source parity (KiCad net score), round-trip Jaccard scores for components and nets, write-side degradation evidence, and the SHA-256 artifact hash. Optionally saves the EasyEDA Pro ZIP to a workspace path.",
+      "name": "kicad_to_easyeda_pro",
+      "params": {
+        "output_path": {
+          "description": "Optional path to save the EasyEDA Pro ZIP to",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "project_path": {
+          "description": "Path to KiCad project directory, .kicad_pro, or .kicad_sch file",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Run the full design pipeline from file or intent",
+      "name": "pipeline_run",
+      "params": {
+        "intent": {
+          "description": "Synthesis intent",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Output directory",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "source": {
+          "description": "Design file path",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Run a single pipeline stage",
+      "name": "pipeline_run_stage",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "intent": {
+          "description": "Synthesis intent",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Output directory",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "source": {
+          "description": "Design file path",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "stage": {
+          "description": "Stage name",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Get pipeline processing status for a design",
+      "name": "pipeline_status",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Suggest auto-patches for fixable ERC violations",
+      "name": "patch_suggest",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Update board configuration parameters",
+      "name": "board_update",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "height_mm": {
+          "description": "Board height in mm",
+          "type": "number"
+        },
+        "layers": {
+          "description": "Number of copper layers",
+          "type": "integer"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "width_mm": {
+          "description": "Board width in mm",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Add a new component to a design",
+      "name": "component_add",
+      "params": {
+        "component_id": {
+          "description": "Component ID",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "footprint": {
+          "description": "Footprint name",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Reference designator (e.g. R1, U1)",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "type_name": {
+          "description": "Component type",
+          "type": "string"
+        },
+        "value": {
+          "description": "Component value",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Remove a component from a design",
+      "name": "component_remove",
+      "params": {
+        "component_id": {
+          "description": "Component ID to remove",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "release-export",
+      "description": "Generate Gerber RS-274X files for a design",
+      "name": "export_gerber",
+      "params": {
+        "approval_id": {
+          "description": "External approval or release gate identifier",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "fab_profile_skip_approval_id": {
+          "description": "Approval identifier authorizing the fabrication-profile skip reason",
+          "type": "string"
+        },
+        "fab_profile_skip_reason": {
+          "description": "Explicit approved reason when a manufacturer fabrication profile is not applicable",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Optional output directory for Gerber files",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "risky_package_approval_id": {
+          "description": "Approval identifier for risky package footprint evidence",
+          "type": "string"
+        },
+        "risky_package_reviewed": {
+          "description": "Whether risky package footprint evidence received explicit human review",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "release-export",
+      "description": "Generate Excellon drill files for a design",
+      "name": "export_excellon",
+      "params": {
+        "approval_id": {
+          "description": "External approval or release gate identifier",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "fab_profile_skip_approval_id": {
+          "description": "Approval identifier authorizing the fabrication-profile skip reason",
+          "type": "string"
+        },
+        "fab_profile_skip_reason": {
+          "description": "Explicit approved reason when a manufacturer fabrication profile is not applicable",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Optional output directory for drill files",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "risky_package_approval_id": {
+          "description": "Approval identifier for risky package footprint evidence",
+          "type": "string"
+        },
+        "risky_package_reviewed": {
+          "description": "Whether risky package footprint evidence received explicit human review",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Run Design Rule Check on a design, optionally against a manufacturer fab profile",
+      "name": "drc_run",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "fab_profile": {
+          "description": "Optional fab profile name (e.g. 'jlcpcb-2layer') for profile-specific DRC",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "path_suffixes": [
+              ".yaml",
+              ".yml"
+            ],
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Get the latest DRC result for a design",
+      "name": "drc_get_result",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List all DRC rules with descriptions",
+      "name": "drc_list_rules",
+      "params": {}
+    },
+    {
+      "capability": "read",
+      "description": "Review mounting holes vs board size and edges (mechanical / enclosure)",
+      "name": "mechanical_review",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Review hardware-security exposure (debug access, secure element, etc.)",
+      "name": "security_review",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Assess test-point coverage, debug/reset access, and a bring-up checklist",
+      "name": "testability_report",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Heuristic SI/PI/thermal pre-check (impedance, length-match, PDN, thermal)",
+      "name": "electrical_analysis",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Extract structured, machine-readable requirements from a design intent",
+      "name": "requirements_parse",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Approve a design's unspecified assumptions and gate on any still pending",
+      "name": "requirements_review",
+      "params": {
+        "approvals": {
+          "description": "Map of assumption field -> reviewer decision, e.g. {\"rails_v\": \"3.3V\"}",
+          "type": "object"
+        },
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Plan a justified power tree (sources, charger, power-path, per-rail regulators) from an intent",
+      "name": "power_tree_plan",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Emit a real netlist (USB-C CC, regulators, I2C pull-ups) for an intent's power tree",
+      "name": "synthesize_power_tree",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Synthesize an intent's power tree into a netlist and run ERC on it in one step",
+      "name": "synthesize_and_check",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Plan a justified board block graph (power + interface support) from an intent",
+      "name": "board_plan",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Emit a real netlist for an intent's whole board via block composition and store it",
+      "name": "synthesize_board",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Synthesize an intent's whole board into a netlist and run ERC on it in one step",
+      "name": "synthesize_board_and_check",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Synthesize a board then run the convergent ERC -> patch -> re-verify self-correction loop",
+      "name": "synthesize_board_repair",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "release-export",
+      "description": "Synthesize a board from intent and emit a manufacturing bundle, evidence, and review checklist",
+      "name": "synthesize_board_manufacture",
+      "params": {
+        "approval_id": {
+          "description": "External approval identifier bound to current evidence",
+          "type": "string"
+        },
+        "fab_profile": {
+          "description": "Manufacturer fabrication profile used for release DRC",
+          "type": "string"
+        },
+        "fab_profile_skip_approval_id": {
+          "description": "Approval identifier authorizing the fabrication-profile skip reason",
+          "type": "string"
+        },
+        "fab_profile_skip_reason": {
+          "description": "Explicit approved reason when a manufacturer fabrication profile is not applicable",
+          "type": "string"
+        },
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Directory to write manufacturing artifacts",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "risky_package_approval_id": {
+          "description": "Approval identifier for risky package footprint evidence",
+          "type": "string"
+        },
+        "risky_package_reviewed": {
+          "description": "Whether risky package footprint evidence received explicit human review",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Synthesize a fixed corpus of board types and report aggregate completeness across the engine",
+      "name": "synthesis_benchmark",
+      "params": {}
+    },
+    {
+      "capability": "preview-write",
+      "description": "Synthesize a board end to end and score its completeness (0-100) across four dimensions",
+      "name": "synthesize_board_score",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Attach real IPC-7351 pad geometry to a stored design's components (reports gaps)",
+      "name": "resolve_footprints",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Check power-rail DC bias on a stored design and flag undriven rails (always available)",
+      "name": "dc_bias_check",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Run the DC operating-point simulation gate on a stored design (skip-aware, strict-blocking)",
+      "name": "simulation_gate",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "strict": {
+          "description": "Treat a skipped simulation as blocking",
+          "type": "boolean"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Produce a product-class compliance pre-check checklist for a design intent",
+      "name": "compliance_checklist",
+      "params": {
+        "intent": {
+          "description": "Design intent description",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Classify all nets in a design using EE knowledge",
+      "name": "board_classify_nets",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Get a summary of all nets and their classifications",
+      "name": "board_summarize_nets",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Route all nets with net-class-aware trace widths",
+      "name": "design_route_smart",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "layer": {
+          "description": "Layer name (default: F.Cu)",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Classify all nets in a design by name and pin type",
+      "name": "design_classify_nets",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Search for footprints in the library by keyword",
+      "name": "footprint_search",
+      "params": {
+        "max_results": {
+          "description": "Max results (default 10)",
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search query",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Get footprint details for a library component",
+      "name": "footprint_get",
+      "params": {
+        "component_id": {
+          "description": "Component ID",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Capture a point-in-time snapshot of a design for later rollback",
+      "name": "design_snapshot",
+      "params": {
+        "design_name": {
+          "description": "Design name to snapshot",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional label for the snapshot (auto-generated if omitted)",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Restore a design from a named snapshot (reverts all mutations)",
+      "name": "design_rollback",
+      "params": {
+        "design_name": {
+          "description": "Design name to rollback",
+          "type": "string"
+        },
+        "label": {
+          "description": "Snapshot label to restore from",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List available snapshots for a design (or all designs in session)",
+      "name": "design_list_snapshots",
+      "params": {
+        "design_name": {
+          "description": "Optional design name filter",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "approved-commit",
+      "description": "Confirm design changes by clearing snapshots for a design",
+      "name": "design_commit",
+      "params": {
+        "design_name": {
+          "description": "Design name to commit",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional snapshot label to commit (omitting clears all)",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "preview-write",
+      "description": "Preview a design mutation as an isolated transaction without committing it",
+      "name": "design_transaction_preview",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "operation": {
+          "description": "Operation: board_update, component_add, component_remove",
+          "type": "string"
+        },
+        "params": {
+          "description": "Operation parameters",
+          "type": "object"
+        },
+        "reason": {
+          "description": "Why this transaction is proposed",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Validate a preview transaction without mutating primary state",
+      "name": "design_transaction_validate",
+      "params": {
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "transaction_id": {
+          "description": "Transaction identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "approved-commit",
+      "description": "Commit a validated transaction after explicit approval",
+      "name": "design_transaction_commit",
+      "params": {
+        "approval_id": {
+          "description": "External approval or release gate identifier",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "transaction_id": {
+          "description": "Transaction identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Reject or roll back a preview transaction without changing primary state",
+      "name": "design_transaction_rollback",
+      "params": {
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        },
+        "transaction_id": {
+          "description": "Transaction identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List transactions for a session",
+      "name": "design_transaction_list",
+      "params": {
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Export the board definition for a design as a JSON description",
+      "name": "board_export",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Render a design as an SVG schematic",
+      "name": "schematic_render",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Generate a parametric footprint for a given package name",
+      "name": "footprint_generate",
+      "params": {
+        "layer": {
+          "description": "Layer (top or bottom, default top)",
+          "type": "string"
+        },
+        "package": {
+          "description": "Package name (e.g. 0603, SOIC-8, QFN-32)",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List all supported package names for footprint generation",
+      "name": "footprint_list_packages",
+      "params": {}
+    },
+    {
+      "capability": "release-export",
+      "description": "Generate a complete manufacturing package (Gerber + drill + BOM + PnP ZIP)",
+      "name": "export_manufacturing",
+      "params": {
+        "approval_id": {
+          "description": "External approval or release gate identifier",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "fab_profile_skip_approval_id": {
+          "description": "Approval identifier authorizing the fabrication-profile skip reason",
+          "type": "string"
+        },
+        "fab_profile_skip_reason": {
+          "description": "Explicit approved reason when a manufacturer fabrication profile is not applicable",
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Output directory for manufacturing files",
+          "path_policy": {
+            "access": "output",
+            "must_exist": false,
+            "root": "workspace"
+          },
+          "type": "string"
+        },
+        "risky_package_approval_id": {
+          "description": "Approval identifier for risky package footprint evidence",
+          "type": "string"
+        },
+        "risky_package_reviewed": {
+          "description": "Whether risky package footprint evidence received explicit human review",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "release-export",
+      "description": "Generate a pick-and-place (centroid) CSV for assembly",
+      "name": "export_pick_and_place",
+      "params": {
+        "approval_id": {
+          "description": "External approval or release gate identifier",
+          "type": "string"
+        },
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "fab_profile_skip_approval_id": {
+          "description": "Approval identifier authorizing the fabrication-profile skip reason",
+          "type": "string"
+        },
+        "fab_profile_skip_reason": {
+          "description": "Explicit approved reason when a manufacturer fabrication profile is not applicable",
+          "type": "string"
+        },
+        "risky_package_approval_id": {
+          "description": "Approval identifier for risky package footprint evidence",
+          "type": "string"
+        },
+        "risky_package_reviewed": {
+          "description": "Whether risky package footprint evidence received explicit human review",
+          "type": "boolean"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Run a Proof Pack from a proof.yaml file or directory to validate a design",
+      "name": "proof_run",
+      "params": {
+        "path": {
+          "description": "Path to proof.yaml or directory containing proof.yaml",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Run proof checks directly against a design in the current session (no proof.yaml needed)",
+      "name": "proof_run_design",
+      "params": {
+        "checks": {
+          "description": "Optional check definitions (name, type, severity, params). Default: structural checks",
+          "type": "array"
+        },
+        "design_name": {
+          "description": "Name of the design to validate",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List all checks defined in a Proof Pack without running them",
+      "name": "proof_list_checks",
+      "params": {
+        "path": {
+          "description": "Path to proof.yaml or directory containing proof.yaml",
+          "path_policy": {
+            "access": "input",
+            "must_exist": true,
+            "root": "workspace"
+          },
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "List recent security/audit events for a session",
+      "name": "audit_list_events",
+      "params": {
+        "limit": {
+          "description": "Maximum number of events to return",
+          "type": "integer"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Export a design as a SPICE netlist string (foundation for simulation)",
+      "name": "export_spice",
+      "params": {
+        "design_name": {
+          "description": "Design name",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Size an LED current-limiting resistor (E-series; current stays at/under target)",
+      "name": "calc_led_resistor",
+      "params": {
+        "current_ma": {
+          "description": "Target forward current in mA",
+          "type": "number"
+        },
+        "forward_v": {
+          "description": "LED forward voltage (Vf)",
+          "type": "number"
+        },
+        "series": {
+          "description": "E-series to snap to (12 or 24)",
+          "type": "integer"
+        },
+        "supply_v": {
+          "description": "Supply voltage driving the LED + resistor",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Choose a divider top resistor for a target output voltage (E-series)",
+      "name": "calc_voltage_divider",
+      "params": {
+        "input_v": {
+          "description": "Divider input voltage",
+          "type": "number"
+        },
+        "output_v": {
+          "description": "Target output voltage",
+          "type": "number"
+        },
+        "r_bottom": {
+          "description": "Fixed bottom resistor in ohms",
+          "type": "number"
+        },
+        "series": {
+          "description": "E-series to snap to (12 or 24)",
+          "type": "integer"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Compute the -3 dB cutoff frequency of a first-order RC filter",
+      "name": "calc_rc_filter",
+      "params": {
+        "c_farads": {
+          "description": "Capacitance in farads",
+          "type": "number"
+        },
+        "r_ohms": {
+          "description": "Resistance in ohms",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Compute I2C pull-up range and a recommended value (NXP UM10204)",
+      "name": "calc_i2c_pullup",
+      "params": {
+        "bus_capacitance_pf": {
+          "description": "Total bus capacitance in pF",
+          "type": "number"
+        },
+        "bus_speed_hz": {
+          "description": "Bus speed: 100000, 400000, or 1000000",
+          "type": "integer"
+        },
+        "series": {
+          "description": "E-series to snap to (12 or 24)",
+          "type": "integer"
+        },
+        "supply_v": {
+          "description": "Bus supply voltage (Vdd)",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Snap a value to an E-series preferred value (mode: nearest|ceil|floor)",
+      "name": "calc_e_series",
+      "params": {
+        "mode": {
+          "description": "nearest | ceil | floor",
+          "type": "string"
+        },
+        "series": {
+          "description": "E-series (12 or 24)",
+          "type": "integer"
+        },
+        "value": {
+          "description": "Value to snap",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Resolve the USB-C CC-pin termination resistor for a port role (USB-C spec)",
+      "name": "calc_usb_c_cc",
+      "params": {
+        "advertised_current_a": {
+          "description": "For a source, current to advertise at 5V (default USB power if omitted)",
+          "type": "number"
+        },
+        "role": {
+          "description": "Port role: sink/ufp or source/dfp",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Plan decoupling/bypass caps for a rail (100 nF per power pin + bulk, derated rating)",
+      "name": "calc_decoupling",
+      "params": {
+        "bulk_uf": {
+          "description": "Bulk capacitance in uF (default 10)",
+          "type": "number"
+        },
+        "power_pins": {
+          "description": "Number of power pins to bypass",
+          "type": "integer"
+        },
+        "rail_v": {
+          "description": "Rail voltage feeding the pins",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Size the MCP73831/2 PROG resistor for a Li-ion/Li-Po charge current",
+      "name": "calc_lipo_charge",
+      "params": {
+        "charge_current_ma": {
+          "description": "Target charge current in mA (100-500)",
+          "type": "number"
+        },
+        "series": {
+          "description": "E-series to snap onto (12 or 24)",
+          "type": "integer"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Size a buck converter's inductor + output capacitor (CCM) from Vin/Vout/Iout/Fsw",
+      "name": "calc_buck_lc",
+      "params": {
+        "f_sw_hz": {
+          "description": "Switching frequency (Hz)",
+          "type": "number"
+        },
+        "iout": {
+          "description": "Maximum load current (A)",
+          "type": "number"
+        },
+        "output_ripple_v": {
+          "description": "Allowed output ripple V (default 1% of Vout)",
+          "type": "number"
+        },
+        "ripple_ratio": {
+          "description": "Inductor ripple as fraction of Iout (default 0.3)",
+          "type": "number"
+        },
+        "vin": {
+          "description": "Input voltage",
+          "type": "number"
+        },
+        "vout": {
+          "description": "Output voltage (< vin)",
+          "type": "number"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Read an EasyEDA Standard JSON document, perform a full round-trip (read\u2192Design\u2192write\u2192read), and return Jaccard fidelity scores for components and nets plus degradation evidence. EasyEDA Standard is a single flat JSON file \u2014 distinct from EasyEDA Pro (ZIP+JSONL).",
+      "name": "easyeda_std_roundtrip",
+      "params": {
+        "json_content": {
+          "description": "EasyEDA Standard JSON document as a string",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Import an Altium Designer ASCII schematic and return fidelity evidence (component count, net count, net_score, unsupported record types). IMPORT-ONLY \u2014 no native Altium writer is available. Binary .SchDoc files (OLE format) are not supported; export to ASCII from Altium Designer first.",
+      "name": "altium_import_fidelity",
+      "params": {
+        "altium_ascii_text": {
+          "description": "Full text of an Altium ASCII schematic (.SchDoc ASCII export)",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "read",
+      "description": "Extract governed 3D model references from a KiCad PCB text and resolve them to physical files, returning model-coverage-v1 evidence. Records included, missing, and degraded models with source, license, SHA-256, units, and transform metadata. Missing optional models cannot be mistaken for complete mechanical coverage \u2014 complete=False whenever any model is absent or degraded. Accepts an optional JSON model registry array for license/hash enrichment.",
+      "name": "kicad_3d_model_coverage",
+      "params": {
+        "kicad_pcb_text": {
+          "description": "Raw text content of a .kicad_pcb file",
+          "type": "string"
+        },
+        "model_registry_json": {
+          "description": "JSON array of governed model entries with keys: source, license, sha256, units. Optional \u2014 omit or pass '[]' when no registry is available.",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "capability": "sandbox-write",
+      "description": "Export a KiCad PCB (.kicad_pcb text) to STEP via delegated kicad-cli pcb export-step. Returns skip-aware evidence including KiCad version, exact CLI command, input/output SHA-256 hashes, runtime, and ISO-10303 structural smoke check. Missing KiCad or unsupported version yields status='skipped' \u2014 never a false PASS. Delegated: true.",
+      "name": "kicad_step_export",
+      "params": {
+        "kicad_pcb_text": {
+          "description": "Raw text content of a .kicad_pcb file",
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

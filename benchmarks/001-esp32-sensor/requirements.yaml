@@ -1,0 +1,150 @@
+schema_version: "1.0"
+id: benchmark-001-esp32-sensor
+name: ESP32 sensor board benchmark 001
+deterministic_mode: true
+release_gate:
+  required: true
+  gate_name: benchmark-001
+  milestone_readiness: M1
+  blocks_release: true
+
+board_target:
+  mcu: ESP32-S3-WROOM-1
+  form_factor: compact_usb_c_lipo_sensor
+  board:
+    width_mm: 45.0
+    height_mm: 35.0
+    layers: 2
+    fab_profile: jlcpcb-standard-2layer
+  required_functions:
+    - id: usb_c_power_input
+      description: USB-C 5V input with CC pull-down resistors
+      required_parts: [usb-c-16p, cc-rd-5k1-a, cc-rd-5k1-b]
+      required_nets: [VBUS_5V, GND, USB_CC1, USB_CC2]
+    - id: lipo_battery_connector
+      description: 1S Li-ion/LiPo battery connector with protected polarity naming
+      required_parts: [jst-ph-2]
+      required_nets: [BAT_PLUS, GND]
+    - id: battery_charger
+      description: Single-cell charger from USB VBUS to battery net
+      required_parts: [mcp73831t]
+      required_nets: [VBUS_5V, BAT_PLUS, CHG_STAT]
+    - id: regulator_3v3
+      description: 3.3V regulator feeding MCU and sensor rails
+      required_parts: [ap2112k-3.3]
+      required_nets: [BAT_PLUS, VCC_3V3, GND]
+    - id: i2c_sensor
+      description: Environmental I2C sensor with pull-ups
+      required_parts: [bme280, i2c-pullup-scl, i2c-pullup-sda]
+      required_nets: [I2C_SCL, I2C_SDA, VCC_3V3, GND]
+    - id: programming_debug_header
+      description: UART/JTAG-compatible programming and debug header
+      required_parts: [header-1x4]
+      required_nets: [UART_TX, UART_RX, EN, GND]
+    - id: status_io
+      description: Status LED and boot/user button
+      required_parts: [led-0603, boot-button]
+      required_nets: [STATUS_LED, BOOT, VCC_3V3, GND]
+    - id: mounting
+      description: Four mounting holes clear of keepouts
+      required_parts: [mounting-hole-m2-1, mounting-hole-m2-2, mounting-hole-m2-3, mounting-hole-m2-4]
+      required_nets: []
+
+constraints:
+  power_tree:
+    - source: VBUS_5V
+      sinks: [battery_charger, regulator_3v3]
+    - source: BAT_PLUS
+      sinks: [regulator_3v3]
+    - source: VCC_3V3
+      sinks: [mcu, i2c_sensor]
+  usb_c:
+    require_cc_pull_down_ohms: 5100
+    vbus_net: VBUS_5V
+  battery:
+    chemistry: li-ion-1s
+    charger_status_net: CHG_STAT
+  i2c:
+    bus_nets: [I2C_SCL, I2C_SDA]
+    require_pullups_to: VCC_3V3
+  decoupling:
+    min_caps_per_ic: 1
+    required_nets: [VCC_3V3, GND]
+  keepouts:
+    - antenna_keepout_for: ESP32-S3-WROOM-1
+    - usb_connector_edge_access
+  testpoints:
+    required_nets: [VBUS_5V, BAT_PLUS, VCC_3V3, GND, I2C_SCL, I2C_SDA]
+
+expected_artifacts:
+  - id: requirements
+    path: benchmarks/001-esp32-sensor/requirements.yaml
+    required: true
+    stage: committed
+  - id: schematic
+    path: benchmarks/001-esp32-sensor/artifacts/benchmark-001.kicad_sch
+    required: true
+    stage: generated-or-planned
+  - id: pcb
+    path: benchmarks/001-esp32-sensor/artifacts/benchmark-001.kicad_pcb
+    required: true
+    stage: generated-or-planned
+  - id: bom
+    path: benchmarks/001-esp32-sensor/artifacts/benchmark-001-bom.csv
+    required: true
+    stage: generated-or-planned
+  - id: manufacturing_bundle
+    path: benchmarks/001-esp32-sensor/artifacts/benchmark-001-manufacturing.zip
+    required: true
+    stage: generated-or-planned
+  - id: proof_pack
+    path: benchmarks/001-esp32-sensor/.proof/proof.yaml
+    required: true
+    stage: committed
+  - id: benchmark_report
+    path: benchmark-001-report.json
+    required: true
+    stage: ci-output
+
+acceptance_thresholds:
+  erc:
+    max_errors: 0
+    max_warnings: 0
+  drc:
+    max_errors: 0
+    max_warnings: 0
+  dfm:
+    max_critical: 0
+    max_high: 0
+  bom:
+    max_unresolved_required_parts: 0
+    max_obsolete_required_parts: 0
+  round_trip:
+    min_fidelity_score: 0.95
+    require_semantic_diff: true
+  proof_pack:
+    require_manifest: true
+    require_artifact_hashes: true
+    min_required_checks: 6
+  agent_flow:
+    max_human_interventions: 2
+    max_agent_decision_count: 60
+
+scoring_evidence:
+  proof_pack_manifest: benchmarks/001-esp32-sensor/.proof/proof.yaml
+  bom_risk_report: docs/reports/benchmark-001-bom-risk-sample.json
+  fab_profile:
+    name: jlcpcb-standard-2layer
+    layers: 2
+    min_clearance_mm: 0.15
+    min_trace_width_mm: 0.15
+    min_drill_mm: 0.30
+
+failure_summary:
+  audience: humans-and-agents
+  include_sections:
+    - blocking_failures
+    - threshold_violations
+    - missing_artifacts
+    - skipped_external_tools
+    - recommended_next_actions

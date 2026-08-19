@@ -1,0 +1,98 @@
+schema_version: '2.0'
+id: crystal-32khz
+name: Crystal 32.768kHz
+category: passive
+manufacturer: Generic
+mpn: X32K-SMD
+description: 32.768kHz tuning fork crystal, 12.5pF, SMD
+datasheet: internal://zaptrace/component-family/crystal-32khz
+package: SMD-2P
+footprint: CRYSTAL-SMD-3215
+lifecycle: active
+voltage_supply: ''
+pins:
+  P1:
+    type: passive
+    description: Crystal terminal 1
+  P2:
+    type: passive
+    description: Crystal terminal 2
+properties:
+  frequency_hz: 32768
+  load_capacitance_pf: 12.5
+  stability_ppm: 20
+electrical_limits:
+  review_note: numeric limits not captured in starter library; verify against exact
+    supplier part before production
+sourcing:
+  mpn: X32K-SMD
+  manufacturer: Generic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: generic-family-placeholder
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/crystal-32khz
+    source_identity: component:crystal-32khz:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-32khz:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

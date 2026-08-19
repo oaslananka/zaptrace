@@ -1,0 +1,15 @@
+{
+  "case_id": "testdesign-basic",
+  "semantic_diff": {
+    "added": [],
+    "removed": [],
+    "changed": [
+      {
+        "path": "schematic.graphics",
+        "severity": "warning",
+        "summary": "Symbol graphical placement fidelity is tracked as degradation, not hidden."
+      }
+    ]
+  },
+  "unsupported_features": ["pcb-import-for-this-fixture", "symbol-graph-layout-roundtrip"]
+}

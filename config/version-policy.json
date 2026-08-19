@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "development_branch": "main",
+  "tag_prefix": "v",
+  "require_annotated_release_tags": true,
+  "require_cryptographic_tag_verification": false,
+  "post_release_bump": "next-patch-dev0"
+}

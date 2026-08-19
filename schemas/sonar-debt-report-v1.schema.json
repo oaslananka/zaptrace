@@ -1,0 +1,251 @@
+{
+  "$defs": {
+    "SonarDebtFinding": {
+      "additionalProperties": false,
+      "description": "Safe normalized subset of one unresolved Sonar issue.",
+      "properties": {
+        "age_bucket": {
+          "minLength": 1,
+          "title": "Age Bucket",
+          "type": "string"
+        },
+        "component": {
+          "minLength": 1,
+          "title": "Component",
+          "type": "string"
+        },
+        "created_at": {
+          "minLength": 1,
+          "title": "Created At",
+          "type": "string"
+        },
+        "effort": {
+          "default": "",
+          "title": "Effort",
+          "type": "string"
+        },
+        "finding_id_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Finding Id Sha256",
+          "type": "string"
+        },
+        "issue_type": {
+          "minLength": 1,
+          "title": "Issue Type",
+          "type": "string"
+        },
+        "owner": {
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "remediation": {
+          "minLength": 1,
+          "title": "Remediation",
+          "type": "string"
+        },
+        "rule": {
+          "minLength": 1,
+          "title": "Rule",
+          "type": "string"
+        },
+        "severity": {
+          "minLength": 1,
+          "title": "Severity",
+          "type": "string"
+        },
+        "status": {
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        },
+        "updated_at": {
+          "minLength": 1,
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "finding_id_sha256",
+        "rule",
+        "severity",
+        "issue_type",
+        "component",
+        "status",
+        "created_at",
+        "updated_at",
+        "age_bucket",
+        "owner",
+        "remediation"
+      ],
+      "title": "SonarDebtFinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Revision-bound historical-debt report with self-verifying derived counts.",
+  "properties": {
+    "analysis_date": {
+      "minLength": 1,
+      "title": "Analysis Date",
+      "type": "string"
+    },
+    "analysis_revision": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Analysis Revision",
+      "type": "string"
+    },
+    "api_identity": {
+      "minLength": 1,
+      "title": "Api Identity",
+      "type": "string"
+    },
+    "api_warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Api Warnings",
+      "type": "array"
+    },
+    "blocker_count": {
+      "minimum": 0,
+      "title": "Blocker Count",
+      "type": "integer"
+    },
+    "branch": {
+      "const": "main",
+      "default": "main",
+      "title": "Branch",
+      "type": "string"
+    },
+    "captured_at": {
+      "minLength": 1,
+      "title": "Captured At",
+      "type": "string"
+    },
+    "counts_by_age": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Age",
+      "type": "object"
+    },
+    "counts_by_component": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Component",
+      "type": "object"
+    },
+    "counts_by_owner": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Owner",
+      "type": "object"
+    },
+    "counts_by_remediation": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Remediation",
+      "type": "object"
+    },
+    "counts_by_rule": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Rule",
+      "type": "object"
+    },
+    "counts_by_severity": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Severity",
+      "type": "object"
+    },
+    "counts_by_type": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Type",
+      "type": "object"
+    },
+    "critical_security_reliability_count": {
+      "minimum": 0,
+      "title": "Critical Security Reliability Count",
+      "type": "integer"
+    },
+    "evidence_identity": {
+      "additionalProperties": true,
+      "title": "Evidence Identity",
+      "type": "object"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/SonarDebtFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "measures": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Measures",
+      "type": "object"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "project_key": {
+      "title": "Project Key",
+      "type": "string"
+    },
+    "quality_gate": {
+      "minLength": 1,
+      "title": "Quality Gate",
+      "type": "string"
+    },
+    "report_sha256": {
+      "default": "",
+      "pattern": "^$|^[0-9a-f]{64}$",
+      "title": "Report Sha256",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "token_expiration": {
+      "default": "",
+      "title": "Token Expiration",
+      "type": "string"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "project_key",
+    "captured_at",
+    "analysis_revision",
+    "analysis_date",
+    "api_identity",
+    "quality_gate",
+    "total",
+    "blocker_count",
+    "critical_security_reliability_count"
+  ],
+  "title": "SonarDebtReport",
+  "type": "object"
+}

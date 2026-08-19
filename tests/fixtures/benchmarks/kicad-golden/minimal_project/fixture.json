@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "fixture_id": "minimal-kicad-golden-v1",
+  "family_id": "esp32_usb_sensor",
+  "kicad_version": "9.x",
+  "comparison_policy": "sha256-exact",
+  "files": [
+    {
+      "path": "minimal.kicad_pcb",
+      "kind": "pcb",
+      "sha256": "ed282cc6507587da9aea8352097171b4edc31b2827fd38885b0576b72fd265f6",
+      "size_bytes": 143,
+      "required": true
+    },
+    {
+      "path": "minimal.kicad_pro",
+      "kind": "project",
+      "sha256": "926495fa83a5fd51896e161a4e9418b6bf9b93967cae0596ec19b8fec589ae35",
+      "size_bytes": 145,
+      "required": true
+    },
+    {
+      "path": "minimal.kicad_sch",
+      "kind": "schematic",
+      "sha256": "9865730cc4a3d2b2e8799f7a258943caf1a9d7374880b749d296ec449b1b2003",
+      "size_bytes": 132,
+      "required": true
+    }
+  ],
+  "notes": ""
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "project_key": "oaslananka_zaptrace",
+  "definition_type": "date",
+  "value": "2026-07-21",
+  "tracking_issue": 296,
+  "historical_backlog_policy": "visible-and-triaged-separately"
+}

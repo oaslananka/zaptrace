@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: sn74lvc8t245pwt
+name: SN74LVC8T245
+category: interface
+manufacturer: TI
+mpn: SN74LVC8T245PWTR
+description: 8-bit dual-supply bus transceiver
+datasheet: internal://zaptrace/component-family/sn74lvc8t245pwt
+package: TSSOP-24
+footprint: TSSOP-24
+lifecycle: active
+voltage_supply: ''
+pins:
+  VCC:
+    type: power
+    description: Supply
+  GND:
+    type: power
+    description: Ground
+  DIN:
+    type: input
+    description: Data in
+  DOUT:
+    type: output
+    description: Data out
+  CLK:
+    type: input
+    description: Clock
+  CS:
+    type: input
+    description: Chip select
+  OE:
+    type: input
+    description: Output enable
+  DIR:
+    type: input
+    description: Direction
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: SN74LVC8T245PWTR
+  manufacturer: TI
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:sn74lvc8t245pwt:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/sn74lvc8t245pwt
+    source_identity: component:sn74lvc8t245pwt:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:sn74lvc8t245pwt:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:sn74lvc8t245pwt:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:sn74lvc8t245pwt:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:sn74lvc8t245pwt:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:sn74lvc8t245pwt:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:sn74lvc8t245pwt:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

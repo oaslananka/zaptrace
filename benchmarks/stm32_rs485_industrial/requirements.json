@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "family_id": "stm32_rs485_industrial",
+  "benchmark_id": "stm32_rs485_industrial_fixture_v1",
+  "title": "STM32 RS485 industrial node benchmark fixture",
+  "representative_intent": "STM32 3.3V RS485 Modbus node with 24V input protection",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-INPUT-24V-PROTECTION",
+      "text": "Represent protected 24 V industrial input with explicit over-voltage and reverse-polarity review evidence.",
+      "category": "power-protection",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-RAIL-3V3-INDUSTRIAL",
+      "text": "Generate a verified 3.3 V logic rail for STM32 MCU and RS485 transceiver loads.",
+      "category": "power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-RS485-MODBUS",
+      "text": "Connect half-duplex RS485 A/B bus, direction control, termination, and fail-safe bias evidence.",
+      "category": "interface",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-INDUSTRIAL-EVIDENCE",
+      "text": "Attach proof-pack, KiCad, manufacturing export, current-density, and isolation/protection review evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": ["human-review-required", "autonomous-pass"]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not industrial safety approval.",
+    "The fixture does not claim EMC, surge, isolation, thermal, manufacturability, or production readiness."
+  ]
+}

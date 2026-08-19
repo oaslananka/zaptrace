@@ -1,0 +1,25 @@
+name: 2layer_standard
+description: >
+  Standard 2-layer PCB for simple IoT and breakout boards.
+  1.6mm FR-4, 1oz copper both sides. Signal traces on both layers.
+  Suitable for designs up to 50 components, <20MHz.
+layers: 2
+total_thickness: 1.6
+layer_stack:
+  - name: F.Cu
+    type: signal
+    thickness: 0.035
+    material: copper
+  - name: B.Cu
+    type: signal
+    thickness: 0.035
+    material: copper
+core_thickness: 1.53
+constraints:
+  min_trace: 0.15
+  min_clearance: 0.15
+  min_hole: 0.15
+  min_annular_ring: 0.13
+  via_pad: 0.45
+  via_hole: 0.20
+  min_solder_mask_sliver: 0.10

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "family_id": "esp32_usb_sensor",
+  "artifact_kind": "manufacturing-export-manifest",
+  "status": "starter-fixture",
+  "artifacts": [],
+  "blocked": false,
+  "warnings": [
+    "No fabrication-ready Gerber/drill/BOM files are claimed by this starter fixture.",
+    "This manifest reserves the manufacturing export bundle location for benchmark coverage tracking."
+  ],
+  "non_claims": [
+    "not fabrication-ready",
+    "not manufacturer-approved",
+    "not production-ready"
+  ]
+}

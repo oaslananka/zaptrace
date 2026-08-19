@@ -1,0 +1,75 @@
+provider: "tme-fixture"
+cache_policy: "fixture-only"
+parts:
+  ESP32-S3-WROOM-1-N8:
+    manufacturer: "Espressif"
+    distributor: "TME"
+    distributor_part_number: "ESP32-S3-WROOM-1-N8"
+    stock: 980
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 3.52
+        currency: "EUR"
+      - quantity: 10
+        unit_price: 3.18
+        currency: "EUR"
+      - quantity: 100
+        unit_price: 2.95
+        currency: "EUR"
+    alternates:
+      - mpn: "ESP32-S3-WROOM-1-N16R8"
+        manufacturer: "Espressif"
+        distributor_part_number: "ESP32-S3-WROOM-1-N16R8"
+        reason: "Larger flash variant"
+        footprint: "ESP32-S3-WROOM-1"
+        lifecycle: "active"
+    footprint: "ESP32-S3-WROOM-1"
+  BME280:
+    manufacturer: "Bosch Sensortec"
+    distributor: "TME"
+    distributor_part_number: "BME280"
+    stock: 650
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 4.33
+        currency: "EUR"
+      - quantity: 10
+        unit_price: 3.98
+        currency: "EUR"
+    alternates:
+      - mpn: "BMP280"
+        manufacturer: "Bosch Sensortec"
+        distributor_part_number: "BMP280"
+        reason: "Lower cost, no humidity sensor"
+        footprint: "LGA-8"
+        lifecycle: "active"
+    footprint: "LGA-8"
+  AP2112K-3.3:
+    manufacturer: "Diodes Incorporated"
+    distributor: "TME"
+    distributor_part_number: "AP2112K-3.3TRG1"
+    stock: 2800
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 0.41
+        currency: "EUR"
+      - quantity: 100
+        unit_price: 0.27
+        currency: "EUR"
+    alternates:
+      - mpn: "AP2112K-3.3TRG1"
+        manufacturer: "Diodes Incorporated"
+        distributor_part_number: "AP2112K-3.3TRG1"
+        reason: "Same part, reel packaging"
+        footprint: "SOT-23-5"
+        lifecycle: "active"
+    footprint: "SOT-23-5"

@@ -1,0 +1,13 @@
+{
+  "title_block": {
+    "title": "Multi-Sheet Test Board",
+    "rev": "1.0",
+    "company": "ZapTrace Test"
+  },
+  "schematic": {
+    "file": "top.kicad_sch"
+  },
+  "pcb": {
+    "file": "top.kicad_pcb"
+  }
+}

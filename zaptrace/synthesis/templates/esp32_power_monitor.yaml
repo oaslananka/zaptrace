@@ -1,0 +1,109 @@
+meta:
+  name: "ESP32 Power Monitor"
+  version: "0.1.0"
+  description: "ESP32-C3 based power monitor with INA226 for current/voltage sensing, USB-C powered"
+  tags: ["esp32-c3", "power", "monitor", "ina226", "i2c", "usb"]
+
+board:
+  width_mm: 40
+  height_mm: 30
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "ESP32-C3-MINI-1"
+    footprint: "ESP32-C3-MINI-1"
+    pins:
+      GND:    {type: "power", net: "GND"}
+      VCC:    {type: "power", net: "VCC_3V3"}
+      EN:     {type: "input", net: "VCC_3V3"}
+      GPIO4:  {type: "bidirectional", net: "I2C_SDA"}
+      GPIO5:  {type: "bidirectional", net: "I2C_SCL"}
+  U2:
+    id: "U2"
+    ref: "U2"
+    type: "INA226AIDGSR"
+    footprint: "INA226-MSOP10"
+    pins:
+      VBUS: {type: "input", net: "VBUS_SENSE"}
+      IN+:  {type: "input", net: "SHUNT_P"}
+      IN-:  {type: "input", net: "SHUNT_N"}
+      SDA:  {type: "bidirectional", net: "I2C_SDA"}
+      SCL:  {type: "input", net: "I2C_SCL"}
+      A0:   {type: "input", net: "GND"}
+      A1:   {type: "input", net: "GND"}
+      GND:  {type: "power", net: "GND"}
+  U3:
+    id: "U3"
+    ref: "U3"
+    type: "AMS1117-3.3"
+    footprint: "SOT-223"
+    pins:
+      INPUT:  {type: "power", net: "VCC_5V"}
+      OUTPUT: {type: "output", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+  R1:
+    id: "R1"
+    ref: "R1"
+    type: "RES"
+    value: "4.7k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "I2C_SDA"}
+  R2:
+    id: "R2"
+    ref: "R2"
+    type: "RES"
+    value: "4.7k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "I2C_SCL"}
+  R3:
+    id: "R3"
+    ref: "R3"
+    type: "RES"
+    value: "0.01"
+    footprint: "1206"
+    pins:
+      P1: {type: "passive", net: "SHUNT_P"}
+      P2: {type: "passive", net: "SHUNT_N"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "10uF"
+    footprint: "0805"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  J1:
+    id: "J1"
+    ref: "J1"
+    type: "USB-C-16P"
+    footprint: "USB-C-16P-SMD"
+    pins:
+      VBUS: {type: "power", net: "VCC_5V"}
+      GND:  {type: "power", net: "GND"}
+
+nets:
+  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.VBUS","U3.INPUT"]}
+  VCC_3V3:   {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U3.OUTPUT","U1.VCC","U1.EN","C1.P1","C2.P1","R1.P1","R2.P1"]}
+  GND:       {id: "GND",name: "GND",type: "ground", nodes:["J1.GND","U1.GND","U2.GND","U2.A0","U2.A1","U3.GND","C1.P2","C2.P2"]}
+  I2C_SDA:   {id: "I2C_SDA",name: "I2C_SDA",type: "data",   nodes:["U1.GPIO4","U2.SDA","R1.P2"]}
+  I2C_SCL:   {id: "I2C_SCL",name: "I2C_SCL",type: "clock",  nodes:["U1.GPIO5","U2.SCL","R2.P2"]}
+  VBUS_SENSE: {id: "VBUS_SENSE",name: "VBUS_SENSE",type: "analog",nodes:["U2.VBUS"]}
+  SHUNT_P:   {id: "SHUNT_P",name: "SHUNT_P",type: "analog", nodes:["U2.IN+","R3.P1"]}
+  SHUNT_N:   {id: "SHUNT_N",name: "SHUNT_N",type: "analog", nodes:["U2.IN-","R3.P2"]}

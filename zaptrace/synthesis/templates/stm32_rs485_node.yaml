@@ -1,0 +1,68 @@
+meta:
+  name: "STM32 RS-485 Node"
+  version: "0.1.0"
+  description: "STM32F103C8T6 industrial node with RS-485 half-duplex interface"
+  tags: ["stm32", "rs485", "industrial", "uart"]
+
+board:
+  width_mm: 50
+  height_mm: 40
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "STM32F103C8T6"
+    footprint: "STM32F103C8T6-LQFP48"
+    pins:
+      VDD:   {type: "power", net: "VCC_3V3"}
+      GND:   {type: "power", net: "GND"}
+      PA9:   {type: "bidirectional", net: "UART_TX"}
+      PA10:  {type: "bidirectional", net: "UART_RX"}
+      PA8:   {type: "bidirectional", net: "RS485_DE"}
+      PB6:   {type: "bidirectional", net: "I2C1_SCL"}
+      PB7:   {type: "bidirectional", net: "I2C1_SDA"}
+  U2:
+    id: "U2"
+    ref: "U2"
+    type: "AMS1117-3.3"
+    footprint: "SOT-223"
+    pins:
+      INPUT:  {type: "power", net: "VCC_5V"}
+      OUTPUT: {type: "output", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "10uF"
+    footprint: "0805"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  J1:
+    id: "J1"
+    ref: "J1"
+    type: "Terminal Block 2P 5mm"
+    footprint: "TERMINAL-2P-5MM"
+    pins:
+      P1: {type: "passive", net: "VIN"}
+      P2: {type: "passive", net: "GND"}
+
+nets:
+  VIN:     {id: "VIN",    name: "VIN",    type: "power",  nodes: ["J1.P1","U2.INPUT"]}
+  VCC_3V3: {id: "VCC_3V3",name: "VCC_3V3",type: "power",   nodes: ["U2.OUTPUT","U1.VDD","C1.P1","C2.P1"]}
+  GND:     {id: "GND",    name: "GND",    type: "ground", nodes: ["J1.P2","U1.GND","U2.GND","C1.P2","C2.P2"]}
+  UART_TX: {id: "UART_TX",name: "UART_TX",type: "signal",  nodes: ["U1.PA9"]}
+  UART_RX: {id: "UART_RX",name: "UART_RX",type: "signal",  nodes: ["U1.PA10"]}
+  RS485_DE: {id: "RS485_DE",name: "RS485_DE",type: "signal", nodes: ["U1.PA8"]}

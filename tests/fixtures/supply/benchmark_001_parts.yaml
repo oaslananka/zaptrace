@@ -1,0 +1,57 @@
+provider: benchmark-fixture-distributor
+cache_policy: fixture-only/offline-deterministic
+parts:
+  ESP32-S3-WROOM-1-N8:
+    manufacturer: Espressif
+    distributor: FixtureDist
+    distributor_part_number: FD-ESP32S3-WROOM-1-N8
+    stock: 1200
+    lifecycle: active
+    rohs_compliant: true
+    footprint: ESP32-S3-WROOM-1
+    price_breaks:
+      - quantity: 1
+        unit_price: 3.95
+        currency: USD
+      - quantity: 100
+        unit_price: 3.35
+        currency: USD
+    alternates:
+      - mpn: ESP32-S3-WROOM-1-N16R8
+        manufacturer: Espressif
+        distributor_part_number: FD-ESP32S3-WROOM-1-N16R8
+        reason: pin-compatible memory upgrade candidate
+        footprint: ESP32-S3-WROOM-1
+        lifecycle: active
+  BME280:
+    manufacturer: Bosch
+    distributor: FixtureDist
+    distributor_part_number: FD-BME280
+    stock: 0
+    lifecycle: obsolete
+    rohs_compliant: true
+    footprint: LGA-8
+    price_breaks:
+      - quantity: 1
+        unit_price: 2.10
+        currency: USD
+    alternates:
+      - mpn: BME688
+        manufacturer: Bosch
+        distributor_part_number: FD-BME688
+        reason: newer environmental sensor candidate
+        footprint: LGA-8
+        lifecycle: active
+  AP2112K-3.3:
+    manufacturer: Diodes Incorporated
+    distributor: FixtureDist
+    distributor_part_number: FD-AP2112K-33
+    stock: 34000
+    lifecycle: active
+    rohs_compliant: true
+    footprint: SOT-23-5
+    price_breaks:
+      - quantity: 1
+        unit_price: 0.22
+        currency: USD
+    alternates: []

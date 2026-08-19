@@ -1,0 +1,66 @@
+{
+  "assumptions": [
+    "intentional threshold failure"
+  ],
+  "blocked": true,
+  "check_count": 1,
+  "checks": [
+    {
+      "blocking": true,
+      "check_id": "golden-transient-failure",
+      "domain": "transient",
+      "engine_status": "fail",
+      "human_review_required": true,
+      "live_simulation_passed": false,
+      "method": "ngspice",
+      "metrics": {},
+      "model_ids": [
+        "golden-fail-model"
+      ],
+      "raw_result": {},
+      "repair_hints": [
+        "increase output capacitance or reduce capacitor ESR"
+      ],
+      "risk_class": "high",
+      "status": "fail",
+      "summary": "ripple exceeds threshold",
+      "tool_version": "ngspice-42"
+    }
+  ],
+  "design_state_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+  "fail_count": 1,
+  "family_id": "golden-fail",
+  "human_review_count": 0,
+  "human_review_required": true,
+  "live_simulation_pass_count": 0,
+  "models": [
+    {
+      "artifact_path": "",
+      "assumptions": [
+        "governed golden failure model"
+      ],
+      "binding": "family-fixture",
+      "confidence": 0.95,
+      "degraded": false,
+      "limitations": [
+        "intentional threshold failure"
+      ],
+      "method": "ngspice",
+      "model_id": "golden-fail-model",
+      "model_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "netlist_path": "",
+      "netlist_sha256": "",
+      "source": "fixture:golden-fail",
+      "version": "1.0"
+    }
+  ],
+  "pass_count": 0,
+  "policy_version": "1.0",
+  "repair_hints": [
+    "increase output capacitance or reduce capacitor ESR"
+  ],
+  "report_sha256": "97cd018f60f0ae4a108edba26117a6a4a690ac266ccfd8b0337a677d3e8ccb69",
+  "schema_version": "1.0",
+  "skipped_count": 0,
+  "title": "Golden transient failure"
+}

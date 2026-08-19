@@ -1,0 +1,122 @@
+schema_version: '2.0'
+id: attiny85-20pu
+name: ATtiny85-20PU
+category: mcu
+manufacturer: Microchip
+mpn: ATTINY85-20PU
+description: 8-bit AVR MCU, 20MHz, 8KB flash, 512B SRAM, 512B EEPROM
+datasheet: https://www.microchip.com/wwwproducts/en/ATtiny85
+package: DIP-8
+footprint: DIP-8
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  PB0:
+    type: bidirectional
+    description: MOSI / DI / SDA / AREF / PB0
+  PB1:
+    type: bidirectional
+    description: MISO / DO / AIN1 / OC0B / PCINT1 / PB1
+  PB2:
+    type: bidirectional
+    description: SCK / AIN0 / OC0A / PCINT2 / PB2
+  PB3:
+    type: bidirectional
+    description: OC1B / RESET / dW / PCINT3 / PB3
+  PB4:
+    type: bidirectional
+    description: OC1B / PCINT4 / PB4
+  PB5:
+    type: bidirectional
+    description: OC0B / OC1A / PCINT5 / PB5
+  VCC:
+    type: power
+    description: Supply voltage
+  GND:
+    type: power
+    description: Ground
+properties:
+  core: AVR 8-bit
+  frequency_mhz: 20
+  flash_kb: 8
+  sram_kb: 0.5
+  eeprom_kb: 0.5
+  interfaces:
+  - i2c
+  - spi
+  - adc
+electrical_limits:
+  frequency_mhz: 20
+  voltage_supply: '5.0'
+sourcing:
+  mpn: ATTINY85-20PU
+  manufacturer: Microchip
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.microchip.com/wwwproducts/en/ATtiny85
+    source_identity: component:attiny85-20pu:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:attiny85-20pu:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

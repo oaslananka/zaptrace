@@ -1,0 +1,138 @@
+name: Bug Report
+description: Report an implementation, documentation, or verification defect
+title: "[Bug] "
+labels: ["type/hardening", "status/needs-design"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, use the private security policy instead of a public issue.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and why is it incorrect or unsafe?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Which behavior, component, or evidence path needs correction?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest deterministic reproducer.
+      placeholder: |
+        1. Run `...`
+        2. Observe `...`
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List concrete pass/fail conditions for the fix.
+      placeholder: |
+        - [ ] Regression test fails before the fix
+        - [ ] Regression test passes after the fix
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+      description: Logs, fixtures, reports, proof records, or CI links required to verify closure.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - area/agent-runtime
+        - area/benchmark
+        - area/ci
+        - area/component-library
+        - area/datasheet
+        - area/dfm
+        - area/drc
+        - area/erc
+        - area/footprints
+        - area/governance
+        - area/interop
+        - area/kicad
+        - area/layout
+        - area/manufacturing
+        - area/plugin
+        - area/proof-pack
+        - area/requirements
+        - area/review-studio
+        - area/router
+        - area/security
+        - area/simulation
+        - area/supply-chain
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Suggested priority
+      options:
+        - priority/P0 - release or safety blocker
+        - priority/P1 - next milestone
+        - priority/P2 - important but not blocking
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: Link required issues, external tools, or state that blocks the fix. Write “None” when independent.
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: State what this fix must not claim or broaden.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ZapTrace version
+      placeholder: "0.3.0"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Python and operating system
+      placeholder: "Python 3.13 / Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This is not a privately reportable security vulnerability.
+          required: true
+        - label: This report does not claim fabrication approval or no-review correctness.
+          required: true

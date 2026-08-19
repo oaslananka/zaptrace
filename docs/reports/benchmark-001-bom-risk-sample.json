@@ -1,0 +1,165 @@
+{
+  "blocked": true,
+  "cache_policy": "fixture-only/offline-deterministic",
+  "design": "benchmark-001-supply-fixture",
+  "evidence_status": "non-authoritative-example",
+  "generated_at": "2026-06-19T12:00:00+00:00",
+  "highest_risk": "critical",
+  "items": [
+    {
+      "alternates": [],
+      "cache": {
+        "age_hours": null,
+        "fetched_at": null,
+        "max_age_hours": 24,
+        "offline": false,
+        "source": "fixture-only/offline-deterministic",
+        "status": "miss"
+      },
+      "distributor_part_number": "",
+      "dnp": false,
+      "flags": [
+        "provider-miss",
+        "unresolved-required-part"
+      ],
+      "lifecycle": "unknown",
+      "manufacturer": "",
+      "mpn": "UNKNOWN-10K",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "R1",
+      "risk_level": "critical",
+      "risk_score": 90,
+      "stock": null
+    },
+    {
+      "alternates": [
+        {
+          "distributor_part_number": "FD-ESP32S3-WROOM-1-N16R8",
+          "footprint": "ESP32-S3-WROOM-1",
+          "lifecycle": "active",
+          "manufacturer": "Espressif",
+          "mpn": "ESP32-S3-WROOM-1-N16R8",
+          "reason": "pin-compatible memory upgrade candidate"
+        }
+      ],
+      "cache": {
+        "age_hours": null,
+        "fetched_at": null,
+        "max_age_hours": 24,
+        "offline": true,
+        "source": "fixture-only/offline-deterministic",
+        "status": "fixture"
+      },
+      "distributor_part_number": "FD-ESP32S3-WROOM-1-N8",
+      "dnp": false,
+      "flags": [],
+      "lifecycle": "active",
+      "manufacturer": "Espressif",
+      "mpn": "ESP32-S3-WROOM-1-N8",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "U1",
+      "risk_level": "low",
+      "risk_score": 0,
+      "stock": 1200
+    },
+    {
+      "alternates": [
+        {
+          "distributor_part_number": "FD-BME688",
+          "footprint": "LGA-8",
+          "lifecycle": "active",
+          "manufacturer": "Bosch",
+          "mpn": "BME688",
+          "reason": "newer environmental sensor candidate"
+        }
+      ],
+      "cache": {
+        "age_hours": null,
+        "fetched_at": null,
+        "max_age_hours": 24,
+        "offline": true,
+        "source": "fixture-only/offline-deterministic",
+        "status": "fixture"
+      },
+      "distributor_part_number": "FD-BME280",
+      "dnp": false,
+      "flags": [
+        "unavailable",
+        "obsolete"
+      ],
+      "lifecycle": "obsolete",
+      "manufacturer": "Bosch",
+      "mpn": "BME280",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "U2",
+      "risk_level": "critical",
+      "risk_score": 100,
+      "stock": 0
+    },
+    {
+      "alternates": [],
+      "cache": {
+        "age_hours": null,
+        "fetched_at": null,
+        "max_age_hours": 24,
+        "offline": true,
+        "source": "fixture-only/offline-deterministic",
+        "status": "fixture"
+      },
+      "distributor_part_number": "FD-AP2112K-33",
+      "dnp": false,
+      "flags": [
+        "single-source"
+      ],
+      "lifecycle": "active",
+      "manufacturer": "Diodes Incorporated",
+      "mpn": "AP2112K-3.3",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "U3",
+      "risk_level": "low",
+      "risk_score": 10,
+      "stock": 34000
+    }
+  ],
+  "non_claims": [
+    "BOM intelligence is provider evidence, not procurement approval.",
+    "Stock and price data can change after the cache timestamp.",
+    "Human review is required before purchasing or fabrication."
+  ],
+  "provenance": [
+    {
+      "cache_age_hours": null,
+      "cache_status": "miss",
+      "mpn": "UNKNOWN-10K",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "R1",
+      "source": "fixture-only/offline-deterministic"
+    },
+    {
+      "cache_age_hours": null,
+      "cache_status": "fixture",
+      "mpn": "ESP32-S3-WROOM-1-N8",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "U1",
+      "source": "fixture-only/offline-deterministic"
+    },
+    {
+      "cache_age_hours": null,
+      "cache_status": "fixture",
+      "mpn": "BME280",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "U2",
+      "source": "fixture-only/offline-deterministic"
+    },
+    {
+      "cache_age_hours": null,
+      "cache_status": "fixture",
+      "mpn": "AP2112K-3.3",
+      "provider": "benchmark-fixture-distributor",
+      "ref": "U3",
+      "source": "fixture-only/offline-deterministic"
+    }
+  ],
+  "provider": "benchmark-fixture-distributor",
+  "sample": true
+}

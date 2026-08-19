@@ -1,0 +1,154 @@
+{
+  "baseline": {
+    "limitations": [
+      "The legacy jobs used monolithic full-suite collection and are not directly comparable to parallel lane wall-clock completion.",
+      "GitHub-hosted runner performance varies; these values document the migration baseline rather than a permanent SLA."
+    ],
+    "python_jobs_seconds": {
+      "3.12": 1980,
+      "3.13": 677,
+      "3.14": 725
+    },
+    "source": "GitHub Actions Quality run 30233999210 on pre-lane PR #319 head"
+  },
+  "evidence_status": "historical-governance-snapshot",
+  "historical_snapshot": true,
+  "issue": 301,
+  "measured_at": "2026-07-27",
+  "measurement_scope": "dated-development-measurement-not-portable-performance-guarantee",
+  "post_change": {
+    "controls": [
+      "Every collected item receives exactly one primary lane; unmatched tests enter the explicit default unit lane.",
+      "Required benchmark, hardware, external-tool, and native lanes fail when empty or entirely skipped.",
+      "Coverage-enabled unit, benchmark, and hardware modules are assigned by measured duration using deterministic greedy balancing.",
+      "Python 3.12 lane jobs publish per-shard JUnit, JSON evidence, and parallel coverage fragments.",
+      "Python 3.13 and 3.14 run bounded unit and integration compatibility lanes.",
+      "Tagged releases execute all six approved lanes with the same configured shard plan and enforce combined critical-runtime coverage."
+    ],
+    "final_projected_shards_seconds": {
+      "unit": {
+        "1": 393.673,
+        "2": 393.672,
+        "3": 393.673
+      },
+      "benchmark": {
+        "1": 305.89,
+        "2": 256.941
+      },
+      "hardware": {
+        "1": 66.068,
+        "2": 37.993
+      }
+    },
+    "inventory": {
+      "benchmark": 325,
+      "external_tool": 148,
+      "hardware": 748,
+      "integration": 711,
+      "native": 17,
+      "total_tests": 4122,
+      "unit": 2173
+    },
+    "limitations": [
+      "Local host timings are diagnostic and hardware-specific; GitHub Actions remains the authoritative CI result.",
+      "The first measured shard assignment predates the final duration baseline; the final projected assignment is committed separately in config/test-duration-baseline.json.",
+      "Unit shard projections use GitHub Actions JUnit testcase aggregation; actual shard wall time also includes collection and coverage overhead, so job conclusions remain authoritative."
+    ],
+    "measured_runs": [
+      {
+        "budget_exceeded": true,
+        "budget_seconds": 600,
+        "diagnostic": "The coverage-enabled monolithic unit lane motivated the committed three-shard split; all test outcomes were otherwise successful or approved skips.",
+        "elapsed_seconds": 1201.445,
+        "failed": 0,
+        "lane": "unit",
+        "passed": 2169,
+        "shard": null,
+        "skipped": 2,
+        "source": "GitHub Actions Quality run 30242034415, artifact test-lane-results-unit",
+        "tests": 2171
+      },
+      {
+        "elapsed_seconds": 100.001,
+        "failed": 0,
+        "lane": "benchmark",
+        "modules": [
+          "tests/test_convergence_12_families.py"
+        ],
+        "passed": 27,
+        "shard": 1,
+        "skipped": 0,
+        "tests": 27
+      },
+      {
+        "elapsed_seconds": 402.318,
+        "failed": 0,
+        "lane": "benchmark",
+        "passed": 298,
+        "shard": 2,
+        "skipped": 0,
+        "tests": 298
+      },
+      {
+        "elapsed_seconds": 97.21,
+        "failed": 0,
+        "lane": "hardware",
+        "passed": 363,
+        "shard": 1,
+        "skipped": 0,
+        "tests": 363
+      },
+      {
+        "elapsed_seconds": 37.145,
+        "failed": 0,
+        "lane": "hardware",
+        "passed": 385,
+        "shard": 2,
+        "skipped": 0,
+        "tests": 385
+      },
+      {
+        "elapsed_seconds": 125.739,
+        "failed": 0,
+        "lane": "hardware",
+        "passed": 748,
+        "shard": null,
+        "skipped": 0,
+        "tests": 748
+      },
+      {
+        "failed": 0,
+        "module": "tests/test_synthesis_benchmark.py",
+        "optimization": "default synthesis corpus computed once per pytest process",
+        "passed": 6,
+        "skipped": 0,
+        "tests": 6,
+        "wall_seconds": 305.89
+      },
+      {
+        "elapsed_seconds": 22.896,
+        "failed": 0,
+        "lane": "external_tool",
+        "passed": 148,
+        "prerequisites": "ngspice 42 extracted from Ubuntu 24.04 packages; KiCad-dependent contracts remain covered by the dedicated oracle job",
+        "shard": null,
+        "skipped": 0,
+        "tests": 148
+      }
+    ],
+    "measurement_hosts": [
+      "ops-vps-4",
+      "ops-vps-5",
+      "github-hosted-ubuntu-latest"
+    ],
+    "runtime_budgets_seconds": {
+      "benchmark": 900,
+      "external_tool": 600,
+      "hardware": 900,
+      "integration": 900,
+      "native": 600,
+      "unit": 600
+    }
+  },
+  "schema_version": "1.0"
+}

@@ -1,0 +1,144 @@
+schema_version: '2.0'
+id: cp2102n
+name: CP2102N-A02-GQFN28R
+category: power
+manufacturer: Silicon Labs
+mpn: CP2102N-A02-GQFN28R
+description: USB-to-UART bridge, QFN-28, up to 3Mbps
+datasheet: https://www.silabs.com/documents/public/data-sheets/cp2102n-datasheet.pdf
+package: QFN-28
+footprint: CP2102N-QFN28
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VDD:
+    type: power
+    description: 3.0-3.6V supply
+  GND:
+    type: power
+    description: Ground
+  D+:
+    type: bidirectional
+    description: USB D+
+  D-:
+    type: bidirectional
+    description: USB D-
+  REGIN:
+    type: power
+    description: 5V USB input
+  RSTB:
+    type: input
+    description: Reset (active low)
+  TX:
+    type: output
+    description: UART transmit
+  RX:
+    type: input
+    description: UART receive
+  CTS:
+    type: input
+    description: Clear to send
+  RTS:
+    type: output
+    description: Request to send
+  DTR:
+    type: output
+    description: Data terminal ready
+  DCD:
+    type: input
+    description: Data carrier detect
+  DSR:
+    type: input
+    description: Data set ready
+  RI:
+    type: input
+    description: Ring indicator
+  SUSPEND:
+    type: output
+    description: Suspend indicator
+  SUSPEND_B:
+    type: input
+    description: Susp bar
+  GPIO0:
+    type: bidirectional
+    description: GPIO 0
+  GPIO1:
+    type: bidirectional
+    description: GPIO 1
+properties:
+  uart_baud_max: 3000000
+  interface: usb-to-uart
+electrical_limits:
+  voltage_supply: '5.0'
+sourcing:
+  mpn: CP2102N-A02-GQFN28R
+  manufacturer: Silicon Labs
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.silabs.com/documents/public/data-sheets/cp2102n-datasheet.pdf
+    source_identity: component:cp2102n:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cp2102n:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

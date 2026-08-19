@@ -1,0 +1,138 @@
+schema_version: '2.0'
+id: cc1101
+name: CC1101
+category: rf
+manufacturer: Texas Instruments
+mpn: CC1101RTKR
+description: Sub-1GHz RF transceiver, 315/433/868/915MHz
+datasheet: https://www.ti.com/lit/ds/symlink/cc1101.pdf
+package: QFN-20
+footprint: CC1101-QFN20
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 1.8-3.6V supply
+  GND:
+    type: power
+    description: Ground
+  SCK:
+    type: input
+    description: SPI clock
+  MISO:
+    type: output
+    description: SPI data out
+  MOSI:
+    type: input
+    description: SPI data in
+  CS:
+    type: input
+    description: SPI chip select
+  GDO0:
+    type: bidirectional
+    description: Digital output 0
+  GDO1:
+    type: bidirectional
+    description: Digital output 1
+  GDO2:
+    type: bidirectional
+    description: Digital output 2
+  RF_P:
+    type: input
+    description: RF input positive
+  RF_N:
+    type: input
+    description: RF input negative
+  XTAL1:
+    type: passive
+    description: Crystal 1
+  XTAL2:
+    type: passive
+    description: Crystal 2
+properties:
+  frequency_bands:
+  - '315'
+  - '433'
+  - '868'
+  - '915'
+  modulation:
+  - FSK
+  - MSK
+  - OOK
+  - ASK
+  interface: spi
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: CC1101RTKR
+  manufacturer: Texas Instruments
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.ti.com/lit/ds/symlink/cc1101.pdf
+    source_identity: component:cc1101:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cc1101:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

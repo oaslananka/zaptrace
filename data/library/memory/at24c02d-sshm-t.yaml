@@ -1,0 +1,119 @@
+schema_version: '2.0'
+id: at24c02d-sshm-t
+name: AT24C02D-SSHM-T
+category: memory
+manufacturer: Microchip Technology
+mpn: AT24C02D-SSHM-T
+description: 2 Kbit I2C-compatible two-wire serial EEPROM, 256 x 8 organization, in narrow 8-lead SOIC
+datasheet: https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/AT24C01D-AT24C02D-I2C-Compatible-Two-Wire-Serial-EEPROM-1Kbit-2Kbit-20006100A.pdf
+package: SOIC-8
+footprint: AT24C02D-SSHM-T-SOIC8-SN
+lifecycle: active
+voltage_supply: 1.7-3.6 V
+pins:
+  A0:
+    type: input
+    description: Device address input 0; tie to VCC or GND for address selection
+  A1:
+    type: input
+    description: Device address input 1; tie to VCC or GND for address selection
+  A2:
+    type: input
+    description: Device address input 2; tie to VCC or GND for address selection
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: Open-drain serial data input/output for the I2C-compatible two-wire bus
+  SCL:
+    type: input
+    description: Serial clock input for the I2C-compatible two-wire bus
+  WP:
+    type: input
+    description: Write-protect input; high protects the full memory array from write operations
+  VCC:
+    type: power
+    description: Device supply, 1.7-3.6 V
+package_pin_map:
+  '1': A0
+  '2': A1
+  '3': A2
+  '4': GND
+  '5': SDA
+  '6': SCL
+  '7': WP
+  '8': VCC
+properties:
+  interface: [i2c]
+  manufacturer_package_name: 8-Lead SOIC (SN), Narrow 3.90 mm
+  memory_density_bits: 2048
+  organization: 256 x 8
+  page_write_bytes: 8
+  max_write_cycle_ms: 5
+  endurance_write_cycles: 1000000
+  data_retention_years: 100
+  supply_range_v: [1.7, 3.6]
+  standard_mode_max_khz: 100
+  fast_mode_max_khz: 400
+  fast_mode_plus_max_mhz: 1.0
+  temperature_range_c: [-40, 85]
+  absolute_max_vcc_v: 4.1
+  package_body_mm: [3.9, 4.9]
+  package_overall_width_nominal_mm: 6.0
+  package_pitch_mm: 1.27
+  manufacturer_recommended_pad_mm: [1.55, 0.6]
+  orderable_package_code: SSHM
+  packaging: Tape and Reel
+  repository_land_pattern:
+    source: KiCad official Package_SO.pretty/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod
+    source_revision: c75e8f3ddc65439a5140e7c5b8c6e5b40be0f90e
+    source_sha256: 074ecb2092b24fa4b4b9cdd7c926fc587b0d7d6d21e7341e57935fd42d36894f
+    pad_size_mm: [1.95, 0.6]
+    pin_pitch: 1.27
+    review_note: KiCad's generic IPC SOIC-8 pad length is 1.95 mm while Microchip drawing C04-2057-SN recommends 1.55 mm; human footprint and assembly-process review remains required before trust-tier promotion
+electrical_limits:
+  voltage_supply: 1.7-3.6 V operating supply; 4.1 V absolute maximum VCC rating
+  temperature_range: [-40, 85]
+  max_voltage_v: 3.6
+  review_note: The 1 MHz Fast Mode Plus timing applies at 2.5-3.6 V; use the datasheet timing table for lower-voltage operation and do not treat the 4.1 V absolute maximum as an operating point
+sourcing:
+  mpn: AT24C02D-SSHM-T
+  manufacturer: Microchip Technology
+  status: manufacturer-in-production
+  production_note: Microchip ordering information identifies AT24C02D-SSHM-T as the 8-lead SN narrow SOIC, 1.7-3.6 V industrial-temperature option in Tape and Reel; re-check current authorized-distributor inventory and lead time before procurement
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: Do not infer project-specific regulatory compliance from package/orderable information; confirm current material declarations at procurement time
+provenance:
+  source: Microchip Technology AT24C01D/AT24C02D DS20006100A Rev A datasheet, package drawing C04-057-SN/C04-2057-SN, and current AT24C02D product page
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of the Microchip-versus-KiCad land-pattern difference and current procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &microchip_document
+    source_type: manufacturer_document
+    source_locator: https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/AT24C01D-AT24C02D-I2C-Compatible-Two-Wire-Serial-EEPROM-1Kbit-2Kbit-20006100A.pdf
+    source_identity: DS20006100A
+    source_sha256: faa30c91617d26513cec34f5555a3512b4110383c11e90db91235e187938a167
+    source_version: Rev A (2018-11)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-18
+    confidence: medium
+  datasheet: *microchip_document
+  pin_map: *microchip_document
+  package: *microchip_document
+  footprint: *microchip_document
+  electrical_limits: *microchip_document
+  lifecycle:
+    source_type: manufacturer_web
+    source_locator: https://www.microchip.com/en-us/product/AT24C02D
+    source_identity: AT24C02D product page
+    source_sha256: ''
+    source_version: accessed 2026-08-18
+    extraction_method: manufacturer-product-page-review
+    extracted_at: 2026-08-18
+    confidence: medium
+  sourcing: *microchip_document

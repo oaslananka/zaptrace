@@ -1,0 +1,14 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1
+      }
+    }
+  },
+  "meta": {
+    "filename": "lora_gateway_node.kicad_pro",
+    "family_id": "lora_gateway_node"
+  },
+  "version": 1
+}

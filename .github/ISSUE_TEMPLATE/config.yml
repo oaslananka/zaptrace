@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/oaslananka/zaptrace/security/policy
+    about: Please report security vulnerabilities privately.
+  - name: Documentation site
+    url: https://oaslananka.github.io/zaptrace
+    about: Read the published documentation before opening support-style issues.

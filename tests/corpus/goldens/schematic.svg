@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+ width="1200" height="900"
+ viewBox="<VIEWBOX>">
+<defs><style>
+.comp-box{fill:#f0f4ff;stroke:#334;stroke-width:1.5;rx:6}
+.comp-ref{font:bold 12px sans-serif;fill:#334}
+.comp-type{font:10px sans-serif;fill:#668}
+.net-line{stroke:#6699cc;stroke-width:1;opacity:0.6}
+</style></defs>
+<rect width="1200" height="900" fill="#fafafa"/>
+<text x="20" y="28" style="font:bold 16px sans-serif;fill:#334">RegressionTest</text>
+<line class="net-line" x1="90.0" y1="75.0" x2="850.0" y2="75.0"/>
+<rect class="comp-box" x="30.0" y="50.0" width="120" height="50" rx="4"/>
+<text class="comp-ref" x="38.0" y="68.0">R1</text>
+<text class="comp-type" x="38.0" y="83.0">resistor</text>
+<rect class="comp-box" x="410.0" y="50.0" width="120" height="50" rx="4"/>
+<text class="comp-ref" x="418.0" y="68.0">R2</text>
+<text class="comp-type" x="418.0" y="83.0">resistor</text>
+<rect class="comp-box" x="790.0" y="50.0" width="120" height="50" rx="4"/>
+<text class="comp-ref" x="798.0" y="68.0">C1</text>
+<text class="comp-type" x="798.0" y="83.0">capacitor</text>
+<rect class="comp-box" x="30.0" y="470.0" width="120" height="50" rx="4"/>
+<text class="comp-ref" x="38.0" y="488.0">J1</text>
+<text class="comp-type" x="38.0" y="503.0">connector</text>
+</svg>

@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "lipo_charger_node",
+  "files": [
+    {
+      "kind": "project",
+      "path": "lipo_charger_node.kicad_pro",
+      "required": true,
+      "sha256": "73a02dc77ba3a3f7e20f9c749f8754e1003cf7da6ba08155eb873415e97bb0c4",
+      "size_bytes": 189
+    },
+    {
+      "kind": "schematic",
+      "path": "lipo_charger_node.kicad_sch",
+      "required": true,
+      "sha256": "d6251100548157b89ca282b288d5b19d6622b3b0a41789a9d7f1936a6bdaef68",
+      "size_bytes": 254
+    },
+    {
+      "kind": "pcb",
+      "path": "lipo_charger_node.kicad_pcb",
+      "required": true,
+      "sha256": "90749a7df0a6b169d7314d94246f618c161fa9720d92bbfb3d49b0874d64ffec",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "lipo_charger_node_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

@@ -1,0 +1,176 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "Europe/Istanbul",
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "dependencyDashboardAutoclose": true,
+  "prConcurrentLimit": 4,
+  "branchConcurrentLimit": 6,
+  "prHourlyLimit": 2,
+  "minimumReleaseAge": "5 days",
+  "internalChecksFilter": "strict",
+  "prCreation": "not-pending",
+  "labels": [
+    "dependencies"
+  ],
+  "rangeStrategy": "bump",
+  "commitMessagePrefix": "chore(deps):",
+  "automergeType": "pr",
+  "platformAutomerge": true,
+  "automergeStrategy": "squash",
+  "semanticCommits": "enabled",
+  "rebaseWhen": "behind-base-branch",
+  "pre-commit": {
+    "enabled": true
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 6am on monday"
+    ],
+    "automerge": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update CLI versions pinned in GitHub workflow commands.",
+      "managerFilePatterns": [
+        "/(^|/)\\.github/workflows/.+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+[^\\n]*?@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "versioningTemplate": "semver-coerced"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Automerge low-risk patch, digest, pin, and lockfile maintenance updates after CI and release-age checks.",
+      "matchUpdateTypes": [
+        "patch",
+        "digest",
+        "pin",
+        "lockFileMaintenance"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Never automerge major updates; require explicit Dependency Dashboard approval.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "addLabels": [
+        "major-update",
+        "status/needs-review"
+      ]
+    },
+    {
+      "description": "Require manual review and a longer cooling-off period for network, crypto, validation, and agent-runtime dependencies.",
+      "matchPackageNames": [
+        "fastmcp",
+        "mcp",
+        "fastapi",
+        "starlette",
+        "cryptography",
+        "pydantic",
+        "pydantic-settings",
+        "uvicorn",
+        "httpx"
+      ],
+      "groupName": "security-sensitive runtime stack",
+      "minimumReleaseAge": "10 days",
+      "automerge": false,
+      "addLabels": [
+        "area/security",
+        "status/needs-review",
+        "runtime-risk"
+      ]
+    },
+    {
+      "description": "Group GitHub Actions updates; SHA digest and non-major updates may merge after required checks.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github-actions",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor"
+      ],
+      "automerge": true,
+      "addLabels": [
+        "area/ci"
+      ]
+    },
+    {
+      "description": "Treat Dockerfile and Compose updates as runtime-risk changes requiring review.",
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "groupName": "docker",
+      "automerge": false,
+      "addLabels": [
+        "area/ci",
+        "runtime-risk",
+        "status/needs-review"
+      ]
+    },
+    {
+      "description": "Group Rust/Cargo updates and require manual review of native-extension changes.",
+      "matchManagers": [
+        "cargo"
+      ],
+      "groupName": "rust-cargo",
+      "automerge": false,
+      "addLabels": [
+        "area/supply-chain",
+        "status/needs-review"
+      ]
+    },
+    {
+      "description": "Label Python PEP 621 and uv lockfile updates with the repository's Python taxonomy.",
+      "matchManagers": [
+        "pep621"
+      ],
+      "addLabels": [
+        "python:uv"
+      ]
+    },
+    {
+      "description": "Keep the Ruff Python package and pre-commit hook synchronized; require review because the repository enforces exact version parity.",
+      "matchPackageNames": [
+        "ruff",
+        "astral-sh/ruff-pre-commit"
+      ],
+      "groupName": "ruff toolchain",
+      "automerge": false,
+      "addLabels": [
+        "area/ci",
+        "status/needs-review"
+      ],
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Group pre-commit hook updates; non-major changes may merge after required checks.",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "groupName": "pre-commit",
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      "automerge": true,
+      "addLabels": [
+        "area/ci"
+      ]
+    }
+  ]
+}

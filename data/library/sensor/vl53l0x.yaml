@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: vl53l0x
+name: VL53L0X
+category: sensor
+manufacturer: STMicroelectronics
+mpn: VL53L0XV0DH/1
+description: Time-of-Flight ranging sensor, I2C, up to 2m
+datasheet: https://www.st.com/resource/en/datasheet/vl53l0x.pdf
+package: LGA-12
+footprint: VL53L0X-LGA12
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 2.6-3.5V supply
+  GND:
+    type: power
+    description: Ground
+  SDA:
+    type: bidirectional
+    description: I2C data
+  SCL:
+    type: input
+    description: I2C clock
+  XSHUT:
+    type: input
+    description: Shutdown (active low)
+  GPIO1:
+    type: output
+    description: Interrupt output
+properties:
+  interface:
+  - i2c
+  range_max_m: 2.0
+  range_min_mm: 30
+  resolution_mm: 1
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: VL53L0XV0DH/1
+  manufacturer: STMicroelectronics
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.st.com/resource/en/datasheet/vl53l0x.pdf
+    source_identity: component:vl53l0x:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:vl53l0x:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

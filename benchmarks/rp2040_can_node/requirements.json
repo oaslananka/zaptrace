@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "family_id": "rp2040_can_node",
+  "benchmark_id": "rp2040_can_node_fixture_v1",
+  "title": "RP2040 CAN node benchmark fixture",
+  "representative_intent": "RP2040 3.3V CAN bus controller node with USB debug",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-RP2040-USB-DEBUG",
+      "text": "Represent RP2040 USB debug/programming connectivity with 3.3 V logic-rail evidence.",
+      "category": "mcu-debug",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-CAN-TRANSCEIVER",
+      "text": "Connect CAN controller/transceiver nets with CANH/CANL, termination and protection evidence.",
+      "category": "interface",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-POWER-3V3-CAN",
+      "text": "Provide power-tree evidence for RP2040 logic, CAN transceiver supply and decoupling coverage.",
+      "category": "power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-CAN-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, current-density, and SI/PI review evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": ["human-review-required", "autonomous-pass"]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not CAN compliance or fabrication approval.",
+    "The fixture does not claim EMC, CAN physical-layer compliance, surge robustness, manufacturability, or production readiness."
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "artifacts": [
+    {
+      "kind": "excellon",
+      "path": "EvidenceBoard-ALL.DRL",
+      "required": true,
+      "role": "drl",
+      "sha256": "7fb2a8b6072fdeb827bf56c8dfe18b4f0626bd1e96db75f1d78d922cb93733aa",
+      "size_bytes": 145
+    },
+    {
+      "kind": "bom",
+      "path": "EvidenceBoard-bom.csv",
+      "required": true,
+      "role": "csv",
+      "sha256": "3a784ebefbdd3ee485aa18f5b36bb085dc4e08943593ef37dbc41d36b51e2e9f",
+      "size_bytes": 159
+    },
+    {
+      "kind": "manifest",
+      "path": "EvidenceBoard-manifest.json",
+      "required": true,
+      "role": "json",
+      "sha256": "ed8acdfe1829a333f71940cb9e6f374e822aff57a6389fb9a1cfd827911b62c7",
+      "size_bytes": 1347
+    },
+    {
+      "kind": "pick_and_place",
+      "path": "EvidenceBoard-pick-and-place.csv",
+      "required": true,
+      "role": "csv",
+      "sha256": "834c5eef8d957dee7aff7a9108a500a314fec03c7072c1b4bc118ad79e73f604",
+      "size_bytes": 76
+    },
+    {
+      "kind": "excellon",
+      "path": "EvidenceBoard.DRL",
+      "required": true,
+      "role": "drl",
+      "sha256": "6002a5fb11d42aa11e9edd616b0b681f1368e7e6d86e66090ae99647d5f27c56",
+      "size_bytes": 151
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GBL",
+      "required": true,
+      "role": "gbl",
+      "sha256": "fa1d1f5d854adab280fdeb992afbe37bfe8c22de88edf852e49945241c229a2f",
+      "size_bytes": 67
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GBS",
+      "required": true,
+      "role": "gbs",
+      "sha256": "196e23cf7a2fa82ebbbaa081942b44532c5a2049e129e4da947d6788823fa96c",
+      "size_bytes": 72
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GKO",
+      "required": true,
+      "role": "gko",
+      "sha256": "1afa0c5c5c22ca3cfbcf7b45ce5c7b6817dcfa7550c0d5ffa0cb23280fab6839",
+      "size_bytes": 167
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GPT",
+      "required": true,
+      "role": "gpt",
+      "sha256": "65495071edb2782c527bc6f5ce4f430116dc8cdf6d5c85c1566566869245e594",
+      "size_bytes": 117
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GTL",
+      "required": true,
+      "role": "gtl",
+      "sha256": "23796c63707fc6c41331e2f8227316643613386fb1e82657f4bc0b95c7a422f1",
+      "size_bytes": 111
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GTO",
+      "required": true,
+      "role": "gto",
+      "sha256": "3932227383c4e20829d3fad6a96a20ca0a3aeeb5e4abef425acc46d79ced025e",
+      "size_bytes": 111
+    },
+    {
+      "kind": "gerber",
+      "path": "EvidenceBoard.GTS",
+      "required": true,
+      "role": "gts",
+      "sha256": "2c3174504bc0e305d57cd720b0be466dddcb584b9341b73b4a873c6c5e62a0da",
+      "size_bytes": 116
+    },
+    {
+      "kind": "bundle",
+      "path": "EvidenceBoard.zip",
+      "required": true,
+      "role": "zip",
+      "sha256": "090074008a359c33f5629a8f11c7614b11f8541ed5cbca1663a90a265c3d4abd",
+      "size_bytes": 2929
+    }
+  ],
+  "blocked": false,
+  "evidence_status": "non-authoritative-example",
+  "fab_profile": "jlcpcb-2layer",
+  "generated_at": "2026-06-19T20:58:36.864517+00:00",
+  "non_claims": [
+    "Manufacturing evidence is not manufacturer approval.",
+    "External fabrication review is required before ordering boards.",
+    "Smoke validation checks file shape, not full DFM correctness."
+  ],
+  "sample": true,
+  "schema_version": "1.0",
+  "validations": [
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 145
+      },
+      "name": "excellon-smoke:EvidenceBoard-ALL.DRL",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Excellon smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 151
+      },
+      "name": "excellon-smoke:EvidenceBoard.DRL",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Excellon smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 67
+      },
+      "name": "gerber-smoke:EvidenceBoard.GBL",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 72
+      },
+      "name": "gerber-smoke:EvidenceBoard.GBS",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 167
+      },
+      "name": "gerber-smoke:EvidenceBoard.GKO",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 117
+      },
+      "name": "gerber-smoke:EvidenceBoard.GPT",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 111
+      },
+      "name": "gerber-smoke:EvidenceBoard.GTL",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 111
+      },
+      "name": "gerber-smoke:EvidenceBoard.GTO",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    },
+    {
+      "details": {
+        "missing_tokens": [],
+        "size_bytes": 116
+      },
+      "name": "gerber-smoke:EvidenceBoard.GTS",
+      "release_blocking": true,
+      "severity": "error",
+      "status": "pass",
+      "summary": "Gerber smoke validation passed"
+    }
+  ]
+}

@@ -1,0 +1,184 @@
+schema_version: '2.0'
+id: esp32-wroom-32
+name: ESP32-WROOM-32
+category: mcu
+manufacturer: Espressif Systems
+mpn: ESP32-WROOM-32(16MB)
+description: Dual-core 32-bit Wi-Fi+BT MCU module, 240MHz, 16MB flash
+datasheet: https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf
+package: SMD-module-38pin
+footprint: ESP32-WROOM-32
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  GND:
+    type: power
+    description: Ground
+  VCC:
+    type: power
+    description: 3.3V supply
+  EN:
+    type: input
+    description: Chip enable
+  GPIO0:
+    type: bidirectional
+    description: GPIO0 / Boot mode
+  GPIO1:
+    type: bidirectional
+    description: GPIO1 / UART0_TX
+  GPIO2:
+    type: bidirectional
+    description: GPIO2 / ADC2_CH2
+  GPIO3:
+    type: bidirectional
+    description: GPIO3 / UART0_RX
+  GPIO4:
+    type: bidirectional
+    description: GPIO4 / ADC2_CH0
+  GPIO5:
+    type: bidirectional
+    description: GPIO5 / VSPI_CS0
+  GPIO12:
+    type: bidirectional
+    description: GPIO12 / ADC2_CH5
+  GPIO13:
+    type: bidirectional
+    description: GPIO13 / ADC2_CH4
+  GPIO14:
+    type: bidirectional
+    description: GPIO14 / ADC2_CH6
+  GPIO15:
+    type: bidirectional
+    description: GPIO15 / ADC2_CH3
+  GPIO16:
+    type: bidirectional
+    description: GPIO16 / UART2_RX
+  GPIO17:
+    type: bidirectional
+    description: GPIO17 / UART2_TX
+  GPIO18:
+    type: bidirectional
+    description: GPIO18 / VSPI_CLK
+  GPIO19:
+    type: bidirectional
+    description: GPIO19 / VSPI_MISO
+  GPIO21:
+    type: bidirectional
+    description: GPIO21 / I2C_SDA
+  GPIO22:
+    type: bidirectional
+    description: GPIO22 / I2C_SCL
+  GPIO23:
+    type: bidirectional
+    description: GPIO23 / VSPI_MOSI
+  GPIO25:
+    type: bidirectional
+    description: GPIO25 / DAC_1
+  GPIO26:
+    type: bidirectional
+    description: GPIO26 / DAC_2
+  GPIO27:
+    type: bidirectional
+    description: GPIO27 / ADC2_CH7
+  GPIO32:
+    type: bidirectional
+    description: GPIO32 / ADC1_CH4
+  GPIO33:
+    type: bidirectional
+    description: GPIO33 / ADC1_CH5
+  GPIO34:
+    type: input
+    description: GPIO34 / ADC1_CH6
+  GPIO35:
+    type: input
+    description: GPIO35 / ADC1_CH7
+  GPIO36:
+    type: input
+    description: GPIO36 / ADC1_CH0
+  GPIO39:
+    type: input
+    description: GPIO39 / ADC1_CH3
+properties:
+  core: Xtensa dual-core LX6
+  frequency_mhz: 240
+  flash_mb: 16
+  ram_kb: 520
+  wireless:
+  - wifi_2.4ghz
+  - bluetooth_4.2
+  - ble
+electrical_limits:
+  frequency_mhz: 240
+  voltage_supply: '3.3'
+sourcing:
+  mpn: ESP32-WROOM-32(16MB)
+  manufacturer: Espressif Systems
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf
+    source_identity: component:esp32-wroom-32:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-wroom-32:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

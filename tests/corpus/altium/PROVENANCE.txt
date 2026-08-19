@@ -1,0 +1,29 @@
+Altium ASCII Schematic Corpus Fixtures
+======================================
+
+All files in this directory are synthetic fixtures authored for ZapTrace CI
+testing. They follow the Altium Designer ASCII schematic export format
+(pipe-delimited records with |RECORD=N| type fields) as documented in the
+Altium Designer PCB API reference.
+
+No proprietary Altium schematic data has been used. All content is:
+  - Hand-authored for test coverage
+  - Released under CC0 1.0 Universal (Public Domain Dedication)
+  - Not derived from any real-world design
+
+Files
+-----
+opamp_circuit.asc
+  A simple inverting op-amp circuit with power pins, two resistors, one
+  op-amp, and 4 labelled nets. Tests RECORD=28 (Component), RECORD=2 (Pin),
+  RECORD=37 (Wire), RECORD=4 (Label).
+
+mcu_breakout.asc
+  A microcontroller breakout with decoupling capacitors, GPIO labels, and
+  port connectors. Tests hierarchical port (RECORD=209) handling and
+  multi-sheet-style labels.
+
+adversarial_unsupported.asc
+  Contains supported records plus several unknown record types (RECORD=99,
+  RECORD=150, RECORD=200). Verifies that unsupported-record evidence is
+  populated correctly and does not crash the importer.

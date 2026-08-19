@@ -1,0 +1,15 @@
+{
+  "case_id": "generated-manufacturing-basic",
+  "semantic_diff": {
+    "added": [],
+    "removed": [],
+    "changed": [
+      {
+        "path": "roundtrip.adapter",
+        "severity": "warning",
+        "summary": "Full KiCad importer dependency is pending merge; contract scorecard remains deterministic."
+      }
+    ]
+  },
+  "unsupported_features": ["full-kicad-import-pending-merge"]
+}

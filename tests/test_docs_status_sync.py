@@ -1,0 +1,177 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from scripts.ci_docs_status_sync import (
+    actual_drc_rule_count,
+    actual_erc_rule_count,
+    actual_mcp_admin_tool_names,
+    actual_mcp_tool_count,
+    actual_tool_count,
+    main,
+    validate_docs,
+)
+
+
+def test_actual_erc_rule_count_matches_runner() -> None:
+    from zaptrace.erc.runner import _ALL_RULES
+
+    assert actual_erc_rule_count() == len(_ALL_RULES) >= 20
+
+
+def test_actual_drc_rule_count_matches_engine() -> None:
+    from zaptrace.ee.drc.engine import _ALL_CHECKS
+
+    assert actual_drc_rule_count() == len(_ALL_CHECKS) >= 11
+
+
+def test_actual_tool_count_matches_registry() -> None:
+    from zaptrace.agent._tool_impls import TOOL_REGISTRY
+
+    assert actual_tool_count() == len(TOOL_REGISTRY) >= 50
+
+
+def test_actual_mcp_tool_count_includes_session_administration() -> None:
+    assert actual_mcp_admin_tool_names() == ["session_create", "session_destroy", "session_list"]
+    assert actual_mcp_tool_count() == actual_tool_count() + 3
+
+
+def test_docs_status_sync_current_repo_passes() -> None:
+    result = validate_docs()
+    assert result["passed"], result["errors"]
+
+
+def test_docs_status_sync_cli_writes_report(tmp_path: Path) -> None:
+    output = tmp_path / "docs-status.json"
+    assert main(["--output", str(output)]) == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["passed"] is True
+    assert report["erc_rule_count"] == actual_erc_rule_count()
+    assert report["drc_rule_count"] == actual_drc_rule_count()
+    assert report["tool_count"] == actual_tool_count()
+    assert report["mcp_admin_tools"] == actual_mcp_admin_tool_names()
+    assert report["mcp_tool_count"] == actual_mcp_tool_count()
+
+
+def test_docs_workflow_validates_pull_requests_without_deploying() -> None:
+    workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
+
+    assert "  pull_request:" in workflow
+    assert "uvx --no-build --from mkdocs-material==9.6.21 mkdocs build --strict" in workflow
+    deploy = workflow.split("  deploy:", 1)[1]
+    assert "if: github.event_name == 'push'" in deploy
+
+
+def test_all_public_markdown_pages_are_in_mkdocs_navigation() -> None:
+    from scripts import ci_docs_status_sync
+
+    assert ci_docs_status_sync.navigation_gaps() == []
+
+
+def test_documented_release_gate_command_matches_ci_contract() -> None:
+    document = Path("docs/development/validation-environment.md").read_text(encoding="utf-8")
+
+    assert "--risky-package-reviewed" in document
+    assert '--risky-package-approval-id "GENERATED-BOARD-BASELINE-REVIEW-2026-07-22"' in document
+
+
+def test_public_docs_use_current_examples_plugin_and_support_paths() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    getting_started = Path("docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+    faq = Path("docs/FAQ.md").read_text(encoding="utf-8")
+    plugin_guide = Path("docs/plugins/development-guide.md").read_text(encoding="utf-8")
+
+    assert "https://github.com/oaslananka/zaptrace/discussions" in readme
+    assert "GitHub Discussions is currently disabled" not in readme
+    assert "../examples/" not in getting_started
+    assert "../examples/" not in faq
+    assert "zaptrace/plugins/" not in plugin_guide
+    assert "zaptrace/plugin/" in plugin_guide
+
+
+def test_maturity_docs_match_live_repository_capabilities() -> None:
+    maturity = Path("docs/repo-maturity-report.md").read_text(encoding="utf-8")
+    openssf = Path("docs/openssf-evidence.md").read_text(encoding="utf-8")
+    gaps = Path("docs/openssf-gap-analysis.md").read_text(encoding="utf-8")
+    current_state = Path("docs/strategy/current-state-audit.md").read_text(encoding="utf-8")
+    dependency = Path("docs/security/dependency-and-static-analysis.md").read_text(encoding="utf-8")
+
+    for stale in (
+        "| Fuzzing | Missing |",
+        "fuzzing workflow because no fuzz harness exists",
+        "heavy Docker vulnerability scan because",
+        "checksum manifest automation if required",
+        "Admin-enforced branch protection was not enabled",
+        "[#80]",
+        "[#81]",
+        "[#82]",
+        "[#84]",
+        "[#85]",
+    ):
+        assert stale not in maturity
+        assert stale not in gaps
+
+    assert "config/github-main-ruleset.json" in maturity
+    assert "repository-ruleset-evidence.json" in openssf
+    assert "machine-verifiable periodic capture is still future work" not in current_state
+    assert "Branch protection continues to require the three stable Python check names" not in dependency
+
+
+def test_docs_status_report_tracks_component_library_baseline_and_revision() -> None:
+    report = validate_docs()
+    baseline = json.loads(Path("config/component-trust-baseline.json").read_text(encoding="utf-8"))
+
+    assert "component_library" in report
+    assert report["component_library"]["source"] == "config/component-trust-baseline.json"
+    assert report["component_library"]["component_count"] == baseline["component_count"]
+    assert report["component_library"]["trust_tier_counts"] == {"heuristic": baseline["component_count"]}
+    assert len(report["source_revision"]) == 40
+
+
+def test_docs_status_report_tracks_current_import_and_release_capabilities() -> None:
+    capabilities = validate_docs()["capabilities"]
+    required = {
+        "kicad_project_import",
+        "github_release",
+        "sbom_generation",
+        "release_attestation",
+    }
+
+    assert required <= capabilities.keys()
+    assert all(capabilities[name] for name in required)
+
+
+def test_internal_implementation_plans_are_not_public_docs() -> None:
+    assert not Path("docs/superpowers").exists()
+    assert "superpowers/" not in Path("mkdocs.yml").read_text(encoding="utf-8")
+
+
+def test_current_state_audit_uses_machine_derived_current_facts() -> None:
+    baseline = json.loads(Path("config/component-trust-baseline.json").read_text(encoding="utf-8"))
+    current_state = Path("docs/strategy/current-state-audit.md").read_text(encoding="utf-8")
+
+    assert f"{baseline['component_count']} component records" in current_state
+    assert "~50 packages supported" not in current_state
+    assert "KiCad export is unidirectional" not in current_state
+    assert "No release automation" not in current_state
+    assert "config/component-trust-baseline.json" in current_state
+    assert "scripts/ci_docs_status_sync.py" in current_state
+
+
+def test_current_state_guard_rejects_reintroduced_drift(tmp_path: Path) -> None:
+    from scripts import ci_docs_status_sync
+
+    validator = getattr(ci_docs_status_sync, "_validate_current_state_document", None)
+    assert validator is not None
+
+    stale = tmp_path / "current-state-audit.md"
+    stale.write_text(
+        "503 component records\nKiCad export is unidirectional — no import capability\nNo release automation\n",
+        encoding="utf-8",
+    )
+    errors = validator(stale)
+
+    assert any("claims 503 component records but code has 504" in error for error in errors)
+    assert any("KiCad export is unidirectional" in error for error in errors)
+    assert any("No release automation" in error for error in errors)

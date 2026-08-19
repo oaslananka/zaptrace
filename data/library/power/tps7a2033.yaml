@@ -1,0 +1,108 @@
+schema_version: '2.0'
+id: tps7a2033
+name: TPS7A2033
+category: power
+manufacturer: Texas Instruments
+mpn: TPS7A2033PDBVR
+description: 300mA low-dropout voltage regulator, 3.3V fixed output, 1.6-6.5V input,
+  SOT-23-5
+datasheet: https://www.ti.com/lit/gpn/tps7a20
+package: SOT-23-5
+footprint: SOT23-5
+lifecycle: active
+voltage_supply: '5'
+pins:
+  IN:
+    type: power
+    description: 1.6-6.5V input supply
+  GND:
+    type: power
+    description: Ground
+  OUT:
+    type: output
+    description: 3.3V regulated output
+  EN:
+    type: input
+    description: Enable (active high)
+  NC:
+    type: passive
+    description: No connect
+properties:
+  topology: ldo
+  output_voltage: 3.3
+  max_output_ma: 300
+  dropout_mv: 130
+electrical_limits:
+  voltage_supply: '5'
+sourcing:
+  mpn: TPS7A2033PDBVR
+  manufacturer: Texas Instruments
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.ti.com/lit/gpn/tps7a20
+    source_identity: component:tps7a2033:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:tps7a2033:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

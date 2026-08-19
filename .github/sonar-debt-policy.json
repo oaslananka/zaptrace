@@ -1,0 +1,71 @@
+{
+  "baseline": {
+    "analysis_revision": "8a3b21dca3dcb163a2a9dae2dfd3546a5dd70587",
+    "blocker_count": 0,
+    "critical_security_reliability_count": 0,
+    "report_sha256": "51cee0bc9fdc10f31d461d15711332ad0ed16877d020d20ca96c0b0bd3e40fc8",
+    "total": 27
+  },
+  "branch": "main",
+  "budgets": {
+    "max_blocker": 0,
+    "max_critical_security_reliability": 0,
+    "max_total": 27
+  },
+  "default_owner": "area/maintainability",
+  "implementation_issue": 338,
+  "ownership_rules": [
+    {
+      "owner": "area/ci",
+      "prefix": ".github/"
+    },
+    {
+      "owner": "area/ci",
+      "prefix": "scripts/"
+    },
+    {
+      "owner": "area/agent-runtime",
+      "prefix": "zaptrace/agent/"
+    },
+    {
+      "owner": "area/security",
+      "prefix": "zaptrace/security/"
+    },
+    {
+      "owner": "area/benchmark",
+      "prefix": "zaptrace/benchmark/"
+    },
+    {
+      "owner": "area/kicad",
+      "prefix": "zaptrace/kicad/"
+    },
+    {
+      "owner": "area/eda-core",
+      "prefix": "zaptrace/ee/"
+    },
+    {
+      "owner": "area/proof-pack",
+      "prefix": "zaptrace/proof/"
+    }
+  ],
+  "prohibited_strategies": [
+    "blanket-nosonar",
+    "file-wide-exclusion",
+    "quality-profile-weakening"
+  ],
+  "project_key": "oaslananka_zaptrace",
+  "release_targets": [
+    {
+      "max_total": 27,
+      "minimum_reduction_percent": 0.0,
+      "release": "0.4.0"
+    },
+    {
+      "max_total": 25,
+      "minimum_reduction_percent": 6.5,
+      "release": "0.5.0"
+    }
+  ],
+  "schema_version": "1.0",
+  "tracking_issue": null
+}

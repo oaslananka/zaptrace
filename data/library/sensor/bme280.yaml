@@ -1,0 +1,166 @@
+schema_version: '2.0'
+id: bme280
+name: BME280
+category: sensor
+manufacturer: Bosch Sensortec
+mpn: BME280
+description: Humidity, pressure, and temperature sensor with I2C/SPI interfaces
+datasheet: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+package: LGA-8
+footprint: BME280-LGA8
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  GND:
+    type: power
+    description: Ground; package pins 1 and 7
+  CSB:
+    type: input
+    description: SPI chip select; drive high to select I2C mode
+  SDI:
+    type: bidirectional
+    description: Serial data input/output; I2C SDA or SPI SDI
+  SCK:
+    type: input
+    description: Serial clock input; I2C SCL or SPI SCK
+  SDO:
+    type: bidirectional
+    description: Serial data output or I2C address select
+  VDDIO:
+    type: power
+    description: Digital/interface supply, 1.2-3.6 V recommended
+  VDD:
+    type: power
+    description: Main supply, 1.71-3.6 V recommended
+package_pin_map:
+  '1': GND
+  '2': CSB
+  '3': SDI
+  '4': SCK
+  '5': SDO
+  '6': VDDIO
+  '7': GND
+  '8': VDD
+properties:
+  interface:
+  - i2c
+  - spi
+  sales_part_number: 0 273 141 185
+  package_dimensions_mm:
+    x: 2.5
+    y: 2.5
+    z: 0.93
+  supply_ranges_v:
+    VDD:
+    - 1.71
+    - 3.6
+    VDDIO:
+    - 1.2
+    - 3.6
+  absolute_maximum:
+    supply_pins_v:
+    - -0.3
+    - 4.25
+    interface_pins: -0.3 V to VDDIO + 0.3 V
+  humidity_range: 0-100%
+  pressure_range: 300-1100 hPa
+  temperature_range: -40..85 C
+electrical_limits:
+  temperature_range: -40..85 C
+  voltage_supply: VDD 1.71-3.6 V; VDDIO 1.2-3.6 V
+  max_voltage_v: 4.25
+  review_note: 4.25 V is the absolute maximum on VDD/VDDIO, not a recommended operating voltage
+sourcing:
+  mpn: BME280
+  manufacturer: Bosch Sensortec
+  status: manufacturer-catalog-active
+  authorized_distributors:
+  - Digi-Key
+  - Mouser
+  - Arrow
+  - Future Electronics
+  - Rutronik
+  production_note: Manufacturer order-page snapshot captured 2026-08-09 showed zero pieces; re-check stock and lead time before procurement
+compliance:
+  rohs: manufacturer-declared-compliant
+  reach: supplier-confirmation-required
+  production_note: Component evidence is not a substitute for project-specific regulatory certification
+provenance:
+  source: Bosch Sensortec datasheet and product-page evidence captured 2026-08-09
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: manufacturer_document
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+    source_identity: BST-BME280-DS001-24
+    source_sha256: a2ccdb449fec94380742fe8eec851a11d9bd4142252d332b34682b4deecd7d89
+    source_version: 1.24 (2024-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  datasheet:
+    source_type: manufacturer_document
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+    source_identity: BST-BME280-DS001-24
+    source_sha256: a2ccdb449fec94380742fe8eec851a11d9bd4142252d332b34682b4deecd7d89
+    source_version: 1.24 (2024-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  pin_map:
+    source_type: manufacturer_document
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+    source_identity: BST-BME280-DS001-24
+    source_sha256: a2ccdb449fec94380742fe8eec851a11d9bd4142252d332b34682b4deecd7d89
+    source_version: 1.24 (2024-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  package:
+    source_type: manufacturer_document
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+    source_identity: BST-BME280-DS001-24
+    source_sha256: a2ccdb449fec94380742fe8eec851a11d9bd4142252d332b34682b4deecd7d89
+    source_version: 1.24 (2024-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  footprint:
+    source_type: manufacturer_document
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+    source_identity: BST-BME280-DS001-24
+    source_sha256: a2ccdb449fec94380742fe8eec851a11d9bd4142252d332b34682b4deecd7d89
+    source_version: 1.24 (2024-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  electrical_limits:
+    source_type: manufacturer_document
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf
+    source_identity: BST-BME280-DS001-24
+    source_sha256: a2ccdb449fec94380742fe8eec851a11d9bd4142252d332b34682b4deecd7d89
+    source_version: 1.24 (2024-02)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  lifecycle:
+    source_type: manufacturer_web
+    source_locator: https://www.bosch-sensortec.com/en/products/environmental-sensors/humidity-sensors-bme280
+    source_identity: bosch-sensortec:bme280-product-page
+    source_sha256: c5d09db30522dd7b4b09bb001251e17d5a130f1eeffd3815da91c93b11c62a81
+    source_version: captured-2026-08-09
+    extraction_method: manufacturer-product-page-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  sourcing:
+    source_type: manufacturer_web
+    source_locator: https://www.bosch-sensortec.com/en/products/environmental-sensors/humidity-sensors-bme280
+    source_identity: bosch-sensortec:bme280-order-page
+    source_sha256: c5d09db30522dd7b4b09bb001251e17d5a130f1eeffd3815da91c93b11c62a81
+    source_version: captured-2026-08-09
+    extraction_method: manufacturer-product-page-capture
+    extracted_at: 2026-08-09
+    confidence: medium

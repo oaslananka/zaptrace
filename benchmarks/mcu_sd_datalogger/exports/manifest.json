@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "family_id": "mcu_sd_datalogger",
+  "artifact_kind": "manufacturing-export-manifest",
+  "status": "starter-fixture",
+  "artifacts": [],
+  "blocked": false,
+  "warnings": [
+    "No fabrication-ready Gerber/drill/BOM files are claimed by this starter fixture.",
+    "Storage compatibility, data-retention, ESD and timing validation are outside this fixture manifest."
+  ],
+  "non_claims": [
+    "not fabrication-ready",
+    "not certification-approved",
+    "not manufacturer-approved",
+    "not production-ready"
+  ]
+}

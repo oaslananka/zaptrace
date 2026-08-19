@@ -1,0 +1,5 @@
+{
+  "board": {"design_settings": {"defaults": {"board_outline_line_width": 0.1}}},
+  "meta": {"filename": "stm32_rs485_industrial.kicad_pro", "family_id": "stm32_rs485_industrial"},
+  "version": 1
+}

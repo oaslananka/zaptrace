@@ -1,0 +1,11 @@
+{
+  "workflow_id": "wf-example-esp32-sensor",
+  "decision": "resume",
+  "reason": "retry after tightening clearance",
+  "preserved_rollback_id": "rb-layout-1",
+  "preserved_evidence": ["requirements.json"],
+  "non_claims": [
+    "checkpoint resume does not bypass validation gates",
+    "rollback remains available until an approved commit replaces the candidate"
+  ]
+}

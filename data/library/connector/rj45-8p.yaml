@@ -1,0 +1,115 @@
+schema_version: '2.0'
+id: rj45-8p
+name: RJ45 8P8C
+category: connector
+manufacturer: Generic
+mpn: RJ45-8P8C-SHIELDED
+description: RJ45 Ethernet jack with magnetics, 8P8C
+datasheet: internal://zaptrace/component-family/rj45-8p
+package: SMD-16P
+footprint: RJ45-8P8C-SHIELDED
+lifecycle: active
+voltage_supply: ''
+pins:
+  TX_P:
+    type: bidirectional
+    description: Transmit +
+  TX_N:
+    type: bidirectional
+    description: Transmit -
+  RX_P:
+    type: bidirectional
+    description: Receive +
+  RX_N:
+    type: bidirectional
+    description: Receive -
+  GND:
+    type: power
+    description: Ground
+  LED_G:
+    type: output
+    description: Green LED
+  LED_Y:
+    type: output
+    description: Yellow LED
+  SHIELD:
+    type: power
+    description: Shield ground
+properties:
+  type: RJ45
+  speed: 100BASE-T
+electrical_limits:
+  review_note: numeric limits not captured in starter library; verify against exact
+    supplier part before production
+sourcing:
+  mpn: RJ45-8P8C-SHIELDED
+  manufacturer: Generic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: generic-family-placeholder
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/rj45-8p
+    source_identity: component:rj45-8p:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:rj45-8p:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,5 @@
+{
+  "board": {"design_settings": {"defaults": {"board_outline_line_width": 0.1}}},
+  "meta": {"filename": "rp2040_can_node.kicad_pro", "family_id": "rp2040_can_node"},
+  "version": 1
+}

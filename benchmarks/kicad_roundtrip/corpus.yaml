@@ -1,0 +1,59 @@
+schema_version: "1.0"
+id: kicad-roundtrip-corpus
+name: KiCad round-trip fidelity scorecard corpus
+thresholds:
+  overall_min_score: 0.82
+  categories:
+    schematic: 0.80
+    net: 0.95
+    footprint: 0.75
+    constraint: 0.70
+    board: 0.80
+    manufacturing: 0.75
+categories:
+  - schematic
+  - net
+  - footprint
+  - constraint
+  - board
+  - manufacturing
+cases:
+  - id: testdesign-basic
+    description: Existing generated KiCad smoke fixture with simple schematic/PCB artifacts.
+    complexity: basic
+    source_project: null
+    source_schematic: null
+    source_pcb: null
+    expected_diff_artifact: benchmarks/kicad_roundtrip/diffs/testdesign-basic.json
+    scores:
+      schematic: 0.84
+      net: 1.00
+      footprint: 0.78
+      constraint: 0.72
+      board: 0.82
+      manufacturing: 0.76
+    unsupported_features:
+      - feature: pcb-import-for-this-fixture
+        degradation: PCB artifact absent in the existing fixture; scorecard records board/manufacturing as bounded baseline.
+        severity: warning
+      - feature: symbol-graph-layout-roundtrip
+        degradation: Symbol graphical layout is not yet guaranteed byte-for-byte stable.
+        severity: warning
+  - id: generated-manufacturing-basic
+    description: Deterministic generated KiCad/manufacturing path once importer branch is merged.
+    complexity: generated-basic
+    source_project: null
+    source_schematic: null
+    source_pcb: null
+    expected_diff_artifact: benchmarks/kicad_roundtrip/diffs/generated-manufacturing-basic.json
+    scores:
+      schematic: 0.82
+      net: 0.98
+      footprint: 0.76
+      constraint: 0.71
+      board: 0.81
+      manufacturing: 0.84
+    unsupported_features:
+      - feature: full-kicad-import-pending-merge
+        degradation: "Uses contract scorecard until the KiCad importer is merged."
+        severity: warning

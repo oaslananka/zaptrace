@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    {
+      "kind": "gerber",
+      "path": "board.GTL",
+      "sha256": "017af6865a079236a42c1a0ccfc104128dab60c5e6418d43484f448630ebd76e",
+      "size_bytes": 36
+    }
+  ],
+  "backend": "zaptrace",
+  "blocked": false,
+  "command": [
+    "zaptrace",
+    "export",
+    "manufacturing"
+  ],
+  "config": {},
+  "evidence_status": "non-authoritative-example",
+  "generated_at": "2026-06-19T21:06:22.836295+00:00",
+  "non_claims": [
+    "Manufacturing export evidence is not manufacturer approval.",
+    "ODB++ and IPC-2581 may require an external backend until native exporters exist.",
+    "Human fabrication review is required before release export."
+  ],
+  "sample": true,
+  "schema_version": "1.0",
+  "tool_version": "zaptrace-sample",
+  "unsupported": [],
+  "warnings": [
+    "ODB++ and IPC-2581 require attached external evidence in this sample."
+  ]
+}

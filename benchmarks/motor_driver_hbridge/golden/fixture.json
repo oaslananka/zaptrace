@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "motor_driver_hbridge",
+  "files": [
+    {
+      "kind": "project",
+      "path": "motor_driver_hbridge.kicad_pro",
+      "required": true,
+      "sha256": "d4e4848e81700be1a88d562a1ecccff87b61b847212c719b03e5adc46e1e3a68",
+      "size_bytes": 243
+    },
+    {
+      "kind": "schematic",
+      "path": "motor_driver_hbridge.kicad_sch",
+      "required": true,
+      "sha256": "eb5c6b9e38b905618fa47988b58d01fabd824184a48c202a3d260225b4465020",
+      "size_bytes": 243
+    },
+    {
+      "kind": "pcb",
+      "path": "motor_driver_hbridge.kicad_pcb",
+      "required": true,
+      "sha256": "50a21fa586bb682f75d2d1a6e36702b8af3e2029da642aca422c3b845bb848b5",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "motor_driver_hbridge_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

@@ -1,0 +1,3096 @@
+{
+  "$defs": {
+    "Block": {
+      "description": "A functional grouping of components.",
+      "properties": {
+        "id": {
+          "description": "Unique block identifier",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Block name (e.g. 'Power Supply', 'MCU')",
+          "title": "Name",
+          "type": "string"
+        },
+        "components": {
+          "description": "List of component IDs in this block",
+          "items": {
+            "type": "string"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Block position on schematic (x, y)",
+          "title": "Position"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Block",
+      "type": "object"
+    },
+    "BoardConfig": {
+      "description": "Legacy board configuration — kept for backward compatibility.",
+      "properties": {
+        "width_mm": {
+          "default": 100.0,
+          "description": "Board width in mm [legacy]",
+          "title": "Width Mm",
+          "type": "number"
+        },
+        "height_mm": {
+          "default": 80.0,
+          "description": "Board height in mm [legacy]",
+          "title": "Height Mm",
+          "type": "number"
+        },
+        "layers": {
+          "default": 2,
+          "description": "Number of layers [legacy]",
+          "title": "Layers",
+          "type": "integer"
+        },
+        "copper_pour_gnd": {
+          "default": true,
+          "description": "Enable GND copper pour [legacy]",
+          "title": "Copper Pour Gnd",
+          "type": "boolean"
+        },
+        "min_trace_width_mm": {
+          "default": 0.2,
+          "description": "Minimum trace width in mm [legacy]",
+          "title": "Min Trace Width Mm",
+          "type": "number"
+        },
+        "min_clearance_mm": {
+          "default": 0.2,
+          "description": "Minimum clearance in mm [legacy]",
+          "title": "Min Clearance Mm",
+          "type": "number"
+        },
+        "min_via_diameter_mm": {
+          "default": 0.6,
+          "description": "Minimum via diameter in mm [legacy]",
+          "title": "Min Via Diameter Mm",
+          "type": "number"
+        }
+      },
+      "title": "BoardConfig",
+      "type": "object"
+    },
+    "BoardConstraints": {
+      "description": "Manufacturing constraints for the PCB.\n\nDefaults target JLCPCB 2-layer 1oz standard capability.\nSupply a fab-profile override for different manufacturers.",
+      "properties": {
+        "min_trace": {
+          "default": 0.15,
+          "description": "Minimum trace width (mm), signal nets",
+          "title": "Min Trace",
+          "type": "number"
+        },
+        "min_trace_power": {
+          "default": 0.3,
+          "description": "Minimum trace width (mm), power nets",
+          "title": "Min Trace Power",
+          "type": "number"
+        },
+        "min_clearance": {
+          "default": 0.15,
+          "description": "Minimum copper-to-copper clearance (mm)",
+          "title": "Min Clearance",
+          "type": "number"
+        },
+        "min_clearance_high_voltage": {
+          "default": 0.3,
+          "description": "Minimum clearance for high-voltage nets (mm)",
+          "title": "Min Clearance High Voltage",
+          "type": "number"
+        },
+        "min_hole": {
+          "default": 0.15,
+          "description": "Minimum drill hole diameter (mm)",
+          "title": "Min Hole",
+          "type": "number"
+        },
+        "min_annular_ring": {
+          "default": 0.13,
+          "description": "Minimum annular ring width (mm)",
+          "title": "Min Annular Ring",
+          "type": "number"
+        },
+        "min_solder_mask_sliver": {
+          "default": 0.1,
+          "description": "Minimum solder mask sliver width (mm)",
+          "title": "Min Solder Mask Sliver",
+          "type": "number"
+        },
+        "via_pad": {
+          "default": 0.45,
+          "description": "Via pad diameter (mm)",
+          "title": "Via Pad",
+          "type": "number"
+        },
+        "via_hole": {
+          "default": 0.2,
+          "description": "Via hole diameter (mm)",
+          "title": "Via Hole",
+          "type": "number"
+        },
+        "default_trace_signal": {
+          "default": 0.2,
+          "description": "Default trace width for signal nets (mm)",
+          "title": "Default Trace Signal",
+          "type": "number"
+        },
+        "default_trace_power": {
+          "default": 0.5,
+          "description": "Default trace width for power nets (mm)",
+          "title": "Default Trace Power",
+          "type": "number"
+        }
+      },
+      "title": "BoardConstraints",
+      "type": "object"
+    },
+    "BoardDefinition": {
+      "description": "Complete PCB board definition.",
+      "properties": {
+        "width": {
+          "default": 100.0,
+          "description": "Board width in mm",
+          "title": "Width",
+          "type": "number"
+        },
+        "height": {
+          "default": 80.0,
+          "description": "Board height in mm",
+          "title": "Height",
+          "type": "number"
+        },
+        "layers": {
+          "default": 2,
+          "description": "Number of copper layers",
+          "title": "Layers",
+          "type": "integer"
+        },
+        "layer_stack": {
+          "description": "Layer stackup definition",
+          "items": {
+            "$ref": "#/$defs/LayerSpec"
+          },
+          "title": "Layer Stack",
+          "type": "array"
+        },
+        "outline": {
+          "description": "Board outline polygon vertices (x, y) in mm",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Outline",
+          "type": "array"
+        },
+        "cutouts": {
+          "description": "Board cutout polygons [computed-only if empty]",
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "title": "Cutouts",
+          "type": "array"
+        },
+        "mounting_holes": {
+          "description": "Mounting hole locations",
+          "items": {
+            "$ref": "#/$defs/MountingHole"
+          },
+          "title": "Mounting Holes",
+          "type": "array"
+        },
+        "constraints": {
+          "$ref": "#/$defs/BoardConstraints",
+          "description": "Manufacturing constraints"
+        },
+        "copper_pour_gnd": {
+          "default": true,
+          "description": "Whether to flood-fill ground copper",
+          "title": "Copper Pour Gnd",
+          "type": "boolean"
+        }
+      },
+      "title": "BoardDefinition",
+      "type": "object"
+    },
+    "BoardToBoardConnector": {
+      "description": "A connector bridging two PCBs in a multi-board system.",
+      "properties": {
+        "id": {
+          "description": "Unique connector identifier",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Connector name/part number",
+          "title": "Name",
+          "type": "string"
+        },
+        "board_a": {
+          "description": "Board ID of the first board",
+          "title": "Board A",
+          "type": "string"
+        },
+        "board_b": {
+          "description": "Board ID of the second board",
+          "title": "Board B",
+          "type": "string"
+        },
+        "connector_on_a": {
+          "description": "Connector reference on board A (e.g. 'J1')",
+          "title": "Connector On A",
+          "type": "string"
+        },
+        "connector_on_b": {
+          "description": "Connector reference on board B (e.g. 'J2')",
+          "title": "Connector On B",
+          "type": "string"
+        },
+        "pin_count": {
+          "default": 1,
+          "description": "Number of pins/signals crossing this connector",
+          "title": "Pin Count",
+          "type": "integer"
+        },
+        "signals": {
+          "description": "List of signal names crossing the connector",
+          "items": {
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "max_current_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum current rating per pin (A)",
+          "title": "Max Current A"
+        },
+        "max_voltage_v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum voltage rating (V)",
+          "title": "Max Voltage V"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "board_a",
+        "board_b",
+        "connector_on_a",
+        "connector_on_b"
+      ],
+      "title": "BoardToBoardConnector",
+      "type": "object"
+    },
+    "CableHarness": {
+      "description": "A wire/cable harness connecting points within or across boards.",
+      "properties": {
+        "id": {
+          "description": "Unique harness identifier",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Harness name (e.g. 'LCD cable', 'Sensor ribbon')",
+          "title": "Name",
+          "type": "string"
+        },
+        "wire_count": {
+          "default": 1,
+          "description": "Number of conductors in the harness",
+          "title": "Wire Count",
+          "type": "integer"
+        },
+        "wire_gauge_awg": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wire gauge in AWG",
+          "title": "Wire Gauge Awg"
+        },
+        "connector_a": {
+          "default": "",
+          "description": "Connector type at end A (e.g. 'JST-SH 6-pin')",
+          "title": "Connector A",
+          "type": "string"
+        },
+        "connector_b": {
+          "default": "",
+          "description": "Connector type at end B (e.g. 'JST-SH 6-pin')",
+          "title": "Connector B",
+          "type": "string"
+        },
+        "max_length_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum harness length (mm)",
+          "title": "Max Length Mm"
+        },
+        "rated_voltage_v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum rated voltage (V)",
+          "title": "Rated Voltage V"
+        },
+        "rated_current_a": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum rated current per conductor (A)",
+          "title": "Rated Current A"
+        },
+        "shielding": {
+          "default": "none",
+          "description": "Shielding type: 'none', 'foil', 'braid', 'foil+braid'",
+          "title": "Shielding",
+          "type": "string"
+        },
+        "routing_notes": {
+          "default": "",
+          "description": "Free-form routing and mechanical notes",
+          "title": "Routing Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "CableHarness",
+      "type": "object"
+    },
+    "Component": {
+      "description": "A physical component (part) placed on the PCB.",
+      "properties": {
+        "id": {
+          "description": "Unique component identifier",
+          "title": "Id",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Reference designator (e.g. 'R1', 'U2', 'C3')",
+          "title": "Ref",
+          "type": "string"
+        },
+        "type": {
+          "description": "Component type (e.g. 'resistor', 'capacitor', 'ic')",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Component value (e.g. '10k', '100nF')",
+          "title": "Value"
+        },
+        "footprint": {
+          "default": "",
+          "description": "Footprint name (e.g. '0805', 'SOIC-8')",
+          "title": "Footprint",
+          "type": "string"
+        },
+        "pins": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Pin"
+          },
+          "description": "Pin dictionary, keyed by pin name",
+          "title": "Pins",
+          "type": "object"
+        },
+        "package_pin_map": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Physical package pad/pin ID to logical component pin name",
+          "title": "Package Pin Map",
+          "type": "object"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/Lifecycle",
+          "default": "active",
+          "description": "Component lifecycle status"
+        },
+        "datasheet_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to component datasheet",
+          "title": "Datasheet Url"
+        },
+        "mpn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Manufacturer part number",
+          "title": "Mpn"
+        },
+        "manufacturer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Component manufacturer name",
+          "title": "Manufacturer"
+        },
+        "voltage_supply": {
+          "default": "",
+          "description": "Supply voltage string (e.g. '3.3V', '5V')",
+          "title": "Voltage Supply",
+          "type": "string"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Arbitrary key-value properties",
+          "title": "Properties"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Component position on board (x, y) in mm",
+          "title": "Position"
+        },
+        "dnp": {
+          "default": false,
+          "description": "Do not populate flag (for BOM filtering)",
+          "title": "Dnp",
+          "type": "boolean"
+        },
+        "variants": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "Variant population overrides; keyed by variant name",
+          "title": "Variants",
+          "type": "object"
+        },
+        "lcsc_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LCSC (JLCPCB) part ID for BOM",
+          "title": "Lcsc Id"
+        },
+        "basic_part": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether the part is a JLCPCB basic part",
+          "title": "Basic Part"
+        },
+        "stock": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current stock quantity",
+          "title": "Stock"
+        },
+        "alternates": {
+          "description": "Alternate/substitute MPNs that are functionally equivalent",
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternates",
+          "type": "array"
+        },
+        "distributor_links": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Distributor name → part URL or SKU (e.g. {'Digi-Key': 'RMCF0402FT10K0CT-ND'})",
+          "title": "Distributor Links",
+          "type": "object"
+        },
+        "price_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit price in USD at last supply-chain refresh",
+          "title": "Price Usd"
+        },
+        "supply_fetched_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO-8601 timestamp of the last supply-chain data refresh",
+          "title": "Supply Fetched At"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SymbolDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Schematic symbol definition [computed-only if absent]"
+        },
+        "footprint_def": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FootprintDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PCB footprint definition [computed-only if absent]"
+        },
+        "voltage_rating": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum voltage rating in volts",
+          "title": "Voltage Rating"
+        },
+        "current_rating": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum current rating in amps",
+          "title": "Current Rating"
+        },
+        "frequency_rating": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum frequency rating in Hz",
+          "title": "Frequency Rating"
+        }
+      },
+      "required": [
+        "id",
+        "ref",
+        "type"
+      ],
+      "title": "Component",
+      "type": "object"
+    },
+    "ConstraintSet": {
+      "description": "ZapTrace constraint DSL v1 container.",
+      "properties": {
+        "voltage_domains": {
+          "items": {
+            "$ref": "#/$defs/VoltageDomainConstraint"
+          },
+          "title": "Voltage Domains",
+          "type": "array"
+        },
+        "placement": {
+          "items": {
+            "$ref": "#/$defs/PlacementIntent"
+          },
+          "title": "Placement",
+          "type": "array"
+        },
+        "routing": {
+          "items": {
+            "$ref": "#/$defs/RoutingIntent"
+          },
+          "title": "Routing",
+          "type": "array"
+        },
+        "manufacturing": {
+          "$ref": "#/$defs/ManufacturingIntent"
+        }
+      },
+      "title": "ConstraintSet",
+      "type": "object"
+    },
+    "CopperPourArea": {
+      "description": "A copper pour (flood fill) region on a PCB layer.\n\nStores the polygon outline of the pour area, plus any cutout\n(keepout) regions, thermal-relief pads, and stitching-via positions.",
+      "properties": {
+        "layer": {
+          "default": "F.Cu",
+          "description": "Copper layer for the pour",
+          "title": "Layer",
+          "type": "string"
+        },
+        "net_id": {
+          "default": "GND",
+          "description": "Net ID connected to this pour",
+          "title": "Net Id",
+          "type": "string"
+        },
+        "polygon": {
+          "description": "Pour outline polygon vertices (x, y) in mm",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Polygon",
+          "type": "array"
+        },
+        "cutouts": {
+          "description": "Keepout regions as polygon lists",
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "title": "Cutouts",
+          "type": "array"
+        },
+        "thermal_reliefs": {
+          "description": "Thermal relief spoke definitions",
+          "items": {
+            "$ref": "#/$defs/ThermalRelief"
+          },
+          "title": "Thermal Reliefs",
+          "type": "array"
+        },
+        "stitching_vias": {
+          "description": "Stitching via positions (x, y) in mm",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Stitching Vias",
+          "type": "array"
+        }
+      },
+      "title": "CopperPourArea",
+      "type": "object"
+    },
+    "DRCResult": {
+      "description": "Complete DRC result for a design.",
+      "properties": {
+        "design_name": {
+          "default": "",
+          "description": "Design name this result belongs to [computed-only]",
+          "title": "Design Name",
+          "type": "string"
+        },
+        "total_violations": {
+          "default": 0,
+          "description": "Total number of DRC violations [computed-only]",
+          "title": "Total Violations",
+          "type": "integer"
+        },
+        "errors": {
+          "default": 0,
+          "description": "Count of error-severity violations [computed-only]",
+          "title": "Errors",
+          "type": "integer"
+        },
+        "warnings": {
+          "default": 0,
+          "description": "Count of warning-severity violations [computed-only]",
+          "title": "Warnings",
+          "type": "integer"
+        },
+        "info": {
+          "default": 0,
+          "description": "Count of info-severity violations [computed-only]",
+          "title": "Info",
+          "type": "integer"
+        },
+        "violations": {
+          "description": "List of DRC violation details [computed-only]",
+          "items": {
+            "$ref": "#/$defs/DRCViolation"
+          },
+          "title": "Violations",
+          "type": "array"
+        },
+        "passed": {
+          "default": true,
+          "description": "Whether the design passed DRC [computed-only]",
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "title": "DRCResult",
+      "type": "object"
+    },
+    "DRCSeverity": {
+      "enum": [
+        "error",
+        "warning",
+        "info"
+      ],
+      "title": "DRCSeverity",
+      "type": "string"
+    },
+    "DRCViolation": {
+      "description": "A single DRC violation.",
+      "properties": {
+        "rule_id": {
+          "description": "DRC rule identifier that was violated",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DRCSeverity",
+          "description": "Violation severity: error, warning, info"
+        },
+        "message": {
+          "description": "Human-readable violation description",
+          "title": "Message",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Location string (e.g. 'R1:2', '(10.5, 20.3)')",
+          "title": "Location"
+        },
+        "net_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Net involved in the violation",
+          "title": "Net Id"
+        },
+        "component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Component involved in the violation",
+          "title": "Component Id"
+        }
+      },
+      "required": [
+        "rule_id",
+        "severity",
+        "message"
+      ],
+      "title": "DRCViolation",
+      "type": "object"
+    },
+    "DesignMeta": {
+      "description": "Metadata for a PCB design.",
+      "properties": {
+        "name": {
+          "description": "Design name, used as the primary identifier",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "default": "0.1.0",
+          "description": "Design schema version",
+          "title": "Version",
+          "type": "string"
+        },
+        "author": {
+          "default": "",
+          "description": "Design author or origin",
+          "title": "Author",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "description": "Human-readable design description",
+          "title": "Description",
+          "type": "string"
+        },
+        "revision": {
+          "default": 1,
+          "description": "Design revision number",
+          "title": "Revision",
+          "type": "integer"
+        },
+        "tags": {
+          "description": "Free-form tags for categorization",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "DesignMeta",
+      "type": "object"
+    },
+    "DrawCommand": {
+      "description": "A single drawing primitive for symbols and footprints.",
+      "properties": {
+        "type": {
+          "description": "Primitive type: line, rect, circle, arc, text, polygon",
+          "title": "Type",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "description": "Geometry parameters (x, y, width, height, etc.)",
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "DrawCommand",
+      "type": "object"
+    },
+    "EnclosureDef": {
+      "description": "Mechanical enclosure definition for the product.",
+      "properties": {
+        "id": {
+          "description": "Unique enclosure identifier",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "Enclosure name (e.g. 'ABS hand-held', 'DIN rail')",
+          "title": "Name",
+          "type": "string"
+        },
+        "material": {
+          "default": "ABS",
+          "description": "Enclosure material (e.g. 'ABS', 'Aluminum', 'Steel')",
+          "title": "Material",
+          "type": "string"
+        },
+        "color": {
+          "default": "black",
+          "description": "Enclosure color",
+          "title": "Color",
+          "type": "string"
+        },
+        "ip_rating": {
+          "default": "IP20",
+          "description": "Ingress protection rating (e.g. 'IP54', 'IP67')",
+          "title": "Ip Rating",
+          "type": "string"
+        },
+        "flammability": {
+          "default": "",
+          "description": "Flammability rating (e.g. 'UL94 V-0')",
+          "title": "Flammability",
+          "type": "string"
+        },
+        "external_dimensions_mm": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Enclosure outer dimensions (width, depth, height) in mm",
+          "title": "External Dimensions Mm"
+        },
+        "internal_dimensions_mm": {
+          "anyOf": [
+            {
+              "maxItems": 3,
+              "minItems": 3,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Enclosure internal cavity dimensions (width, depth, height) in mm",
+          "title": "Internal Dimensions Mm"
+        },
+        "mounting": {
+          "default": "",
+          "description": "Mounting method (e.g. 'screw', 'snap-fit', 'DIN-rail')",
+          "title": "Mounting",
+          "type": "string"
+        },
+        "ventilation": {
+          "default": "",
+          "description": "Ventilation description (e.g. 'vents on top', 'none')",
+          "title": "Ventilation",
+          "type": "string"
+        },
+        "connector_cutouts": {
+          "description": "List of connector cutout descriptions",
+          "items": {
+            "type": "string"
+          },
+          "title": "Connector Cutouts",
+          "type": "array"
+        },
+        "antenna_window": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of any antenna window or RF-transparent region",
+          "title": "Antenna Window"
+        },
+        "step_file_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to the STEP/3D model file",
+          "title": "Step File Url"
+        },
+        "notes": {
+          "default": "",
+          "description": "Free-form design notes for the enclosure",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "EnclosureDef",
+      "type": "object"
+    },
+    "FootprintDef": {
+      "description": "PCB land pattern (footprint) definition.",
+      "properties": {
+        "pads": {
+          "description": "List of pads in the footprint",
+          "items": {
+            "$ref": "#/$defs/Pad"
+          },
+          "title": "Pads",
+          "type": "array"
+        },
+        "outline": {
+          "description": "Silkscreen outline drawing commands",
+          "items": {
+            "$ref": "#/$defs/DrawCommand"
+          },
+          "title": "Outline",
+          "type": "array"
+        },
+        "courtyard": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "description": "Courtyard clearance (x, y) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Courtyard",
+          "type": "array"
+        },
+        "height": {
+          "default": 0.0,
+          "description": "Component height above board in mm",
+          "title": "Height",
+          "type": "number"
+        },
+        "thermal_pads": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of pad IDs that are thermal pads",
+          "title": "Thermal Pads"
+        },
+        "description": {
+          "default": "",
+          "description": "Footprint description",
+          "title": "Description",
+          "type": "string"
+        },
+        "source": {
+          "default": "",
+          "description": "Footprint source (e.g. 'IPC-7351B', 'manufacturer')",
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "title": "FootprintDef",
+      "type": "object"
+    },
+    "HierarchySheet": {
+      "description": "A single schematic sheet within a hierarchical or multi-board design.",
+      "properties": {
+        "sheet_id": {
+          "description": "Unique sheet identifier",
+          "title": "Sheet Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Human-readable sheet name (e.g. 'Power Supply', 'MCU Top')",
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Parent sheet ID (None for the top-level sheet in a hierarchy)",
+          "title": "Parent Id"
+        },
+        "component_ids": {
+          "description": "Component IDs whose schematic symbols live on this sheet",
+          "items": {
+            "type": "string"
+          },
+          "title": "Component Ids",
+          "type": "array"
+        },
+        "annotation": {
+          "default": "",
+          "description": "Free-form annotation for this sheet (e.g. 'handles USB power delivery')",
+          "title": "Annotation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sheet_id",
+        "name"
+      ],
+      "title": "HierarchySheet",
+      "type": "object"
+    },
+    "ImportLossRecord": {
+      "description": "Record of data that was silently degraded or dropped during an import.\n\nImporters must never silently discard source data; every unsupported construct\nmust be recorded so downstream tools can report exactly what was degraded.",
+      "properties": {
+        "source_format": {
+          "description": "Source EDA format (e.g. 'KiCad 8', 'Altium 24', 'Eagle 9')",
+          "title": "Source Format",
+          "type": "string"
+        },
+        "field_path": {
+          "description": "Dotted path to the field or record that was affected (e.g. 'nets[2].constraints.creepage')",
+          "title": "Field Path",
+          "type": "string"
+        },
+        "behavior": {
+          "description": "Import behavior for this record: 'preserve', 'warn', 'degrade', or 'reject'",
+          "title": "Behavior",
+          "type": "string"
+        },
+        "original_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "String representation of the original source value before degradation",
+          "title": "Original Value"
+        },
+        "degraded_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "String representation of the degraded value that was kept, if any",
+          "title": "Degraded Value"
+        },
+        "note": {
+          "default": "",
+          "description": "Human-readable explanation of why the data was degraded",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_format",
+        "field_path",
+        "behavior"
+      ],
+      "title": "ImportLossRecord",
+      "type": "object"
+    },
+    "LayerSet": {
+      "enum": [
+        "top",
+        "bottom",
+        "all",
+        "inner"
+      ],
+      "title": "LayerSet",
+      "type": "string"
+    },
+    "LayerSpec": {
+      "description": "Definition of a single PCB layer.",
+      "properties": {
+        "name": {
+          "description": "Layer name (e.g. 'F.Cu', 'GND', 'Inner1')",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "default": "signal",
+          "description": "Layer type: signal, power, ground",
+          "title": "Type",
+          "type": "string"
+        },
+        "thickness": {
+          "default": 0.035,
+          "description": "Copper thickness in mm (1oz = 0.035mm)",
+          "title": "Thickness",
+          "type": "number"
+        },
+        "material": {
+          "default": "copper",
+          "description": "Layer conductive material",
+          "title": "Material",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "LayerSpec",
+      "type": "object"
+    },
+    "Lifecycle": {
+      "enum": [
+        "active",
+        "nrnd",
+        "obsolete"
+      ],
+      "title": "Lifecycle",
+      "type": "string"
+    },
+    "ManufacturingIntent": {
+      "description": "Manufacturing profile and profile-derived constraint intent.",
+      "properties": {
+        "profile": {
+          "default": "",
+          "description": "Fabrication profile id, e.g. jlcpcb-2layer",
+          "title": "Profile",
+          "type": "string"
+        },
+        "min_trace_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum trace width or 'profile'",
+          "title": "Min Trace Mm"
+        },
+        "min_space_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum spacing or 'profile'",
+          "title": "Min Space Mm"
+        },
+        "reason": {
+          "default": "",
+          "description": "Human-readable rationale",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "title": "ManufacturingIntent",
+      "type": "object"
+    },
+    "ManufacturingRecord": {
+      "description": "Manufacturing-process data for PCB fabrication and assembly.\n\nCovers fab profile parameters, drill data, annular ring, solder mask,\npaste, assembly notes, and panelization. Each record is tied to a\nspecific fab profile.",
+      "properties": {
+        "profile_id": {
+          "description": "Fabrication profile identifier (e.g. 'jlcpcb-2layer', 'pcbway-std')",
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "profile_version": {
+          "default": "1.0",
+          "description": "Profile version string",
+          "title": "Profile Version",
+          "type": "string"
+        },
+        "min_trace_mm": {
+          "default": 0.15,
+          "description": "Minimum trace width (mm)",
+          "title": "Min Trace Mm",
+          "type": "number"
+        },
+        "min_clearance_mm": {
+          "default": 0.15,
+          "description": "Minimum copper-to-copper clearance (mm)",
+          "title": "Min Clearance Mm",
+          "type": "number"
+        },
+        "min_hole_mm": {
+          "default": 0.15,
+          "description": "Minimum drill hole diameter (mm)",
+          "title": "Min Hole Mm",
+          "type": "number"
+        },
+        "min_annular_ring_mm": {
+          "default": 0.13,
+          "description": "Minimum annular ring width (mm)",
+          "title": "Min Annular Ring Mm",
+          "type": "number"
+        },
+        "min_solder_mask_sliver_mm": {
+          "default": 0.1,
+          "description": "Minimum solder mask sliver width (mm)",
+          "title": "Min Solder Mask Sliver Mm",
+          "type": "number"
+        },
+        "max_layers": {
+          "default": 2,
+          "description": "Maximum supported copper layers",
+          "title": "Max Layers",
+          "type": "integer"
+        },
+        "max_board_dim_mm": {
+          "default": 500.0,
+          "description": "Maximum board dimension (mm)",
+          "title": "Max Board Dim Mm",
+          "type": "number"
+        },
+        "supported_finish": {
+          "default": "HASL",
+          "description": "Surface finish (e.g. 'HASL', 'ENIG', 'OSP')",
+          "title": "Supported Finish",
+          "type": "string"
+        },
+        "supported_solder_mask_colors": {
+          "description": "Available solder mask colors",
+          "items": {
+            "type": "string"
+          },
+          "title": "Supported Solder Mask Colors",
+          "type": "array"
+        },
+        "via_in_pad_allowed": {
+          "default": false,
+          "description": "Whether via-in-pad is supported",
+          "title": "Via In Pad Allowed",
+          "type": "boolean"
+        },
+        "blind_buried_vias_allowed": {
+          "default": false,
+          "description": "Whether blind/buried vias supported",
+          "title": "Blind Buried Vias Allowed",
+          "type": "boolean"
+        },
+        "copper_weight_oz": {
+          "default": 1.0,
+          "description": "Default copper weight in oz",
+          "title": "Copper Weight Oz",
+          "type": "number"
+        },
+        "impedance_control": {
+          "default": false,
+          "description": "Whether controlled impedance is supported",
+          "title": "Impedance Control",
+          "type": "boolean"
+        },
+        "assembly_side": {
+          "default": "top",
+          "description": "Assembly side(s): 'top', 'both'",
+          "title": "Assembly Side",
+          "type": "string"
+        },
+        "panelization": {
+          "default": "none",
+          "description": "Panelization method: 'none', 'v-score', 'tab-route'",
+          "title": "Panelization",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "description": "Free-form notes about this profile",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id"
+      ],
+      "title": "ManufacturingRecord",
+      "type": "object"
+    },
+    "MountingHole": {
+      "description": "A mounting hole in the PCB.",
+      "properties": {
+        "position": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "description": "Hole center position (x, y) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "diameter": {
+          "default": 3.0,
+          "description": "Hole diameter in mm",
+          "title": "Diameter",
+          "type": "number"
+        },
+        "plated": {
+          "default": false,
+          "description": "Whether the hole is plated",
+          "title": "Plated",
+          "type": "boolean"
+        }
+      },
+      "title": "MountingHole",
+      "type": "object"
+    },
+    "MultiBoardProject": {
+      "description": "A system-level project containing multiple PCBs, harnesses, and an enclosure.",
+      "properties": {
+        "name": {
+          "description": "Project name",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "description": "Project description",
+          "title": "Description",
+          "type": "string"
+        },
+        "boards": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Board ID → path or design name mapping for each PCB in the system",
+          "title": "Boards",
+          "type": "object"
+        },
+        "board_to_board_connectors": {
+          "description": "Connectors bridging boards in the system",
+          "items": {
+            "$ref": "#/$defs/BoardToBoardConnector"
+          },
+          "title": "Board To Board Connectors",
+          "type": "array"
+        },
+        "cable_harnesses": {
+          "description": "Cable/wire harnesses used in the system",
+          "items": {
+            "$ref": "#/$defs/CableHarness"
+          },
+          "title": "Cable Harnesses",
+          "type": "array"
+        },
+        "enclosure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnclosureDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mechanical enclosure for the system"
+        },
+        "system_power_budget_w": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Total system power budget (W)",
+          "title": "System Power Budget W"
+        },
+        "system_ground_strategy": {
+          "default": "",
+          "description": "System-level grounding strategy (e.g. 'star ground', 'common plane')",
+          "title": "System Ground Strategy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "MultiBoardProject",
+      "type": "object"
+    },
+    "Net": {
+      "description": "A logical net connecting two or more component pins.",
+      "properties": {
+        "id": {
+          "description": "Unique net identifier",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Human-readable net name (e.g. 'VCC_3V3', 'USB_D+')",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/NetType",
+          "default": "signal",
+          "description": "Electrical classification of the net"
+        },
+        "nodes": {
+          "description": "List of connected pin nodes",
+          "items": {
+            "$ref": "#/$defs/NetNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "constraints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NetConstraints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional electrical/physical constraints"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Net",
+      "type": "object"
+    },
+    "NetClass": {
+      "enum": [
+        "signal_low",
+        "signal_high",
+        "signal_analog",
+        "power_low",
+        "power_med",
+        "power_high",
+        "ground",
+        "differential",
+        "rf"
+      ],
+      "title": "NetClass",
+      "type": "string"
+    },
+    "NetConstraints": {
+      "description": "Electrical and physical constraints for a net.",
+      "properties": {
+        "impedance_target": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target impedance in ohms (for controlled-impedance nets)",
+          "title": "Impedance Target"
+        },
+        "length_match_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the length-matching group this net belongs to",
+          "title": "Length Match Group"
+        },
+        "max_length_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum allowed trace length in mm",
+          "title": "Max Length Mm"
+        },
+        "diff_pair_partner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Net ID of the complementary signal in a differential pair",
+          "title": "Diff Pair Partner"
+        },
+        "diff_pair_gap_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target gap between differential-pair traces in mm",
+          "title": "Diff Pair Gap Mm"
+        },
+        "is_high_current": {
+          "default": false,
+          "description": "True when this net carries currents requiring wide traces (>500 mA typical)",
+          "title": "Is High Current",
+          "type": "boolean"
+        },
+        "min_trace_width_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum trace width in mm for current-carrying capacity",
+          "title": "Min Trace Width Mm"
+        },
+        "return_path_net": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Net ID of the designated return-path net (e.g. GND under a high-speed trace)",
+          "title": "Return Path Net"
+        },
+        "creepage_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Creepage isolation group (IPC-2221); nets in different groups require clearance",
+          "title": "Creepage Group"
+        }
+      },
+      "title": "NetConstraints",
+      "type": "object"
+    },
+    "NetNode": {
+      "description": "Connection point referencing a component pin.",
+      "properties": {
+        "component_ref": {
+          "description": "Component ID or reference designator",
+          "title": "Component Ref",
+          "type": "string"
+        },
+        "pin_name": {
+          "description": "Pin name on the referenced component",
+          "title": "Pin Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_ref",
+        "pin_name"
+      ],
+      "title": "NetNode",
+      "type": "object"
+    },
+    "NetType": {
+      "enum": [
+        "power",
+        "signal",
+        "differential",
+        "clock",
+        "data",
+        "analog",
+        "ground"
+      ],
+      "title": "NetType",
+      "type": "string"
+    },
+    "Pad": {
+      "description": "A single pad in a PCB footprint.",
+      "properties": {
+        "id": {
+          "description": "Pad identifier (e.g. '1', '2', 'GND')",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/$defs/LayerSet",
+          "default": "top",
+          "description": "Layer assignment: top, bottom, all, inner"
+        },
+        "shape": {
+          "$ref": "#/$defs/PadShape",
+          "default": "rect",
+          "description": "Pad geometry shape"
+        },
+        "position": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "description": "Pad position (x, y) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "size": {
+          "default": [
+            1.0,
+            1.0
+          ],
+          "description": "Pad size (width, height) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size",
+          "type": "array"
+        },
+        "drill": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Drill hole diameter in mm (None for SMD)",
+          "title": "Drill"
+        },
+        "plated": {
+          "default": true,
+          "description": "Whether the hole is plated (PTH)",
+          "title": "Plated",
+          "type": "boolean"
+        },
+        "solder_paste": {
+          "default": true,
+          "description": "Whether solder paste is applied",
+          "title": "Solder Paste",
+          "type": "boolean"
+        },
+        "rotation": {
+          "default": 0.0,
+          "description": "Pad rotation in degrees",
+          "title": "Rotation",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Pad",
+      "type": "object"
+    },
+    "PadShape": {
+      "enum": [
+        "rect",
+        "circle",
+        "oval",
+        "custom"
+      ],
+      "title": "PadShape",
+      "type": "string"
+    },
+    "Pin": {
+      "description": "A single pin on a component.",
+      "properties": {
+        "name": {
+          "description": "Pin name (e.g. 'VCC', 'GND', 'PA0')",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/PinType",
+          "description": "Electrical type of the pin"
+        },
+        "net": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Net ID this pin is connected to",
+          "title": "Net"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pin position on symbol (x, y) in mils or mm",
+          "title": "Position"
+        },
+        "voltage_level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nominal voltage level (e.g. '3.3V', '5V')",
+          "title": "Voltage Level"
+        },
+        "description": {
+          "default": "",
+          "description": "Human-readable pin function description",
+          "title": "Description",
+          "type": "string"
+        },
+        "pin_function": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Canonical pin function from datasheet (e.g. 'VCC', 'GND', 'I2C_SDA', 'BOOT0', 'USB_DP'); used for pin-function inference in ERC and synthesis",
+          "title": "Pin Function"
+        },
+        "current_domain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current domain label (e.g. 'POWER_IN', 'POWER_OUT', 'SIGNAL'); drives current-budget checks",
+          "title": "Current Domain"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "Pin",
+      "type": "object"
+    },
+    "PinType": {
+      "enum": [
+        "power",
+        "input",
+        "output",
+        "bidirectional",
+        "passive",
+        "no_connect"
+      ],
+      "title": "PinType",
+      "type": "string"
+    },
+    "PlacementIntent": {
+      "description": "Placement intent for components or component globs.",
+      "properties": {
+        "component": {
+          "description": "Component ref/id or glob, e.g. J1 or C*",
+          "title": "Component",
+          "type": "string"
+        },
+        "edge": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required board edge: left, right, top, bottom",
+          "title": "Edge"
+        },
+        "near": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target component pin or ref to place near",
+          "title": "Near"
+        },
+        "max_distance_mm": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum distance for near constraint",
+          "title": "Max Distance Mm"
+        },
+        "reason": {
+          "default": "",
+          "description": "Human-readable rationale",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component"
+      ],
+      "title": "PlacementIntent",
+      "type": "object"
+    },
+    "ProvRecord": {
+      "description": "Evidence / provenance record for a single agent or tool decision.\n\nEvery output artifact — a netlist, a DRC result, a synthesis plan — should\ncarry at least one ProvRecord so a downstream agent or human reviewer can\nanswer \"what produced this, from what input, using which version?\"",
+      "properties": {
+        "record_id": {
+          "description": "Unique provenance record identifier",
+          "title": "Record Id",
+          "type": "string"
+        },
+        "tool": {
+          "description": "Name of the tool or agent that produced the output",
+          "title": "Tool",
+          "type": "string"
+        },
+        "tool_version": {
+          "default": "",
+          "description": "Semver or commit hash of the tool",
+          "title": "Tool Version",
+          "type": "string"
+        },
+        "input_artifact_ids": {
+          "description": "IDs of input artifacts consumed by this step",
+          "items": {
+            "type": "string"
+          },
+          "title": "Input Artifact Ids",
+          "type": "array"
+        },
+        "output_artifact_ids": {
+          "description": "IDs of output artifacts produced by this step",
+          "items": {
+            "type": "string"
+          },
+          "title": "Output Artifact Ids",
+          "type": "array"
+        },
+        "artifact_hashes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "artifact_id → SHA-256 hex digest of the artifact content",
+          "title": "Artifact Hashes",
+          "type": "object"
+        },
+        "decision_summary": {
+          "default": "",
+          "description": "Human-readable one-line summary of what the tool decided or produced",
+          "title": "Decision Summary",
+          "type": "string"
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO-8601 timestamp when this step was executed",
+          "title": "Timestamp"
+        },
+        "human_approval": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifier of the human approver (e.g. e-mail) if this step was signed off",
+          "title": "Human Approval"
+        }
+      },
+      "required": [
+        "record_id",
+        "tool"
+      ],
+      "title": "ProvRecord",
+      "type": "object"
+    },
+    "RouteResult": {
+      "description": "Result of the PCB routing step.",
+      "properties": {
+        "traces": {
+          "description": "Routed trace segments [computed-only]",
+          "items": {
+            "$ref": "#/$defs/TraceSegment"
+          },
+          "title": "Traces",
+          "type": "array"
+        },
+        "vias": {
+          "description": "List of via coordinates and sizes [computed-only]",
+          "items": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "maxItems": 5,
+                "minItems": 5,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "type": "array"
+              }
+            ]
+          },
+          "title": "Vias",
+          "type": "array"
+        },
+        "layers_used": {
+          "description": "Layers used during routing [computed-only]",
+          "items": {
+            "type": "string"
+          },
+          "title": "Layers Used",
+          "type": "array"
+        },
+        "total_trace_length_mm": {
+          "default": 0.0,
+          "description": "Total routed trace length in mm [computed-only]",
+          "title": "Total Trace Length Mm",
+          "type": "number"
+        },
+        "net_count": {
+          "default": 0,
+          "description": "Total number of nets in design [computed-only]",
+          "title": "Net Count",
+          "type": "integer"
+        },
+        "routed_net_count": {
+          "default": 0,
+          "description": "Number of successfully routed nets [computed-only]",
+          "title": "Routed Net Count",
+          "type": "integer"
+        }
+      },
+      "title": "RouteResult",
+      "type": "object"
+    },
+    "RoutingIntent": {
+      "description": "Routing intent for a net or net glob.",
+      "properties": {
+        "net": {
+          "description": "Net id/name/glob, e.g. USB_D* or GND",
+          "title": "Net",
+          "type": "string"
+        },
+        "differential_pair": {
+          "default": false,
+          "description": "Whether this net belongs to a differential pair",
+          "title": "Differential Pair",
+          "type": "boolean"
+        },
+        "impedance_ohm": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target impedance in ohms",
+          "title": "Impedance Ohm"
+        },
+        "length_match_mm": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed length mismatch in mm",
+          "title": "Length Match Mm"
+        },
+        "copper_pour": {
+          "default": false,
+          "description": "Whether this net requests a copper pour",
+          "title": "Copper Pour",
+          "type": "boolean"
+        },
+        "stitching_vias": {
+          "default": false,
+          "description": "Whether stitching vias are requested",
+          "title": "Stitching Vias",
+          "type": "boolean"
+        },
+        "reason": {
+          "default": "",
+          "description": "Human-readable rationale",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "net"
+      ],
+      "title": "RoutingIntent",
+      "type": "object"
+    },
+    "SupplyRecord": {
+      "description": "Supply-chain data for a single part, used by the supply graph.",
+      "properties": {
+        "mpn": {
+          "description": "Manufacturer part number",
+          "title": "Mpn",
+          "type": "string"
+        },
+        "manufacturer": {
+          "default": "",
+          "description": "Component manufacturer name",
+          "title": "Manufacturer",
+          "type": "string"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/Lifecycle",
+          "default": "active",
+          "description": "Component lifecycle status"
+        },
+        "lcsc_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LCSC (JLCPCB) part ID",
+          "title": "Lcsc Id"
+        },
+        "basic_part": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether the part is a JLCPCB basic part",
+          "title": "Basic Part"
+        },
+        "stock": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current stock quantity at primary distributor",
+          "title": "Stock"
+        },
+        "price_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit price in USD at last refresh",
+          "title": "Price Usd"
+        },
+        "moq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum order quantity",
+          "title": "Moq"
+        },
+        "lead_time_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Typical lead time in days",
+          "title": "Lead Time Days"
+        },
+        "alternates": {
+          "description": "Alternate/substitute MPNs that are functionally equivalent",
+          "items": {
+            "type": "string"
+          },
+          "title": "Alternates",
+          "type": "array"
+        },
+        "distributor_links": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Distributor name → part URL or SKU (e.g. {'Digi-Key': 'RMCF0402FT10K0CT-ND'})",
+          "title": "Distributor Links",
+          "type": "object"
+        },
+        "datasheet_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to part datasheet",
+          "title": "Datasheet Url"
+        },
+        "rohs": {
+          "default": true,
+          "description": "RoHS compliance flag",
+          "title": "Rohs",
+          "type": "boolean"
+        },
+        "msl": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Moisture sensitivity level (J-STD-020)",
+          "title": "Msl"
+        },
+        "fetched_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ISO-8601 timestamp of the last supply-chain data refresh",
+          "title": "Fetched At"
+        }
+      },
+      "required": [
+        "mpn"
+      ],
+      "title": "SupplyRecord",
+      "type": "object"
+    },
+    "SymbolDef": {
+      "description": "Vector symbol definition for schematic rendering.",
+      "properties": {
+        "pins": {
+          "description": "List of symbol pins",
+          "items": {
+            "$ref": "#/$defs/SymbolPin"
+          },
+          "title": "Pins",
+          "type": "array"
+        },
+        "body": {
+          "description": "List of drawing primitives for the symbol body",
+          "items": {
+            "$ref": "#/$defs/DrawCommand"
+          },
+          "title": "Body",
+          "type": "array"
+        },
+        "origin": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "description": "Symbol origin (anchor point)",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Origin",
+          "type": "array"
+        },
+        "height": {
+          "default": 20.0,
+          "description": "Symbol height in drawing units",
+          "title": "Height",
+          "type": "number"
+        },
+        "width": {
+          "default": 20.0,
+          "description": "Symbol width in drawing units",
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "title": "SymbolDef",
+      "type": "object"
+    },
+    "SymbolPin": {
+      "description": "Pin definition for schematic symbol rendering.",
+      "properties": {
+        "id": {
+          "description": "Pin identifier (matches component pin name)",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "Pin label displayed on symbol",
+          "title": "Name",
+          "type": "string"
+        },
+        "position": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "description": "Pin position on symbol body (x, y)",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position",
+          "type": "array"
+        },
+        "length": {
+          "default": 5.0,
+          "description": "Pin line length in drawing units",
+          "title": "Length",
+          "type": "number"
+        },
+        "orientation": {
+          "default": "left",
+          "description": "Pin direction: left, right, top, bottom",
+          "title": "Orientation",
+          "type": "string"
+        },
+        "electrical_type": {
+          "default": "passive",
+          "description": "Electrical type: input, output, bidirectional, power, passive",
+          "title": "Electrical Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "SymbolPin",
+      "type": "object"
+    },
+    "ThermalRelief": {
+      "description": "Thermal relief spokes connecting a pad to a copper pour.",
+      "properties": {
+        "pad_position": {
+          "description": "Pad center position (x, y) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Pad Position",
+          "type": "array"
+        },
+        "pad_diameter": {
+          "default": 0.45,
+          "description": "Pad diameter in mm",
+          "title": "Pad Diameter",
+          "type": "number"
+        },
+        "spoke_count": {
+          "default": 4,
+          "description": "Number of thermal spokes",
+          "title": "Spoke Count",
+          "type": "integer"
+        },
+        "spoke_width": {
+          "default": 0.3,
+          "description": "Spoke width in mm",
+          "title": "Spoke Width",
+          "type": "number"
+        },
+        "gap": {
+          "default": 0.2,
+          "description": "Clearance gap between pad and pour in mm",
+          "title": "Gap",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pad_position"
+      ],
+      "title": "ThermalRelief",
+      "type": "object"
+    },
+    "TraceSegment": {
+      "description": "A single trace segment on a PCB layer.",
+      "properties": {
+        "layer": {
+          "description": "Layer name this segment is routed on",
+          "title": "Layer",
+          "type": "string"
+        },
+        "start": {
+          "description": "Segment start coordinate (x, y) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "description": "Segment end coordinate (x, y) in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        },
+        "width": {
+          "default": 0.2,
+          "description": "Trace width in mm",
+          "title": "Width",
+          "type": "number"
+        },
+        "net_id": {
+          "default": "",
+          "description": "Net ID this segment belongs to",
+          "title": "Net Id",
+          "type": "string"
+        },
+        "via": {
+          "default": false,
+          "description": "Whether this segment ends with a via",
+          "title": "Via",
+          "type": "boolean"
+        },
+        "via_diameter": {
+          "default": 0.45,
+          "description": "Via pad diameter in mm",
+          "title": "Via Diameter",
+          "type": "number"
+        },
+        "via_hole": {
+          "default": 0.2,
+          "description": "Via hole diameter in mm",
+          "title": "Via Hole",
+          "type": "number"
+        }
+      },
+      "required": [
+        "layer",
+        "start",
+        "end"
+      ],
+      "title": "TraceSegment",
+      "type": "object"
+    },
+    "VoltageDomainConstraint": {
+      "description": "Electrical voltage-domain intent for checks and agents.",
+      "properties": {
+        "id": {
+          "description": "Voltage-domain identifier, e.g. VDD_3V3",
+          "title": "Id",
+          "type": "string"
+        },
+        "nominal": {
+          "description": "Nominal voltage with unit, e.g. 3.3V",
+          "title": "Nominal",
+          "type": "string"
+        },
+        "tolerance": {
+          "default": "",
+          "description": "Allowed tolerance, e.g. 5%",
+          "title": "Tolerance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "nominal"
+      ],
+      "title": "VoltageDomainConstraint",
+      "type": "object"
+    }
+  },
+  "description": "Schema for ZapTrace PCB design files (v1)",
+  "properties": {
+    "meta": {
+      "$ref": "#/$defs/DesignMeta",
+      "description": "Design metadata (name, version, author)"
+    },
+    "components": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Component"
+      },
+      "description": "Component dictionary, keyed by component ID",
+      "title": "Components",
+      "type": "object"
+    },
+    "nets": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Net"
+      },
+      "description": "Net dictionary, keyed by net ID",
+      "title": "Nets",
+      "type": "object"
+    },
+    "blocks": {
+      "description": "Functional block groupings of components",
+      "items": {
+        "$ref": "#/$defs/Block"
+      },
+      "title": "Blocks",
+      "type": "array"
+    },
+    "board": {
+      "$ref": "#/$defs/BoardConfig",
+      "description": "Legacy board configuration (width, height, layers)"
+    },
+    "board_def": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BoardDefinition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Full board definition with stackup, outline, constraints [computed-only if absent]"
+    },
+    "placement": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Component placement result: component_id → (x, y) [computed-only]",
+      "title": "Placement"
+    },
+    "routing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RouteResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Routing result with traces and vias [computed-only]"
+    },
+    "net_classes": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/NetClass"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Per-net electrical class assignments [computed-only]",
+      "title": "Net Classes"
+    },
+    "drc_result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DRCResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "DRC validation result [computed-only]"
+    },
+    "copper_pours": {
+      "additionalProperties": {
+        "$ref": "#/$defs/CopperPourArea"
+      },
+      "description": "Copper pour (flood fill) areas keyed by net ID",
+      "title": "Copper Pours",
+      "type": "object"
+    },
+    "constraints": {
+      "$ref": "#/$defs/ConstraintSet",
+      "description": "Constraint DSL v1 intents"
+    },
+    "prov_records": {
+      "description": "Evidence / provenance records for agent and tool decisions",
+      "items": {
+        "$ref": "#/$defs/ProvRecord"
+      },
+      "title": "Prov Records",
+      "type": "array"
+    },
+    "import_losses": {
+      "description": "Records of data silently degraded or dropped during import",
+      "items": {
+        "$ref": "#/$defs/ImportLossRecord"
+      },
+      "title": "Import Losses",
+      "type": "array"
+    },
+    "sheets": {
+      "description": "Schematic sheets in a hierarchical or multi-board design",
+      "items": {
+        "$ref": "#/$defs/HierarchySheet"
+      },
+      "title": "Sheets",
+      "type": "array"
+    },
+    "supply_chain": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SupplyRecord"
+      },
+      "description": "Supply-chain data keyed by component ID",
+      "title": "Supply Chain",
+      "type": "object"
+    },
+    "manufacturing_records": {
+      "description": "Manufacturing process records for fab/assembly profiles used",
+      "items": {
+        "$ref": "#/$defs/ManufacturingRecord"
+      },
+      "title": "Manufacturing Records",
+      "type": "array"
+    },
+    "cable_harnesses": {
+      "description": "Cable/wire harness definitions",
+      "items": {
+        "$ref": "#/$defs/CableHarness"
+      },
+      "title": "Cable Harnesses",
+      "type": "array"
+    },
+    "enclosure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EnclosureDef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Mechanical enclosure definition for the product"
+    },
+    "multi_board": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MultiBoardProject"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Multi-board project reference (links multiple PCBs into a system)"
+    }
+  },
+  "required": [
+    "meta"
+  ],
+  "title": "ZapTrace Design",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zaptrace.dev/schemas/design-v1.json"
+}

@@ -1,0 +1,6 @@
+(kicad_sch (version 20250114) (generator "zaptrace-benchmark-fixture")
+  (paper "A4")
+  (title_block
+    (title "nRF52 BLE Multisensor Benchmark Fixture")
+    (comment 1 "Hash fixture only; not BLE RF certification or fabrication-ready evidence"))
+)

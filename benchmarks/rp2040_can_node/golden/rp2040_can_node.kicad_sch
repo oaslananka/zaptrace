@@ -1,0 +1,6 @@
+(kicad_sch (version 20250114) (generator "zaptrace-benchmark-fixture")
+  (paper "A4")
+  (title_block
+    (title "RP2040 CAN Node Benchmark Fixture")
+    (comment 1 "Hash fixture only; not CAN compliance or fabrication-ready evidence"))
+)

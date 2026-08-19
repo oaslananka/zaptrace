@@ -1,0 +1,58 @@
+task_schema_version: "1.0"
+task_id: "kicad-rt-001"
+name: "KiCad project round-trip fidelity — reference task"
+track: "kicad_grading"
+description: >
+  Grade an arbitrary KiCad project directory for structural completeness and
+  net parity without depending on ZapTrace internals.  External EDA tools are
+  run in isolated subprocesses; any unavailable tool produces an explicit skip
+  record rather than a silent pass.
+
+graders:
+  - grader_id: file_inventory
+    tool: builtin
+    command: null
+    skip_policy: never
+    timeout_seconds: 10
+    output_schema: inventory_v1
+    description: >
+      Verify that required KiCad file types (.kicad_pro, .kicad_sch) are present
+      in the project directory.
+
+  - grader_id: net_parity
+    tool: builtin
+    command: null
+    skip_policy: never
+    timeout_seconds: 15
+    output_schema: parity_v1
+    description: >
+      Count net references in all schematic files and confirm at least one net
+      is declared (min_score >= 0.0 by default).
+
+  - grader_id: kicad_erc
+    tool: kicad-cli
+    command: ["kicad-cli", "sch", "erc", "--severity-error", "--exit-code-violations", "--output", "/dev/null", "{schematic}"]
+    skip_policy: tool_unavailable
+    timeout_seconds: 60
+    output_schema: erc_v1
+    version_min: "10.0"
+    supported_major_versions: [10]
+    description: >
+      Run kicad-cli ERC against the deterministically resolved top-level schematic;
+      skipped only when kicad-cli is unavailable. Parse/load failures are tool errors,
+      while error-severity ERC violations fail the grader.
+
+thresholds:
+  net_parity:
+    min_score: 0.0      # any net presence qualifies; adjust for stricter gates
+  file_inventory: {}    # pass/fail only
+  kicad_erc:
+    max_errors: 0       # zero ERC errors required when kicad-cli is available
+
+allowed_inputs:
+  - kicad_project       # directory containing .kicad_pro + .kicad_sch files
+  - kicad_sch           # bare schematic (no .kicad_pro required)
+
+limits:
+  max_runtime_seconds: 300
+  max_memory_mb: 512

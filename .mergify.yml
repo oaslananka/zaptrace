@@ -1,0 +1,76 @@
+# Mergify Configuration for zaptrace
+# https://docs.mergify.com
+
+merge_queue:
+  mode: serial
+  max_parallel_checks: 5
+  queued_label: queued
+  dequeued_label: dequeued
+  status_comments: all
+  reset_on_external_merge: always
+
+queue_rules:
+  - name: default
+    merge_method: squash
+    batch_size: 3
+    queue_conditions:
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+    merge_conditions:
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+
+pull_request_rules:
+  - name: automatic merge on CI success
+    conditions:
+      - base = main
+      - "#approved-reviews-by >= 1"
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+      - label = ready-to-merge
+    actions:
+      queue:
+        name: default
+
+  - name: add to queue when labeled
+    conditions:
+      - base = main
+      - label = queue-me
+    actions:
+      queue:
+        name: default
+
+  - name: request review on new PR
+    conditions:
+      - base = main
+      - -draft
+    actions:
+      request_reviews:
+        users:
+          - oaslananka
+
+  - name: label CI failure
+    conditions:
+      - or:
+          - check-failure = Release gate summary
+          - check-failure = Security gate
+          - check-failure = Repository hooks
+          - check-failure = Repository hygiene
+          - check-failure = Dependency review
+          - check-failure = Container security gate
+    actions:
+      label:
+        add:
+          - ci-failed

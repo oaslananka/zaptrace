@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "generated_for": "M3-cross-eda-readiness",
+  "fidelity_categories": [
+    "schematic",
+    "netlist",
+    "footprints",
+    "constraints",
+    "variants",
+    "stackup",
+    "manufacturing_outputs",
+    "metadata"
+  ],
+  "targets": [
+    {
+      "eda": "KiCad",
+      "workflow": "native import/export and oracle-backed scorecard",
+      "adapter_status": "native",
+      "round_trip_claim": "measured",
+      "test_corpus": "benchmarks/kicad-roundtrip/corpus.yaml",
+      "target_score": 0.90,
+      "categories": {
+        "schematic": "measured",
+        "netlist": "measured",
+        "footprints": "measured",
+        "constraints": "partial",
+        "variants": "planned",
+        "stackup": "partial",
+        "manufacturing_outputs": "measured",
+        "metadata": "partial"
+      }
+    },
+    {
+      "eda": "Altium",
+      "workflow": "planned adapter with KiCad-mediated handoff where possible",
+      "adapter_status": "planned",
+      "round_trip_claim": "planned_only",
+      "test_corpus": "planned: docs/interop/test-corpus-plan.md#altium",
+      "target_score": 0.80,
+      "categories": {
+        "schematic": "planned",
+        "netlist": "planned",
+        "footprints": "planned",
+        "constraints": "degraded",
+        "variants": "planned",
+        "stackup": "planned",
+        "manufacturing_outputs": "delegated",
+        "metadata": "degraded"
+      }
+    },
+    {
+      "eda": "Eagle",
+      "workflow": "planned XML import/export degradation reporting",
+      "adapter_status": "planned",
+      "round_trip_claim": "planned_only",
+      "test_corpus": "planned: docs/interop/test-corpus-plan.md#eagle",
+      "target_score": 0.78,
+      "categories": {
+        "schematic": "planned",
+        "netlist": "planned",
+        "footprints": "planned",
+        "constraints": "degraded",
+        "variants": "unsupported",
+        "stackup": "partial",
+        "manufacturing_outputs": "delegated",
+        "metadata": "degraded"
+      }
+    },
+    {
+      "eda": "EasyEDA",
+      "workflow": "planned JSON import with explicit known-loss report",
+      "adapter_status": "planned",
+      "round_trip_claim": "planned_only",
+      "test_corpus": "planned: docs/interop/test-corpus-plan.md#easyeda",
+      "target_score": 0.75,
+      "categories": {
+        "schematic": "planned",
+        "netlist": "planned",
+        "footprints": "planned",
+        "constraints": "unsupported",
+        "variants": "unsupported",
+        "stackup": "degraded",
+        "manufacturing_outputs": "delegated",
+        "metadata": "partial"
+      }
+    }
+  ],
+  "readiness_gates": [
+    "Every non-KiCad workflow must emit a degradation report before any compatibility claim.",
+    "Round-trip support must be backed by a committed corpus or marked planned_only.",
+    "Unsupported categories must not be silently dropped.",
+    "M3 release notes must distinguish native, delegated, degraded, unsupported, and planned workflows."
+  ]
+}

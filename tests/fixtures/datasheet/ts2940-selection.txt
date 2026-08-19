@@ -1,0 +1,20 @@
+TS2940 Positive Voltage Regulator
+Texas Instruments — Low-Dropout Linear Regulator
+
+The TS2940 is a 1A low-dropout regulator.
+
+Recommended Operating Conditions:
+  Supply (Input) Voltage: 5V to 15V
+  Output Current: 1 A maximum
+  Operating Temperature: -40°C to +125°C
+
+Electrical Characteristics:
+  Dropout Voltage: 500 mV at 1A
+  Quiescent Current: 55 uA typical
+
+Package: SOT-223
+
+Pin Table:
+  Pin 1  IN    Input voltage
+  Pin 2  GND   Ground
+  Pin 3  OUT   Regulated output

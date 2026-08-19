@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "family_id": "switching_regulator_module",
+  "benchmark_id": "switching_regulator_module_fixture_v1",
+  "title": "Switching regulator module benchmark fixture",
+  "representative_intent": "12V to 3.3V buck regulator module with current budget and thermal margin",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-BUCK-POWER-TREE",
+      "text": "Represent 12 V to 3.3 V buck regulator power-tree evidence with input/output rail constraints.",
+      "category": "power-tree",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-INDUCTOR-DIODE-FEEDBACK",
+      "text": "Provide switching loop, inductor/diode or synchronous stage and feedback review evidence.",
+      "category": "switching-regulator",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-REGULATOR-THERMAL-MARGIN",
+      "text": "Track regulator dropout/headroom, current budget, copper width and thermal margin evidence.",
+      "category": "thermal-current",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-BUCK-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, regulator margin, current-density, SI/PI and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": [
+      "human-review-required",
+      "autonomous-pass"
+    ]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not power-supply safety approval or fabrication approval.",
+    "The fixture does not claim switching stability, EMI compliance, thermal safety, manufacturability or production readiness."
+  ]
+}

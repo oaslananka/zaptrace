@@ -1,0 +1,86 @@
+meta:
+  name: "nRF52840 BLE Temperature Sensor"
+  version: "0.1.0"
+  description: "nRF52840-based BLE temperature and humidity sensor with SHT31"
+  tags: ["nrf52840", "ble", "sensor", "sht31", "temperature", "humidity"]
+
+board:
+  width_mm: 35
+  height_mm: 25
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "nRF52840-QIAA"
+    footprint: "nRF52840-QIAA"
+    pins:
+      VDD:    {type: "power", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+      P0_26:  {type: "bidirectional", net: "I2C_SDA"}
+      P0_27:  {type: "bidirectional", net: "I2C_SCL"}
+      RESET:  {type: "input", net: "VCC_3V3"}
+  U2:
+    id: "U2"
+    ref: "U2"
+    type: "SHT31-DIS"
+    footprint: "SHT31-DIS-DFN8"
+    pins:
+      VDD:  {type: "power", net: "VCC_3V3"}
+      GND:  {type: "power", net: "GND"}
+      SDA:  {type: "bidirectional", net: "I2C_SDA"}
+      SCL:  {type: "input", net: "I2C_SCL"}
+      ADDR: {type: "input", net: "GND"}
+  U3:
+    id: "U3"
+    ref: "U3"
+    type: "XC6206P332MR"
+    footprint: "SOT-23-3"
+    pins:
+      VIN:  {type: "power", net: "VBAT"}
+      VOUT: {type: "output", net: "VCC_3V3"}
+      GND:  {type: "power", net: "GND"}
+  R1:
+    id: "R1"
+    ref: "R1"
+    type: "RES"
+    value: "4.7k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "I2C_SDA"}
+  R2:
+    id: "R2"
+    ref: "R2"
+    type: "RES"
+    value: "4.7k"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "I2C_SCL"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "10uF"
+    footprint: "0805"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+
+nets:
+  VBAT:    {id: "VBAT",    name: "VBAT",    type: "power",  nodes: ["U3.VIN"]}
+  VCC_3V3: {id: "VCC_3V3", name: "VCC_3V3", type: "power",   nodes: ["U3.VOUT","U1.VDD","U1.RESET","U2.VDD","C1.P1","C2.P1","R1.P1","R2.P1"]}
+  GND:     {id: "GND",     name: "GND",     type: "ground",  nodes: ["U1.GND","U2.GND","U2.ADDR","U3.GND","C1.P2","C2.P2"]}
+  I2C_SDA: {id: "I2C_SDA",  name: "I2C_SDA", type: "data",    nodes: ["U1.P0_26","U2.SDA","R1.P2"]}
+  I2C_SCL: {id: "I2C_SCL",  name: "I2C_SCL", type: "clock",   nodes: ["U1.P0_27","U2.SCL","R2.P2"]}

@@ -1,0 +1,5 @@
+{
+  "board": {"design_settings": {"defaults": {"board_outline_line_width": 0.1}}},
+  "meta": {"filename": "esp32_usb_sensor.kicad_pro", "family_id": "esp32_usb_sensor"},
+  "version": 1
+}

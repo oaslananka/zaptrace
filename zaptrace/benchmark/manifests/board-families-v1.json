@@ -1,0 +1,849 @@
+{
+  "families": [
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 85
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "iot",
+      "family_id": "esp32_usb_sensor",
+      "notes": "",
+      "representative_intent": "ESP32-C3 USB-C 3.3V board with I2C temperature sensor",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/esp32_usb_sensor/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/esp32_usb_sensor/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/esp32_usb_sensor/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/esp32_usb_sensor/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "esp32",
+        "usb-c",
+        "sensor",
+        "iot"
+      ],
+      "title": "ESP32 USB sensor node"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "industrial",
+      "family_id": "stm32_rs485_industrial",
+      "notes": "",
+      "representative_intent": "STM32 3.3V RS485 Modbus node with 24V input protection",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/stm32_rs485_industrial/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/stm32_rs485_industrial/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/stm32_rs485_industrial/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/stm32_rs485_industrial/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "stm32",
+        "rs485",
+        "industrial",
+        "protection"
+      ],
+      "title": "STM32 isolated RS485 industrial node"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "wireless",
+      "family_id": "nrf52_ble_multisensor",
+      "notes": "",
+      "representative_intent": "nRF52840 BLE Li-ion multisensor with charger and LDO",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/nrf52_ble_multisensor/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/nrf52_ble_multisensor/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/nrf52_ble_multisensor/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/nrf52_ble_multisensor/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "nrf52",
+        "ble",
+        "battery",
+        "sensor"
+      ],
+      "title": "nRF52 BLE multisensor"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "embedded-control",
+      "family_id": "rp2040_can_node",
+      "notes": "",
+      "representative_intent": "RP2040 3.3V CAN bus controller node with USB debug",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/rp2040_can_node/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/rp2040_can_node/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/rp2040_can_node/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/rp2040_can_node/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "rp2040",
+        "can",
+        "usb",
+        "embedded"
+      ],
+      "title": "RP2040 CAN node"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 85
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "power",
+      "family_id": "usb_c_power_sink",
+      "notes": "",
+      "representative_intent": "USB-C 5V/3A sink with CC resistors, fuse, and regulator",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/usb_c_power_sink/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/usb_c_power_sink/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/usb_c_power_sink/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/usb_c_power_sink/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "usb-c",
+        "power",
+        "protection"
+      ],
+      "title": "USB-C power sink"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "battery",
+      "family_id": "lipo_charger_node",
+      "notes": "",
+      "representative_intent": "Single-cell LiPo charger, protection, fuel gauge, MCU and sensor",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/lipo_charger_node/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/lipo_charger_node/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/lipo_charger_node/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/lipo_charger_node/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "lipo",
+        "charger",
+        "fuel-gauge",
+        "sensor"
+      ],
+      "title": "LiPo charger sensor node"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "connectivity",
+      "family_id": "poe_ethernet_controller",
+      "notes": "",
+      "representative_intent": "PoE powered Ethernet MCU board with isolated power domain",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/poe_ethernet_controller/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/poe_ethernet_controller/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/poe_ethernet_controller/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/poe_ethernet_controller/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "poe",
+        "ethernet",
+        "isolation",
+        "power"
+      ],
+      "title": "PoE Ethernet controller"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "power-control",
+      "family_id": "motor_driver_hbridge",
+      "notes": "",
+      "representative_intent": "DC motor driver board with H-bridge, current sense and flyback protection",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/motor_driver_hbridge/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/motor_driver_hbridge/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/motor_driver_hbridge/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/motor_driver_hbridge/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "motor",
+        "h-bridge",
+        "current-sense",
+        "high-current"
+      ],
+      "title": "H-bridge motor driver"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "power",
+      "family_id": "switching_regulator_module",
+      "notes": "",
+      "representative_intent": "12V to 3.3V buck regulator module with current budget and thermal margin",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/switching_regulator_module/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/switching_regulator_module/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/switching_regulator_module/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/switching_regulator_module/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "buck",
+        "regulator",
+        "thermal",
+        "current-budget"
+      ],
+      "title": "Switching regulator module"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "lighting",
+      "family_id": "high_current_led_driver",
+      "notes": "",
+      "representative_intent": "Constant-current LED driver with thermal/current-density constraints",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/high_current_led_driver/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/high_current_led_driver/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/high_current_led_driver/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/high_current_led_driver/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "led",
+        "constant-current",
+        "thermal",
+        "high-current"
+      ],
+      "title": "High-current LED driver"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "data-logging",
+      "family_id": "mcu_sd_datalogger",
+      "notes": "",
+      "representative_intent": "MCU datalogger with USB, SPI flash, microSD and RTC",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/mcu_sd_datalogger/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/mcu_sd_datalogger/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/mcu_sd_datalogger/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/mcu_sd_datalogger/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "datalogger",
+        "spi",
+        "sd-card",
+        "rtc"
+      ],
+      "title": "MCU SD-card datalogger"
+    },
+    {
+      "acceptance_thresholds": [
+        {
+          "description": "Minimum synthesis/review score for the representative family",
+          "metric": "scorecard.score",
+          "operator": ">=",
+          "release_blocking": true,
+          "value": 80
+        },
+        {
+          "description": "Minimum acceptable autonomous sign-off state for this family",
+          "metric": "proof_pack.autonomous_status",
+          "operator": "in",
+          "release_blocking": true,
+          "value": "human-review-required"
+        },
+        {
+          "description": "All release-blocking evidence categories must be present",
+          "metric": "release_blocking_evidence.missing",
+          "operator": "==",
+          "release_blocking": true,
+          "value": 0
+        }
+      ],
+      "domain": "wireless",
+      "family_id": "lora_gateway_node",
+      "notes": "",
+      "representative_intent": "ESP32 LoRa gateway with RF front-end, antenna keepout and power filtering",
+      "required_artifacts": [
+        {
+          "description": "Versioned requirements contract for this board family",
+          "kind": "requirements-json",
+          "name": "requirements",
+          "path_pattern": "benchmarks/lora_gateway_node/requirements.json",
+          "required": true
+        },
+        {
+          "description": "Proof-pack manifest with autonomous sign-off evidence",
+          "kind": "proof-pack",
+          "name": "proof-pack",
+          "path_pattern": "benchmarks/lora_gateway_node/proof-pack/manifest.json",
+          "required": true
+        },
+        {
+          "description": "Golden KiCad schematic/PCB artifacts when available",
+          "kind": "kicad-project",
+          "name": "kicad-project",
+          "path_pattern": "benchmarks/lora_gateway_node/golden/*.kicad_*",
+          "required": true
+        },
+        {
+          "description": "Gerber/drill/BOM/PnP or equivalent export bundle",
+          "kind": "manufacturing-bundle",
+          "name": "manufacturing-exports",
+          "path_pattern": "benchmarks/lora_gateway_node/exports/*",
+          "required": true
+        }
+      ],
+      "supported_profiles": [
+        "bounded-autonomous-review",
+        "proof-pack-required"
+      ],
+      "tags": [
+        "lora",
+        "rf",
+        "esp32",
+        "gateway"
+      ],
+      "title": "LoRa gateway node"
+    }
+  ],
+  "manifest_version": "2026.06",
+  "non_claims": [
+    "benchmark pass is regression evidence, not fabrication approval",
+    "each generated design still requires proof-pack gates and human review where evidence is incomplete"
+  ],
+  "schema_version": "1.0"
+}

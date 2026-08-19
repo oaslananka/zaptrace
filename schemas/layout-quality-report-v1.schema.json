@@ -1,0 +1,314 @@
+{
+  "$defs": {
+    "LayoutQualityEvidenceStatus": {
+      "description": "Normalized layout-quality outcome.",
+      "enum": [
+        "pass",
+        "warning",
+        "human-review-required",
+        "blocking"
+      ],
+      "title": "LayoutQualityEvidenceStatus",
+      "type": "string"
+    },
+    "LayoutQualityFinding": {
+      "description": "One normalized finding from an existing analysis source.",
+      "properties": {
+        "family": {
+          "$ref": "#/$defs/LayoutRuleFamily"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "metrics": {
+          "additionalProperties": true,
+          "title": "Metrics",
+          "type": "object"
+        },
+        "repairable": {
+          "default": false,
+          "title": "Repairable",
+          "type": "boolean"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/LayoutQualityEvidenceStatus"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "family",
+        "status",
+        "subject",
+        "message",
+        "source"
+      ],
+      "title": "LayoutQualityFinding",
+      "type": "object"
+    },
+    "LayoutQualitySection": {
+      "description": "Aggregate score and status for one rule family.",
+      "properties": {
+        "blocking_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Blocking Count",
+          "type": "integer"
+        },
+        "family": {
+          "$ref": "#/$defs/LayoutRuleFamily"
+        },
+        "finding_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Finding Count",
+          "type": "integer"
+        },
+        "human_review_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Human Review Count",
+          "type": "integer"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "status": {
+          "$ref": "#/$defs/LayoutQualityEvidenceStatus"
+        },
+        "warning_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Warning Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "family",
+        "score",
+        "status"
+      ],
+      "title": "LayoutQualitySection",
+      "type": "object"
+    },
+    "LayoutRepairEvidence": {
+      "description": "Before/after evidence for one bounded layout repair.",
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "after": {
+          "additionalProperties": true,
+          "title": "After",
+          "type": "object"
+        },
+        "after_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "After Score",
+          "type": "number"
+        },
+        "before": {
+          "additionalProperties": true,
+          "title": "Before",
+          "type": "object"
+        },
+        "before_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Before Score",
+          "type": "number"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        },
+        "family": {
+          "$ref": "#/$defs/LayoutRuleFamily"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "family",
+        "subject",
+        "before_score",
+        "after_score",
+        "delta",
+        "rationale"
+      ],
+      "title": "LayoutRepairEvidence",
+      "type": "object"
+    },
+    "LayoutRuleConstraint": {
+      "description": "One machine-readable layout-quality policy rule.",
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "evidence_sources": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Sources",
+          "type": "array"
+        },
+        "family": {
+          "$ref": "#/$defs/LayoutRuleFamily"
+        },
+        "release_blocking": {
+          "default": true,
+          "title": "Release Blocking",
+          "type": "boolean"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "unavailable_status": {
+          "$ref": "#/$defs/LayoutQualityEvidenceStatus",
+          "default": "human-review-required"
+        }
+      },
+      "required": [
+        "rule_id",
+        "family",
+        "description",
+        "evidence_sources"
+      ],
+      "title": "LayoutRuleConstraint",
+      "type": "object"
+    },
+    "LayoutRuleFamily": {
+      "description": "Required rule families from the layout-quality contract.",
+      "enum": [
+        "decoupling-loop-area",
+        "power-path-current-density",
+        "ground-return-split-plane",
+        "high-speed-differential",
+        "analog-digital-separation",
+        "thermal-placement-copper",
+        "connector-mechanical",
+        "test-debug-access"
+      ],
+      "title": "LayoutRuleFamily",
+      "type": "string"
+    }
+  },
+  "description": "Unified machine-readable layout-quality report.",
+  "properties": {
+    "blocked": {
+      "title": "Blocked",
+      "type": "boolean"
+    },
+    "constraints": {
+      "items": {
+        "$ref": "#/$defs/LayoutRuleConstraint"
+      },
+      "title": "Constraints",
+      "type": "array"
+    },
+    "design_name": {
+      "title": "Design Name",
+      "type": "string"
+    },
+    "design_state_hash": {
+      "title": "Design State Hash",
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/LayoutQualityFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "human_review_required": {
+      "title": "Human Review Required",
+      "type": "boolean"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "overall_score": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Overall Score",
+      "type": "number"
+    },
+    "policy_sha256": {
+      "title": "Policy Sha256",
+      "type": "string"
+    },
+    "policy_version": {
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "repairs": {
+      "items": {
+        "$ref": "#/$defs/LayoutRepairEvidence"
+      },
+      "title": "Repairs",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/LayoutQualitySection"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/LayoutQualityEvidenceStatus"
+    }
+  },
+  "required": [
+    "design_name",
+    "design_state_hash",
+    "policy_version",
+    "policy_sha256",
+    "overall_score",
+    "status",
+    "blocked",
+    "human_review_required",
+    "sections",
+    "findings",
+    "constraints",
+    "non_claims"
+  ],
+  "title": "LayoutQualityReport",
+  "type": "object"
+}

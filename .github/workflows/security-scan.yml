@@ -1,0 +1,163 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"  # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+  UV_VERSION: "0.11"
+  CARGO_AUDIT_VERSION: "0.22.2"
+
+jobs:
+  audit:
+    permissions:
+      contents: read
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Run uv audit
+        run: uv audit
+
+  cargo-audit:
+    permissions:
+      contents: read
+    name: Cargo advisory audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
+
+      - name: Run Cargo advisory audit
+        id: cargo_audit
+        shell: bash
+        run: |
+          set +e
+          cargo audit --file zaptrace_core/Cargo.lock --json > cargo-audit.json
+          audit_exit=$?
+          python3 scripts/ci_cargo_audit.py \
+            --workspace-root "$GITHUB_WORKSPACE" \
+            --input cargo-audit.json \
+            --lockfile zaptrace_core/Cargo.lock \
+            --tool-version "$(cargo-audit --version)" \
+            --output cargo-audit-evidence.json \
+            --markdown cargo-audit-evidence.md \
+            --strict
+          evidence_exit=$?
+          set -e
+          cat cargo-audit-evidence.md >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$audit_exit" -ne 0 || "$evidence_exit" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Upload Cargo advisory evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: cargo-audit-evidence
+          path: |
+            cargo-audit.json
+            cargo-audit-evidence.json
+            cargo-audit-evidence.md
+          if-no-files-found: error
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Run Semgrep
+        run: uvx --no-build --from semgrep==1.170.0 semgrep scan --config .semgrep.yml --error --metrics=off --sarif --output semgrep-results.sarif
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a  # v4
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+        if: always()
+
+  codeql:
+    name: CodeQL analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a  # v4.2.2
+        with:
+          languages: python
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a  # v4.2.2
+
+  security-gate:
+    permissions: {}
+    name: Security gate
+    needs: [audit, cargo-audit, semgrep, codeql]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce security job results
+        shell: bash
+        env:
+          AUDIT_RESULT: ${{ needs.audit.result }}
+          CARGO_AUDIT_RESULT: ${{ needs.cargo-audit.result }}
+          SEMGREP_RESULT: ${{ needs.semgrep.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+        run: |
+          set -euo pipefail
+          failures=()
+          [[ "$AUDIT_RESULT" == "success" ]] || failures+=("dependency-audit=$AUDIT_RESULT")
+          [[ "$CARGO_AUDIT_RESULT" == "success" ]] || failures+=("cargo-audit=$CARGO_AUDIT_RESULT")
+          [[ "$SEMGREP_RESULT" == "success" ]] || failures+=("semgrep=$SEMGREP_RESULT")
+          [[ "$CODEQL_RESULT" == "success" ]] || failures+=("codeql=$CODEQL_RESULT")
+          if (( ${#failures[@]} > 0 )); then
+            printf 'Security gate failures: %s\n' "${failures[*]}" >&2
+            exit 1
+          fi
+          echo "All required security jobs passed."

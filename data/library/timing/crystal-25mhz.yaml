@@ -1,0 +1,96 @@
+schema_version: '2.0'
+id: crystal-25mhz
+name: 25MHz Crystal
+category: timing
+manufacturer: Abracon
+mpn: ABM8-25.000MHZ-B2-T
+description: 25 MHz SMD crystal, 3.2x2.5mm, 18pF load, ±30ppm (Ethernet PHY clock)
+datasheet: https://abracon.com/Resonators/ABM8.pdf
+package: SMD-3225-4P
+footprint: Crystal_SMD_3225-4Pin_3.2x2.5mm
+lifecycle: active
+voltage_supply: ''
+pins:
+  XI:
+    type: passive
+    description: Crystal terminal 1
+  XO:
+    type: passive
+    description: Crystal terminal 2
+properties:
+  frequency_mhz: 25
+  load_pf: 18
+electrical_limits:
+  frequency_mhz: 25
+sourcing:
+  mpn: ABM8-25.000MHZ-B2-T
+  manufacturer: Abracon
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://abracon.com/Resonators/ABM8.pdf
+    source_identity: component:crystal-25mhz:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:crystal-25mhz:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

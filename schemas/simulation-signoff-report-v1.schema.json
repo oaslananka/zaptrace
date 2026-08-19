@@ -1,0 +1,436 @@
+{
+  "$defs": {
+    "SimulationCheckEvidence": {
+      "description": "One normalized gate result with explicit risk and repair guidance.",
+      "properties": {
+        "blocking": {
+          "title": "Blocking",
+          "type": "boolean"
+        },
+        "check_id": {
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "domain": {
+          "$ref": "#/$defs/SimulationDomain"
+        },
+        "engine_status": {
+          "minLength": 1,
+          "title": "Engine Status",
+          "type": "string"
+        },
+        "human_review_required": {
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "live_simulation_passed": {
+          "default": false,
+          "title": "Live Simulation Passed",
+          "type": "boolean"
+        },
+        "method": {
+          "$ref": "#/$defs/SimulationEvidenceMethod"
+        },
+        "metrics": {
+          "additionalProperties": true,
+          "title": "Metrics",
+          "type": "object"
+        },
+        "model_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Model Ids",
+          "type": "array"
+        },
+        "raw_result": {
+          "additionalProperties": true,
+          "title": "Raw Result",
+          "type": "object"
+        },
+        "repair_hints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Repair Hints",
+          "type": "array"
+        },
+        "risk_class": {
+          "$ref": "#/$defs/SimulationRiskClass"
+        },
+        "status": {
+          "$ref": "#/$defs/SimulationEvidenceStatus"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "tool_version": {
+          "default": "",
+          "title": "Tool Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "domain",
+        "method",
+        "engine_status",
+        "status",
+        "risk_class",
+        "blocking",
+        "human_review_required",
+        "summary"
+      ],
+      "title": "SimulationCheckEvidence",
+      "type": "object"
+    },
+    "SimulationDomain": {
+      "enum": [
+        "dc-operating-point",
+        "transient",
+        "ac",
+        "power-integrity",
+        "signal-integrity",
+        "thermal",
+        "current-density"
+      ],
+      "title": "SimulationDomain",
+      "type": "string"
+    },
+    "SimulationEvidenceMethod": {
+      "enum": [
+        "ngspice",
+        "hybrid",
+        "analytical",
+        "heuristic"
+      ],
+      "title": "SimulationEvidenceMethod",
+      "type": "string"
+    },
+    "SimulationEvidenceStatus": {
+      "enum": [
+        "pass",
+        "fail",
+        "skipped",
+        "human-review-required"
+      ],
+      "title": "SimulationEvidenceStatus",
+      "type": "string"
+    },
+    "SimulationFamilyReport": {
+      "description": "Hash-bound simulation/analysis sign-off evidence for one board family.",
+      "properties": {
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "blocked": {
+          "title": "Blocked",
+          "type": "boolean"
+        },
+        "check_count": {
+          "minimum": 0,
+          "title": "Check Count",
+          "type": "integer"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/SimulationCheckEvidence"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "design_state_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Design State Hash",
+          "type": "string"
+        },
+        "fail_count": {
+          "minimum": 0,
+          "title": "Fail Count",
+          "type": "integer"
+        },
+        "family_id": {
+          "minLength": 1,
+          "title": "Family Id",
+          "type": "string"
+        },
+        "human_review_count": {
+          "minimum": 0,
+          "title": "Human Review Count",
+          "type": "integer"
+        },
+        "human_review_required": {
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "live_simulation_pass_count": {
+          "minimum": 0,
+          "title": "Live Simulation Pass Count",
+          "type": "integer"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/SimulationModelEvidence"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "pass_count": {
+          "minimum": 0,
+          "title": "Pass Count",
+          "type": "integer"
+        },
+        "policy_version": {
+          "default": "1.0",
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "repair_hints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Repair Hints",
+          "type": "array"
+        },
+        "report_sha256": {
+          "default": "",
+          "pattern": "^$|^[0-9a-f]{64}$",
+          "title": "Report Sha256",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "skipped_count": {
+          "minimum": 0,
+          "title": "Skipped Count",
+          "type": "integer"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "family_id",
+        "title",
+        "design_state_hash",
+        "check_count",
+        "pass_count",
+        "fail_count",
+        "skipped_count",
+        "human_review_count",
+        "live_simulation_pass_count",
+        "blocked",
+        "human_review_required"
+      ],
+      "title": "SimulationFamilyReport",
+      "type": "object"
+    },
+    "SimulationModelEvidence": {
+      "description": "Governed input model and provenance used by a simulation gate.",
+      "properties": {
+        "artifact_path": {
+          "default": "",
+          "title": "Artifact Path",
+          "type": "string"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "binding": {
+          "minLength": 1,
+          "title": "Binding",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "degraded": {
+          "title": "Degraded",
+          "type": "boolean"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "method": {
+          "$ref": "#/$defs/SimulationEvidenceMethod"
+        },
+        "model_id": {
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "model_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Model Sha256",
+          "type": "string"
+        },
+        "netlist_path": {
+          "default": "",
+          "title": "Netlist Path",
+          "type": "string"
+        },
+        "netlist_sha256": {
+          "default": "",
+          "pattern": "^$|^[0-9a-f]{64}$",
+          "title": "Netlist Sha256",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_id",
+        "source",
+        "version",
+        "model_sha256",
+        "method",
+        "binding",
+        "degraded",
+        "confidence"
+      ],
+      "title": "SimulationModelEvidence",
+      "type": "object"
+    },
+    "SimulationRiskClass": {
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "critical"
+      ],
+      "title": "SimulationRiskClass",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "acceptance_failures": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Acceptance Failures",
+      "type": "array"
+    },
+    "blocked_family_count": {
+      "minimum": 0,
+      "title": "Blocked Family Count",
+      "type": "integer"
+    },
+    "corpus_version": {
+      "title": "Corpus Version",
+      "type": "string"
+    },
+    "evidence_family_count": {
+      "minimum": 0,
+      "title": "Evidence Family Count",
+      "type": "integer"
+    },
+    "evidence_identity": {
+      "additionalProperties": true,
+      "title": "Evidence Identity",
+      "type": "object"
+    },
+    "families": {
+      "items": {
+        "$ref": "#/$defs/SimulationFamilyReport"
+      },
+      "title": "Families",
+      "type": "array"
+    },
+    "family_count": {
+      "minimum": 0,
+      "title": "Family Count",
+      "type": "integer"
+    },
+    "human_review_family_count": {
+      "minimum": 0,
+      "title": "Human Review Family Count",
+      "type": "integer"
+    },
+    "live_simulation_pass_count": {
+      "minimum": 0,
+      "title": "Live Simulation Pass Count",
+      "type": "integer"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "policy_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Policy Sha256",
+      "type": "string"
+    },
+    "policy_version": {
+      "default": "1.0",
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "report_sha256": {
+      "default": "",
+      "pattern": "^$|^[0-9a-f]{64}$",
+      "title": "Report Sha256",
+      "type": "string"
+    },
+    "require_live_simulation": {
+      "title": "Require Live Simulation",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "corpus_version",
+    "policy_sha256",
+    "passed",
+    "family_count",
+    "evidence_family_count",
+    "live_simulation_pass_count",
+    "blocked_family_count",
+    "human_review_family_count",
+    "require_live_simulation",
+    "families"
+  ],
+  "title": "SimulationSignoffCorpusReport",
+  "type": "object"
+}

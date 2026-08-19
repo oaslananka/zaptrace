@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "mcu_sd_datalogger",
+  "files": [
+    {
+      "kind": "project",
+      "path": "mcu_sd_datalogger.kicad_pro",
+      "required": true,
+      "sha256": "e183523d7bee5e17691af2a2f623cfc70b7cf655cd49cb71cbc4c7fb449cebf7",
+      "size_bytes": 237
+    },
+    {
+      "kind": "schematic",
+      "path": "mcu_sd_datalogger.kicad_sch",
+      "required": true,
+      "sha256": "dc74db043a782194399a9fa32dd791b682e8d8b88eee2c6ced9ec6046db13b08",
+      "size_bytes": 244
+    },
+    {
+      "kind": "pcb",
+      "path": "mcu_sd_datalogger.kicad_pcb",
+      "required": true,
+      "sha256": "c1ece528405d72590e92e3bcabd088e5057abe928d27ee7136caf35536f4ca1e",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "mcu_sd_datalogger_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

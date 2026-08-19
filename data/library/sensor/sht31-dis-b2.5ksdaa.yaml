@@ -1,0 +1,119 @@
+schema_version: '2.0'
+id: sht31-dis-b2.5ksdaa
+name: SHT31-DIS-B2.5kS
+category: sensor
+manufacturer: Sensirion
+mpn: SHT31-DIS-B2.5kS
+description: Digital humidity and temperature sensor with I2C interface in open-cavity DFN-8-1EP package
+datasheet: https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf
+package: DFN-8-1EP
+footprint: SHT31-DIS-DFN8
+lifecycle: active
+voltage_supply: 2.15-5.5 V
+pins:
+  SDA:
+    type: bidirectional
+    description: Serial data input/output
+  ADDR:
+    type: input
+    description: I2C address select; connect to logic high or low and do not leave floating
+  ALERT:
+    type: output
+    description: Programmable alert output; may be left floating when unused
+  SCL:
+    type: bidirectional
+    description: Serial clock input/output
+  VDD:
+    type: power
+    description: Supply voltage input, 2.15-5.5 V
+  nRESET:
+    type: input
+    description: Active-low reset input; hold high when unused
+  R:
+    type: passive
+    description: Reserved pin with no electrical function; connect to VSS
+  VSS:
+    type: power
+    description: Ground; package pin 8 and exposed die pad 9 are internally common
+package_pin_map:
+  '1': SDA
+  '2': ADDR
+  '3': ALERT
+  '4': SCL
+  '5': VDD
+  '6': nRESET
+  '7': R
+  '8': VSS
+  '9': VSS
+properties:
+  canonical_component_id: sht31-dis
+  compatibility_role: legacy-id-mirror
+  interface: [i2c]
+  series: SHT3x-DIS
+  manufacturer_package_name: open-cavity DFN-8-1EP
+  manufacturer_order_number: 1-101386-01
+  supply_range_v: [2.15, 5.5]
+  humidity_range_percent_rh: [0, 100]
+  humidity_accuracy_typical_percent_rh: 2.0
+  temperature_range_c: [-40, 125]
+  temperature_accuracy_typical_c_0_to_90: 0.2
+  i2c_max_frequency_khz: 1000
+  package_size_mm: [2.5, 2.5, 0.9]
+  ground_strap_pins: [R]
+  manufacturer_land_pattern_mm:
+    io_pad_length: 0.55
+    io_pad_width: 0.25
+    pin_pitch: 0.5
+    exposed_pad_width: 1.0
+    exposed_pad_length: 1.7
+  repository_land_pattern:
+    source: KiCad official Sensor_Humidity.pretty/Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod
+    source_sha256: 2380f3b4d6982902f05e8940603f19f7cfbc1bdfd6ae0f78ebd281c1a3f30a8f
+    io_pad_size_mm: [0.55, 0.25]
+    pin_pitch: 0.5
+    exposed_pad_bbox_mm: [1.0, 1.7]
+    review_note: Vendored KiCad I/O-pad and exposed-pad geometry matches the Sensirion recommended metal land pattern dimensions; high-risk DFN orientation, custom exposed-pad polygon, humidity opening, and assembly constraints still require human review before trust-tier promotion
+electrical_limits:
+  voltage_supply: 2.15-5.5 V
+  temperature_range: [-40, 125]
+  review_note: SHT31 typical humidity accuracy is ±2 %RH and typical temperature accuracy is ±0.2 °C from 0 °C to 90 °C; application accuracy depends on operating conditions and design-in
+sourcing:
+  mpn: SHT31-DIS-B2.5kS
+  manufacturer: Sensirion
+  status: manufacturer-current-catalog
+  production_note: Sensirion currently lists SHT31-DIS-B and inventory for the 2500-piece SHT31-DIS-B2.5kS reel variant; re-check authorized distributor stock, lead time, and current order number before procurement
+compliance:
+  rohs: manufacturer-datasheet-declared
+  reach: supplier-confirmation-required
+  production_note: Component declarations do not replace project-specific regulatory or procurement-time compliance review
+provenance:
+  source: Sensirion SHT3x-DIS Datasheet Version 7 (December 2022) and current SHT31-DIS-B product catalog capture
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of the high-risk DFN land pattern, exposed-pad geometry, orientation, humidity opening, pin mapping, and procurement evidence remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn: &datasheet_evidence
+    source_type: manufacturer_document
+    source_locator: https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf
+    source_identity: Sensirion SHT3x-DIS datasheet
+    source_sha256: 095b1853e7f4328f5897c9ca6c392a7dd8b0202eda66b0a2629f9cb840dd496d
+    source_version: Version 7 (2022-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-11
+    confidence: medium
+  datasheet: *datasheet_evidence
+  pin_map: *datasheet_evidence
+  package: *datasheet_evidence
+  footprint: *datasheet_evidence
+  electrical_limits: *datasheet_evidence
+  lifecycle: &product_page_evidence
+    source_type: manufacturer_web
+    source_locator: https://sensirion.com/products/catalog/SHT31-DIS-B
+    source_identity: sensirion:sht31-dis-b-product-page
+    source_sha256: 019a96b3dfec974c8b78e8601fa2bd7ada383c62b3e9a1e17158a5bd3d7b6c02
+    source_version: captured-2026-08-11
+    extraction_method: manufacturer-product-page-capture
+    extracted_at: 2026-08-11
+    confidence: medium
+  sourcing: *product_page_evidence

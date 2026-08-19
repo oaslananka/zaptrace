@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "family_id": "nrf52_ble_multisensor",
+  "artifact_kind": "manufacturing-export-manifest",
+  "status": "starter-fixture",
+  "artifacts": [],
+  "blocked": false,
+  "warnings": [
+    "No fabrication-ready Gerber/drill/BOM files are claimed by this starter fixture.",
+    "BLE RF tuning, regulatory certification and Li-ion battery safety validation are outside this fixture manifest."
+  ],
+  "non_claims": [
+    "not fabrication-ready",
+    "not BLE-certified",
+    "not battery-safety-approved",
+    "not manufacturer-approved",
+    "not production-ready"
+  ]
+}

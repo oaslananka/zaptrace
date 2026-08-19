@@ -1,0 +1,247 @@
+{
+  "case_count": 8,
+  "cases": [
+    {
+      "artifact_sha256": "68362fc009982a743b5ba8a5c41a469a188310fe3c2645493d31bc67ec889b97",
+      "assumption_count": 1,
+      "blocked": true,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": true,
+      "id": "ambiguous-board",
+      "interfaces": [],
+      "passed": true,
+      "rails": [],
+      "ready_evidence_passed": false,
+      "requirement_count": 1,
+      "status": "needs-clarification",
+      "subsystems": [],
+      "trace_row_count": 0,
+      "traceability_sha256": "5b6f54c0f0ec08b0cedf0b625d69a15a074ebf4c528849655d9f9b26ee412c18",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "6a232f39a5ccc91a1501eab53ca328949cbfcd8bc6121f00041bbb3c10ec856c",
+      "assumption_count": 0,
+      "blocked": true,
+      "conflicts": [
+        "battery-presence-conflict"
+      ],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": true,
+      "id": "battery-conflict",
+      "interfaces": [],
+      "passed": true,
+      "rails": [],
+      "ready_evidence_passed": false,
+      "requirement_count": 2,
+      "status": "needs-clarification",
+      "subsystems": [],
+      "trace_row_count": 0,
+      "traceability_sha256": "c57a4a6a2599e2bd2f1191346263f6d2f848917cdf1ae91cc4e0d3c20cec4804",
+      "uncovered_requirement_ids": [
+        "REQ-POWER-001",
+        "REQ-POWER-002"
+      ],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "c37629714a008bf3864faf8e0bfa9a262b06efb72e9a42f98e99f08a028323bd",
+      "assumption_count": 0,
+      "blocked": false,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": false,
+      "id": "battery-spi-datalogger",
+      "interfaces": [
+        "spi"
+      ],
+      "passed": true,
+      "rails": [
+        "VBAT",
+        "VDD_3V3"
+      ],
+      "ready_evidence_passed": true,
+      "requirement_count": 5,
+      "status": "ready",
+      "subsystems": [
+        "SUBSYS-BATTERY",
+        "SUBSYS-MCU",
+        "SUBSYS-STORAGE"
+      ],
+      "trace_row_count": 20,
+      "traceability_sha256": "2c5f0aa92ffea99ce08c7c5af3af691d522f75be5dcf5f3ae1b2141a9ef43de7",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "541cbfd2d83730259598247a7270985388c740d157aad811deca1f72a0155a28",
+      "assumption_count": 0,
+      "blocked": false,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": false,
+      "id": "esp32-usb-i2c-sensor",
+      "interfaces": [
+        "i2c",
+        "usb"
+      ],
+      "passed": true,
+      "rails": [
+        "VBUS",
+        "VDD_3V3"
+      ],
+      "ready_evidence_passed": true,
+      "requirement_count": 5,
+      "status": "ready",
+      "subsystems": [
+        "SUBSYS-MCU",
+        "SUBSYS-SENSOR",
+        "SUBSYS-USB"
+      ],
+      "trace_row_count": 21,
+      "traceability_sha256": "d96e92188b88eea682c2d4d91cb12a594ba582cb0952121e02c3880e3ce8670d",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "ad7e49e936a5140d182afa89fb0b17bd72f936fd39dea5fbfa75ccf2ce4e58a0",
+      "assumption_count": 0,
+      "blocked": false,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": false,
+      "id": "lora-sensor-node",
+      "interfaces": [
+        "lora",
+        "spi"
+      ],
+      "passed": true,
+      "rails": [
+        "VBAT",
+        "VDD_3V3"
+      ],
+      "ready_evidence_passed": true,
+      "requirement_count": 6,
+      "status": "ready",
+      "subsystems": [
+        "SUBSYS-BATTERY",
+        "SUBSYS-MCU",
+        "SUBSYS-RADIO",
+        "SUBSYS-SENSOR"
+      ],
+      "trace_row_count": 25,
+      "traceability_sha256": "f93ea2414b22694892faca005f1707a0889f85936c6659c8c512ec02a1790380",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "6af81263442bd0ccf4cf6f916289fdcd2bdcf4bc035a895ae7337da3f90252cc",
+      "assumption_count": 0,
+      "blocked": false,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": false,
+      "id": "rp2040-can-node",
+      "interfaces": [
+        "can"
+      ],
+      "passed": true,
+      "rails": [
+        "VDD_3V3"
+      ],
+      "ready_evidence_passed": true,
+      "requirement_count": 4,
+      "status": "ready",
+      "subsystems": [
+        "SUBSYS-CAN",
+        "SUBSYS-MCU",
+        "SUBSYS-SENSOR"
+      ],
+      "trace_row_count": 16,
+      "traceability_sha256": "85a91122b660f74c4ea06de3634d8679d1caf19440a362dfa690ffd10f5089d1",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "f7771e5c784a334e0ab00430b49e6754c47c7e6a95c06e1746b7070d0172de50",
+      "assumption_count": 0,
+      "blocked": false,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": false,
+      "id": "stm32-rs485-controller",
+      "interfaces": [
+        "rs485"
+      ],
+      "passed": true,
+      "rails": [
+        "VDD_3V3"
+      ],
+      "ready_evidence_passed": true,
+      "requirement_count": 3,
+      "status": "ready",
+      "subsystems": [
+        "SUBSYS-MCU",
+        "SUBSYS-RS485"
+      ],
+      "trace_row_count": 13,
+      "traceability_sha256": "17c842fe6242da7cb411104d4d81a10f51d2c5609f2e8c80e84e98e6bf8a6067",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    },
+    {
+      "artifact_sha256": "b448b58edb01bb1883cf1b570ec05af3feaa1920627603ad7dd13fac74c618aa",
+      "assumption_count": 0,
+      "blocked": true,
+      "conflicts": [],
+      "deterministic": true,
+      "errors": [],
+      "human_review_required": true,
+      "id": "unsafe-mains-medical",
+      "interfaces": [],
+      "passed": true,
+      "rails": [],
+      "ready_evidence_passed": false,
+      "requirement_count": 1,
+      "status": "unsafe-blocked",
+      "subsystems": [],
+      "trace_row_count": 1,
+      "traceability_sha256": "f0078c3f834166ee0e8f56af701465ef982937a257d3fc8d2bfa9f27c80ddc45",
+      "uncovered_requirement_ids": [],
+      "untraced_elements": []
+    }
+  ],
+  "errors": [],
+  "evidence_status": "historical-governance-snapshot",
+  "failed_case_count": 0,
+  "gate": "requirements-architecture-compiler",
+  "historical_snapshot": true,
+  "minimum_ready_cases": 5,
+  "minimum_total_cases": 8,
+  "non_claims": [
+    "architecture corpus success does not prove requirement extraction completeness",
+    "architecture traceability does not prove electrical or physical correctness",
+    "a passing architecture gate is not fabrication or production approval"
+  ],
+  "passed": true,
+  "passed_case_count": 8,
+  "ready_case_count": 5,
+  "ready_case_shortfall": 0,
+  "schema_sha256": "551d210a0cfdfee0e9d2016f10417b15ddc4f110742db33cb7e9f288433c2496",
+  "schema_version": "1.0",
+  "status_counts": {
+    "needs-clarification": 2,
+    "ready": 5,
+    "unsafe-blocked": 1
+  },
+  "total_case_shortfall": 0
+}

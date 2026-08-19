@@ -1,0 +1,73 @@
+name: ZapTrace PR Review
+
+on:
+  pull_request:
+    paths:
+      - "**/*.yaml"
+      - "**/*.yml"
+      - "kicad/**"
+      - "hardware/**"
+      - "zaptrace/**"
+      - ".github/workflows/zaptrace-pr-review.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  zaptrace-review:
+    name: ZapTrace validation review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
+        with:
+          version: "0.11"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install ZapTrace dependencies
+        run: uv sync --all-extras --all-groups
+
+      - name: Run ZapTrace validation gates
+        run: |
+          uv run pytest -q
+          uv run python scripts/ci_smoke.py proof
+          uv run python scripts/ci_smoke.py gerber
+
+      - name: Generate PR review comment
+        if: always()
+        run: |
+          uv run python scripts/ci_pr_review_summary.py \
+            --config docs/ci/zaptrace-pr-review.example.yaml \
+            --gate "tests=${{ job.status }}|Python tests and ZapTrace smoke gates completed|Open uploaded artifacts for details|zaptrace-validation-reports" \
+            --output zaptrace-pr-review.json \
+            --markdown zaptrace-pr-review.md
+
+      - name: Upload deterministic ZapTrace artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: zaptrace-validation-reports
+          path: |
+            zaptrace-pr-review.json
+            zaptrace-pr-review.md
+          if-no-files-found: warn
+
+      - name: Comment on pull request
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('zaptrace-pr-review.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

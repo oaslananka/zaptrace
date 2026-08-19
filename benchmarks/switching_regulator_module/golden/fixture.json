@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "switching_regulator_module",
+  "files": [
+    {
+      "kind": "project",
+      "path": "switching_regulator_module.kicad_pro",
+      "required": true,
+      "sha256": "6cde2c9b603d1ab6f3204f7a9e64f10295eea7e51b492fccda9a86d912162493",
+      "size_bytes": 255
+    },
+    {
+      "kind": "schematic",
+      "path": "switching_regulator_module.kicad_sch",
+      "required": true,
+      "sha256": "0e7fa3d9932e11c0c70ed66066ab34a4e41a14884528474004bf22f09dc742b5",
+      "size_bytes": 248
+    },
+    {
+      "kind": "pcb",
+      "path": "switching_regulator_module.kicad_pcb",
+      "required": true,
+      "sha256": "cd28e8f9f72fabd5f8104860ee51d7551961d67ec522b7c8e8b9c46617d17276",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "switching_regulator_module_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

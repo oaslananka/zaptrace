@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "family_id": "esp32_usb_sensor",
+  "benchmark_id": "esp32_usb_sensor_fixture_v1",
+  "title": "ESP32 USB sensor node benchmark fixture",
+  "representative_intent": "ESP32-C3 USB-C 3.3V board with I2C temperature sensor",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-POWER-USB-C-SINK",
+      "text": "Provide USB-C 5 V sink input with explicit CC pull-down evidence.",
+      "category": "power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-RAIL-3V3",
+      "text": "Generate and verify a 3.3 V logic rail for ESP32 and I2C sensor loads.",
+      "category": "power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-I2C-SENSOR",
+      "text": "Connect an I2C environmental sensor with SDA/SCL pull-ups to the logic rail.",
+      "category": "functional",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-PROOF-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 85,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": ["human-review-required", "autonomous-pass"]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not fabrication approval.",
+    "The fixture does not claim the board is electrically correct, manufacturable, certified, or production-ready."
+  ]
+}

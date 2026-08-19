@@ -1,0 +1,116 @@
+schema_version: '2.0'
+id: cn3058e
+name: CN3058E
+category: power
+manufacturer: Consonance Electronics
+mpn: CN3058E
+description: 1A LiFePO4 battery charger, CC/CV, 3.6V float voltage, SOP-8
+datasheet: https://www.consonance-elec.com/en/down/CN3058E_Datasheet.pdf
+package: SOP-8
+footprint: CN3058E-SOP8
+lifecycle: active
+voltage_supply: '5'
+pins:
+  VIN:
+    type: power
+    description: 4.5-6V input supply
+  GND:
+    type: power
+    description: Ground
+  BAT:
+    type: output
+    description: Battery connection (3.6V float)
+  CHRG:
+    type: output
+    description: Charging status indicator (open-drain)
+  DONE:
+    type: output
+    description: Charge complete indicator (open-drain)
+  PROG:
+    type: input
+    description: Charge current programming (resistor)
+  TEMP:
+    type: input
+    description: Temperature monitoring (NTC)
+  CE:
+    type: input
+    description: Chip enable (active high)
+properties:
+  topology: charger
+  battery_type: LiFePO4
+  float_voltage: 3.6
+  max_charge_a: 1
+electrical_limits:
+  voltage_supply: '5'
+sourcing:
+  mpn: CN3058E
+  manufacturer: Consonance Electronics
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.consonance-elec.com/en/down/CN3058E_Datasheet.pdf
+    source_identity: component:cn3058e:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:cn3058e:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

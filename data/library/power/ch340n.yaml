@@ -1,0 +1,117 @@
+schema_version: '2.0'
+id: ch340n
+name: CH340N
+category: power
+manufacturer: WCH
+mpn: CH340N
+description: USB-to-UART bridge, SOP-8, HID-compatible
+datasheet: https://www.wch-ic.com/downloads/CH340DS1_PDF.html
+package: SOP-8
+footprint: CH340N-SOP8
+lifecycle: active
+voltage_supply: '5.0'
+pins:
+  VCC:
+    type: power
+    description: 5V supply
+  GND:
+    type: power
+    description: Ground
+  V3:
+    type: power
+    description: 3.3V output for USB
+  TXD:
+    type: output
+    description: UART transmit
+  RXD:
+    type: input
+    description: UART receive
+  D+:
+    type: bidirectional
+    description: USB D+
+  D-:
+    type: bidirectional
+    description: USB D-
+  RI:
+    type: output
+    description: Ring indicator
+  DTR:
+    type: output
+    description: Data terminal ready
+properties:
+  uart_baud_max: 2000000
+  interface: usb-to-uart
+electrical_limits:
+  voltage_supply: '5.0'
+sourcing:
+  mpn: CH340N
+  manufacturer: WCH
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.wch-ic.com/downloads/CH340DS1_PDF.html
+    source_identity: component:ch340n:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:ch340n:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,106 @@
+# ──────────────────────────────────────────────────────────
+# ZapTrace .gitignore
+# Python + Rust (maturin) project
+# ──────────────────────────────────────────────────────────
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+native-dist/
+build/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Virtual environment ---
+.venv/
+env/
+venv/
+virtualenv/
+
+# --- Rust / Maturin ---
+target/
+*.so
+*.pyd
+*.dylib
+zaptrace_core/target/
+zaptrace/_core*.so
+zaptrace/_core*.pyd
+
+# --- Testing ---
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+coverage.xml
+nosetests.xml
+junit.xml
+
+# --- Linting / Type checking ---
+.ruff_cache/
+.uv-cache/
+.docker-config/
+.docker-buildx/
+.tmp/
+.mypy_cache/
+.pyre/
+.hypothesis/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Project-specific ---
+TEMP/
+data/output/
+*.log
+TestDesign_report.md
+TestDesign_schematic.svg
+
+# Regenerated KiCad sample export produced by tests — do not track
+kicad/
+# Keep the runtime KiCad integration package trackable/buildable.
+!zaptrace/kicad/
+!zaptrace/kicad/*.py
+
+# MkDocs build output
+site/
+
+.generated/
+
+# --- Native debug and linker outputs ---
+*.pdb
+*.obj
+*.ilk
+*.exp
+*.lib
+*.a
+*.dll
+*.dSYM/
+
+# --- Generated release CI evidence ---
+# These files are uploaded as workflow artifacts and must not make a tagged
+# release checkout appear source-dirty to release identity gates.
+/version-consistency-release.json
+/version-consistency-release.md
+/test-lane-inventory.json
+/test-lane-release-*.json
+/junit-release-*.xml
+/coverage.json
+/critical-runtime-coverage.json
+/critical-runtime-coverage.md
+/cargo-audit-release.json
+/cargo-audit-release-evidence.json
+/cargo-audit-release-evidence.md
+/tagged-release-evidence.json

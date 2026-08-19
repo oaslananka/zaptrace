@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "family_id": "poe_ethernet_controller",
+  "benchmark_id": "poe_ethernet_controller_fixture_v1",
+  "title": "PoE Ethernet controller benchmark fixture",
+  "representative_intent": "PoE powered Ethernet MCU board with isolated power domain",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-POE-PD-FRONTEND",
+      "text": "Represent PoE PD front-end, bridge/input protection and classification review evidence.",
+      "category": "poe-power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-ISOLATED-POWER-DOMAIN",
+      "text": "Provide isolated power-domain evidence and non-claims for safety/isolation certification.",
+      "category": "isolation-power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-ETHERNET-MCU",
+      "text": "Connect Ethernet PHY/Magnetics/MCU interface evidence with return-path and SI review hooks.",
+      "category": "connectivity",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-POE-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, SI/PI, current budget, isolation and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": [
+      "human-review-required",
+      "autonomous-pass"
+    ]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not PoE compliance, Ethernet certification, isolation approval or fabrication approval.",
+    "The fixture does not claim IEEE 802.3 compliance, hi-pot safety, EMC, manufacturability or production readiness."
+  ]
+}

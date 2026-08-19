@@ -1,0 +1,68 @@
+{
+  "version": "1.0",
+  "name": "poe_ethernet_controller_fixture_v1",
+  "description": "Starter proof-pack manifest for the PoE Ethernet controller board-family benchmark fixture.",
+  "design_path": "../requirements.json",
+  "model": {
+    "min_clearance_mm": 0.15,
+    "min_trace_width_mm": 0.15,
+    "min_annular_ring_mm": 0.05,
+    "max_layer_count": 2,
+    "allowed_layer_counts": [
+      2
+    ]
+  },
+  "checks": [
+    {
+      "name": "requirements-present",
+      "description": "Requirements contract exists for the PoE Ethernet controller board-family fixture.",
+      "category": "custom",
+      "severity": "critical",
+      "type": "custom",
+      "expected": "pass"
+    },
+    {
+      "name": "golden-kicad-present",
+      "description": "Golden KiCad fixture files are present and hashable.",
+      "category": "custom",
+      "severity": "critical",
+      "type": "custom",
+      "expected": "pass"
+    },
+    {
+      "name": "manufacturing-export-manifest-present",
+      "description": "Manufacturing export bundle manifest is present and explicitly marked as non-fabrication evidence.",
+      "category": "manufacturing",
+      "severity": "critical",
+      "type": "custom",
+      "expected": "pass"
+    }
+  ],
+  "check_records": [
+    {
+      "name": "fixture-coverage",
+      "source": "zaptrace",
+      "status": "pass",
+      "severity": "info",
+      "summary": "Required starter fixture artifacts are committed for poe_ethernet_controller. This is coverage evidence only."
+    }
+  ],
+  "author": "ZapTrace Core Team",
+  "tags": [
+    "benchmark",
+    "poe_ethernet_controller",
+    "fixture-coverage",
+    "poe",
+    "ethernet",
+    "isolation",
+    "power",
+    "pre-1.0"
+  ],
+  "requires": [
+    "zaptrace>=0.3.0"
+  ],
+  "limitations": [
+    "Starter fixture coverage does not prove PoE compliance, isolation safety, Ethernet PHY performance, EMC, electrical correctness, or manufacturability.",
+    "KiCad files in this fixture are hash fixtures for release workflow coverage, not a fabrication-ready board."
+  ]
+}

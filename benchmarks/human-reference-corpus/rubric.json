@@ -1,0 +1,114 @@
+{
+  "dimensions": [
+    {
+      "accepted_authorities": [
+        "verified",
+        "reviewed"
+      ],
+      "dimension_id": "requirements-coverage",
+      "minimum_score": 80,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "Requirements coverage",
+      "weight": 15
+    },
+    {
+      "accepted_authorities": [
+        "verified"
+      ],
+      "dimension_id": "erc-drc-oracle",
+      "minimum_score": 100,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "ERC, DRC, and KiCad oracle",
+      "weight": 15
+    },
+    {
+      "accepted_authorities": [
+        "verified",
+        "reviewed"
+      ],
+      "dimension_id": "schematic-parity",
+      "minimum_score": 85,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "Schematic parity and net correctness",
+      "weight": 15
+    },
+    {
+      "accepted_authorities": [
+        "verified",
+        "reviewed"
+      ],
+      "dimension_id": "component-evidence",
+      "minimum_score": 80,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "Component, datasheet, and footprint evidence",
+      "weight": 10
+    },
+    {
+      "accepted_authorities": [
+        "verified",
+        "reviewed"
+      ],
+      "dimension_id": "layout-quality",
+      "minimum_score": 75,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "Layout quality",
+      "weight": 15
+    },
+    {
+      "accepted_authorities": [
+        "verified",
+        "reviewed"
+      ],
+      "dimension_id": "dfm-readiness",
+      "minimum_score": 80,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "DFM and manufacturing readiness",
+      "weight": 10
+    },
+    {
+      "accepted_authorities": [
+        "verified",
+        "reviewed"
+      ],
+      "dimension_id": "simulation-analysis",
+      "minimum_score": 70,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": false,
+      "title": "Simulation and analysis evidence",
+      "weight": 10
+    },
+    {
+      "accepted_authorities": [
+        "reviewed"
+      ],
+      "dimension_id": "human-review",
+      "minimum_score": 80,
+      "release_blocking": true,
+      "required": true,
+      "reviewer_required": true,
+      "title": "Human-review findings",
+      "weight": 10
+    }
+  ],
+  "non_claims": [
+    "a numeric benchmark score is not fabrication approval",
+    "the human-review dimension cannot be satisfied by CI, a maintainer self-review, or an AI agent"
+  ],
+  "overall_pass_score": 80,
+  "rubric_id": "human-reference-rubric-v1",
+  "rubric_version": "2026.07",
+  "schema_version": "1.0"
+}

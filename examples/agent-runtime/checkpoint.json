@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "wf-example-esp32-sensor",
+  "design_name": "ESP32SensorCandidateA",
+  "status": "failed",
+  "current_step_index": 2,
+  "resume_count": 0,
+  "created_at": "2026-06-20T00:00:00+00:00",
+  "updated_at": "2026-06-20T00:01:00+00:00",
+  "steps": [
+    {"step_id": "architect", "name": "Architecture", "tool": "architect_agent", "mutates_design": false, "status": "passed", "attempts": 1, "evidence": [{"artifact": "requirements.json"}]},
+    {"step_id": "layout", "name": "Layout candidate", "tool": "layout_agent", "mutates_design": true, "status": "passed", "attempts": 1, "transaction_id": "tx-layout-1", "diff_summary": "placed components", "rollback_id": "rb-layout-1", "rollback_available": true},
+    {"step_id": "validate", "name": "Validation gate", "tool": "verification_agent", "mutates_design": false, "status": "failed", "attempts": 1, "failure_kind": "validation_gate", "error": "DRC gate failed"}
+  ],
+  "recovery_events": [],
+  "proof_evidence": [{"step_id": "architect", "artifact": "requirements.json"}]
+}

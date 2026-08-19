@@ -1,0 +1,183 @@
+schema_version: '2.0'
+id: esp32-s3-wroom-1
+name: ESP32-S3-WROOM-1
+category: mcu
+manufacturer: Espressif Systems
+mpn: ESP32-S3-WROOM-1-N8R8
+description: Dual-core 32-bit Wi-Fi+BT LE MCU, 240MHz, 8MB flash, 8MB PSRAM
+datasheet: https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_datasheet_en.pdf
+package: SMD-module-56pin
+footprint: ESP32-S3-WROOM-1
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  GND:
+    type: power
+    description: Ground
+  VCC:
+    type: power
+    description: 3.3V supply
+  EN:
+    type: input
+    description: Chip enable
+  GPIO0:
+    type: bidirectional
+    description: GPIO0 / Boot mode
+  GPIO1:
+    type: bidirectional
+    description: GPIO1
+  GPIO2:
+    type: bidirectional
+    description: GPIO2
+  GPIO3:
+    type: bidirectional
+    description: GPIO3 / UART0_RX
+  GPIO4:
+    type: bidirectional
+    description: GPIO4 / UART0_TX
+  GPIO5:
+    type: bidirectional
+    description: GPIO5
+  GPIO6:
+    type: bidirectional
+    description: GPIO6
+  GPIO7:
+    type: bidirectional
+    description: GPIO7
+  GPIO8:
+    type: bidirectional
+    description: GPIO8
+  GPIO9:
+    type: bidirectional
+    description: GPIO9
+  GPIO10:
+    type: bidirectional
+    description: GPIO10
+  GPIO11:
+    type: bidirectional
+    description: GPIO11
+  GPIO12:
+    type: bidirectional
+    description: GPIO12
+  GPIO13:
+    type: bidirectional
+    description: GPIO13
+  GPIO14:
+    type: bidirectional
+    description: GPIO14
+  GPIO15:
+    type: bidirectional
+    description: GPIO15
+  GPIO16:
+    type: bidirectional
+    description: GPIO16
+  GPIO17:
+    type: bidirectional
+    description: GPIO17
+  GPIO18:
+    type: bidirectional
+    description: GPIO18
+  GPIO19:
+    type: bidirectional
+    description: GPIO19
+  GPIO20:
+    type: bidirectional
+    description: GPIO20
+  GPIO21:
+    type: bidirectional
+    description: GPIO21
+  USB_D+:
+    type: bidirectional
+    description: USB D+
+  USB_D-:
+    type: bidirectional
+    description: USB D-
+  MTMS:
+    type: bidirectional
+    description: GPIO0 / JTAG_TCK
+  MTDI:
+    type: bidirectional
+    description: GPIO1 / JTAG_TMS
+properties:
+  core: Xtensa dual-core LX7
+  frequency_mhz: 240
+  flash_mb: 8
+  psram_mb: 8
+  wireless:
+  - wifi_2.4ghz
+  - ble_5.0
+electrical_limits:
+  frequency_mhz: 240
+  voltage_supply: '3.3'
+sourcing:
+  mpn: ESP32-S3-WROOM-1-N8R8
+  manufacturer: Espressif Systems
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_datasheet_en.pdf
+    source_identity: component:esp32-s3-wroom-1:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:esp32-s3-wroom-1:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

@@ -1,0 +1,81 @@
+profile_version: "1.0"
+name: jlcpcb-2layer
+manufacturer: JLCPCB
+description: "JLCPCB standard 2-layer PCB — most affordable, 5x5 to 100x100 mm"
+url: "https://jlcpcb.com/capabilities/pcb-capabilities"
+source_urls:
+  - "https://jlcpcb.com/capabilities/pcb-capabilities"
+last_verified: "2026-06-20"
+stale_after_days: 180
+
+min_board_width_mm: 5.0
+min_board_height_mm: 5.0
+max_board_width_mm: 100.0
+max_board_height_mm: 100.0
+min_board_thickness_mm: 0.4
+max_board_thickness_mm: 2.0
+
+min_trace_mm: 0.15
+min_space_mm: 0.15
+min_trace_power_mm: 0.3
+
+min_drill_mm: 0.2
+max_drill_mm: 6.5
+min_annular_ring_mm: 0.13
+min_via_diameter_mm: 0.3
+min_via_hole_mm: 0.15
+max_via_hole_mm: 0.5
+
+min_solder_mask_sliver_mm: 0.1
+min_solder_mask_clearance_mm: 0.05
+min_silkscreen_width_mm: 0.15
+min_silkscreen_clearance_mm: 0.15
+
+capabilities:
+  surface_finishes:
+    - HASL
+    - lead-free HASL
+    - ENIG
+    - OSP
+  solder_mask_colors:
+    - green
+    - red
+    - blue
+    - black
+    - white
+    - yellow
+    - purple
+    - orange
+  silkscreen_colors:
+    - white
+    - black
+  materials:
+    - FR-4
+    - aluminum
+  copper_weights_oz:
+    - 0.5
+    - 1.0
+    - 2.0
+  layer_counts:
+    - 2
+
+assembly:
+  class_name: jlcpcb-economic-pcba
+  service_available: true
+  source_urls:
+    - "https://jlcpcb.com/capabilities/pcb-assembly-capabilities"
+  last_verified: "2026-07-29"
+  min_component_pitch_mm: 0.4
+  min_bga_pitch_mm: 0.5
+  min_stencil_aperture_mm: null
+  max_component_height_mm: null
+  supports_double_sided_assembly: false
+  supports_through_hole_assembly: true
+castellated_pads: true
+edge_plating: true
+countersunk_holes: false
+impedance_control: true
+impedance_tolerance_pct: 10.0
+via_in_pad: false
+blind_buried_vias: false
+embedded_components: false

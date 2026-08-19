@@ -1,0 +1,35 @@
+task_schema_version: "1.0"
+task_id: "interop-rt-001"
+name: "KiCad → EasyEDA Pro interop round-trip — reference task"
+description: >
+  Grade cross-EDA interop fidelity across five categories from a
+  pre-recorded evidence YAML file.  The runner does not re-run the
+  conversion — it only grades committed evidence so third-party verifiers
+  can reproduce scores from a clean clone.
+
+source_format: "kicad"
+target_format: "easyeda_pro"
+
+categories:
+  - category: connectivity
+    min_score: 0.75
+    required: true
+
+  - category: components
+    min_score: 0.75
+    required: true
+
+  - category: geometry
+    min_score: 0.50
+    required: false   # geometry fidelity is informational until tooling matures
+
+  - category: metadata
+    min_score: 0.50
+    required: false
+
+  - category: degradation_completeness
+    min_score: 0.80
+    required: true    # unsupported-record parity report must be present
+
+limits:
+  max_runtime_seconds: 60

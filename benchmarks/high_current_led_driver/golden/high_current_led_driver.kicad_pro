@@ -1,0 +1,14 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1
+      }
+    }
+  },
+  "meta": {
+    "filename": "high_current_led_driver.kicad_pro",
+    "family_id": "high_current_led_driver"
+  },
+  "version": 1
+}

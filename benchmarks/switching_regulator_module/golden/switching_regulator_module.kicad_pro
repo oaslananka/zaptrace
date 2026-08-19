@@ -1,0 +1,14 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1
+      }
+    }
+  },
+  "meta": {
+    "filename": "switching_regulator_module.kicad_pro",
+    "family_id": "switching_regulator_module"
+  },
+  "version": 1
+}

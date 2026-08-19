@@ -1,0 +1,125 @@
+schema_version: '2.0'
+id: nrf24l01
+name: nRF24L01+
+category: rf
+manufacturer: Nordic Semiconductor
+mpn: nRF24L01+
+description: 2.4GHz RF transceiver, 250kbps-2Mbps, QFN-20
+datasheet: https://infocenter.nordicsemi.com/pdf/nRF24L01P_PS_v1.0.pdf
+package: QFN-20
+footprint: NRF24L01-QFN20
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 1.9-3.6V supply
+  GND:
+    type: power
+    description: Ground
+  CE:
+    type: input
+    description: Chip enable
+  CSN:
+    type: input
+    description: SPI chip select
+  SCK:
+    type: input
+    description: SPI clock
+  MOSI:
+    type: input
+    description: SPI data in
+  MISO:
+    type: output
+    description: SPI data out
+  IRQ:
+    type: output
+    description: Interrupt
+  ANT:
+    type: output
+    description: Antenna output
+  XC1:
+    type: passive
+    description: Crystal 1
+  XC2:
+    type: passive
+    description: Crystal 2
+properties:
+  frequency_ghz: 2.4
+  data_rate: 250kbps-2Mbps
+  max_power_dbm: 0
+  interface: spi
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: nRF24L01+
+  manufacturer: Nordic Semiconductor
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://infocenter.nordicsemi.com/pdf/nRF24L01P_PS_v1.0.pdf
+    source_identity: component:nrf24l01:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:nrf24l01:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

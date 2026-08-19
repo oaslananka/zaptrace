@@ -1,0 +1,111 @@
+schema_version: '2.0'
+id: nrf52832-qfaa-r7
+name: nRF52832-QFAA
+category: mcu
+manufacturer: Nordic
+mpn: nRF52832-QFAA-R7
+description: Bluetooth 5.0 Cortex-M4 512KB
+datasheet: internal://zaptrace/component-family/nrf52832-qfaa-r7
+package: QFN-48
+footprint: QFN-48
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: Supply voltage
+  GND:
+    type: power
+    description: Ground
+  RESET:
+    type: input
+    description: Reset (active low)
+  XTAL1:
+    type: input
+    description: Crystal input
+  XTAL2:
+    type: output
+    description: Crystal output
+  GPIO:
+    type: bidirectional
+    description: General purpose I/O
+  SWDIO:
+    type: bidirectional
+    description: SWD data
+  SWCLK:
+    type: input
+    description: SWD clock
+properties: {}
+electrical_limits:
+  review_note: numeric limits not captured; verify against datasheet before production
+sourcing:
+  mpn: nRF52832-QFAA-R7
+  manufacturer: Nordic
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  reviewed_by: unreviewed
+  source: offline-manifest
+  generation: scripts/generate_library_expansion.py
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:nrf52832-qfaa-r7:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: family_template
+    source_locator: internal://zaptrace/component-family/nrf52832-qfaa-r7
+    source_identity: component:nrf52832-qfaa-r7:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:nrf52832-qfaa-r7:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:nrf52832-qfaa-r7:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: family_template
+    source_locator: scripts/generate_library_expansion.py
+    source_identity: component:nrf52832-qfaa-r7:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:nrf52832-qfaa-r7:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:nrf52832-qfaa-r7:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: offline-manifest
+    source_identity: component:nrf52832-qfaa-r7:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

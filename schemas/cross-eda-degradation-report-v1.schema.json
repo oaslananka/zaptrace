@@ -1,0 +1,31 @@
+{
+  "$id": "https://zaptrace.dev/schemas/cross-eda-degradation-report-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZapTrace Cross-EDA Degradation Report v1",
+  "type": "object",
+  "required": ["schema_version", "source_eda", "target_workflow", "adapter_status", "round_trip_claim", "fidelity_score", "degradations", "non_claims"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "source_eda": {"type": "string"},
+    "target_workflow": {"type": "string"},
+    "adapter_status": {"enum": ["native", "delegated", "planned", "unsupported"]},
+    "round_trip_claim": {"enum": ["measured", "planned_only", "not_supported"]},
+    "fidelity_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "degradations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "severity", "feature", "impact", "mitigation"],
+        "properties": {
+          "category": {"enum": ["schematic", "netlist", "footprints", "constraints", "variants", "stackup", "manufacturing_outputs", "metadata"]},
+          "severity": {"enum": ["info", "warning", "lossy", "unsupported"]},
+          "feature": {"type": "string"},
+          "impact": {"type": "string"},
+          "mitigation": {"type": "string"}
+        }
+      }
+    },
+    "corpus_reference": {"type": "string"},
+    "non_claims": {"type": "array", "items": {"type": "string"}}
+  }
+}

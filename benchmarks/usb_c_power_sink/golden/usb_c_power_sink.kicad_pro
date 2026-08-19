@@ -1,0 +1,5 @@
+{
+  "board": {"design_settings": {"defaults": {"board_outline_line_width": 0.1}}},
+  "meta": {"filename": "usb_c_power_sink.kicad_pro", "family_id": "usb_c_power_sink"},
+  "version": 1
+}

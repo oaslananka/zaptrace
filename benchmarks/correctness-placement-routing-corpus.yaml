@@ -1,0 +1,92 @@
+schema_version: '1.0'
+name: placement-routing-correctness-corpus
+purpose: >-
+  Roadmap fixture corpus for placement/routing correctness. Cases document
+  expected constraints and whether current ZapTrace engines enforce them.
+cases:
+  - id: edge-usb-connector
+    category: placement-edge-connector
+    design:
+      kind: zaptrace.design
+      schema_version: 1
+      meta: {name: EdgeUsbConnector}
+      components:
+        j1: {ref: J1, type: usb-c}
+        u1: {ref: U1, type: mcu}
+      nets:
+        usb_vbus: {name: VBUS, nodes: [J1.VBUS, U1.VBUS]}
+      constraints:
+        placement:
+          - component: J1
+            edge: left
+            reason: USB connector must be board-edge mounted
+    expected:
+      current_support: documented-gap
+      required_engine: mechanical-placement-constraints
+      acceptance: J1 courtyard touches requested board edge without violating board outline clearance.
+  - id: decoupling-proximity
+    category: placement-proximity
+    design:
+      kind: zaptrace.design
+      schema_version: 1
+      meta: {name: DecouplingProximity}
+      components:
+        u1: {ref: U1, type: mcu}
+        c1: {ref: C1, type: CAP, value: 100nF}
+      nets:
+        vcc: {name: VCC_3V3, nodes: [U1.VCC, C1.1]}
+        gnd: {name: GND, nodes: [U1.GND, C1.2]}
+      constraints:
+        placement:
+          - component: C1
+            near: U1.VCC
+            max_distance_mm: 3
+            reason: decoupling capacitor must be close to supply pin
+    expected:
+      current_support: documented-gap
+      required_engine: electrical-proximity-placement
+      acceptance: C1 pad centroid is within 3 mm of U1.VCC pad after placement.
+  - id: obstacle-avoidance-route
+    category: routing-obstacle
+    design:
+      kind: zaptrace.design
+      schema_version: 1
+      meta: {name: ObstacleAvoidanceRoute}
+      components:
+        u1: {ref: U1, type: mcu}
+        u2: {ref: U2, type: sensor}
+      nets:
+        sig: {name: SIG, nodes: [U1.IO1, U2.IO1]}
+      constraints:
+        routing:
+          - net: SIG
+            reason: route must avoid mechanical keepout between U1 and U2
+    keepouts:
+      - id: center-mechanical-keepout
+        polygon: [[20, 20], [40, 20], [40, 40], [20, 40]]
+    expected:
+      current_support: documented-gap
+      required_engine: obstacle-aware-router
+      acceptance: No routed segment intersects the keepout polygon.
+  - id: differential-length-match
+    category: routing-differential-pair
+    design:
+      kind: zaptrace.design
+      schema_version: 1
+      meta: {name: DifferentialLengthMatch}
+      components:
+        j1: {ref: J1, type: usb-c}
+        u1: {ref: U1, type: mcu}
+      nets:
+        usb_dp: {name: USB_DP, nodes: [J1.DP, U1.DP]}
+        usb_dn: {name: USB_DN, nodes: [J1.DN, U1.DN]}
+      constraints:
+        routing:
+          - net: USB_D*
+            differential_pair: true
+            impedance_ohm: 90
+            length_match_mm: 0.5
+    expected:
+      current_support: partial
+      required_engine: differential-router-validator
+      acceptance: DP/DN lengths differ by no more than 0.5 mm and route as a coupled pair.

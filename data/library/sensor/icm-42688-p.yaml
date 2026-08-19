@@ -1,0 +1,121 @@
+schema_version: '2.0'
+id: icm-42688-p
+name: ICM-42688-P
+category: sensor
+manufacturer: TDK InvenSense
+mpn: ICM-42688-P
+description: 6-axis IMU (3-axis gyro + 3-axis accel), I2C/SPI, 16-bit
+datasheet: https://invensense.tdk.com/wp-content/uploads/2021/07/DS-000451_ICM-42688-P-v1.0.pdf
+package: QFN-24
+footprint: ICM-42688-P-QFN24
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 1.71-3.6V supply
+  VDDIO:
+    type: power
+    description: I/O supply (1.71-3.6V)
+  GND:
+    type: power
+    description: Ground
+  CS:
+    type: input
+    description: SPI chip select
+  SCK:
+    type: input
+    description: SPI/I2C clock
+  SDI:
+    type: bidirectional
+    description: SPI data in / I2C data
+  SDO:
+    type: bidirectional
+    description: SPI data out / I2C address
+  INT1:
+    type: output
+    description: Interrupt 1
+  INT2:
+    type: output
+    description: Interrupt 2
+properties:
+  interface:
+  - i2c
+  - spi
+  gyro_range: +/-2000 dps
+  accel_range: +/-16g
+  resolution_bit: 16
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: ICM-42688-P
+  manufacturer: TDK InvenSense
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://invensense.tdk.com/wp-content/uploads/2021/07/DS-000451_ICM-42688-P-v1.0.pdf
+    source_identity: component:icm-42688-p:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:icm-42688-p:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

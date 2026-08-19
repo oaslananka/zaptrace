@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "family_id": "high_current_led_driver",
+  "benchmark_id": "high_current_led_driver_fixture_v1",
+  "title": "High-current LED driver benchmark fixture",
+  "representative_intent": "Constant-current LED driver with thermal/current-density constraints",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-CONSTANT-CURRENT-LED",
+      "text": "Represent constant-current LED driver stage, LED output connector and current-set evidence.",
+      "category": "led-driver",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-LED-THERMAL-CURRENT",
+      "text": "Provide high-current trace width, copper/current-density and thermal review evidence.",
+      "category": "thermal-current",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-DIMMING-CONTROL",
+      "text": "Connect PWM/analog dimming control with logic isolation/protection review hooks where applicable.",
+      "category": "control",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-LED-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, thermal, current-density, regulator and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": [
+      "human-review-required",
+      "autonomous-pass"
+    ]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not LED thermal safety approval or fabrication approval.",
+    "The fixture does not claim luminous performance, thermal safety, current rating adequacy, manufacturability or production readiness."
+  ]
+}

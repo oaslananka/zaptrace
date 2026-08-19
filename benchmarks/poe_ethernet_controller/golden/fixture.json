@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "poe_ethernet_controller",
+  "files": [
+    {
+      "kind": "project",
+      "path": "poe_ethernet_controller.kicad_pro",
+      "required": true,
+      "sha256": "81cd1f16bc1774d6f7cb2b901321c766b0054a1d20750cfd96249bdbf5c1a2a9",
+      "size_bytes": 249
+    },
+    {
+      "kind": "schematic",
+      "path": "poe_ethernet_controller.kicad_sch",
+      "required": true,
+      "sha256": "41b4d532e8f88afc71ff5c6f3a6e5918474aa3ad07b7099a98c64b153bd32e72",
+      "size_bytes": 245
+    },
+    {
+      "kind": "pcb",
+      "path": "poe_ethernet_controller.kicad_pcb",
+      "required": true,
+      "sha256": "e0a76d8bc968eaf0eb58c92e920e830d40b8c7d1f420b0a70d97d5a5677bc19c",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "poe_ethernet_controller_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

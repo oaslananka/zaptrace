@@ -1,0 +1,146 @@
+schema_version: '2.0'
+id: max-m10s
+name: MAX-M10S
+category: sensor
+manufacturer: u-blox
+mpn: MAX-M10S
+description: Multi-band GNSS receiver module, GPS/GLONASS/Galileo/BeiDou, I2C/UART/SPI
+datasheet: https://www.u-blox.com/en/product/max-m10s-module
+package: Module-18
+footprint: MAXM10S-18P
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VCC:
+    type: power
+    description: 3.3V supply
+  GND:
+    type: power
+    description: Ground
+  TXD:
+    type: output
+    description: UART transmit
+  RXD:
+    type: input
+    description: UART receive
+  SDA:
+    type: bidirectional
+    description: I2C data
+  SCL:
+    type: input
+    description: I2C clock
+  CS:
+    type: input
+    description: SPI chip select
+  SCK:
+    type: input
+    description: SPI clock
+  MOSI:
+    type: input
+    description: SPI data in
+  MISO:
+    type: output
+    description: SPI data out
+  EXTINT:
+    type: input
+    description: External interrupt / timepulse
+  TIMEPULSE:
+    type: output
+    description: Timepulse output
+  RESET:
+    type: input
+    description: Active-low reset
+  SAFEBOOT:
+    type: input
+    description: Safe boot mode
+  V_BCKP:
+    type: power
+    description: Backup supply
+  LNA_EN:
+    type: output
+    description: External LNA enable
+properties:
+  interface:
+  - uart
+  - i2c
+  - spi
+  gnss_constellations:
+  - GPS
+  - GLONASS
+  - Galileo
+  - BeiDou
+  concurrent_gnss: 4
+electrical_limits:
+  voltage_supply: '3.3'
+sourcing:
+  mpn: MAX-M10S
+  manufacturer: u-blox
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.u-blox.com/en/product/max-m10s-module
+    source_identity: component:max-m10s:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:max-m10s:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

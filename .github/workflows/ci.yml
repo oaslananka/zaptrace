@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: "0.11"
+
+      - name: Validate maturity metadata
+        run: |
+          python -m json.tool .bestpractices.json >/dev/null
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              'README.md', 'LICENSE', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
+              'SECURITY.md', 'SUPPORT.md', 'GOVERNANCE.md', 'MAINTAINERS.md',
+              'CHANGELOG.md', 'docs/repo-maturity-report.md',
+              'docs/openssf-evidence.md', 'docs/openssf-gap-analysis.md',
+          ]
+          missing = [p for p in required if not Path(p).exists()]
+          if missing:
+              raise SystemExit(f'Missing required maturity files: {missing}')
+          PY
+
+      - name: Validate issue forms and tracked artifacts
+        run: |
+          python scripts/ci_repository_policy.py \
+            --output repository-policy.json \
+            --strict
+
+      - name: Verify REUSE/SPDX compliance
+        run: |
+          python scripts/ci_reuse_check.py \
+            --output reuse-compliance.json \
+            --strict
+
+      - name: Verify live main-branch ruleset
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/ci_repository_ruleset.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --policy config/github-main-ruleset.json \
+            --output repository-ruleset-evidence.json \
+            --strict
+
+      - name: Upload repository policy evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: repository-policy
+          path: |
+            repository-policy.json
+            repository-ruleset-evidence.json
+            reuse-compliance.json
+          if-no-files-found: error

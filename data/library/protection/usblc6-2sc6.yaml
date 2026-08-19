@@ -1,0 +1,161 @@
+schema_version: '2.0'
+id: usblc6-2sc6
+name: USBLC6-2SC6
+category: protection
+manufacturer: STMicroelectronics
+mpn: USBLC6-2SC6
+description: Dual-line low-capacitance ESD protection for USB 2.0 and other high-speed interfaces
+datasheet: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+package: SOT-23-6
+footprint: USBLC6-2SC6-SOT23-6L
+lifecycle: active
+voltage_supply: '5'
+pins:
+  IO1:
+    type: passive
+    description: Protected data line 1; package pins 1 and 6
+  GND:
+    type: power
+    description: Ground
+  IO2:
+    type: passive
+    description: Protected data line 2; package pins 3 and 4
+  VBUS:
+    type: power
+    description: Protected USB VBUS rail
+package_pin_map:
+  '1': IO1
+  '2': GND
+  '3': IO2
+  '4': IO2
+  '5': VBUS
+  '6': IO1
+properties:
+  protected_data_lines: 2
+  vbus_nominal_v: 5.0
+  leakage_test_voltage_v: 5.25
+  breakdown_voltage_min_v: 6.0
+  forward_voltage_max_v: 1.1
+  clamping_voltage_max_v:
+    at_1a_8_20us: 12
+    at_5a_8_20us: 17
+  line_capacitance_to_gnd_pf:
+    typical: 2.5
+    maximum: 3.5
+  iec_61000_4_2_level4:
+    air_kv: 15
+    contact_kv: 8
+  absolute_peak_pulse_contact_kv: 15
+  mil_std_883_method_3015_7_peak_pulse_kv: 25
+  package_marking: UL26
+  manufacturer_footprint_recommendation_mm:
+    pad_width: 0.60
+    pad_length: 1.20
+    pin_pitch: 0.95
+    row_center_spacing: 2.30
+    inner_row_gap: 1.10
+    overall_pad_span: 3.50
+  repository_land_pattern:
+    source: KiCad official Package_TO_SOT_SMD.pretty/SOT-23-6.kicad_mod
+    source_revision: 91ed84ca84ac27649b4c752bd55edb0aecb5e6de
+    source_sha256: ea569e67e65b5714bde1897eb2edf94b1bb9cb0f9fe4e4885323fa2e9c364ed5
+    pad_size_mm:
+    - 1.325
+    - 0.60
+    pin_pitch: 0.95
+    row_center_spacing: 2.275
+    review_note: Upstream KiCad MO-178 AB land pattern is close to but not dimension-identical with ST Figure 19; human footprint review remains required before trust-tier promotion
+electrical_limits:
+  temperature_range:
+  - -40
+  - 150
+  voltage_supply: VBUS nominal 5 V; leakage characterized at VRM = 5.25 V
+  review_note: 6 V is the minimum VBUS-to-GND breakdown voltage, not a maximum recommended supply voltage
+sourcing:
+  mpn: USBLC6-2SC6
+  manufacturer: STMicroelectronics
+  status: manufacturer-catalog-active
+  production_note: ST product page captured 2026-08-09 lists the part active/in volume production but reported no distributor availability; re-check stock and lead time before procurement
+compliance:
+  rohs: manufacturer-declared-compliant
+  reach: supplier-confirmation-required
+  production_note: Component evidence is not a substitute for project-specific regulatory certification
+provenance:
+  source: STMicroelectronics DS4260 Rev 7 datasheet and product-page evidence captured 2026-08-09
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review remains required before trust-tier promotion, fabrication, or procurement
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+    source_identity: DS4260
+    source_sha256: bc30154f310cd631043214ed52571daefe04270587ec55072d49a23bd18b9068
+    source_version: Rev 7 (2021-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  datasheet:
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+    source_identity: DS4260
+    source_sha256: bc30154f310cd631043214ed52571daefe04270587ec55072d49a23bd18b9068
+    source_version: Rev 7 (2021-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  pin_map:
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+    source_identity: DS4260
+    source_sha256: bc30154f310cd631043214ed52571daefe04270587ec55072d49a23bd18b9068
+    source_version: Rev 7 (2021-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  package:
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+    source_identity: DS4260
+    source_sha256: bc30154f310cd631043214ed52571daefe04270587ec55072d49a23bd18b9068
+    source_version: Rev 7 (2021-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  footprint:
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+    source_identity: DS4260
+    source_sha256: bc30154f310cd631043214ed52571daefe04270587ec55072d49a23bd18b9068
+    source_version: Rev 7 (2021-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  electrical_limits:
+    source_type: manufacturer_document
+    source_locator: https://www.st.com/resource/en/datasheet/usblc6-2.pdf
+    source_identity: DS4260
+    source_sha256: bc30154f310cd631043214ed52571daefe04270587ec55072d49a23bd18b9068
+    source_version: Rev 7 (2021-12)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  lifecycle:
+    source_type: manufacturer_web
+    source_locator: https://www.st.com/en/protections-and-emi-filters/usblc6-2.html
+    source_identity: st:usblc6-2-product-page
+    source_sha256: b2c3da9b168f22c48b41d6a4fa0831488264b69fda48325d015f42b29eba5894
+    source_version: captured-2026-08-09
+    extraction_method: manufacturer-product-page-capture
+    extracted_at: 2026-08-09
+    confidence: medium
+  sourcing:
+    source_type: manufacturer_web
+    source_locator: https://www.st.com/en/protections-and-emi-filters/usblc6-2.html
+    source_identity: st:usblc6-2-order-page
+    source_sha256: b2c3da9b168f22c48b41d6a4fa0831488264b69fda48325d015f42b29eba5894
+    source_version: captured-2026-08-09
+    extraction_method: manufacturer-product-page-capture
+    extracted_at: 2026-08-09
+    confidence: medium

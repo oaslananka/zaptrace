@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "nrf52_ble_multisensor",
+  "files": [
+    {
+      "kind": "project",
+      "path": "nrf52_ble_multisensor.kicad_pro",
+      "required": true,
+      "sha256": "cc785393acf2231ecb41de8f1d38d57c94703feaa265fe5895111f0e96867284",
+      "size_bytes": 197
+    },
+    {
+      "kind": "schematic",
+      "path": "nrf52_ble_multisensor.kicad_sch",
+      "required": true,
+      "sha256": "a0368d97956ec88f99fc3109b16f05a6995f7237b027854fc4219c52c4a6199a",
+      "size_bytes": 250
+    },
+    {
+      "kind": "pcb",
+      "path": "nrf52_ble_multisensor.kicad_pcb",
+      "required": true,
+      "sha256": "53adbbf086882670eb2f4dfbdf17aca43fd02b0e00c33039e41a2919eb3d9a21",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "nrf52_ble_multisensor_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

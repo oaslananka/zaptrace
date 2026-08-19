@@ -1,0 +1,14 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1
+      }
+    }
+  },
+  "meta": {
+    "filename": "mcu_sd_datalogger.kicad_pro",
+    "family_id": "mcu_sd_datalogger"
+  },
+  "version": 1
+}

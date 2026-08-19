@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "family_id": "motor_driver_hbridge",
+  "benchmark_id": "motor_driver_hbridge_fixture_v1",
+  "title": "H-bridge motor driver benchmark fixture",
+  "representative_intent": "DC motor driver board with H-bridge, current sense and flyback protection",
+  "status": "starter-fixture",
+  "requirements": [
+    {
+      "id": "REQ-HBRIDGE-POWER-STAGE",
+      "text": "Represent H-bridge power stage, motor connector and flyback/freewheel protection evidence.",
+      "category": "motor-power",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-CURRENT-SENSE",
+      "text": "Provide current-sense and high-current copper-width/current-density review evidence.",
+      "category": "current-sense",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-GATE-CONTROL-LOGIC",
+      "text": "Connect PWM/direction control logic with fault/enable review hooks.",
+      "category": "control",
+      "release_blocking": true
+    },
+    {
+      "id": "REQ-MOTOR-EVIDENCE-PACK",
+      "text": "Attach proof-pack, KiCad, manufacturing export, current-density, thermal and benchmark coverage evidence.",
+      "category": "evidence",
+      "release_blocking": true
+    }
+  ],
+  "acceptance_thresholds": {
+    "scorecard_score_min": 80,
+    "missing_release_blocking_evidence_max": 0,
+    "autonomous_status_allowed": [
+      "human-review-required",
+      "autonomous-pass"
+    ]
+  },
+  "non_claims": [
+    "This benchmark fixture is repository coverage evidence, not motor safety approval or fabrication approval.",
+    "The fixture does not claim thermal safety, current rating adequacy, EMC, manufacturability or production readiness."
+  ]
+}

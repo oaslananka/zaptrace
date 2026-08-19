@@ -1,0 +1,54 @@
+name: Epic
+description: Define a milestone-level work package
+title: "[Epic] "
+labels: ["type/epic", "status/needs-design"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Goal and problem
+      description: What outcome should this epic achieve, and what current gap does it close?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and required issues
+      placeholder: |
+        - [ ] #...
+        - [ ] #...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Exit criteria
+      description: Define the milestone-level pass/fail conditions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Release gate and evidence
+      description: Which commands, reports, reviews, and artifacts prove completion?
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies or blockers
+      description: Link predecessor epics, external decisions, or required environments.
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: Which claims and behaviors are explicitly outside the epic?
+    validations:
+      required: true

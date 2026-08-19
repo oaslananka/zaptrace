@@ -1,0 +1,66 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    # Version update PRs are handled by Renovate. Keep Dependabot
+    # enabled for GitHub-native security alerts/security updates.
+    open-pull-requests-limit: 0
+    directory: "/"
+    cooldown:
+      default-days: 7
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "area/security"
+
+  - package-ecosystem: "pip"
+    # Version update PRs are handled by Renovate. Keep Dependabot
+    # enabled for GitHub-native security alerts/security updates.
+    open-pull-requests-limit: 0
+    directory: "/"
+    cooldown:
+      default-days: 7
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:30"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "python:uv"
+
+  - package-ecosystem: "cargo"
+    # Version update PRs are handled by Renovate. Keep Dependabot
+    # enabled for GitHub-native security alerts/security updates.
+    open-pull-requests-limit: 0
+    directory: "/zaptrace_core"
+    cooldown:
+      default-days: 7
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "area/supply-chain"
+
+  - package-ecosystem: "docker"
+    # Version update PRs are handled by Renovate. Keep Dependabot
+    # enabled for GitHub-native security alerts/security updates.
+    open-pull-requests-limit: 0
+    directory: "/"
+    cooldown:
+      default-days: 7
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:30"
+      timezone: "Etc/UTC"
+    labels:
+      - "dependencies"
+      - "area/ci"
+      - "runtime-risk"

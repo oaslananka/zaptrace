@@ -1,0 +1,12 @@
+# Repository ownership for review routing.
+# This file does not by itself enforce human review. Enable CODEOWNERS-required
+# review in branch protection when there is at least one independent reviewer.
+
+* @oaslananka
+
+/.github/ @oaslananka
+/docs/ @oaslananka
+/zaptrace/ @oaslananka
+/zaptrace_core/ @oaslananka
+/scripts/ @oaslananka
+/tests/ @oaslananka

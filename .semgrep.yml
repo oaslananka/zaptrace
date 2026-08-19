@@ -1,0 +1,33 @@
+rules:
+  - id: zaptrace-no-capability-read-fallback
+    message: Public tool capabilities must fail closed; never default an unknown tool to read.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: TOOL_CAPABILITIES.get(..., "read")
+      - pattern: $TOOL_DEF.get("capability", "read")
+
+  - id: zaptrace-no-shell-true
+    message: Avoid shell=True; pass an argument vector to subprocess APIs.
+    severity: ERROR
+    languages: [python]
+    pattern: subprocess.$FUNC(..., shell=True, ...)
+
+  - id: zaptrace-no-unsafe-yaml-load
+    message: Use yaml.safe_load or an explicit SafeLoader for untrusted YAML.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern: yaml.load(...)
+      - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+      - pattern-not: yaml.load(..., Loader=SafeLoader, ...)
+
+  - id: zaptrace-actions-must-use-commit-sha
+    message: GitHub Actions must be pinned to a full 40-character commit SHA.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - /.github/workflows/*.yml
+        - /.github/workflows/*.yaml
+    pattern-regex: '(?m)^\s*uses:\s*(?!docker://)[^@\s]+@(?![0-9a-f]{40}(?:\s|#|$))[^\s#]+'

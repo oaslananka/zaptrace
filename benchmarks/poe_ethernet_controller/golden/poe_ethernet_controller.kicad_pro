@@ -1,0 +1,14 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1
+      }
+    }
+  },
+  "meta": {
+    "filename": "poe_ethernet_controller.kicad_pro",
+    "family_id": "poe_ethernet_controller"
+  },
+  "version": 1
+}

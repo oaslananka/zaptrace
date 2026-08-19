@@ -1,0 +1,27 @@
+{
+  "commands": [],
+  "environment": {
+    "architecture": "not-run",
+    "operating_system": "not-run",
+    "python_version": "not-run",
+    "tool_versions": {}
+  },
+  "evidence_status": "non-authoritative-example",
+  "evidence_urls": [],
+  "fixture_results": [],
+  "independent_relationship": false,
+  "limitations": [
+    "This is a schema example, not third-party evidence."
+  ],
+  "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "normalized_field_policy": [],
+  "overall_result": "not-run",
+  "performed_at": "1970-01-01T00:00:00Z",
+  "record_status": "template",
+  "relationship_note": "Template only; no person or organization performed this run.",
+  "repository": "https://github.com/oaslananka/zaptrace",
+  "reproducer_name": "example-only",
+  "reproduction_id": "example-template-not-a-run",
+  "schema_version": "1.0",
+  "source_commit": "0000000000000000000000000000000000000000"
+}

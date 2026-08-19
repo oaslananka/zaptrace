@@ -1,0 +1,444 @@
+{
+  "$defs": {
+    "AgentEvaluationArtifact": {
+      "description": "One generated scenario artifact and its content identity.",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "produced_by_step": {
+          "default": "",
+          "title": "Produced By Step",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "kind",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "AgentEvaluationArtifact",
+      "type": "object"
+    },
+    "AgentEvaluationBenchmarkLink": {
+      "description": "Link from an evaluation scenario to benchmark/scorecard evidence.",
+      "properties": {
+        "board_family_id": {
+          "default": "",
+          "title": "Board Family Id",
+          "type": "string"
+        },
+        "grade": {
+          "default": "",
+          "title": "Grade",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "scorecard_sha256": {
+          "default": "",
+          "title": "Scorecard Sha256",
+          "type": "string"
+        },
+        "step_id": {
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id"
+      ],
+      "title": "AgentEvaluationBenchmarkLink",
+      "type": "object"
+    },
+    "AgentEvaluationExecutor": {
+      "description": "Execution surface for one scenario step.",
+      "enum": [
+        "agent-tool",
+        "synthesis-proof",
+        "engine-benchmark"
+      ],
+      "title": "AgentEvaluationExecutor",
+      "type": "string"
+    },
+    "AgentEvaluationMode": {
+      "description": "Supported harness execution modes.",
+      "enum": [
+        "ci",
+        "nightly"
+      ],
+      "title": "AgentEvaluationMode",
+      "type": "string"
+    },
+    "AgentEvaluationOutcome": {
+      "description": "Supported scenario outcomes.",
+      "enum": [
+        "success",
+        "blocked",
+        "human-review-required",
+        "stop-condition"
+      ],
+      "title": "AgentEvaluationOutcome",
+      "type": "string"
+    },
+    "AgentEvaluationProofLink": {
+      "description": "Link from an evaluation scenario to proof-pack evidence.",
+      "properties": {
+        "autonomous_status": {
+          "default": "",
+          "title": "Autonomous Status",
+          "type": "string"
+        },
+        "manifest_path": {
+          "default": "",
+          "title": "Manifest Path",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "default": "",
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "report_path": {
+          "default": "",
+          "title": "Report Path",
+          "type": "string"
+        },
+        "step_id": {
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id"
+      ],
+      "title": "AgentEvaluationProofLink",
+      "type": "object"
+    },
+    "AgentEvaluationRiskClass": {
+      "description": "Risk carried by one evaluation project brief.",
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "critical"
+      ],
+      "title": "AgentEvaluationRiskClass",
+      "type": "string"
+    },
+    "AgentEvaluationScenarioResult": {
+      "description": "Auditable result for one scenario.",
+      "properties": {
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/AgentEvaluationArtifact"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "benchmark_links": {
+          "items": {
+            "$ref": "#/$defs/AgentEvaluationBenchmarkLink"
+          },
+          "title": "Benchmark Links",
+          "type": "array"
+        },
+        "expected_outcome": {
+          "$ref": "#/$defs/AgentEvaluationOutcome"
+        },
+        "failure_count": {
+          "minimum": 0,
+          "title": "Failure Count",
+          "type": "integer"
+        },
+        "matched_expectation": {
+          "title": "Matched Expectation",
+          "type": "boolean"
+        },
+        "non_claims": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Non Claims",
+          "type": "array"
+        },
+        "outcome": {
+          "$ref": "#/$defs/AgentEvaluationOutcome"
+        },
+        "proof_links": {
+          "items": {
+            "$ref": "#/$defs/AgentEvaluationProofLink"
+          },
+          "title": "Proof Links",
+          "type": "array"
+        },
+        "replay_digest": {
+          "default": "",
+          "title": "Replay Digest",
+          "type": "string"
+        },
+        "risk_class": {
+          "$ref": "#/$defs/AgentEvaluationRiskClass"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "stop_reason": {
+          "title": "Stop Reason",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "tool_call_count": {
+          "minimum": 0,
+          "title": "Tool Call Count",
+          "type": "integer"
+        },
+        "total_duration_ms": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Total Duration Ms",
+          "type": "number"
+        },
+        "trace_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Trace Sha256",
+          "type": "string"
+        },
+        "traces": {
+          "items": {
+            "$ref": "#/$defs/AgentEvaluationTraceEntry"
+          },
+          "title": "Traces",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "title",
+        "risk_class",
+        "expected_outcome",
+        "outcome",
+        "matched_expectation",
+        "stop_reason",
+        "session_id",
+        "tool_call_count",
+        "failure_count",
+        "trace_sha256",
+        "traces",
+        "artifacts"
+      ],
+      "title": "AgentEvaluationScenarioResult",
+      "type": "object"
+    },
+    "AgentEvaluationStepStatus": {
+      "description": "Observed status of one execution step.",
+      "enum": [
+        "passed",
+        "failed",
+        "stopped"
+      ],
+      "title": "AgentEvaluationStepStatus",
+      "type": "string"
+    },
+    "AgentEvaluationTraceEntry": {
+      "description": "Normalized audit record for one harness step.",
+      "properties": {
+        "artifact_paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Artifact Paths",
+          "type": "array"
+        },
+        "call_number": {
+          "minimum": 1,
+          "title": "Call Number",
+          "type": "integer"
+        },
+        "duration_ms": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "number"
+        },
+        "error_message": {
+          "default": "",
+          "title": "Error Message",
+          "type": "string"
+        },
+        "error_type": {
+          "default": "",
+          "title": "Error Type",
+          "type": "string"
+        },
+        "executor": {
+          "$ref": "#/$defs/AgentEvaluationExecutor"
+        },
+        "operation": {
+          "title": "Operation",
+          "type": "string"
+        },
+        "params_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Params Sha256",
+          "type": "string"
+        },
+        "result_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Result Sha256",
+          "type": "string"
+        },
+        "risk": {
+          "default": "safe",
+          "title": "Risk",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/AgentEvaluationStepStatus"
+        },
+        "step_id": {
+          "title": "Step Id",
+          "type": "string"
+        },
+        "timestamp": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Timestamp",
+          "type": "number"
+        }
+      },
+      "required": [
+        "call_number",
+        "step_id",
+        "executor",
+        "operation",
+        "status",
+        "params_sha256",
+        "result_sha256"
+      ],
+      "title": "AgentEvaluationTraceEntry",
+      "type": "object"
+    }
+  },
+  "description": "Top-level CI/nightly agent evaluation evidence.",
+  "properties": {
+    "corpus_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Corpus Sha256",
+      "type": "string"
+    },
+    "corpus_version": {
+      "title": "Corpus Version",
+      "type": "string"
+    },
+    "evidence_identity": {
+      "additionalProperties": true,
+      "title": "Evidence Identity",
+      "type": "object"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "harness_version": {
+      "default": "1.0",
+      "title": "Harness Version",
+      "type": "string"
+    },
+    "mismatch_count": {
+      "minimum": 0,
+      "title": "Mismatch Count",
+      "type": "integer"
+    },
+    "mode": {
+      "$ref": "#/$defs/AgentEvaluationMode"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "outcome_counts": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Outcome Counts",
+      "type": "object"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "report_sha256": {
+      "default": "",
+      "title": "Report Sha256",
+      "type": "string"
+    },
+    "scenario_count": {
+      "minimum": 0,
+      "title": "Scenario Count",
+      "type": "integer"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/AgentEvaluationScenarioResult"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "corpus_version",
+    "corpus_sha256",
+    "mode",
+    "generated_at",
+    "passed",
+    "scenario_count",
+    "mismatch_count",
+    "outcome_counts",
+    "scenarios"
+  ],
+  "title": "AgentEvaluationReport",
+  "type": "object"
+}

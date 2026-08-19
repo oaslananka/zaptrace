@@ -1,0 +1,264 @@
+schema_version: '2.0'
+id: esp32-c3-mini-1-n4
+name: ESP32-C3-MINI-1-N4
+category: mcu
+manufacturer: Espressif Systems
+mpn: ESP32-C3-MINI-1-N4
+description: ESP32-C3 RISC-V Wi-Fi/Bluetooth LE module with on-board PCB antenna, 4 MB flash and 53-pin land pattern
+datasheet: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+package: SMD-module-53pin
+footprint: ESP32-C3-MINI-1
+lifecycle: nrnd
+voltage_supply: 3.0-3.6 V
+pins:
+  GND:
+    type: power
+    description: Ground; physical pins 1, 2, 11, 14, and 36-53
+  VCC:
+    type: power
+    description: 3.0-3.6 V power supply (3V3)
+  NC:
+    type: passive
+    description: No connect; leave unconnected
+  EN:
+    type: input
+    description: Chip enable; high enables the module, low powers it off; do not leave floating
+  GPIO0:
+    type: bidirectional
+    description: GPIO0 / ADC1_CH0 / XTAL_32K_P
+  GPIO1:
+    type: bidirectional
+    description: GPIO1 / ADC1_CH1 / XTAL_32K_N
+  GPIO2:
+    type: bidirectional
+    description: GPIO2 / ADC1_CH2 / FSPIQ / strapping
+  GPIO3:
+    type: bidirectional
+    description: GPIO3 / ADC1_CH3
+  GPIO4:
+    type: bidirectional
+    description: GPIO4 / ADC1_CH4 / FSPIHD / MTMS
+  GPIO5:
+    type: bidirectional
+    description: GPIO5 / ADC2_CH0 / FSPIWP / MTDI
+  GPIO6:
+    type: bidirectional
+    description: GPIO6 / FSPICLK / MTCK
+  GPIO7:
+    type: bidirectional
+    description: GPIO7 / FSPID / MTDO
+  GPIO8:
+    type: bidirectional
+    description: GPIO8 / strapping
+  GPIO9:
+    type: bidirectional
+    description: GPIO9 / strapping; internal weak pull-up at reset
+  GPIO10:
+    type: bidirectional
+    description: GPIO10 / FSPICS0
+  GPIO18:
+    type: bidirectional
+    description: GPIO18 / USB D-
+  GPIO19:
+    type: bidirectional
+    description: GPIO19 / USB D+
+  GPIO20:
+    type: bidirectional
+    description: GPIO20 / UART0 RXD
+  GPIO21:
+    type: bidirectional
+    description: GPIO21 / UART0 TXD
+package_pin_map:
+  '1': GND
+  '2': GND
+  '3': VCC
+  '4': NC
+  '5': GPIO2
+  '6': GPIO3
+  '7': NC
+  '8': EN
+  '9': NC
+  '10': NC
+  '11': GND
+  '12': GPIO0
+  '13': GPIO1
+  '14': GND
+  '15': NC
+  '16': GPIO10
+  '17': NC
+  '18': GPIO4
+  '19': GPIO5
+  '20': GPIO6
+  '21': GPIO7
+  '22': GPIO8
+  '23': GPIO9
+  '24': NC
+  '25': NC
+  '26': GPIO18
+  '27': GPIO19
+  '28': NC
+  '29': NC
+  '30': GPIO20
+  '31': GPIO21
+  '32': NC
+  '33': NC
+  '34': NC
+  '35': NC
+  '36': GND
+  '37': GND
+  '38': GND
+  '39': GND
+  '40': GND
+  '41': GND
+  '42': GND
+  '43': GND
+  '44': GND
+  '45': GND
+  '46': GND
+  '47': GND
+  '48': GND
+  '49': GND
+  '50': GND
+  '51': GND
+  '52': GND
+  '53': GND
+properties:
+  core: RISC-V 32-bit single-core
+  frequency_mhz: 160
+  flash_mb: 4
+  sram_kb: 400
+  wireless:
+  - wifi_2.4ghz
+  - ble_5.0
+  gpio_count: 15
+  embedded_chip: ESP32-C3FH4
+  chip_revision: v0.4
+  manufacturer_lifecycle: nrnd
+  module_dimensions_mm:
+  - 13.2
+  - 16.6
+  - 2.4
+  supply_range_v:
+  - 3.0
+  - 3.6
+  external_supply_min_a: 0.5
+  operating_ambient_c:
+  - -40
+  - 85
+  strapping_pins:
+  - GPIO2
+  - GPIO8
+  - GPIO9
+  antenna: on-board PCB antenna
+  repository_land_pattern:
+    source: Espressif official kicad-libraries release 3.2.1 / ESP32-C3-MINI-1.kicad_mod
+    source_commit: 1dfc3110895c9cd62daf332f49c49ee0ee200831
+    source_sha256: f1899b54ab6c007d50e76334f3fb8f340a827bc1d26f1ba24003333c214a7626
+    physical_pin_count: 53
+    raw_pad_count: 61
+    segmented_ground_pin: '49'
+    segmented_ground_pad_count: 9
+    review_note: Vendored footprint is byte-identical to Espressif kicad-libraries 3.2.1 and covers all 53 physical pin identities.
+      The module antenna keepout, central ground/thermal region, module placement/orientation, paste strategy, and base-board
+      RF/layout constraints still require qualified human review before trust-tier promotion.
+  replacement_component_id: esp32-c3-mini-1
+electrical_limits:
+  voltage_supply: 3.0-3.6 V
+  frequency_mhz: 160
+  temperature_range:
+  - -40
+  - 85
+  max_voltage_v: 3.6
+  review_note: The datasheet recommended operating supply is 3.0-3.6 V and specifies that the external power supply must be
+    capable of delivering at least 0.5 A. The 0.5 A value is a source capability requirement, not a component current rating.
+sourcing:
+  mpn: ESP32-C3-MINI-1-N4
+  manufacturer: Espressif Systems
+  status: manufacturer-nrnd
+  production_note: Espressif datasheet v2.2 lists ESP32-C3-MINI-1-N4 as NRND; use the stable ESP32-C3-MINI-1 candidate (N4X)
+    for new designs and re-check procurement status before use.
+compliance:
+  rohs: manufacturer-datasheet-declared
+  reach: manufacturer-datasheet-declared
+  production_note: The module datasheet states green certification for RoHS/REACH. This does not replace project-specific
+    compliance or procurement-time material-declaration review.
+provenance:
+  source: Espressif ESP32-C3-MINI-1 & MINI-1U Datasheet v2.2 (2026-05-06)
+  review_status: candidate-evidence-unreviewed
+  production_note: Human review of the 53-pin module land pattern, antenna keepout/placement, central ground region, pin mapping,
+    boot straps, lifecycle, and procurement evidence remains required before trust-tier promotion, fabrication, or procurement.
+  datasheet_reference_type: manufacturer-document
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  datasheet:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  pin_map:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  package:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  footprint:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  electrical_limits:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  lifecycle:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium
+  sourcing:
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-c3-mini-1_datasheet_en.pdf
+    source_identity: ESP32-C3-MINI-1 & MINI-1U Datasheet
+    source_sha256: de7361381348d82a1abd337f10170be7a420675987568f71fe3c5b100deed270
+    source_version: v2.2 (2026-05-06)
+    extraction_method: structured-manufacturer-source-capture
+    extracted_at: '2026-08-11'
+    confidence: medium

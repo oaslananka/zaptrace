@@ -1,0 +1,35 @@
+name: Sonar New Code Baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-new-code-baseline
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply committed baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Apply and verify SonarQube Cloud baseline
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: python3 scripts/sonar_new_code_baseline.py
+
+      - name: Upload baseline evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sonar-new-code-baseline-${{ github.run_id }}
+          path: artifacts/sonar-baseline/
+          if-no-files-found: error
+          retention-days: 30

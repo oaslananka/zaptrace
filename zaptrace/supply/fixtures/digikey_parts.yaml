@@ -1,0 +1,75 @@
+provider: "digikey-fixture"
+cache_policy: "fixture-only"
+parts:
+  ESP32-S3-WROOM-1-N8:
+    manufacturer: "Espressif"
+    distributor: "DigiKey"
+    distributor_part_number: "ESP32-S3-WROOM-1-N8-ND"
+    stock: 1500
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 3.45
+        currency: "USD"
+      - quantity: 10
+        unit_price: 3.12
+        currency: "USD"
+      - quantity: 100
+        unit_price: 2.89
+        currency: "USD"
+    alternates:
+      - mpn: "ESP32-S3-WROOM-1-N16R8"
+        manufacturer: "Espressif"
+        distributor_part_number: "ESP32-S3-WROOM-1-N16R8-ND"
+        reason: "Larger flash variant"
+        footprint: "ESP32-S3-WROOM-1"
+        lifecycle: "active"
+    footprint: "ESP32-S3-WROOM-1"
+  BME280:
+    manufacturer: "Bosch Sensortec"
+    distributor: "DigiKey"
+    distributor_part_number: "BME280-ND"
+    stock: 850
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 4.21
+        currency: "USD"
+      - quantity: 10
+        unit_price: 3.87
+        currency: "USD"
+    alternates:
+      - mpn: "BMP280"
+        manufacturer: "Bosch Sensortec"
+        distributor_part_number: "BMP280-ND"
+        reason: "Lower cost, no humidity sensor"
+        footprint: "LGA-8"
+        lifecycle: "active"
+    footprint: "LGA-8"
+  AP2112K-3.3:
+    manufacturer: "Diodes Incorporated"
+    distributor: "DigiKey"
+    distributor_part_number: "AP2112K-3.3TRG1-ND"
+    stock: 3200
+    lifecycle: "active"
+    rohs_compliant: true
+    compliance_flags: ["REACH"]
+    price_breaks:
+      - quantity: 1
+        unit_price: 0.42
+        currency: "USD"
+      - quantity: 100
+        unit_price: 0.28
+        currency: "USD"
+    alternates:
+      - mpn: "AP2112K-3.3TRG1"
+        manufacturer: "Diodes Incorporated"
+        distributor_part_number: "AP2112K-3.3TRG1-ND"
+        reason: "Same part, reel packaging"
+        footprint: "SOT-23-5"
+        lifecycle: "active"
+    footprint: "SOT-23-5"

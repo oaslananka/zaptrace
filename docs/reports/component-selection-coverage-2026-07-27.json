@@ -1,0 +1,211 @@
+{
+  "component_count": 504,
+  "corpus_case_count": 20,
+  "corpus_failed_count": 0,
+  "corpus_passed_count": 20,
+  "corpus_results": [
+    {
+      "blocked": false,
+      "decision_hash": "43cc6bae07fb2844651ea6e1743e280b5ab1a101b2c22a20ad899d90d9b01982",
+      "human_review_required": true,
+      "id": "power-sot23-ldo",
+      "passed": true,
+      "rationale": "selected ap2112k-3.3 at rank 1 of 2 eligible candidate(s)",
+      "selected_component_id": "ap2112k-3.3"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "4915233e3557c60b3ff1958e944556c0590a738943b2dbfa7b60ef0717781ddd",
+      "human_review_required": true,
+      "id": "mcu-tqfp32",
+      "passed": true,
+      "rationale": "selected atmega328p-au at rank 1 of 2 eligible candidate(s)",
+      "selected_component_id": "atmega328p-au"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "f249065b5cd00a5b7977944e2d0498fd01563f9dd7cf83178a5555c9b6a42b70",
+      "human_review_required": true,
+      "id": "environmental-sensor-lga8",
+      "passed": true,
+      "rationale": "selected bme280 at rank 1 of 2 eligible candidate(s)",
+      "selected_component_id": "bme280"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "55c9c79cb3bc17fa09b90cb4b9051e925f84dc1d443caaee965cee8e041f073d",
+      "human_review_required": true,
+      "id": "memory-soic8",
+      "passed": true,
+      "rationale": "selected at24c02d-sshm-t at rank 1 of 3 eligible candidate(s)",
+      "selected_component_id": "at24c02d-sshm-t"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "6bb45df01d88515fd99d4b571a808af5897e48b8cfc19773e5ff201a73031b34",
+      "human_review_required": true,
+      "id": "interface-rs485-soic8",
+      "passed": true,
+      "rationale": "selected max3485esd-t at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "max3485esd-t"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "482824c4c81441a37d2a9a16322ac71fdc9dc74e973c129b8c6f12919b1a2984",
+      "human_review_required": true,
+      "id": "connector-usb-c-16p",
+      "passed": true,
+      "rationale": "selected usb-c-16p at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "usb-c-16p"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "31a55370e14d3a21099828c43e4caa1fc68129ece5e3679e3e36780a7fc26806",
+      "human_review_required": true,
+      "id": "rf-qfn20",
+      "passed": true,
+      "rationale": "selected cc1101 at rank 1 of 2 eligible candidate(s)",
+      "selected_component_id": "cc1101"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "8cf0a9c74d42bf109928f28685663bf1fa0c598f5af62e5961dcf5cb6ccb4f09",
+      "human_review_required": true,
+      "id": "secure-element-soic8",
+      "passed": true,
+      "rationale": "selected atecc608b at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "atecc608b"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "9e8eea034549aa35166ad5ce83576d055a4b6b4247e682b2c059a7b05ef4e440",
+      "human_review_required": true,
+      "id": "rtc-soic16",
+      "passed": true,
+      "rationale": "selected ds3231sn at rank 1 of 2 eligible candidate(s)",
+      "selected_component_id": "ds3231sn"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "f8a1ecec3b3fdceaeedc7ec4300ccd728a61607518fe78f42d38b31678587d3d",
+      "human_review_required": true,
+      "id": "indicator-led-0603",
+      "passed": true,
+      "rationale": "selected led-blue-0603 at rank 1 of 3 eligible candidate(s)",
+      "selected_component_id": "led-blue-0603"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "9593057e870bdc60915dd81d9e2c67e60081a8655bae0d89a8f47eb571bdee93",
+      "human_review_required": true,
+      "id": "protection-mosfet-sot23",
+      "passed": true,
+      "rationale": "selected 2n7002k-7 at rank 1 of 2 eligible candidate(s)",
+      "selected_component_id": "2n7002k-7"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "ba7f062e6e1e9b99cb122a01902cd2e2cf77f9209c1779e6bca1da71b0f0659b",
+      "human_review_required": true,
+      "id": "passive-capacitor-0402",
+      "passed": true,
+      "rationale": "selected cap-0402-100pf at rank 1 of 3 eligible candidate(s)",
+      "selected_component_id": "cap-0402-100pf"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "85da8dcec7507e7c37c898cefc7d3aea85a5b902855a98d267916ac1f6a75d78",
+      "human_review_required": true,
+      "id": "charger-qfn24",
+      "passed": true,
+      "rationale": "selected bq24297rget at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "bq24297rget"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "a52654cb2a49a6144a09115594ce90f418e22200fcecef13c35c25fd355ffaa2",
+      "human_review_required": true,
+      "id": "riscv-mcu-qfn28",
+      "passed": true,
+      "rationale": "selected ch32v203g6u6 at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "ch32v203g6u6"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "54908fb485c66730d2296627d1099900213697186a527a9dc3481ffc3afd2dff",
+      "human_review_required": true,
+      "id": "pressure-sensor-lga10",
+      "passed": true,
+      "rationale": "selected bmp388 at rank 1 of 3 eligible candidate(s)",
+      "selected_component_id": "bmp388"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "edd06e0b73ef6a19922fce6b705a01a3960d954c9f8286eaa8243e10d4b36aa4",
+      "human_review_required": true,
+      "id": "ethernet-magjack",
+      "passed": true,
+      "rationale": "selected ethernet-rj45-magjack at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "ethernet-rj45-magjack"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "108f7f8f1556eba69a6a5d2b1e8a7d805828ac57daae90d66a00a57cb53a7615",
+      "human_review_required": true,
+      "id": "sram-bga48",
+      "passed": true,
+      "rationale": "selected cy62157ev30ll-45zsxi at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "cy62157ev30ll-45zsxi"
+    },
+    {
+      "blocked": false,
+      "decision_hash": "7785595e14ee6b7d8ce9ee1c53ccee9896db382f0afe7a55373545052dc32e96",
+      "human_review_required": true,
+      "id": "level-shifter-tssop20",
+      "passed": true,
+      "rationale": "selected txs0108epwr at rank 1 of 1 eligible candidate(s)",
+      "selected_component_id": "txs0108epwr"
+    },
+    {
+      "blocked": true,
+      "decision_hash": "6241a97c9f5b68f72c03b39dd3ab946a0acb3efa1a6649ea2f8e212c833b5fbc",
+      "human_review_required": true,
+      "id": "blocked-category-only",
+      "passed": true,
+      "rationale": "no candidate passed the pre-layout component-selection gate",
+      "selected_component_id": ""
+    },
+    {
+      "blocked": true,
+      "decision_hash": "91ea523a35eb410090e8eb209979aa7b34b069c4dbdff062f2cec8cb24f47887",
+      "human_review_required": true,
+      "id": "blocked-package-only",
+      "passed": true,
+      "rationale": "no candidate passed the pre-layout component-selection gate",
+      "selected_component_id": ""
+    }
+  ],
+  "coverage_shortfall": 0,
+  "errors": [],
+  "evidence_status": "historical-governance-snapshot",
+  "gate": "component-selection-coverage",
+  "governed_datasheet_and_footprint_count": 504,
+  "governed_datasheet_count": 504,
+  "governed_footprint_count": 504,
+  "historical_snapshot": true,
+  "human_review_required_count": 504,
+  "load_error_count": 0,
+  "minimum_governed_parts": 100,
+  "non_claims": [
+    "governed provenance coverage does not mean manufacturer verification",
+    "heuristic records are not release or fabrication eligible without policy-scoped review",
+    "selection corpus success does not prove electrical, thermal, supply, or physical board correctness"
+  ],
+  "passed": true,
+  "release_eligible_count": 0,
+  "schema_version": "1.0",
+  "trust_tier_counts": {
+    "heuristic": 504
+  },
+  "verified_datasheet_and_footprint_count": 0
+}

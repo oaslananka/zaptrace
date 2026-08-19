@@ -1,0 +1,118 @@
+schema_version: '2.0'
+id: bmp390
+name: BMP390
+category: sensor
+manufacturer: Bosch
+mpn: BMP390
+description: Barometric pressure sensor, I2C/SPI, +-0.03 hPa accuracy
+datasheet: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf
+package: LGA-10
+footprint: BMP390-LGA10
+lifecycle: active
+voltage_supply: '3.3'
+pins:
+  VDD:
+    type: power
+    description: 1.65-3.6V supply
+  VDDIO:
+    type: power
+    description: I/O supply
+  GND:
+    type: power
+    description: Ground
+  CSB:
+    type: input
+    description: SPI chip select
+  SDI:
+    type: bidirectional
+    description: SPI data in / I2C data
+  SCK:
+    type: input
+    description: SPI/I2C clock
+  SDO:
+    type: bidirectional
+    description: SPI data out / I2C address
+  INT:
+    type: output
+    description: Data ready interrupt
+properties:
+  interface:
+  - i2c
+  - spi
+  pressure_range: 300-1250 hPa
+  temperature_range: -40..85 C
+electrical_limits:
+  temperature_range: -40..85 C
+  voltage_supply: '3.3'
+sourcing:
+  mpn: BMP390
+  manufacturer: Bosch
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf
+    source_identity: component:bmp390:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:bmp390:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

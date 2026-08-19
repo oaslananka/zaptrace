@@ -1,0 +1,31 @@
+{
+  "comparison_policy": "sha256-exact",
+  "family_id": "usb_c_power_sink",
+  "files": [
+    {
+      "kind": "project",
+      "path": "usb_c_power_sink.kicad_pro",
+      "required": true,
+      "sha256": "bd46921f1395779a93cb5c497820f2017e36a8fba7e4f37ebfbc3c8762c7eb39",
+      "size_bytes": 187
+    },
+    {
+      "kind": "schematic",
+      "path": "usb_c_power_sink.kicad_sch",
+      "required": true,
+      "sha256": "38370cac0514543d5ad0242096f085beaa421cd7acc71b6eab4a612183cae284",
+      "size_bytes": 245
+    },
+    {
+      "kind": "pcb",
+      "path": "usb_c_power_sink.kicad_pcb",
+      "required": true,
+      "sha256": "71409298a55e627f0da987a0cb55c9f965f839531b6ed8d2a2757e93f3c98a1e",
+      "size_bytes": 250
+    }
+  ],
+  "fixture_id": "usb_c_power_sink_kicad_fixture_v1",
+  "kicad_version": "9.x",
+  "notes": "",
+  "schema_version": "1.0"
+}

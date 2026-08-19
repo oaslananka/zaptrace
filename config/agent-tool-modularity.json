@@ -1,0 +1,40 @@
+{
+  "compatibility_facade": "zaptrace/agent/_tool_impls.py",
+  "domains": {
+    "calculators": "Pure electrical calculation helpers",
+    "design": "Parsing, inspection, diffing, and component mutation",
+    "exports": "Native report, KiCad, Gerber, drill, manufacturing, placement, and SPICE export",
+    "interop": "KiCad, EasyEDA, Altium, STEP, and 3D-model interoperability",
+    "library": "Component, footprint, and schematic rendering lookup",
+    "pipeline": "Autopilot pipeline execution and patch suggestions",
+    "proof": "Proof execution and check discovery",
+    "routing": "Placement, routing, and net classification",
+    "synthesis": "Requirements, topology synthesis, simulation gates, and manufacture orchestration",
+    "transactions": "Snapshots, transactions, commits, rollbacks, and audit events",
+    "verification": "ERC, DRC, and engineering review adapters"
+  },
+  "implementation_modules": [
+    "zaptrace/agent/_tool_impls.py",
+    "zaptrace/agent/tool_impls/runtime.py",
+    "zaptrace/agent/tool_impls/design.py",
+    "zaptrace/agent/tool_impls/synthesis.py",
+    "zaptrace/agent/tool_impls/verification.py",
+    "zaptrace/agent/tool_impls/routing.py",
+    "zaptrace/agent/tool_impls/library.py",
+    "zaptrace/agent/tool_impls/exports.py",
+    "zaptrace/agent/tool_impls/interop.py",
+    "zaptrace/agent/tool_impls/pipeline.py",
+    "zaptrace/agent/tool_impls/transactions.py",
+    "zaptrace/agent/tool_impls/proof.py",
+    "zaptrace/agent/tool_impls/calculators.py"
+  ],
+  "max_python_lines": 600,
+  "required_invariants": [
+    "all registry callables are implemented outside the compatibility facade",
+    "the compatibility facade preserves existing import paths and callable identity",
+    "the internal tool-implementation import graph is acyclic",
+    "registry fragments contain declarative data only",
+    "the committed registry contract matches all 93 names, schemas, capabilities, path policies, and ordering"
+  ],
+  "schema": "zaptrace-agent-tool-modularity-v1"
+}

@@ -1,0 +1,968 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.13"
+  UV_VERSION: "0.11"
+  PYTHONPATH: "."
+  CARGO_AUDIT_VERSION: "0.22.2"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+
+  staging-build:
+    name: Build TestPyPI staging distributions
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Verify lock and build source distribution
+        run: uv lock --check && uv build --sdist
+
+      - name: Build Linux staging wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b  # v1.51.0
+        with:
+          target: x86_64-unknown-linux-gnu
+          args: --release --manifest-path zaptrace_core/Cargo.toml --out dist -i /opt/python/cp313-cp313/bin/python
+          manylinux: auto
+
+      - name: Upload TestPyPI staging distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: testpypi-staging-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  staging-testpypi-publish:
+    name: Publish staging distributions to TestPyPI
+    needs: staging-build
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download TestPyPI staging distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: testpypi-staging-distributions
+          path: dist
+
+      - name: Publish staging distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  staging-testpypi-verify:
+    name: Verify staging distributions from TestPyPI
+    needs: staging-testpypi-publish
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Download staged distributions for hash comparison
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: testpypi-staging-distributions
+          path: registry-artifacts
+
+      - name: Verify TestPyPI artifact identity and hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          python3 scripts/ci_registry_distribution.py \
+            --registry testpypi \
+            --distribution zaptrace-eda \
+            --version "$version" \
+            --artifact-dir registry-artifacts \
+            --output registry-testpypi-staging.json \
+            --markdown registry-testpypi-staging.md \
+            --strict
+          cat registry-testpypi-staging.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean-install exact staging version from TestPyPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-testpypi-smoke" uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-testpypi-smoke" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+              --python "$PYTHON_VERSION"
+          for attempt in $(seq 1 12); do
+            if uv pip install \
+              --python "$RUNNER_TEMP/zaptrace-testpypi-smoke/bin/python" \
+              --no-deps \
+              --index-url https://test.pypi.org/simple/ \
+              "zaptrace-eda==$version"; then
+              break
+            fi
+            if [[ "$attempt" == "12" ]]; then
+              exit 1
+            fi
+            sleep 5
+          done
+          wheel="$(realpath registry-artifacts/*manylinux*x86_64*.whl)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-testpypi-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$wheel" \
+            --artifact-root "$GITHUB_WORKSPACE/registry-artifacts" \
+            --artifact-type native-wheel \
+            --target native-linux-x86_64-cp313 \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native required \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-testpypi-staging.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-testpypi-staging.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/distribution-smoke-testpypi-staging.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload TestPyPI staging verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: testpypi-staging-verification
+          path: |
+            registry-testpypi-staging.json
+            registry-testpypi-staging.md
+            distribution-smoke-testpypi-staging.json
+            distribution-smoke-testpypi-staging.md
+          if-no-files-found: error
+
+  container-security:
+    name: Container security gate
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/container-security.yml
+    with:
+      mode: release
+      upload_sarif: false
+    permissions:
+      contents: read
+      security-events: write
+
+  quality:
+    name: Release quality gate
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Verify release version and tag identity
+        run: |
+          .venv/bin/python scripts/ci_version_consistency.py \
+            --context release \
+            --source-ref "$GITHUB_REF" \
+            --source-commit "$(git rev-parse HEAD)" \
+            --output version-consistency-release.json \
+            --markdown version-consistency-release.md \
+            --strict
+          cat version-consistency-release.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release version consistency evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: version-consistency-release
+          path: |
+            version-consistency-release.json
+            version-consistency-release.md
+          if-no-files-found: error
+
+      - name: Run Python quality gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+          .venv/bin/pyright
+          .venv/bin/python scripts/ci_test_lane_policy.py --output test-lane-inventory.json --strict
+          rm -f .coverage
+          lane_specs=(
+            "unit:1:3"
+            "unit:2:3"
+            "unit:3:3"
+            "integration"
+            "benchmark:1:2"
+            "benchmark:2:2"
+            "hardware:1:2"
+            "hardware:2:2"
+            "external_tool"
+            "native"
+          )
+          for spec in "${lane_specs[@]}"; do
+            IFS=: read -r lane shard_index shard_count <<< "$spec"
+            artifact="$lane"
+            shard_args=()
+            if [[ -n "${shard_index:-}" ]]; then
+              artifact="${lane}-${shard_index}"
+              shard_args+=(--lane-shard-index "$shard_index" --lane-shard-count "$shard_count")
+            fi
+            if [[ "$lane" == "external_tool" ]]; then
+              bash scripts/ci_install_kicad.sh kicad ngspice
+            fi
+            if [[ "$lane" == "native" ]]; then
+              .venv/bin/maturin develop --release --manifest-path zaptrace_core/Cargo.toml
+            fi
+            .venv/bin/pytest -p tests.lane_policy \
+              --lane "$lane" \
+              "${shard_args[@]}" \
+              --require-lane-execution \
+              --enforce-lane-budget \
+              --lane-report "test-lane-release-${artifact}.json" \
+              --junitxml "junit-release-${artifact}.xml" \
+              --cov=zaptrace \
+              --cov-append \
+              --cov-report= \
+              --cov-fail-under=0 \
+              -o junit_family=legacy \
+              -q
+          done
+          .venv/bin/coverage report
+          .venv/bin/coverage json -o coverage.json
+          .venv/bin/python scripts/ci_smoke.py gerber
+          .venv/bin/python scripts/ci_smoke.py proof
+
+      - name: Upload release test lane evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: release-test-lane-evidence
+          path: |
+            test-lane-inventory.json
+            test-lane-release-*.json
+            junit-release-*.xml
+          if-no-files-found: error
+
+      - name: Enforce critical runtime coverage
+        run: |
+          .venv/bin/python scripts/ci_critical_runtime_coverage.py \
+            --coverage coverage.json \
+            --policy config/critical-runtime-coverage.json \
+            --mode release \
+            --output critical-runtime-coverage.json \
+            --markdown critical-runtime-coverage.md \
+            --strict
+          cat critical-runtime-coverage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload critical runtime coverage evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: critical-runtime-coverage-release
+          path: |
+            coverage.json
+            critical-runtime-coverage.json
+            critical-runtime-coverage.md
+          if-no-files-found: error
+
+      - name: Run Rust quality gates
+        run: |
+          cargo fmt --manifest-path zaptrace_core/Cargo.toml --check
+          cargo clippy --manifest-path zaptrace_core/Cargo.toml --all-targets -- -D warnings
+          cargo test --manifest-path zaptrace_core/Cargo.toml
+
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
+
+      - name: Run release Cargo advisory audit
+        shell: bash
+        run: |
+          set +e
+          cargo audit --file zaptrace_core/Cargo.lock --json > cargo-audit-release.json
+          audit_exit=$?
+          .venv/bin/python scripts/ci_cargo_audit.py             --input cargo-audit-release.json             --lockfile zaptrace_core/Cargo.lock             --tool-version "$(cargo-audit --version)"             --output cargo-audit-release-evidence.json             --markdown cargo-audit-release-evidence.md             --strict
+          evidence_exit=$?
+          set -e
+          cat cargo-audit-release-evidence.md >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$audit_exit" -ne 0 || "$evidence_exit" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Upload release Cargo advisory evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: cargo-audit-release
+          path: |
+            cargo-audit-release.json
+            cargo-audit-release-evidence.json
+            cargo-audit-release-evidence.md
+          if-no-files-found: error
+
+      - name: Generate tagged release evidence
+        run: |
+          .venv/bin/python scripts/ci_release_gate.py \
+            --mode release \
+            --gate "python-quality=success" \
+            --gate "rust-quality=success" \
+            --gate "cargo-audit=success" \
+            --source-input pyproject.toml \
+            --source-input uv.lock \
+            --source-input scripts/ci_release_gate.py \
+            --source-input .github/workflows/release.yml \
+            --source-input cargo-audit-release-evidence.json \
+            --tool-version "python=$(.venv/bin/python -c 'import sys; print(sys.version.split()[0])')" \
+            --tool-version "rust=$(rustc --version)" \
+            --tool-version "cargo-audit=$(cargo-audit --version)" \
+            --output tagged-release-evidence.json \
+            --markdown "$GITHUB_STEP_SUMMARY" \
+            --strict
+
+      - name: Upload tagged release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: tagged-release-evidence
+          path: tagged-release-evidence.json
+          if-no-files-found: error
+
+  python-distributions:
+    name: Build Python distributions
+    if: github.event_name == 'push'
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
+
+      - name: Build source distribution
+        run: uv build --sdist
+
+      - name: Create clean locked environment
+        run: |
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke" uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+            --python "$PYTHON_VERSION"
+
+      - name: Install exact source distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdist="$(realpath dist/*.tar.gz)"
+          sdist_hash="$(sha256sum "$sdist" | awk '{print $1}')"
+          printf 'zaptrace-eda @ file://%s --hash=sha256:%s\n' "$sdist" "$sdist_hash" \
+            > "$RUNNER_TEMP/sdist.requirements.txt"
+          uv pip install \
+            --python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python" \
+            --no-deps \
+            --require-hashes \
+            -r "$RUNNER_TEMP/sdist.requirements.txt"
+          uv pip check --python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"
+
+      - name: Run clean-install distribution smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdist="$(realpath dist/*.tar.gz)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$sdist" \
+            --artifact-root "$GITHUB_WORKSPACE/dist" \
+            --artifact-type source-distribution \
+            --target sdist-linux-x86_64-cp313 \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native absent \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload source distribution clean-install evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: distribution-smoke-sdist-linux-x86_64-cp313
+          path: |
+            distribution-smoke-sdist-linux-x86_64-cp313.json
+            distribution-smoke-sdist-linux-x86_64-cp313.md
+          if-no-files-found: error
+
+      - name: Generate release dependency evidence
+        run: |
+          .venv/bin/python scripts/ci_dependency_evidence.py \
+            --output dist/release-dependency-evidence.json \
+            --strict
+
+      - name: Upload Python distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  rust-wheels:
+    name: Build Rust wheels (${{ matrix.target }})
+    if: github.event_name == 'push'
+    needs: quality
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            support_target: native-linux-x86_64-cp313
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            support_target: native-macos-x86_64-cp313
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            support_target: native-macos-arm64-cp313
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Select maturin args
+        id: maturin
+        shell: bash
+        run: |
+          args="--release --manifest-path zaptrace_core/Cargo.toml --out dist"
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "args=$args -i /opt/python/cp313-cp313/bin/python" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=$args -i $(uv python find "$PYTHON_VERSION")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Rust wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b  # v1.51.0
+        with:
+          target: ${{ matrix.target }}
+          args: ${{ steps.maturin.outputs.args }}
+          manylinux: auto
+
+      - name: Install built Rust wheel
+        shell: bash
+        run: |
+          python_path="$(uv python find "$PYTHON_VERSION")"
+          # macOS x86_64 dependencies may require locked source builds when upstream stops publishing binary wheels.
+          uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-native-smoke" uv sync --locked --all-extras --all-groups --no-install-project \
+            --python "$python_path"
+          wheel="$(realpath dist/*.whl)"
+          wheel_hash="$(sha256sum "$wheel" | awk '{print $1}')"
+          printf 'zaptrace-eda @ file://%s --hash=sha256:%s\n' "$wheel" "$wheel_hash" \
+            > "$RUNNER_TEMP/native-wheel.requirements.txt"
+          uv pip install \
+            --python "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
+            --no-deps \
+            --require-hashes \
+            -r "$RUNNER_TEMP/native-wheel.requirements.txt"
+
+      - name: Run mandatory native boundary verification
+        shell: bash
+        env:
+          ZAPTRACE_REQUIRE_NATIVE: "1"
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_native_boundary.py" \
+            --wheel "$GITHUB_WORKSPACE"/dist/*.whl \
+            --source-root "$GITHUB_WORKSPACE" \
+            --target "${{ matrix.target }}" \
+            --output "$GITHUB_WORKSPACE/native-boundary-${{ matrix.target }}.json" \
+            --markdown "$GITHUB_WORKSPACE/native-boundary-${{ matrix.target }}.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/native-boundary-${{ matrix.target }}.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload native boundary evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: native-boundary-${{ matrix.target }}
+          path: |
+            native-boundary-${{ matrix.target }}.json
+            native-boundary-${{ matrix.target }}.md
+          if-no-files-found: error
+
+      - name: Run clean-install distribution smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(realpath dist/*.whl)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$wheel" \
+            --artifact-root "$GITHUB_WORKSPACE/dist" \
+            --artifact-type native-wheel \
+            --target "${{ matrix.support_target }}" \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native required \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-${{ matrix.support_target }}.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-${{ matrix.support_target }}.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/distribution-smoke-${{ matrix.support_target }}.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload distribution clean-install evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: distribution-smoke-${{ matrix.support_target }}
+          path: |
+            distribution-smoke-${{ matrix.support_target }}.json
+            distribution-smoke-${{ matrix.support_target }}.md
+          if-no-files-found: error
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: wheel-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+
+  testpypi-publish:
+    name: Publish tagged distributions to TestPyPI
+    needs: [python-distributions, rust-wheels]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download source distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: python-distributions
+          path: registry-source
+
+      - name: Download native wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: wheel-*
+          path: registry-wheels
+          merge-multiple: true
+
+      - name: Stage registry distributions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p registry-publish
+          cp registry-source/*.tar.gz registry-publish/
+          cp registry-wheels/*.whl registry-publish/
+
+      - name: Publish tagged distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
+        with:
+          packages-dir: registry-publish/
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  testpypi-verify:
+    name: Verify tagged distributions from TestPyPI
+    needs: testpypi-publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Download source distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: python-distributions
+          path: registry-artifacts
+
+      - name: Download native wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: wheel-*
+          path: registry-artifacts
+          merge-multiple: true
+
+      - name: Verify TestPyPI artifact identity and hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          python3 scripts/ci_registry_distribution.py \
+            --registry testpypi \
+            --distribution zaptrace-eda \
+            --version "$version" \
+            --artifact-dir registry-artifacts \
+            --output registry-testpypi-release.json \
+            --markdown registry-testpypi-release.md \
+            --strict
+          cat registry-testpypi-release.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean-install exact tagged version from TestPyPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-testpypi-release" uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-testpypi-release" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+              --python "$PYTHON_VERSION"
+          for attempt in $(seq 1 12); do
+            if uv pip install \
+              --python "$RUNNER_TEMP/zaptrace-testpypi-release/bin/python" \
+              --no-deps \
+              --index-url https://test.pypi.org/simple/ \
+              "zaptrace-eda==$version"; then
+              break
+            fi
+            if [[ "$attempt" == "12" ]]; then
+              exit 1
+            fi
+            sleep 5
+          done
+          wheel="$(realpath registry-artifacts/*manylinux*x86_64*.whl)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-testpypi-release/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$wheel" \
+            --artifact-root "$GITHUB_WORKSPACE/registry-artifacts" \
+            --artifact-type native-wheel \
+            --target native-linux-x86_64-cp313 \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native required \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-testpypi-release.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-testpypi-release.md" \
+            --strict
+
+      - name: Upload TestPyPI release verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: testpypi-release-verification
+          path: |
+            registry-testpypi-release.json
+            registry-testpypi-release.md
+            distribution-smoke-testpypi-release.json
+            distribution-smoke-testpypi-release.md
+          if-no-files-found: error
+
+  pypi-publish:
+    name: Publish verified distributions to PyPI
+    needs: [testpypi-verify, python-distributions, rust-wheels]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download source distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: python-distributions
+          path: registry-source
+
+      - name: Download native wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: wheel-*
+          path: registry-wheels
+          merge-multiple: true
+
+      - name: Stage registry distributions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p registry-publish
+          cp registry-source/*.tar.gz registry-publish/
+          cp registry-wheels/*.whl registry-publish/
+
+      - name: Publish verified distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # release/v1
+        with:
+          packages-dir: registry-publish/
+
+  pypi-verify:
+    name: Verify published distributions from PyPI
+    needs: pypi-publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: false
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Download source distribution
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: python-distributions
+          path: registry-artifacts
+
+      - name: Download native wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: wheel-*
+          path: registry-artifacts
+          merge-multiple: true
+
+      - name: Verify PyPI artifact identity and hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          python3 scripts/ci_registry_distribution.py \
+            --registry pypi \
+            --distribution zaptrace-eda \
+            --version "$version" \
+            --artifact-dir registry-artifacts \
+            --output registry-pypi-release.json \
+            --markdown registry-pypi-release.md \
+            --strict
+          cat registry-pypi-release.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean-install exact tagged version from PyPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-pypi-release" uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-pypi-release" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+              --python "$PYTHON_VERSION"
+          for attempt in $(seq 1 12); do
+            if uv pip install \
+              --python "$RUNNER_TEMP/zaptrace-pypi-release/bin/python" \
+              --no-deps \
+              --index-url https://pypi.org/simple/ \
+              "zaptrace-eda==$version"; then
+              break
+            fi
+            if [[ "$attempt" == "12" ]]; then
+              exit 1
+            fi
+            sleep 5
+          done
+          wheel="$(realpath registry-artifacts/*manylinux*x86_64*.whl)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-pypi-release/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$wheel" \
+            --artifact-root "$GITHUB_WORKSPACE/registry-artifacts" \
+            --artifact-type native-wheel \
+            --target native-linux-x86_64-cp313 \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native required \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-pypi-release.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-pypi-release.md" \
+            --strict
+
+      - name: Upload PyPI release verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: pypi-release-verification
+          path: |
+            registry-pypi-release.json
+            registry-pypi-release.md
+            distribution-smoke-pypi-release.json
+            distribution-smoke-pypi-release.md
+          if-no-files-found: error
+
+  # GHCR publishing remains intentionally disabled until registry ownership and support policy are completed.
+
+  github-release:
+    name: Create GitHub release
+    if: github.event_name == 'push'
+    needs: [python-distributions, rust-wheels, container-security, pypi-verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download tagged release evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: tagged-release-evidence
+          path: release-artifacts
+
+      - name: Download release version consistency evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: version-consistency-release
+          path: release-artifacts
+
+      - name: Download release Cargo advisory evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: cargo-audit-release
+          path: release-artifacts
+
+      - name: Download container reproducibility and scan evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: container-security-evidence
+          path: release-artifacts/container-security
+
+      - name: Download Python distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: python-distributions
+          path: release-artifacts
+
+      - name: Download Rust wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: wheel-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Download native boundary evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: native-boundary-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Download distribution clean-install evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: distribution-smoke-*
+          path: release-artifacts/distribution
+          merge-multiple: true
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        with:
+          path: release-artifacts
+          artifact-name: zaptrace-${{ github.ref_name }}.spdx.json
+          output-file: release-artifacts/zaptrace-${{ github.ref_name }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate checksum manifest
+        run: python scripts/generate_checksum_manifest.py release-artifacts --output release-artifacts/SHA256SUMS
+
+      - name: Verify checksum manifest
+        working-directory: release-artifacts
+        run: sha256sum --check SHA256SUMS
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373  # v4.1.1
+        with:
+          subject-path: release-artifacts/**/*
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b  # v3.0.1
+        with:
+          generate_release_notes: true
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: release-artifacts/**/*

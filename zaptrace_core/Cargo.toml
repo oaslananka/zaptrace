@@ -1,0 +1,12 @@
+[package]
+name = "zaptrace-core"
+version = "0.3.4-dev.0"
+edition = "2021"
+description = "Accelerated placement and routing routines for ZapTrace"
+
+[lib]
+name = "zaptrace_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.29", features = ["extension-module"] }

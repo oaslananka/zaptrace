@@ -1,0 +1,40 @@
+task_schema_version: "1.0"
+task_id: "repair-rt-001"
+name: "KiCad schematic repair — reference fault corpus"
+description: >
+  Grade repair detection on a set of known ERC fault classes.
+  The runner reports detection and outcome without leaking the expected patch.
+  Release-blocking faults that go undetected cause a gate failure.
+
+faults:
+  - fault_id: "FAULT-001"
+    fault_class: erc_unconnected_pin
+    description: >
+      A schematic with at least one unconnected pin or explicit no_connect marker.
+      Expected detector: erc.unconnected_pin via (no_connect) or (pin ... unconnected).
+    expected_detector: "erc.unconnected_pin"
+    release_blocking: true
+    fixture_file: ""
+
+  - fault_id: "FAULT-002"
+    fault_class: erc_power_flag_missing
+    description: >
+      A schematic that declares power nets (VCC/VDD/3V3/5V) but has no PWR_FLAG
+      symbol, causing a power-pin ERC warning.
+    expected_detector: "erc.power_flag_missing"
+    release_blocking: true
+    fixture_file: ""
+
+  - fault_id: "FAULT-003"
+    fault_class: generic
+    description: >
+      A generic fault class used for harness self-tests.  Always detected.
+    expected_detector: "generic"
+    release_blocking: false
+    fixture_file: ""
+
+thresholds:
+  min_detection_rate: 0.50   # at least 50% of faults must be detected
+
+limits:
+  max_runtime_seconds: 120

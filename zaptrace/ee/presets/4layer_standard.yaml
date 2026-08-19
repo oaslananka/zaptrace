@@ -1,0 +1,33 @@
+name: 4layer_standard
+description: >
+  Standard 4-layer PCB. 1.6mm FR-4, 1oz outer layers, 0.5oz inner.
+  Signal on outer layers, dedicated GND plane (In1) and PWR plane (In2).
+  Suitable for designs up to 200 components, mixed-signal, >20MHz.
+layers: 4
+total_thickness: 1.6
+layer_stack:
+  - name: F.Cu
+    type: signal
+    thickness: 0.035
+    material: copper
+  - name: In1.Cu
+    type: ground
+    thickness: 0.018
+    material: copper
+  - name: In2.Cu
+    type: power
+    thickness: 0.018
+    material: copper
+  - name: B.Cu
+    type: signal
+    thickness: 0.035
+    material: copper
+core_thickness: 1.53
+constraints:
+  min_trace: 0.10
+  min_clearance: 0.10
+  min_hole: 0.15
+  min_annular_ring: 0.13
+  via_pad: 0.40
+  via_hole: 0.20
+  min_solder_mask_sliver: 0.08

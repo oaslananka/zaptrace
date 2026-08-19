@@ -1,0 +1,97 @@
+schema_version: '2.0'
+id: photodiode-sfh203
+name: Photodiode SFH203
+category: optoelectronic
+manufacturer: ams-OSRAM
+mpn: SFH203P
+description: Silicon PIN photodiode, 5mm, clear epoxy
+datasheet: https://www.osram.com/ecat/SFH%20203P/com/en/class_pim_web_catalog_103989/global/prd_pim_device_2219610/
+package: 5mm-TH
+footprint: LED-5MM
+lifecycle: active
+voltage_supply: ''
+pins:
+  ANODE:
+    type: passive
+    description: Anode (+)
+  CATHODE:
+    type: passive
+    description: Cathode (-)
+properties:
+  wavelength_nm: 850
+  rise_time_ns: 5
+electrical_limits:
+  review_note: numeric limits not captured in starter library; verify against exact
+    supplier part before production
+sourcing:
+  mpn: SFH203P
+  manufacturer: ams-OSRAM
+  status: starter-library-entry
+  production_note: confirm exact orderable MPN and authorized distributor before production
+compliance:
+  rohs: supplier-confirmation-required
+  reach: supplier-confirmation-required
+  production_note: do not treat starter-library metadata as regulatory certification
+provenance:
+  source: zaptrace curated starter component library
+  review_status: starter-data
+  production_note: human review required before fabrication or procurement
+  datasheet_reference_type: manufacturer-url
+trust_tier: heuristic
+field_provenance:
+  mpn:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:mpn
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  datasheet:
+    source_type: manufacturer_web
+    source_locator: https://www.osram.com/ecat/SFH%20203P/com/en/class_pim_web_catalog_103989/global/prd_pim_device_2219610/
+    source_identity: component:photodiode-sfh203:datasheet
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  pin_map:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:pin_map
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  package:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:package
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  footprint:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:footprint
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  electrical_limits:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:electrical_limits
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  lifecycle:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:lifecycle
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low
+  sourcing:
+    source_type: internal_manifest
+    source_locator: zaptrace curated starter component library
+    source_identity: component:photodiode-sfh203:sourcing
+    source_version: legacy-library-v1
+    extraction_method: deterministic-schema-v2-migration
+    confidence: low

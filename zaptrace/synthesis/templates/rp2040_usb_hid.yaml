@@ -1,0 +1,82 @@
+meta:
+  name: "RP2040 USB HID Keyboard"
+  version: "0.1.0"
+  description: "RP2040-based USB HID keyboard controller with mechanical switch matrix"
+  tags: ["rp2040", "usb", "hid", "keyboard"]
+
+board:
+  width_mm: 60
+  height_mm: 30
+  layers: 2
+
+components:
+  U1:
+    id: "U1"
+    ref: "U1"
+    type: "RP2040"
+    footprint: "RP2040-QFN-56"
+    pins:
+      IOVDD:  {type: "power", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+      USB_DP: {type: "bidirectional", net: "USB_DP"}
+      USB_DM: {type: "bidirectional", net: "USB_DM"}
+      GP0:    {type: "bidirectional", net: "COL_0"}
+      GP1:    {type: "bidirectional", net: "COL_1"}
+      GP2:    {type: "bidirectional", net: "COL_2"}
+      GP3:    {type: "bidirectional", net: "COL_3"}
+      GP4:    {type: "bidirectional", net: "ROW_0"}
+      GP5:    {type: "bidirectional", net: "ROW_1"}
+      GP6:    {type: "bidirectional", net: "ROW_2"}
+      GP7:    {type: "bidirectional", net: "ROW_3"}
+  U2:
+    id: "U2"
+    ref: "U2"
+    type: "AMS1117-3.3"
+    footprint: "SOT-223"
+    pins:
+      INPUT:  {type: "power", net: "VCC_5V"}
+      OUTPUT: {type: "output", net: "VCC_3V3"}
+      GND:    {type: "power", net: "GND"}
+  C1:
+    id: "C1"
+    ref: "C1"
+    type: "CAP"
+    value: "100nF"
+    footprint: "0402"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  C2:
+    id: "C2"
+    ref: "C2"
+    type: "CAP"
+    value: "10uF"
+    footprint: "0805"
+    pins:
+      P1: {type: "passive", net: "VCC_3V3"}
+      P2: {type: "passive", net: "GND"}
+  J1:
+    id: "J1"
+    ref: "J1"
+    type: "USB-C-16P"
+    footprint: "USB-C-16P-SMD"
+    pins:
+      VBUS: {type: "power", net: "VCC_5V"}
+      GND:  {type: "power", net: "GND"}
+      D+:   {type: "bidirectional", net: "USB_DP"}
+      D-:   {type: "bidirectional", net: "USB_DM"}
+
+nets:
+  VCC_5V:  {id: "VCC_5V", name: "VCC_5V", type: "power",  nodes: ["J1.VBUS","U2.INPUT"]}
+  VCC_3V3: {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes: ["U2.OUTPUT","U1.IOVDD","C1.P1","C2.P1"]}
+  GND:     {id: "GND",    name: "GND",    type: "ground", nodes: ["J1.GND","U1.GND","U2.GND","C1.P2","C2.P2"]}
+  USB_DP:  {id: "USB_DP", name: "USB_DP", type: "signal", nodes: ["J1.D+","U1.USB_DP"]}
+  USB_DM:  {id: "USB_DM", name: "USB_DM", type: "signal", nodes: ["J1.D-","U1.USB_DM"]}
+  COL_0:   {id: "COL_0",  name: "COL_0",  type: "signal", nodes: ["U1.GP0"]}
+  COL_1:   {id: "COL_1",  name: "COL_1",  type: "signal", nodes: ["U1.GP1"]}
+  COL_2:   {id: "COL_2",  name: "COL_2",  type: "signal", nodes: ["U1.GP2"]}
+  COL_3:   {id: "COL_3",  name: "COL_3",  type: "signal", nodes: ["U1.GP3"]}
+  ROW_0:   {id: "ROW_0",  name: "ROW_0",  type: "signal", nodes: ["U1.GP4"]}
+  ROW_1:   {id: "ROW_1",  name: "ROW_1",  type: "signal", nodes: ["U1.GP5"]}
+  ROW_2:   {id: "ROW_2",  name: "ROW_2",  type: "signal", nodes: ["U1.GP6"]}
+  ROW_3:   {id: "ROW_3",  name: "ROW_3",  type: "signal", nodes: ["U1.GP7"]}
