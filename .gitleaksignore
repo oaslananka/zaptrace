@@ -13,3 +13,12 @@ dac7350f0bd866491d1bec57c8761320a4dd162e:tests/test_agent_security.py:generic-ap
 506e35ee5b55f7fcf1f086060877f27d764a5664:docs/schemas/design-v1.json:generic-api-key:2562
 506e35ee5b55f7fcf1f086060877f27d764a5664:zaptrace/core/models.py:generic-api-key:190
 506e35ee5b55f7fcf1f086060877f27d764a5664:zaptrace/core/models.py:generic-api-key:620
+c77daf51927412b1208215b73602024819a6752e:docs/schemas/design-v1.json:generic-api-key:652
+c77daf51927412b1208215b73602024819a6752e:docs/schemas/design-v1.json:generic-api-key:2570
+c77daf51927412b1208215b73602024819a6752e:tests/test_agent_security.py:github-pat:188
+c77daf51927412b1208215b73602024819a6752e:tests/test_agent_security.py:generic-api-key:208
+c77daf51927412b1208215b73602024819a6752e:tests/test_agent_security.py:generic-api-key:238
+c77daf51927412b1208215b73602024819a6752e:tests/test_agent_security.py:generic-api-key:321
+c77daf51927412b1208215b73602024819a6752e:tests/test_models.py:generic-api-key:391
+c77daf51927412b1208215b73602024819a6752e:zaptrace/core/models.py:generic-api-key:194
+c77daf51927412b1208215b73602024819a6752e:zaptrace/core/models.py:generic-api-key:618
