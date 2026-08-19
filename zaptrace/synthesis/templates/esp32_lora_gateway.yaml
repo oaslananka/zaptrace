@@ -76,12 +76,12 @@ components:
       GND:  {type: "power", net: "GND"}
 
 nets:
-  VCC_5V:   {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.VBUS","U3.INPUT"]}
-  VCC_3V3:  {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U3.OUTPUT","U1.VCC","U1.EN","U2.VDD","C1.P1","C2.P1"]}
-  GND:      {id: "GND",name: "GND",type: "ground", nodes:["J1.GND","U1.GND","U2.GND","U3.GND","C1.P2","C2.P2"]}
-  SPI_CLK:  {id: "SPI_CLK",name: "SPI_CLK",type: "clock",  nodes:["U1.GPIO18","U2.SCK"]}
-  SPI_MISO: {id: "SPI_MISO",name: "SPI_MISO",type: "signal", nodes:["U1.GPIO19","U2.MISO"]}
-  SPI_MOSI: {id: "SPI_MOSI",name: "SPI_MOSI",type: "signal", nodes:["U1.GPIO23","U2.MOSI"]}
-  LORA_CS:  {id: "LORA_CS",name: "LORA_CS",type: "signal", nodes:["U1.GPIO5","U2.NSS"]}
-  LORA_DIO0: {id: "LORA_DIO0",name: "LORA_DIO0",type: "signal",nodes:["U1.GPIO4","U2.DIO0"]}
-  LORA_RST: {id: "LORA_RST",name: "LORA_RST",type: "signal", nodes:["U1.GPIO2","U2.RESET"]}
+  VCC_5V:   {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes: ["J1.VBUS","U3.INPUT"]}
+  VCC_3V3:  {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes: ["U3.OUTPUT","U1.VCC","U1.EN","U2.VDD","C1.P1","C2.P1"]}
+  GND:      {id: "GND",name: "GND",type: "ground", nodes: ["J1.GND","U1.GND","U2.GND","U3.GND","C1.P2","C2.P2"]}
+  SPI_CLK:  {id: "SPI_CLK",name: "SPI_CLK",type: "clock",  nodes: ["U1.GPIO18","U2.SCK"]}
+  SPI_MISO: {id: "SPI_MISO",name: "SPI_MISO",type: "signal", nodes: ["U1.GPIO19","U2.MISO"]}
+  SPI_MOSI: {id: "SPI_MOSI",name: "SPI_MOSI",type: "signal", nodes: ["U1.GPIO23","U2.MOSI"]}
+  LORA_CS:  {id: "LORA_CS",name: "LORA_CS",type: "signal", nodes: ["U1.GPIO5","U2.NSS"]}
+  LORA_DIO0: {id: "LORA_DIO0",name: "LORA_DIO0",type: "signal",nodes: ["U1.GPIO4","U2.DIO0"]}
+  LORA_RST: {id: "LORA_RST",name: "LORA_RST",type: "signal", nodes: ["U1.GPIO2","U2.RESET"]}

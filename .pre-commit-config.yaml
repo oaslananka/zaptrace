@@ -24,6 +24,7 @@ repos:
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: detect-private-key
+        exclude: '^tests/test_agent_security\.py$'
       - id: mixed-line-ending
         args: [--fix=lf]
         exclude: '\.mcp-ai-san\.lock$'

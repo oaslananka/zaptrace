@@ -143,7 +143,7 @@ def run(check: CheckDefinition, design) -> CheckResult:
             nearby_ic = find_nearest_ic(comp, design.components)
             if nearby_ic and distance(comp, nearby_ic) > 5:
                 violations.append(f"{comp.ref} too far from {nearby_ic.ref}")
-    
+
     return CheckResult(
         check=check,
         status=CheckStatus.PASS if not violations else CheckStatus.FAIL,

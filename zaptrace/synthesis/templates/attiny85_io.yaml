@@ -67,8 +67,8 @@ components:
       P2: {type: "passive", net: "GND"}
 
 nets:
-  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["U1.VCC","U1.PB3","R1.P1","C1.P1"]}
-  GND:       {id: "GND",name: "GND",type: "ground", nodes:["U1.GND","R2.P2","D1.CATHODE","SW1.P2","C1.P2"]}
-  LED_OUT:   {id: "LED_OUT",name: "LED_OUT",type: "signal", nodes:["U1.PB0","R1.P2","D1.ANODE"]}
-  BTN_IN:    {id: "BTN_IN",name: "BTN_IN",type: "signal", nodes:["U1.PB1","R2.P1","SW1.P1"]}
-  SENSOR_IN: {id: "SENSOR_IN",name: "SENSOR_IN",type: "signal", nodes:["U1.PB2"]}
+  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes: ["U1.VCC","U1.PB3","R1.P1","C1.P1"]}
+  GND:       {id: "GND",name: "GND",type: "ground", nodes: ["U1.GND","R2.P2","D1.CATHODE","SW1.P2","C1.P2"]}
+  LED_OUT:   {id: "LED_OUT",name: "LED_OUT",type: "signal", nodes: ["U1.PB0","R1.P2","D1.ANODE"]}
+  BTN_IN:    {id: "BTN_IN",name: "BTN_IN",type: "signal", nodes: ["U1.PB1","R2.P1","SW1.P1"]}
+  SENSOR_IN: {id: "SENSOR_IN",name: "SENSOR_IN",type: "signal", nodes: ["U1.PB2"]}

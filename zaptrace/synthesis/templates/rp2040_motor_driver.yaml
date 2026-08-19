@@ -64,10 +64,10 @@ components:
       P2: {type: "passive", net: "GND"}
 
 nets:
-  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.P1","U1.VREG_VIN","U2.INPUT"]}
-  VCC_3V3:   {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U2.OUTPUT","U1.IOVDD","C1.P1","C2.P1"]}
-  GND:       {id: "GND",name: "GND",type: "ground", nodes:["J1.P2","U1.GND","U2.GND","C1.P2","C2.P2"]}
-  MOTOR_1_PWM: {id: "MOTOR_1_PWM",name: "MOTOR_1_PWM",type: "signal",nodes:["U1.GP0"]}
-  MOTOR_1_DIR: {id: "MOTOR_1_DIR",name: "MOTOR_1_DIR",type: "signal",nodes:["U1.GP1"]}
-  MOTOR_2_PWM: {id: "MOTOR_2_PWM",name: "MOTOR_2_PWM",type: "signal",nodes:["U1.GP2"]}
-  MOTOR_2_DIR: {id: "MOTOR_2_DIR",name: "MOTOR_2_DIR",type: "signal",nodes:["U1.GP3"]}
+  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes: ["J1.P1","U1.VREG_VIN","U2.INPUT"]}
+  VCC_3V3:   {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes: ["U2.OUTPUT","U1.IOVDD","C1.P1","C2.P1"]}
+  GND:       {id: "GND",name: "GND",type: "ground", nodes: ["J1.P2","U1.GND","U2.GND","C1.P2","C2.P2"]}
+  MOTOR_1_PWM: {id: "MOTOR_1_PWM",name: "MOTOR_1_PWM",type: "signal",nodes: ["U1.GP0"]}
+  MOTOR_1_DIR: {id: "MOTOR_1_DIR",name: "MOTOR_1_DIR",type: "signal",nodes: ["U1.GP1"]}
+  MOTOR_2_PWM: {id: "MOTOR_2_PWM",name: "MOTOR_2_PWM",type: "signal",nodes: ["U1.GP2"]}
+  MOTOR_2_DIR: {id: "MOTOR_2_DIR",name: "MOTOR_2_DIR",type: "signal",nodes: ["U1.GP3"]}

@@ -1,6 +1,6 @@
 # Transaction-Safe Design Runtime
 
-Status: v0.2.3 M0 release-gate hardening  
+Status: v0.2.3 M0 release-gate hardening
 Scope: SDK, MCP, REST, proof-pack evidence
 
 ZapTrace write-capable agent operations must be transaction-safe. An autonomous agent should be able to propose a schematic, layout, or model edit, inspect the semantic diff, run validation, and commit only after explicit approval. Failed validation or rollback must leave the primary design state unchanged.

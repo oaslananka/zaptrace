@@ -74,11 +74,11 @@ components:
       D-:   {type: "bidirectional", net: "USB_DM"}
 
 nets:
-  VCC_5V:   {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.VBUS","U2.INPUT"]}
-  VCC_3V3:  {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U2.OUTPUT","U1.VCC","U1.EN","C1.P1","C2.P1"]}
-  GND:      {id: "GND",name: "GND",type: "ground", nodes:["J1.GND","U1.GND","U2.GND","C1.P2","C2.P2"]}
-  USB_DP:   {id: "USB_DP",name: "USB_DP",type: "signal", nodes:["J1.D+","U1.USB_D+"]}
-  USB_DM:   {id: "USB_DM",name: "USB_DM",type: "signal", nodes:["J1.D-","U1.USB_D-"]}
-  CAM_SDA:  {id: "CAM_SDA",name: "CAM_SDA",type: "data",   nodes:["U1.GPIO4"]}
-  CAM_SCL:  {id: "CAM_SCL",name: "CAM_SCL",type: "clock",  nodes:["U1.GPIO5"]}
-  CAM_XCLK: {id: "CAM_XCLK",name: "CAM_XCLK",type: "clock",  nodes:["U1.GPIO9"]}
+  VCC_5V:   {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes: ["J1.VBUS","U2.INPUT"]}
+  VCC_3V3:  {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes: ["U2.OUTPUT","U1.VCC","U1.EN","C1.P1","C2.P1"]}
+  GND:      {id: "GND",name: "GND",type: "ground", nodes: ["J1.GND","U1.GND","U2.GND","C1.P2","C2.P2"]}
+  USB_DP:   {id: "USB_DP",name: "USB_DP",type: "signal", nodes: ["J1.D+","U1.USB_D+"]}
+  USB_DM:   {id: "USB_DM",name: "USB_DM",type: "signal", nodes: ["J1.D-","U1.USB_D-"]}
+  CAM_SDA:  {id: "CAM_SDA",name: "CAM_SDA",type: "data",   nodes: ["U1.GPIO4"]}
+  CAM_SCL:  {id: "CAM_SCL",name: "CAM_SCL",type: "clock",  nodes: ["U1.GPIO5"]}
+  CAM_XCLK: {id: "CAM_XCLK",name: "CAM_XCLK",type: "clock",  nodes: ["U1.GPIO9"]}

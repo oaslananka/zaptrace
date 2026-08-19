@@ -1,8 +1,8 @@
 # Documentation Strategy
 
-> **Status:** Draft  
-> **Owner:** Core team  
-> **Last updated:** 2026-06-09  
+> **Status:** Draft
+> **Owner:** Core team
+> **Last updated:** 2026-06-09
 > **Related:** `docs/ROADMAP.md`, `docs/strategy/community-growth.md`
 
 ---

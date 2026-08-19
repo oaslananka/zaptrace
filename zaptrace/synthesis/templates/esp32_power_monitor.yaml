@@ -99,11 +99,11 @@ components:
       GND:  {type: "power", net: "GND"}
 
 nets:
-  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes:["J1.VBUS","U3.INPUT"]}
-  VCC_3V3:   {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes:["U3.OUTPUT","U1.VCC","U1.EN","C1.P1","C2.P1","R1.P1","R2.P1"]}
-  GND:       {id: "GND",name: "GND",type: "ground", nodes:["J1.GND","U1.GND","U2.GND","U2.A0","U2.A1","U3.GND","C1.P2","C2.P2"]}
-  I2C_SDA:   {id: "I2C_SDA",name: "I2C_SDA",type: "data",   nodes:["U1.GPIO4","U2.SDA","R1.P2"]}
-  I2C_SCL:   {id: "I2C_SCL",name: "I2C_SCL",type: "clock",  nodes:["U1.GPIO5","U2.SCL","R2.P2"]}
-  VBUS_SENSE: {id: "VBUS_SENSE",name: "VBUS_SENSE",type: "analog",nodes:["U2.VBUS"]}
-  SHUNT_P:   {id: "SHUNT_P",name: "SHUNT_P",type: "analog", nodes:["U2.IN+","R3.P1"]}
-  SHUNT_N:   {id: "SHUNT_N",name: "SHUNT_N",type: "analog", nodes:["U2.IN-","R3.P2"]}
+  VCC_5V:    {id: "VCC_5V",name: "VCC_5V",type: "power",  nodes: ["J1.VBUS","U3.INPUT"]}
+  VCC_3V3:   {id: "VCC_3V3",name: "VCC_3V3",type: "power",  nodes: ["U3.OUTPUT","U1.VCC","U1.EN","C1.P1","C2.P1","R1.P1","R2.P1"]}
+  GND:       {id: "GND",name: "GND",type: "ground", nodes: ["J1.GND","U1.GND","U2.GND","U2.A0","U2.A1","U3.GND","C1.P2","C2.P2"]}
+  I2C_SDA:   {id: "I2C_SDA",name: "I2C_SDA",type: "data",   nodes: ["U1.GPIO4","U2.SDA","R1.P2"]}
+  I2C_SCL:   {id: "I2C_SCL",name: "I2C_SCL",type: "clock",  nodes: ["U1.GPIO5","U2.SCL","R2.P2"]}
+  VBUS_SENSE: {id: "VBUS_SENSE",name: "VBUS_SENSE",type: "analog",nodes: ["U2.VBUS"]}
+  SHUNT_P:   {id: "SHUNT_P",name: "SHUNT_P",type: "analog", nodes: ["U2.IN+","R3.P1"]}
+  SHUNT_N:   {id: "SHUNT_N",name: "SHUNT_N",type: "analog", nodes: ["U2.IN-","R3.P2"]}
