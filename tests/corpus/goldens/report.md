@@ -1,8 +1,8 @@
 # Design Report: RegressionTest
 
-**Version:** 1.0
-**Revision:** 1
-**Author:** zaptrace
+**Version:** 1.0  
+**Revision:** 1  
+**Author:** zaptrace  
 **Generated:** <TIMESTAMP> UTC
 
 ## Summary

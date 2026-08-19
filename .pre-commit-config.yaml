@@ -14,9 +14,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: '\.mcp-ai-san\.lock$'
+        exclude: '(?:\.mcp-ai-san\.lock$|^tests/corpus/goldens/)'
       - id: end-of-file-fixer
-        exclude: '(?:\.mcp-ai-san\.lock$|^tests/corpus/fuzz/seeds/kicad-standalone-backslash\.kicad_sch$)'
+        exclude: '(?:\.mcp-ai-san\.lock$|^tests/corpus/fuzz/seeds/kicad-standalone-backslash\.kicad_sch$|^tests/corpus/goldens/)'
       - id: check-yaml
         exclude: '^\.mcp/templates/'
       - id: check-json
