@@ -32,7 +32,7 @@ jobs:
       heavy_ci: ${{ steps.classify.outputs.heavy_ci }}
       test_mode: ${{ steps.classify.outputs.test_mode }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -69,7 +69,7 @@ jobs:
           echo "Non-heavy PR; skipping validation environment parity."
           echo "Non-heavy PR; validation environment parity skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -121,7 +121,7 @@ jobs:
           echo "Non-heavy PR; skipping distribution clean-install."
           echo "Non-heavy PR; distribution clean-install skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         if: needs.changes.outputs.heavy_ci == 'true'
         with:
           persist-credentials: false
@@ -210,7 +210,7 @@ jobs:
           echo "Docs-only PR; skipping Python lint/typecheck."
           echo "Docs-only PR; Python lint/typecheck skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -349,7 +349,7 @@ jobs:
           echo "Docs-only PR; skipping MCP compatibility contract."
           echo "Docs-only PR; MCP compatibility contract skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.full_ci == 'true'
@@ -396,7 +396,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 
@@ -512,7 +512,7 @@ jobs:
         if: needs.changes.outputs.test_mode == 'docs'
         run: echo "Docs-only PR; $LANE lane skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         if: needs.changes.outputs.test_mode != 'docs'
         with:
           persist-credentials: false
@@ -605,7 +605,7 @@ jobs:
         if: needs.changes.outputs.test_mode == 'docs'
         run: echo "Docs-only PR; Python compatibility lanes skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         if: needs.changes.outputs.test_mode != 'docs'
         with:
           persist-credentials: false
@@ -658,7 +658,7 @@ jobs:
         if: needs.changes.outputs.test_mode == 'docs'
         run: echo "Docs-only PR; coverage aggregation skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         if: needs.changes.outputs.test_mode != 'docs'
         with:
           persist-credentials: false
@@ -733,7 +733,7 @@ jobs:
           echo "Non-heavy PR; skipping Rust extension build."
           echo "Non-heavy PR; Rust extension build skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -820,7 +820,7 @@ jobs:
           echo "Non-heavy PR; skipping benchmark 001 acceptance."
           echo "Non-heavy PR; benchmark 001 acceptance skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -952,7 +952,7 @@ jobs:
           echo "Non-heavy PR; skipping generated-board release gate."
           echo "Non-heavy PR; generated-board release gate skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -1019,7 +1019,7 @@ jobs:
           echo "Non-heavy PR; skipping Docker image smoke."
           echo "Non-heavy PR; Docker image smoke skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -1048,7 +1048,7 @@ jobs:
           echo "Non-heavy PR; skipping KiCad oracle."
           echo "Non-heavy PR; KiCad oracle skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -1130,7 +1130,7 @@ jobs:
           echo "Non-heavy PR; skipping package build."
           echo "Non-heavy PR; package build skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
         if: needs.changes.outputs.heavy_ci == 'true'
@@ -1174,7 +1174,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 
@@ -1236,7 +1236,7 @@ jobs:
     needs: [changes, validation-environment, lint, mcp-compatibility, test-lane-policy, test, test-compatibility, coverage, rust, build, docs-stale, benchmark-001, generated-board-release-gate, kicad-oracle, docker-image-smoke]
     if: always()
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
 
