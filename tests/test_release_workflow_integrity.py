@@ -300,11 +300,12 @@ def test_trusted_publish_jobs_use_pinned_pypa_action_and_no_registry_tokens() ->
     assert "TEST_PYPI" not in workflow
 
 
-def test_release_workflow_uses_job_scoped_least_privilege_permissions() -> None:
+def test_release_workflow_uses_read_only_default_and_job_scoped_least_privilege_permissions() -> None:
     workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
     header = workflow.split("\njobs:", 1)[0]
 
-    assert "\npermissions:" not in header
+    assert "\npermissions:\n  contents: read\n" in header
+    assert "write" not in header
     for job_name in (
         "staging-build",
         "staging-testpypi-publish",
