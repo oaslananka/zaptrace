@@ -551,7 +551,10 @@ def _run_one_grader(
     return _run_subprocess_grader(project_dir, grader_spec, spec.thresholds)
 
 
-def _overall_task_status(grader_results: list[GraderResult], violations: list[str]) -> str:
+def _overall_task_status(
+    grader_results: list[GraderResult], violations: list[str]
+) -> Literal["pass", "fail", "skip", "error"]:
+    overall: Literal["pass", "fail", "skip", "error"]
     if all(result.status == "skip" for result in grader_results):
         overall = "skip"
     elif violations:
@@ -597,9 +600,7 @@ def run_task(
     ]
 
     # Evaluate threshold violations (only on pass/fail results)
-    violations = [
-        f"{result.grader_id}: {result.detail[:120]}" for result in grader_results if result.status == "fail"
-    ]
+    violations = [f"{result.grader_id}: {result.detail[:120]}" for result in grader_results if result.status == "fail"]
 
     overall = _overall_task_status(grader_results, violations)
 

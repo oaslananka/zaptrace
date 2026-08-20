@@ -37,6 +37,7 @@ The importer checks:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from dataclasses import dataclass, field
@@ -415,11 +416,7 @@ def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
 
     for orig_id, net in nets.items():
         net_name = net.name
-        # Global labels use net name as the canonical ID (no sheet prefix)
-        if orig_id.startswith("global_"):
-            canonical_id = f"global_{net_name}"
-        else:
-            canonical_id = _prefix_id(node.sheet_path, orig_id)
+        canonical_id = f"global_{net_name}" if orig_id.startswith("global_") else _prefix_id(node.sheet_path, orig_id)
 
         if canonical_id not in all_nets:
             all_nets[canonical_id] = net
@@ -432,10 +429,8 @@ def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
         if not new_nodes:
             continue
         merged_nodes = existing_nodes + new_nodes
-        try:
+        with contextlib.suppress(Exception):
             all_nets[canonical_id] = Net(id=canonical_id, name=net_name, nodes=merged_nodes)
-        except Exception:
-            pass  # keep existing on merge failure
 
 
 def _flatten_sheets(
@@ -576,9 +571,7 @@ def _resolve_project_paths(p: Path) -> tuple[Path, Path | None, Path]:
     return project_dir, p, top_sch_path
 
 
-def _load_project_meta(
-    pro_path: Path | None, project_dir: Path, top_sch_path: Path
-) -> tuple[dict[str, Any], Path]:
+def _load_project_meta(pro_path: Path | None, project_dir: Path, top_sch_path: Path) -> tuple[dict[str, Any], Path]:
     """Read project metadata and resolve a declared schematic-file override.
 
     Returns (project_meta, top_sch_path); top_sch_path is updated to the

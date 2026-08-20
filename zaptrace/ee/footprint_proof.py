@@ -425,9 +425,7 @@ def _unmapped_signal_pad_diagnostic(
     )
 
 
-def _pin_name_mismatch_diagnostic(
-    proof: FootprintProof, expected_pins: set[str]
-) -> FootprintProofDiagnostic | None:
+def _pin_name_mismatch_diagnostic(proof: FootprintProof, expected_pins: set[str]) -> FootprintProofDiagnostic | None:
     actual_pins = set(proof.pin_map)
     missing = sorted(expected_pins - actual_pins)
     unexpected = sorted(actual_pins - expected_pins)

@@ -321,9 +321,7 @@ def _handle_junction_tag(node: list[SexpNode], junctions: list[tuple[float, floa
         junctions.append(_coord(at))
 
 
-def _handle_label_tag(
-    node: list[SexpNode], tag: str, labels: list[tuple[str, str, tuple[float, float]]]
-) -> None:
+def _handle_label_tag(node: list[SexpNode], tag: str, labels: list[tuple[str, str, tuple[float, float]]]) -> None:
     at = _find(node, "at")
     coord = _coord(at) if at else (0.0, 0.0)
     name = _atom(node, 1)

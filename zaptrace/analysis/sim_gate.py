@@ -640,9 +640,7 @@ def _phase_margin_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
     pm = ac.phase_margin_deg()
     passed = (pm is not None) and (pm >= reference.min_phase_margin_deg)
     return [
-        AcCheck(
-            name="phase_margin", passed=passed, actual=pm, reference=reference.min_phase_margin_deg, unit="deg"
-        )
+        AcCheck(name="phase_margin", passed=passed, actual=pm, reference=reference.min_phase_margin_deg, unit="deg")
     ]
 
 
