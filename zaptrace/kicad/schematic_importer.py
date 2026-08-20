@@ -267,6 +267,69 @@ def _instance_pin_coordinates(
 # ---------------------------------------------------------------------------
 
 
+_LABEL_TAGS = ("label", "global_label", "hierarchical_label")
+
+_NOTED_UNSUPPORTED_TAGS = (
+    "version",
+    "generator",
+    "generator_version",
+    "uuid",
+    "title_block",
+    "lib_symbols",
+    "sheet",
+    "sheet_instances",
+    "symbol_instances",
+    "net_tie_pad_groups",
+    "bus",
+    "bus_entry",
+    "image",
+    "polyline",
+    "arc",
+    "circle",
+    "rectangle",
+    "text",
+    "text_box",
+    "embedded_files",
+    "rule_area",
+)
+
+
+def _handle_wire_tag(
+    node: list[SexpNode],
+    wires: list[tuple[tuple[float, float], tuple[float, float]]],
+    unsupported: list[SchematicUnsupportedRecord],
+) -> None:
+    pts = _find(node, "pts")
+    if not pts:
+        return
+    xy_nodes = _find_all(pts, "xy")
+    if len(xy_nodes) == 2:
+        wires.append((_coord(xy_nodes[0]), _coord(xy_nodes[1])))
+    else:
+        unsupported.append(
+            SchematicUnsupportedRecord(
+                kind="wire_malformed",
+                message=f"wire with {len(xy_nodes)} points",
+                severity="warning",
+            )
+        )
+
+
+def _handle_junction_tag(node: list[SexpNode], junctions: list[tuple[float, float]]) -> None:
+    at = _find(node, "at")
+    if at:
+        junctions.append(_coord(at))
+
+
+def _handle_label_tag(
+    node: list[SexpNode], tag: str, labels: list[tuple[str, str, tuple[float, float]]]
+) -> None:
+    at = _find(node, "at")
+    coord = _coord(at) if at else (0.0, 0.0)
+    name = _atom(node, 1)
+    labels.append((name, tag, coord))
+
+
 def _parse_schematic(
     sexp: list[SexpNode],
 ) -> tuple[
@@ -291,61 +354,15 @@ def _parse_schematic(
 
         if tag == "symbol":
             _parse_symbol(node, symbols, unsupported, library_pins)
-
         elif tag == "wire":
-            pts = _find(node, "pts")
-            if pts:
-                xy_nodes = _find_all(pts, "xy")
-                if len(xy_nodes) == 2:
-                    start = _coord(xy_nodes[0])
-                    end = _coord(xy_nodes[1])
-                    wires.append((start, end))
-                else:
-                    unsupported.append(
-                        SchematicUnsupportedRecord(
-                            kind="wire_malformed",
-                            message=f"wire with {len(xy_nodes)} points",
-                            severity="warning",
-                        )
-                    )
-
+            _handle_wire_tag(node, wires, unsupported)
         elif tag == "junction":
-            at = _find(node, "at")
-            if at:
-                junctions.append(_coord(at))
-
-        elif tag in ("label", "global_label", "hierarchical_label"):
-            at = _find(node, "at")
-            coord = _coord(at) if at else (0.0, 0.0)
-            name = _atom(node, 1)
-            labels.append((name, tag, coord))
-
+            _handle_junction_tag(node, junctions)
+        elif tag in _LABEL_TAGS:
+            _handle_label_tag(node, tag, labels)
         elif tag == "no_connect":
             pass  # intentionally skipped
-
-        elif tag in (
-            "version",
-            "generator",
-            "generator_version",
-            "uuid",
-            "title_block",
-            "lib_symbols",
-            "sheet",
-            "sheet_instances",
-            "symbol_instances",
-            "net_tie_pad_groups",
-            "bus",
-            "bus_entry",
-            "image",
-            "polyline",
-            "arc",
-            "circle",
-            "rectangle",
-            "text",
-            "text_box",
-            "embedded_files",
-            "rule_area",
-        ):
+        elif tag in _NOTED_UNSUPPORTED_TAGS:
             unsupported.append(
                 SchematicUnsupportedRecord(
                     kind=tag,
@@ -353,7 +370,6 @@ def _parse_schematic(
                     severity="info",
                 )
             )
-
         else:
             unsupported.append(
                 SchematicUnsupportedRecord(
@@ -441,6 +457,112 @@ def _parse_symbol(
 # ---------------------------------------------------------------------------
 
 
+_KIND_PRIORITY = {"global_label": 0, "hierarchical_label": 1, "label": 2}
+
+
+def _quantise(xy: tuple[float, float]) -> tuple[int, int]:
+    return round(xy[0] / _COORD_EPSILON), round(xy[1] / _COORD_EPSILON)
+
+
+def _get_or_add_coord(
+    xy: tuple[float, float],
+    coords: list[tuple[float, float]],
+    coord_idx: dict[tuple[int, int], int],
+) -> int:
+    q = _quantise(xy)
+    if q not in coord_idx:
+        coord_idx[q] = len(coords)
+        coords.append(xy)
+    return coord_idx[q]
+
+
+def _union_wires(
+    wires: list[tuple[tuple[float, float], tuple[float, float]]],
+    coords: list[tuple[float, float]],
+    coord_idx: dict[tuple[int, int], int],
+    uf: _UnionFind,
+) -> None:
+    for start, end in wires:
+        si = _get_or_add_coord(start, coords, coord_idx)
+        ei = _get_or_add_coord(end, coords, coord_idx)
+        uf.union(si, ei)
+
+
+def _merge_junctions(
+    junctions: list[tuple[float, float]],
+    coords: list[tuple[float, float]],
+    coord_idx: dict[tuple[int, int], int],
+    uf: _UnionFind,
+) -> None:
+    # Junctions expand connectivity — merge the junction point into any wire
+    # endpoint within epsilon; otherwise add it as its own group (may get
+    # merged later).
+    for jx, jy in junctions:
+        jq = _quantise((jx, jy))
+        if jq in coord_idx:
+            ji = coord_idx[jq]
+            uf.union(ji, ji)  # already in graph; no-op union ensures membership
+        else:
+            _get_or_add_coord((jx, jy), coords, coord_idx)
+
+
+def _group_labels(
+    labels: list[tuple[str, str, tuple[float, float]]],
+    coords: list[tuple[float, float]],
+    coord_idx: dict[tuple[int, int], int],
+    uf: _UnionFind,
+) -> dict[int, list[tuple[str, str]]]:
+    label_groups: dict[int, list[tuple[str, str]]] = {}  # root → [(name, kind)]
+    for lname, lkind, lcoord in labels:
+        lq = _quantise(lcoord)
+        li = coord_idx[lq] if lq in coord_idx else _get_or_add_coord(lcoord, coords, coord_idx)
+        r = uf.find(li)
+        label_groups.setdefault(r, []).append((lname, lkind))
+    return label_groups
+
+
+def _best_name(group_labels: list[tuple[str, str]]) -> str:
+    if not group_labels:
+        return ""
+    return min(group_labels, key=lambda x: _KIND_PRIORITY.get(x[1], 99))[0]
+
+
+def _group_pins(
+    symbols: list[dict[str, Any]],
+    coord_idx: dict[tuple[int, int], int],
+    uf: _UnionFind,
+) -> dict[int, list[tuple[str, str]]]:
+    group_pins: dict[int, list[tuple[str, str]]] = {}  # root → [(ref, pin_name)]
+    for sym in symbols:
+        ref = sym["ref"]
+        for pin_name, px, py in sym["pins"]:
+            q = _quantise((px, py))
+            if q in coord_idx:
+                gi = coord_idx[q]
+                r = uf.find(gi)
+                group_pins.setdefault(r, []).append((ref, pin_name))
+    return group_pins
+
+
+def _name_nets(
+    all_roots: set[int],
+    label_groups: dict[int, list[tuple[str, str]]],
+    group_pins: dict[int, list[tuple[str, str]]],
+) -> dict[str, list[tuple[str, str]]]:
+    nets: dict[str, list[tuple[str, str]]] = {}
+    for root in all_roots:
+        net_name = _best_name(label_groups.get(root, []))
+        if not net_name:
+            # Auto-name from hash of root integer
+            net_name = "net_" + hashlib.sha256(str(root).encode()).hexdigest()[:8]
+        pins = group_pins.get(root, [])
+        if net_name in nets:
+            nets[net_name].extend(pins)
+        else:
+            nets[net_name] = pins
+    return nets
+
+
 def _resolve_connectivity(
     symbols: list[dict[str, Any]],
     wires: list[tuple[tuple[float, float], tuple[float, float]]],
@@ -451,92 +573,20 @@ def _resolve_connectivity(
 
     Returns a dict mapping ``net_name → [(ref, pin_name), ...]``.
     """
-    # Step 1: collect all unique coordinate points
     coords: list[tuple[float, float]] = []
     coord_idx: dict[tuple[int, int], int] = {}  # quantised coord → index
-
-    def _quantise(xy: tuple[float, float]) -> tuple[int, int]:
-        return round(xy[0] / _COORD_EPSILON), round(xy[1] / _COORD_EPSILON)
-
-    def _get_or_add(xy: tuple[float, float]) -> int:
-        q = _quantise(xy)
-        if q not in coord_idx:
-            coord_idx[q] = len(coords)
-            coords.append(xy)
-        return coord_idx[q]
-
     uf = _UnionFind()
 
-    # Step 2: add wires — union start and end
-    for start, end in wires:
-        si = _get_or_add(start)
-        ei = _get_or_add(end)
-        uf.union(si, ei)
+    _union_wires(wires, coords, coord_idx, uf)
+    _merge_junctions(junctions, coords, coord_idx, uf)
+    label_groups = _group_labels(labels, coords, coord_idx, uf)
+    group_pins = _group_pins(symbols, coord_idx, uf)
 
-    # Step 3: junctions expand connectivity — merge junction point into any
-    #         wire endpoint that is within epsilon
-    for jx, jy in junctions:
-        jq = _quantise((jx, jy))
-        if jq in coord_idx:
-            ji = coord_idx[jq]
-            # Already in graph; union is a no-op but ensures membership
-            uf.union(ji, ji)
-        else:
-            # Add junction as its own group (may get merged later)
-            _get_or_add((jx, jy))
-
-    # Step 4: label endpoints → wire groups
-    label_groups: dict[int, list[tuple[str, str]]] = {}  # root → [(name, kind)]
-    for lname, lkind, lcoord in labels:
-        lq = _quantise(lcoord)
-        if lq in coord_idx:
-            li = coord_idx[lq]
-            r = uf.find(li)
-            label_groups.setdefault(r, []).append((lname, lkind))
-        else:
-            # Floating label (no wire attached): add as isolated group
-            li = _get_or_add(lcoord)
-            r = uf.find(li)
-            label_groups.setdefault(r, []).append((lname, lkind))
-
-    # Step 5: choose best name for each group
-    _kind_priority = {"global_label": 0, "hierarchical_label": 1, "label": 2}
-
-    def _best_name(group_labels: list[tuple[str, str]]) -> str:
-        if not group_labels:
-            return ""
-        return min(group_labels, key=lambda x: _kind_priority.get(x[1], 99))[0]
-
-    # Step 6: assign pins to groups
-    group_pins: dict[int, list[tuple[str, str]]] = {}  # root → [(ref, pin_name)]
-    for sym in symbols:
-        ref = sym["ref"]
-        for pin_name, px, py in sym["pins"]:
-            q = _quantise((px, py))
-            if q in coord_idx:
-                gi = coord_idx[q]
-                r = uf.find(gi)
-                group_pins.setdefault(r, []).append((ref, pin_name))
-
-    # Step 7: collect all roots and name nets
     all_roots = set(uf.groups())
     all_roots.update(label_groups)
     all_roots.update(group_pins)
 
-    nets: dict[str, list[tuple[str, str]]] = {}
-    for root in all_roots:
-        name_candidates = label_groups.get(root, [])
-        net_name = _best_name(name_candidates)
-        if not net_name:
-            # Auto-name from hash of root integer
-            net_name = "net_" + hashlib.sha256(str(root).encode()).hexdigest()[:8]
-        pins = group_pins.get(root, [])
-        if net_name in nets:
-            nets[net_name].extend(pins)
-        else:
-            nets[net_name] = pins
-
-    return nets
+    return _name_nets(all_roots, label_groups, group_pins)
 
 
 # ---------------------------------------------------------------------------
