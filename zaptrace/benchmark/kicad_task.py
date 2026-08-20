@@ -508,6 +508,61 @@ def _run_subprocess_grader(
 # ---------------------------------------------------------------------------
 
 
+def _run_one_grader(
+    grader_spec: Any,
+    project_dir: Path,
+    spec: TaskSpec,
+    *,
+    wall_start: float,
+    max_rt: float,
+    external_tool_mode: ExternalToolMode,
+) -> GraderResult:
+    if time.monotonic() - wall_start > max_rt:
+        return GraderResult(
+            grader_id=grader_spec.grader_id,
+            status="skip",
+            detail="Task wall-time limit exceeded",
+            skip_reason="task_timeout",
+        )
+    if grader_spec.skip_policy == "always_skip":
+        return GraderResult(
+            grader_id=grader_spec.grader_id,
+            status="skip",
+            detail="Configured with always_skip policy",
+            skip_reason="always_skip",
+        )
+    if grader_spec.tool == "builtin":
+        builtin_fn = _BUILTIN_GRADERS.get(grader_spec.grader_id)
+        if builtin_fn is None:
+            return GraderResult(
+                grader_id=grader_spec.grader_id,
+                status="error",
+                detail=f"Unknown builtin grader id: {grader_spec.grader_id!r}",
+            )
+        return builtin_fn(project_dir, grader_spec, spec.thresholds)
+    if external_tool_mode == "canonical_skip":
+        tool_exe = grader_spec.command[0] if grader_spec.command else grader_spec.tool
+        return GraderResult(
+            grader_id=grader_spec.grader_id,
+            status="skip",
+            detail=f"External tool '{tool_exe}' not found; skipped per policy",
+            skip_reason="tool_unavailable",
+        )
+    return _run_subprocess_grader(project_dir, grader_spec, spec.thresholds)
+
+
+def _overall_task_status(grader_results: list[GraderResult], violations: list[str]) -> str:
+    if all(result.status == "skip" for result in grader_results):
+        overall = "skip"
+    elif violations:
+        overall = "fail"
+    else:
+        overall = "pass"
+    if any(result.status == "error" for result in grader_results):
+        overall = "error"
+    return overall
+
+
 def run_task(
     spec: TaskSpec,
     project_dir: Path,
@@ -534,71 +589,19 @@ def run_task(
     max_rt = spec.limits.get("max_runtime_seconds", 300)
     wall_start = time.monotonic()
 
-    grader_results: list[GraderResult] = []
-
-    for grader_spec in spec.graders:
-        if time.monotonic() - wall_start > max_rt:
-            grader_results.append(
-                GraderResult(
-                    grader_id=grader_spec.grader_id,
-                    status="skip",
-                    detail="Task wall-time limit exceeded",
-                    skip_reason="task_timeout",
-                )
-            )
-            continue
-
-        if grader_spec.skip_policy == "always_skip":
-            grader_results.append(
-                GraderResult(
-                    grader_id=grader_spec.grader_id,
-                    status="skip",
-                    detail="Configured with always_skip policy",
-                    skip_reason="always_skip",
-                )
-            )
-            continue
-
-        if grader_spec.tool == "builtin":
-            builtin_fn = _BUILTIN_GRADERS.get(grader_spec.grader_id)
-            if builtin_fn is None:
-                grader_results.append(
-                    GraderResult(
-                        grader_id=grader_spec.grader_id,
-                        status="error",
-                        detail=f"Unknown builtin grader id: {grader_spec.grader_id!r}",
-                    )
-                )
-            else:
-                grader_results.append(builtin_fn(project_dir, grader_spec, spec.thresholds))
-        else:
-            if external_tool_mode == "canonical_skip":
-                tool_exe = grader_spec.command[0] if grader_spec.command else grader_spec.tool
-                grader_results.append(
-                    GraderResult(
-                        grader_id=grader_spec.grader_id,
-                        status="skip",
-                        detail=f"External tool '{tool_exe}' not found; skipped per policy",
-                        skip_reason="tool_unavailable",
-                    )
-                )
-            else:
-                grader_results.append(_run_subprocess_grader(project_dir, grader_spec, spec.thresholds))
+    grader_results = [
+        _run_one_grader(
+            grader_spec, project_dir, spec, wall_start=wall_start, max_rt=max_rt, external_tool_mode=external_tool_mode
+        )
+        for grader_spec in spec.graders
+    ]
 
     # Evaluate threshold violations (only on pass/fail results)
-    violations: list[str] = []
-    for result in grader_results:
-        if result.status == "fail":
-            violations.append(f"{result.grader_id}: {result.detail[:120]}")
+    violations = [
+        f"{result.grader_id}: {result.detail[:120]}" for result in grader_results if result.status == "fail"
+    ]
 
-    if all(result.status == "skip" for result in grader_results):
-        overall = "skip"
-    elif violations:
-        overall = "fail"
-    else:
-        overall = "pass"
-    if any(result.status == "error" for result in grader_results):
-        overall = "error"
+    overall = _overall_task_status(grader_results, violations)
 
     run_result = TaskRunResult(
         task_id=spec.task_id,
