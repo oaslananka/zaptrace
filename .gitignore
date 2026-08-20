@@ -73,6 +73,9 @@ kicad/
 # Keep the runtime KiCad integration package trackable/buildable.
 !zaptrace/kicad/
 !zaptrace/kicad/*.py
+# Keep the committed KiCad benchmark/oracle corpus fixtures trackable.
+!tests/corpus/kicad/
+!tests/corpus/kicad/**
 
 # MkDocs build output
 site/
