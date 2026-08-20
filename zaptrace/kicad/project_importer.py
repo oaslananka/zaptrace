@@ -571,9 +571,7 @@ def _resolve_project_paths(p: Path) -> tuple[Path, Path | None, Path]:
     return project_dir, p, top_sch_path
 
 
-def _load_project_meta(
-    pro_path: Path | None, project_dir: Path, top_sch_path: Path
-) -> tuple[dict[str, Any], Path]:
+def _load_project_meta(pro_path: Path | None, project_dir: Path, top_sch_path: Path) -> tuple[dict[str, Any], Path]:
     """Read project metadata and resolve a declared schematic-file override.
 
     Returns (project_meta, top_sch_path); top_sch_path is updated to the

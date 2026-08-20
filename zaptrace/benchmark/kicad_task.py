@@ -597,9 +597,7 @@ def run_task(
     ]
 
     # Evaluate threshold violations (only on pass/fail results)
-    violations = [
-        f"{result.grader_id}: {result.detail[:120]}" for result in grader_results if result.status == "fail"
-    ]
+    violations = [f"{result.grader_id}: {result.detail[:120]}" for result in grader_results if result.status == "fail"]
 
     overall = _overall_task_status(grader_results, violations)
 
