@@ -616,6 +616,54 @@ class AcGateResult:
         }
 
 
+def _gain_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
+    if reference.min_gain_db is None and reference.max_gain_db is None:
+        return []
+    checks: list[AcCheck] = []
+    actual_gain = ac.gain_at_hz(reference.gain_check_hz)
+    if reference.min_gain_db is not None:
+        passed = (actual_gain is not None) and (actual_gain >= reference.min_gain_db)
+        checks.append(
+            AcCheck(name="min_gain", passed=passed, actual=actual_gain, reference=reference.min_gain_db, unit="dB")
+        )
+    if reference.max_gain_db is not None:
+        passed = (actual_gain is not None) and (actual_gain <= reference.max_gain_db)
+        checks.append(
+            AcCheck(name="max_gain", passed=passed, actual=actual_gain, reference=reference.max_gain_db, unit="dB")
+        )
+    return checks
+
+
+def _phase_margin_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
+    if reference.min_phase_margin_deg is None:
+        return []
+    pm = ac.phase_margin_deg()
+    passed = (pm is not None) and (pm >= reference.min_phase_margin_deg)
+    return [
+        AcCheck(
+            name="phase_margin", passed=passed, actual=pm, reference=reference.min_phase_margin_deg, unit="deg"
+        )
+    ]
+
+
+def _crossover_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
+    if reference.min_crossover_hz is None and reference.max_crossover_hz is None:
+        return []
+    checks: list[AcCheck] = []
+    fc = ac.crossover_hz()
+    if reference.min_crossover_hz is not None:
+        passed = (fc is not None) and (fc >= reference.min_crossover_hz)
+        checks.append(
+            AcCheck(name="min_crossover", passed=passed, actual=fc, reference=reference.min_crossover_hz, unit="Hz")
+        )
+    if reference.max_crossover_hz is not None:
+        passed = (fc is not None) and (fc <= reference.max_crossover_hz)
+        checks.append(
+            AcCheck(name="max_crossover", passed=passed, actual=fc, reference=reference.max_crossover_hz, unit="Hz")
+        )
+    return checks
+
+
 def run_ac_gate(
     netlist: str,
     reference: AcReference,
@@ -698,73 +746,11 @@ def run_ac_gate(
         )
 
     # ngspice ran successfully — evaluate checks
-    checks: list[AcCheck] = []
-
-    # Gain check at configured frequency
-    if reference.min_gain_db is not None or reference.max_gain_db is not None:
-        actual_gain = ac.gain_at_hz(reference.gain_check_hz)
-        if reference.min_gain_db is not None:
-            passed = (actual_gain is not None) and (actual_gain >= reference.min_gain_db)
-            checks.append(
-                AcCheck(
-                    name="min_gain",
-                    passed=passed,
-                    actual=actual_gain,
-                    reference=reference.min_gain_db,
-                    unit="dB",
-                )
-            )
-        if reference.max_gain_db is not None:
-            passed = (actual_gain is not None) and (actual_gain <= reference.max_gain_db)
-            checks.append(
-                AcCheck(
-                    name="max_gain",
-                    passed=passed,
-                    actual=actual_gain,
-                    reference=reference.max_gain_db,
-                    unit="dB",
-                )
-            )
-
-    # Phase margin check
-    if reference.min_phase_margin_deg is not None:
-        pm = ac.phase_margin_deg()
-        passed = (pm is not None) and (pm >= reference.min_phase_margin_deg)
-        checks.append(
-            AcCheck(
-                name="phase_margin",
-                passed=passed,
-                actual=pm,
-                reference=reference.min_phase_margin_deg,
-                unit="deg",
-            )
-        )
-
-    # Crossover frequency checks
-    if reference.min_crossover_hz is not None or reference.max_crossover_hz is not None:
-        fc = ac.crossover_hz()
-        if reference.min_crossover_hz is not None:
-            passed = (fc is not None) and (fc >= reference.min_crossover_hz)
-            checks.append(
-                AcCheck(
-                    name="min_crossover",
-                    passed=passed,
-                    actual=fc,
-                    reference=reference.min_crossover_hz,
-                    unit="Hz",
-                )
-            )
-        if reference.max_crossover_hz is not None:
-            passed = (fc is not None) and (fc <= reference.max_crossover_hz)
-            checks.append(
-                AcCheck(
-                    name="max_crossover",
-                    passed=passed,
-                    actual=fc,
-                    reference=reference.max_crossover_hz,
-                    unit="Hz",
-                )
-            )
+    checks: list[AcCheck] = [
+        *_gain_checks(ac, reference),
+        *_phase_margin_checks(ac, reference),
+        *_crossover_checks(ac, reference),
+    ]
 
     if not checks:
         return AcGateResult(
