@@ -371,6 +371,73 @@ def _prefix_id(sheet_path: str, original_id: str) -> str:
     return f"{sheet_path}/{original_id}"
 
 
+def _prefix_component_ids(
+    node: _SheetNode,
+    components: dict,
+    all_components: dict,
+    findings: list[HierarchicalKiCadFinding],
+) -> list[str]:
+    """Prefix one sheet's component IDs and merge them into ``all_components``.
+
+    Returns the sheet's new (prefixed) component ids.
+    """
+    # Preserve original ref; multi-instance disambiguation uses sheet path.
+    from zaptrace.core.models import Component  # local import to avoid cycle
+
+    sheet_component_ids: list[str] = []
+    for orig_id, comp in components.items():
+        new_id = _prefix_id(node.sheet_path, orig_id)
+        # Keep a copy with updated id (models use frozen approach, work with dict)
+        comp_dict = comp.model_dump()
+        comp_dict["id"] = new_id
+        try:
+            new_comp = Component(**comp_dict)
+        except Exception:
+            new_comp = comp  # fall back to original if validation fails
+
+        if new_id in all_components:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind="duplicate_ref",
+                    message=f"Duplicate component ID after prefixing: {new_id}",
+                    sheet_path=node.sheet_path,
+                )
+            )
+        all_components[new_id] = new_comp
+        sheet_component_ids.append(new_id)
+    return sheet_component_ids
+
+
+def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
+    """Prefix one sheet's net IDs into ``all_nets``, merging same-named global nets."""
+    from zaptrace.core.models import Net  # local import to avoid cycle
+
+    for orig_id, net in nets.items():
+        net_name = net.name
+        # Global labels use net name as the canonical ID (no sheet prefix)
+        if orig_id.startswith("global_"):
+            canonical_id = f"global_{net_name}"
+        else:
+            canonical_id = _prefix_id(node.sheet_path, orig_id)
+
+        if canonical_id not in all_nets:
+            all_nets[canonical_id] = net
+            continue
+
+        # Merge nodes from same-named global nets
+        existing = all_nets[canonical_id]
+        existing_nodes = list(existing.nodes)
+        new_nodes = [node_ for node_ in net.nodes if node_ not in existing_nodes]
+        if not new_nodes:
+            continue
+        merged_nodes = existing_nodes + new_nodes
+        try:
+            all_nets[canonical_id] = Net(id=canonical_id, name=net_name, nodes=merged_nodes)
+        except Exception:
+            pass  # keep existing on merge failure
+
+
 def _flatten_sheets(
     sheet_nodes: list[_SheetNode],
     findings: list[HierarchicalKiCadFinding],
@@ -391,63 +458,8 @@ def _flatten_sheets(
             continue
 
         net_scores.append(result.net_score)
-        sheet_component_ids: list[str] = []
-
-        # Prefix component IDs with the sheet path
-        for orig_id, comp in result.design.components.items():
-            new_id = _prefix_id(node.sheet_path, orig_id)
-            # Keep a copy with updated id (models use frozen approach, work with dict)
-            comp_dict = comp.model_dump()
-            comp_dict["id"] = new_id
-            # Preserve original ref; multi-instance disambiguation uses sheet path
-            from zaptrace.core.models import Component  # local import to avoid cycle
-
-            try:
-                new_comp = Component(**comp_dict)
-            except Exception:
-                new_comp = comp  # fall back to original if validation fails
-
-            if new_id in all_components:
-                findings.append(
-                    HierarchicalKiCadFinding(
-                        severity="warning",
-                        kind="duplicate_ref",
-                        message=f"Duplicate component ID after prefixing: {new_id}",
-                        sheet_path=node.sheet_path,
-                    )
-                )
-            all_components[new_id] = new_comp
-            sheet_component_ids.append(new_id)
-
-        # Prefix net IDs — merge global_label nets across sheets by name
-        for orig_id, net in result.design.nets.items():
-            net_name = net.name
-            # Global labels use net name as the canonical ID (no sheet prefix)
-            if orig_id.startswith("global_"):
-                canonical_id = f"global_{net_name}"
-            else:
-                canonical_id = _prefix_id(node.sheet_path, orig_id)
-
-            if canonical_id in all_nets:
-                # Merge nodes from same-named global nets
-                existing = all_nets[canonical_id]
-                existing_nodes = list(existing.nodes)
-                new_nodes = [
-                    node_  # rename loop var to avoid shadowing
-                    for node_ in net.nodes
-                    if node_ not in existing_nodes
-                ]
-                if new_nodes:
-                    from zaptrace.core.models import Net  # local import
-
-                    merged_nodes = existing_nodes + new_nodes
-                    try:
-                        merged_net = Net(id=canonical_id, name=net_name, nodes=merged_nodes)
-                        all_nets[canonical_id] = merged_net
-                    except Exception:
-                        pass  # keep existing on merge failure
-            else:
-                all_nets[canonical_id] = net
+        sheet_component_ids = _prefix_component_ids(node, result.design.components, all_components, findings)
+        _merge_sheet_nets(node, result.design.nets, all_nets)
 
         hierarchy_sheets.append(
             HierarchySheet(
@@ -544,6 +556,44 @@ def _crossvalidate_pcb(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_project_paths(p: Path) -> tuple[Path, Path | None, Path]:
+    """Resolve (project_dir, pro_path, top_sch_path) from a project path or directory."""
+    if p.is_dir():
+        project_dir = p
+        pro_files = sorted(p.glob("*.kicad_pro"))
+        pro_path = pro_files[0] if pro_files else None
+        sch_files = sorted(p.glob("*.kicad_sch"))
+        if not sch_files:
+            raise ValueError(f"No .kicad_sch file found in {p}")
+        return project_dir, pro_path, sch_files[0]
+
+    project_dir = p.parent
+    if p.suffix != ".kicad_pro":
+        return project_dir, None, p
+
+    sch_files = sorted(project_dir.glob("*.kicad_sch"))
+    top_sch_path = sch_files[0] if sch_files else project_dir / (p.stem + ".kicad_sch")
+    return project_dir, p, top_sch_path
+
+
+def _load_project_meta(
+    pro_path: Path | None, project_dir: Path, top_sch_path: Path
+) -> tuple[dict[str, Any], Path]:
+    """Read project metadata and resolve a declared schematic-file override.
+
+    Returns (project_meta, top_sch_path); top_sch_path is updated to the
+    project's declared schematic file when one is present and exists.
+    """
+    project_meta: dict[str, Any] = {}
+    if pro_path and pro_path.exists():
+        project_meta = _read_project_meta(pro_path)
+        if project_meta.get("schematic_file"):
+            alt_sch = project_dir / project_meta["schematic_file"]
+            if alt_sch.exists():
+                top_sch_path = alt_sch
+    return project_meta, top_sch_path
+
+
 def import_kicad_project(
     project_path: str | Path,
     *,
@@ -581,36 +631,10 @@ def import_kicad_project(
     if not p.exists():
         raise FileNotFoundError(f"KiCad project path not found: {p}")
 
-    if p.is_dir():
-        project_dir = p
-        pro_files = sorted(p.glob("*.kicad_pro"))
-        pro_path = pro_files[0] if pro_files else None
-        sch_files = sorted(p.glob("*.kicad_sch"))
-        if not sch_files:
-            raise ValueError(f"No .kicad_sch file found in {p}")
-        top_sch_path = sch_files[0]
-    else:
-        project_dir = p.parent
-        if p.suffix == ".kicad_pro":
-            pro_path = p
-            sch_files = sorted(project_dir.glob("*.kicad_sch"))
-            top_sch_path = sch_files[0] if sch_files else project_dir / (p.stem + ".kicad_sch")
-        else:
-            pro_path = None
-            top_sch_path = p
+    project_dir, pro_path, top_sch_path = _resolve_project_paths(p)
 
     findings: list[HierarchicalKiCadFinding] = []
-
-    # Read project metadata
-    project_meta: dict[str, Any] = {}
-    if pro_path and pro_path.exists():
-        project_meta = _read_project_meta(pro_path)
-        # Use schematic file from project if specified
-        if project_meta.get("schematic_file"):
-            alt_sch = project_dir / project_meta["schematic_file"]
-            if alt_sch.exists():
-                top_sch_path = alt_sch
-
+    project_meta, top_sch_path = _load_project_meta(pro_path, project_dir, top_sch_path)
     project_name = project_meta.get("title", "") or (pro_path.stem if pro_path else top_sch_path.stem)
 
     # Walk the sheet hierarchy
