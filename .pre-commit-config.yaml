@@ -27,7 +27,7 @@ repos:
         exclude: '^tests/test_agent_security\.py$'
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: '\.mcp-ai-san\.lock$'
+        exclude: '(?:\.mcp-ai-san\.lock$|^data/footprints/vendor/)'
       - id: check-added-large-files
         args: [--maxkb=1024]
 
