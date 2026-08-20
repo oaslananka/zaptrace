@@ -219,6 +219,50 @@ def parse_easyeda_footprint(data: dict) -> FootprintDef:
     )
 
 
+def _parse_easyeda_pin_shape(parts: list[str]) -> SymbolPin | None:
+    # format P~type~x~y...  type is usually something like show~0~1~x~y~rot
+    # P~show~0~1~-20~0~180~...
+    if len(parts) < 7:
+        return None
+    try:
+        # In schematic, units are roughly pixels or 10mils. Just need
+        # relative coords. Usually 1 unit = 0.1 inch = 2.54mm visually.
+        scale = 1.0
+        px = float(parts[4]) * scale
+        py = float(parts[5]) * scale * -1.0  # Invert Y
+        pin_id = parts[3]
+    except ValueError:
+        return None
+    return SymbolPin(
+        id=pin_id,
+        name=pin_id,
+        position=(px, py),
+        length=5.0,
+        orientation="left",  # Simplified
+        electrical_type="passive",
+    )
+
+
+def _parse_easyeda_polyline_shape(parts: list[str]) -> list[DrawCommand]:
+    # PL~path~color...  path is e.g. -5 8 -5 -8
+    if len(parts) < 2:
+        return []
+    path_str = parts[1].split()
+    if len(path_str) < 4:
+        return []
+    commands: list[DrawCommand] = []
+    try:
+        for i in range(0, len(path_str) - 2, 2):
+            x1 = float(path_str[i])
+            y1 = float(path_str[i + 1]) * -1.0
+            x2 = float(path_str[i + 2])
+            y2 = float(path_str[i + 3]) * -1.0
+            commands.append(DrawCommand(type="line", params={"x1": x1, "y1": y1, "x2": x2, "y2": y2}))
+    except ValueError:
+        pass  # keep whatever segments parsed before the malformed one
+    return commands
+
+
 def parse_easyeda_symbol(data: dict) -> SymbolDef:
     """Parse EasyEDA symbol JSON into a SymbolDef."""
     data_str = data.get("dataStr", {})
@@ -234,52 +278,13 @@ def parse_easyeda_symbol(data: dict) -> SymbolDef:
 
         stype = parts[0]
         if stype == "P":  # Pin
-            # format P~type~x~y...  type is usually something like show~0~1~x~y~rot
-            # P~show~0~1~-20~0~180~...
-            if len(parts) >= 7:
-                try:
-                    # In schematic, units are roughly pixels or 10mils
-                    # Just need relative coords. Usually 1 unit = 0.1 inch = 2.54mm visually
-                    # We'll scale by 10 for drawing
-                    scale = 1.0
-
-                    px = float(parts[4]) * scale
-                    py = float(parts[5]) * scale * -1.0  # Invert Y
-
-                    pin_id = parts[3]
-
-                    sym_pins.append(
-                        SymbolPin(
-                            id=pin_id,
-                            name=pin_id,
-                            position=(px, py),
-                            length=5.0,
-                            orientation="left",  # Simplified
-                            electrical_type="passive",
-                        )
-                    )
-                except ValueError:
-                    continue
-
+            pin = _parse_easyeda_pin_shape(parts)
+            if pin is not None:
+                sym_pins.append(pin)
         elif stype == "PL":  # Polyline
-            # PL~path~color...
-            # path is e.g. -5 8 -5 -8
-            if len(parts) >= 2:
-                path_str = parts[1].split()
-                try:
-                    if len(path_str) >= 4:
-                        for i in range(0, len(path_str) - 2, 2):
-                            x1 = float(path_str[i])
-                            y1 = float(path_str[i + 1]) * -1.0
-                            x2 = float(path_str[i + 2])
-                            y2 = float(path_str[i + 3]) * -1.0
-                            body.append(DrawCommand(type="line", params={"x1": x1, "y1": y1, "x2": x2, "y2": y2}))
-                except ValueError:
-                    continue
-
+            body.extend(_parse_easyeda_polyline_shape(parts))
         elif stype == "PT":  # Polygon/Path
-            # PT~svg path~...
-            pass
+            pass  # PT~svg path~... not yet mapped
 
     return SymbolDef(pins=sym_pins, body=body, origin=(0.0, 0.0), height=20.0, width=20.0)
 
