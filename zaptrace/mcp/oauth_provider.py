@@ -205,26 +205,29 @@ def _validated_scope_token(scope: Scope) -> AccessToken | None:
     return token if isinstance(token, AccessToken) else None
 
 
+def _classify_message(
+    item: object,
+    tool_capability_resolver: ToolCapabilityResolver,
+) -> tuple[str, str]:
+    if not isinstance(item, dict):
+        return ("mcp-request", "read")
+    method = item.get("method")
+    params = item.get("params")
+    if method == "tools/call" and isinstance(params, dict):
+        tool_name = params.get("name")
+        if isinstance(tool_name, str):
+            capability = tool_capability_resolver(tool_name)
+            if capability is not None:
+                return (tool_name, capability)
+    return (method if isinstance(method, str) else "mcp-request", "read")
+
+
 def _request_requirements(
     payload: object | None,
     tool_capability_resolver: ToolCapabilityResolver,
 ) -> list[tuple[str, str]]:
     messages = payload if isinstance(payload, list) else [payload]
-    requirements: list[tuple[str, str]] = []
-    for item in messages:
-        if not isinstance(item, dict):
-            requirements.append(("mcp-request", "read"))
-            continue
-        method = item.get("method")
-        params = item.get("params")
-        if method == "tools/call" and isinstance(params, dict):
-            tool_name = params.get("name")
-            if isinstance(tool_name, str):
-                capability = tool_capability_resolver(tool_name)
-                if capability is not None:
-                    requirements.append((tool_name, capability))
-                    continue
-        requirements.append((method if isinstance(method, str) else "mcp-request", "read"))
+    requirements = [_classify_message(item, tool_capability_resolver) for item in messages]
     return requirements or [("mcp-request", "read")]
 
 

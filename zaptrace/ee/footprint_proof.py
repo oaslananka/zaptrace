@@ -354,6 +354,117 @@ def _physical_pin_contract_diagnostic(
     )
 
 
+def _pad_count_diagnostic(proof: FootprintProof) -> FootprintProofDiagnostic | None:
+    if proof.pad_count == len(proof.pads):
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="pad-count-field-mismatch",
+        severity=FootprintProofSeverity.ERROR,
+        message="pad_count does not match the number of pad records",
+        expected=str(len(proof.pads)),
+        observed=str(proof.pad_count),
+    )
+
+
+def _pad_pin_count_diagnostic(proof: FootprintProof, signal_pad_ids: set[str]) -> FootprintProofDiagnostic | None:
+    if len(signal_pad_ids) == proof.pin_count:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="pad-pin-count-mismatch",
+        severity=FootprintProofSeverity.ERROR,
+        message="signal pad count does not match expected pin count",
+        expected=str(proof.pin_count),
+        observed=str(len(signal_pad_ids)),
+    )
+
+
+def _pin_map_count_diagnostic(proof: FootprintProof) -> FootprintProofDiagnostic | None:
+    if len(proof.pin_map) == proof.pin_count:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="pin-map-count-mismatch",
+        severity=FootprintProofSeverity.ERROR,
+        message="pin_map entry count does not match expected pin count",
+        expected=str(proof.pin_count),
+        observed=str(len(proof.pin_map)),
+    )
+
+
+def _pin_map_pad_missing_diagnostic(
+    proof: FootprintProof, pad_ids: set[str], mapped_pads: set[str]
+) -> FootprintProofDiagnostic | None:
+    missing_pads = sorted(mapped_pads - pad_ids)
+    if not missing_pads:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="pin-map-pad-missing",
+        severity=FootprintProofSeverity.ERROR,
+        message="pin_map references pad ids not present in the footprint",
+        expected="existing pad id",
+        observed=", ".join(missing_pads),
+    )
+
+
+def _unmapped_signal_pad_diagnostic(
+    proof: FootprintProof, signal_pad_ids: set[str], mapped_pads: set[str]
+) -> FootprintProofDiagnostic | None:
+    unmapped_signal_pads = sorted(signal_pad_ids - mapped_pads)
+    if not unmapped_signal_pads:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="unmapped-signal-pad",
+        severity=FootprintProofSeverity.ERROR,
+        message="signal pads are not referenced by pin_map",
+        expected="all signal pads mapped",
+        observed=", ".join(unmapped_signal_pads),
+    )
+
+
+def _pin_name_mismatch_diagnostic(
+    proof: FootprintProof, expected_pins: set[str]
+) -> FootprintProofDiagnostic | None:
+    actual_pins = set(proof.pin_map)
+    missing = sorted(expected_pins - actual_pins)
+    unexpected = sorted(actual_pins - expected_pins)
+    if not missing and not unexpected:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="pin-name-mismatch",
+        severity=FootprintProofSeverity.ERROR,
+        message="pin_map names do not match the expected component pins",
+        expected=", ".join(sorted(expected_pins)),
+        observed=", ".join(sorted(actual_pins)),
+    )
+
+
+def _pin1_diagnostic(proof: FootprintProof) -> FootprintProofDiagnostic | None:
+    if proof.pin1.present:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="missing-pin1-evidence",
+        severity=FootprintProofSeverity.ERROR,
+        message="footprint has no explicit pin-1 evidence",
+    )
+
+
+def _courtyard_diagnostic(proof: FootprintProof) -> FootprintProofDiagnostic | None:
+    if proof.courtyard_mm != (0.0, 0.0):
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="missing-courtyard",
+        severity=FootprintProofSeverity.ERROR,
+        message="footprint courtyard is missing or zero-sized",
+    )
+
+
 def validate_footprint_proof(
     proof: FootprintProof,
     *,
@@ -363,105 +474,26 @@ def validate_footprint_proof(
     require_courtyard: bool = True,
 ) -> FootprintProofValidationReport:
     """Validate pad/pin-count and pin-map consistency for one footprint proof."""
-    diagnostics: list[FootprintProofDiagnostic] = []
     pad_ids = {pad.pad_id for pad in proof.pads}
     thermal = set(proof.thermal_pads)
     signal_pad_ids = pad_ids - thermal
-    if proof.pad_count != len(proof.pads):
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="pad-count-field-mismatch",
-                severity=FootprintProofSeverity.ERROR,
-                message="pad_count does not match the number of pad records",
-                expected=str(len(proof.pads)),
-                observed=str(proof.pad_count),
-            )
-        )
-    if len(signal_pad_ids) != proof.pin_count:
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="pad-pin-count-mismatch",
-                severity=FootprintProofSeverity.ERROR,
-                message="signal pad count does not match expected pin count",
-                expected=str(proof.pin_count),
-                observed=str(len(signal_pad_ids)),
-            )
-        )
-    if len(proof.pin_map) != proof.pin_count:
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="pin-map-count-mismatch",
-                severity=FootprintProofSeverity.ERROR,
-                message="pin_map entry count does not match expected pin count",
-                expected=str(proof.pin_count),
-                observed=str(len(proof.pin_map)),
-            )
-        )
     mapped_pads = set(proof.pin_map.values())
-    missing_pads = sorted(mapped_pads - pad_ids)
-    if missing_pads:
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="pin-map-pad-missing",
-                severity=FootprintProofSeverity.ERROR,
-                message="pin_map references pad ids not present in the footprint",
-                expected="existing pad id",
-                observed=", ".join(missing_pads),
-            )
-        )
-    unmapped_signal_pads = sorted(signal_pad_ids - mapped_pads)
-    if unmapped_signal_pads:
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="unmapped-signal-pad",
-                severity=FootprintProofSeverity.ERROR,
-                message="signal pads are not referenced by pin_map",
-                expected="all signal pads mapped",
-                observed=", ".join(unmapped_signal_pads),
-            )
-        )
-    if expected_pins is not None:
-        actual_pins = set(proof.pin_map)
-        missing = sorted(expected_pins - actual_pins)
-        unexpected = sorted(actual_pins - expected_pins)
-        if missing or unexpected:
-            diagnostics.append(
-                FootprintProofDiagnostic(
-                    package_id=proof.package_id,
-                    code="pin-name-mismatch",
-                    severity=FootprintProofSeverity.ERROR,
-                    message="pin_map names do not match the expected component pins",
-                    expected=", ".join(sorted(expected_pins)),
-                    observed=", ".join(sorted(actual_pins)),
-                )
-            )
-    if expected_physical_pins is not None:
-        physical_diagnostic = _physical_pin_contract_diagnostic(proof, expected_physical_pins, thermal)
-        if physical_diagnostic is not None:
-            diagnostics.append(physical_diagnostic)
-    if require_pin1 and not proof.pin1.present:
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="missing-pin1-evidence",
-                severity=FootprintProofSeverity.ERROR,
-                message="footprint has no explicit pin-1 evidence",
-            )
-        )
-    if require_courtyard and proof.courtyard_mm == (0.0, 0.0):
-        diagnostics.append(
-            FootprintProofDiagnostic(
-                package_id=proof.package_id,
-                code="missing-courtyard",
-                severity=FootprintProofSeverity.ERROR,
-                message="footprint courtyard is missing or zero-sized",
-            )
-        )
+
+    candidates = (
+        _pad_count_diagnostic(proof),
+        _pad_pin_count_diagnostic(proof, signal_pad_ids),
+        _pin_map_count_diagnostic(proof),
+        _pin_map_pad_missing_diagnostic(proof, pad_ids, mapped_pads),
+        _unmapped_signal_pad_diagnostic(proof, signal_pad_ids, mapped_pads),
+        _pin_name_mismatch_diagnostic(proof, expected_pins) if expected_pins is not None else None,
+        _physical_pin_contract_diagnostic(proof, expected_physical_pins, thermal)
+        if expected_physical_pins is not None
+        else None,
+        _pin1_diagnostic(proof) if require_pin1 else None,
+        _courtyard_diagnostic(proof) if require_courtyard else None,
+    )
+    diagnostics = [item for item in candidates if item is not None]
+
     errors = sum(1 for item in diagnostics if item.severity == FootprintProofSeverity.ERROR)
     warnings = sum(1 for item in diagnostics if item.severity == FootprintProofSeverity.WARNING)
     return FootprintProofValidationReport(
