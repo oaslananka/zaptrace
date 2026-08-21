@@ -26,9 +26,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @contextmanager
-def _repository_json(payload: dict[str, float]):
+def _repository_dir():
     with tempfile.TemporaryDirectory(prefix="lane-profile-test-", dir=ROOT) as temp_dir:
-        path = Path(temp_dir) / "durations.json"
+        yield Path(temp_dir)
+
+
+@contextmanager
+def _repository_json(payload: dict[str, float]):
+    with _repository_dir() as temp_dir:
+        path = temp_dir / "durations.json"
         path.write_text(json.dumps(payload), encoding="utf-8")
         yield path
 
@@ -205,40 +211,43 @@ def test_calculate_lane_shard_profile_and_drift_classification() -> None:
     assert drifts_by_mod["tests/test_dc_bias.py"]["severity"] == "critical"
 
 
-def test_cli_check_mode_does_not_mutate_baseline(tmp_path: Path) -> None:
-    report_file = tmp_path / "profile-report.json"
-    baseline_before = (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8")
+def test_cli_check_mode_does_not_mutate_baseline() -> None:
+    with _repository_dir() as temp_dir:
+        report_file = temp_dir / "profile-report.json"
+        baseline_before = (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8")
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/ci_profile_test_lanes.py",
-            "--output",
-            str(report_file),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/ci_profile_test_lanes.py",
+                "--output",
+                str(report_file),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
-    assert result.returncode == 0
-    assert report_file.is_file()
-    report = json.loads(report_file.read_text(encoding="utf-8"))
-    assert report["gate_id"] == "test-lane-profiling-v1"
+        assert result.returncode == 0
+        assert report_file.is_file()
+        report = json.loads(report_file.read_text(encoding="utf-8"))
+        assert report["gate_id"] == "test-lane-profiling-v1"
 
-    baseline_after = (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8")
-    assert baseline_before == baseline_after
+        baseline_after = (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8")
+        assert baseline_before == baseline_after
 
 
-def test_cli_update_mode_explicit(tmp_path: Path) -> None:
-    report_file = tmp_path / "profile-report.json"
-    target_baseline = tmp_path / "custom-baseline.json"
-    # Copy current baseline to target
-    target_baseline.write_text(
-        (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8"), encoding="utf-8"
-    )
-    with _repository_json({"tests/test_models.py": 1.234}) as durations_json:
+def test_cli_update_mode_explicit() -> None:
+    with _repository_dir() as temp_dir:
+        report_file = temp_dir / "profile-report.json"
+        target_baseline = temp_dir / "custom-baseline.json"
+        # Copy current baseline to target
+        target_baseline.write_text(
+            (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        durations_json = temp_dir / "durations.json"
+        durations_json.write_text(json.dumps({"tests/test_models.py": 1.234}), encoding="utf-8")
         result = subprocess.run(
             [
                 sys.executable,
@@ -261,17 +270,18 @@ def test_cli_update_mode_explicit(tmp_path: Path) -> None:
             check=False,
         )
 
-    assert result.returncode == 0
-    updated = json.loads(target_baseline.read_text(encoding="utf-8"))
-    assert updated["measured_at"] == "2026-08-21"
-    assert updated["source"] == "Automated test run in isolated test suite"
-    assert updated["module_seconds"]["tests/test_models.py"] == 1.234
+        assert result.returncode == 0
+        updated = json.loads(target_baseline.read_text(encoding="utf-8"))
+        assert updated["measured_at"] == "2026-08-21"
+        assert updated["source"] == "Automated test run in isolated test suite"
+        assert updated["module_seconds"]["tests/test_models.py"] == 1.234
 
 
-def test_cli_strict_exit_code(tmp_path: Path) -> None:
-    report_file = tmp_path / "strict-report.json"
-    # Severe drift > 50s on test_models
-    with _repository_json({"tests/test_models.py": 60.0}) as durations_json:
+def test_cli_strict_exit_code() -> None:
+    with _repository_dir() as temp_dir:
+        report_file = temp_dir / "strict-report.json"
+        durations_json = temp_dir / "durations.json"
+        durations_json.write_text(json.dumps({"tests/test_models.py": 60.0}), encoding="utf-8")
         result = subprocess.run(
             [
                 sys.executable,
@@ -288,7 +298,7 @@ def test_cli_strict_exit_code(tmp_path: Path) -> None:
             check=False,
         )
 
-    assert result.returncode == 1
+        assert result.returncode == 1
 
 
 def test_cli_rejects_durations_json_outside_repository_root(tmp_path: Path) -> None:
@@ -301,6 +311,49 @@ def test_cli_rejects_durations_json_outside_repository_root(tmp_path: Path) -> N
             "scripts/ci_profile_test_lanes.py",
             "--durations-json",
             str(durations_json),
+            "--quiet",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "escapes repository root" in result.stderr
+
+
+def test_cli_rejects_output_outside_repository_root(tmp_path: Path) -> None:
+    outside_output = tmp_path / "outside-report.json"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/ci_profile_test_lanes.py",
+            "--output",
+            str(outside_output),
+            "--quiet",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "escapes repository root" in result.stderr
+
+
+def test_cli_rejects_write_baseline_outside_repository_root(tmp_path: Path) -> None:
+    outside_baseline = tmp_path / "outside-baseline.json"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/ci_profile_test_lanes.py",
+            "--update",
+            "--write-baseline",
+            str(outside_baseline),
             "--quiet",
         ],
         cwd=ROOT,

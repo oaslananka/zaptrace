@@ -37,6 +37,14 @@ def _repository_input_path(value: str) -> Path:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+def _repository_output_path(value: str) -> Path:
+    """Resolve a CLI output path inside the repository trust boundary."""
+    try:
+        return resolve_trusted_path(value, trusted_root=ROOT, label="profiling output path")
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def run_pytest_profiling(
     *,
     lane: str = "unit",
@@ -182,8 +190,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output",
-        type=Path,
-        default=Path("test-lane-profiling-report.json"),
+        type=_repository_output_path,
+        default=ROOT / "test-lane-profiling-report.json",
         help="Output path for deterministic machine-readable report",
     )
     parser.add_argument(
@@ -191,7 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--write-baseline",
-        type=Path,
+        type=_repository_output_path,
         help="Target path for updated duration baseline (default: config/test-duration-baseline.json)",
     )
     parser.add_argument(
@@ -247,11 +255,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--quiet", action="store_true", help="Suppress human-readable stdout summary")
     parser.add_argument(
-        "--policy-path", type=Path, default=ROOT / "config/test-lanes.json", help="Path to test-lanes policy JSON"
+        "--policy-path",
+        type=_repository_input_path,
+        default=ROOT / "config/test-lanes.json",
+        help="Path to test-lanes policy JSON",
     )
     parser.add_argument(
         "--baseline-path",
-        type=Path,
+        type=_repository_output_path,
         default=ROOT / "config/test-duration-baseline.json",
         help="Path to test-duration-baseline JSON",
     )
@@ -347,9 +358,11 @@ def _apply_collection_errors(report: dict[str, Any], errors: list[str]) -> None:
         report["status"] = "drift_critical"
 
 
-def _write_report(report: dict[str, Any], output: Path) -> None:
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def _write_report(report: dict[str, Any], output: Path | str) -> Path:
+    target = resolve_trusted_path(output, trusted_root=ROOT, label="profiling output path")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return target
 
 
 def _maybe_update_baseline(
@@ -359,7 +372,8 @@ def _maybe_update_baseline(
 ) -> Path | None:
     if not (args.update or args.write_baseline):
         return None
-    target = args.write_baseline or args.baseline_path
+    raw_target = args.write_baseline or args.baseline_path
+    target = resolve_trusted_path(raw_target, trusted_root=ROOT, label="baseline target path")
     updated = update_duration_baseline_data(
         baseline=baseline,
         observed_durations=observed_durations,
@@ -376,8 +390,10 @@ def _maybe_update_baseline(
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    policy: TestLanePolicy = load_lane_policy(args.policy_path)
-    baseline: DurationBaseline = load_duration_baseline(args.baseline_path)
+    policy_path = resolve_trusted_path(args.policy_path, trusted_root=ROOT, label="policy path")
+    baseline_path = resolve_trusted_path(args.baseline_path, trusted_root=ROOT, label="baseline path")
+    policy: TestLanePolicy = load_lane_policy(policy_path)
+    baseline: DurationBaseline = load_duration_baseline(baseline_path)
     observed_durations, collection_errors = _collect_observed_durations(args)
     report = calculate_lane_shard_profile(
         policy=policy,

@@ -284,6 +284,47 @@ def _selected_aperture(state: _GerberParseState, apertures: dict[int, GerberAper
     return apertures.get(state.aperture_code or 0)
 
 
+def _update_gerber_coordinates(match: re.Match[str], state: _GerberParseState) -> None:
+    x_text, y_text, _ = match.groups()
+    if x_text is not None:
+        state.x = int(x_text) / 1_000_000.0
+    if y_text is not None:
+        state.y = int(y_text) / 1_000_000.0
+
+
+def _handle_gerber_draw(
+    previous: tuple[float, float],
+    current: tuple[float, float],
+    state: _GerberParseState,
+    apertures: dict[int, GerberAperture],
+    lines: list[GerberLine],
+) -> None:
+    if state.in_region:
+        state.region_points.append(current)
+        return
+    aperture = _selected_aperture(state, apertures)
+    width = aperture.params[0] if (aperture is not None and aperture.params) else 0.1
+    lines.append(GerberLine.create(previous, current, width))
+
+
+def _handle_gerber_flash(
+    state: _GerberParseState,
+    apertures: dict[int, GerberAperture],
+    flashes: list[GerberFlash],
+) -> None:
+    aperture = _selected_aperture(state, apertures)
+    shape = aperture.shape if aperture is not None else "circle"
+    size = aperture.params if aperture is not None else (0.1,)
+    flashes.append(
+        GerberFlash(
+            x=_round_coord(state.x),
+            y=_round_coord(state.y),
+            shape=shape,
+            size=size,
+        )
+    )
+
+
 def _apply_gerber_operation(
     match: re.Match[str],
     state: _GerberParseState,
@@ -295,33 +336,15 @@ def _apply_gerber_operation(
     if not any((x_text, y_text, operation)):
         return
     previous = (state.x, state.y)
-    if x_text is not None:
-        state.x = int(x_text) / 1_000_000.0
-    if y_text is not None:
-        state.y = int(y_text) / 1_000_000.0
+    _update_gerber_coordinates(match, state)
     current = (state.x, state.y)
     if operation == "1":
+        _handle_gerber_draw(previous, current, state, apertures, lines)
+    elif operation == "2":
         if state.in_region:
             state.region_points.append(current)
-            return
-        aperture = _selected_aperture(state, apertures)
-        width = aperture.params[0] if aperture and aperture.params else 0.1
-        lines.append(GerberLine.create(previous, current, width))
-        return
-    if operation == "2":
-        if state.in_region:
-            state.region_points.append(current)
-        return
-    if operation == "3":
-        aperture = _selected_aperture(state, apertures)
-        flashes.append(
-            GerberFlash(
-                x=_round_coord(state.x),
-                y=_round_coord(state.y),
-                shape=aperture.shape if aperture else "circle",
-                size=aperture.params if aperture else (0.1,),
-            )
-        )
+    elif operation == "3":
+        _handle_gerber_flash(state, apertures, flashes)
 
 
 def _consume_gerber_line(
