@@ -369,9 +369,9 @@ def _maybe_update_baseline(
     args: argparse.Namespace,
     baseline: DurationBaseline,
     observed_durations: dict[str, float],
-) -> Path | None:
+) -> bool:
     if not (args.update or args.write_baseline):
-        return None
+        return False
     raw_target = args.write_baseline or args.baseline_path
     target = resolve_trusted_path(raw_target, trusted_root=ROOT, label="baseline target path")
     updated = update_duration_baseline_data(
@@ -384,7 +384,7 @@ def _maybe_update_baseline(
         root=ROOT,
     )
     save_duration_baseline(updated, path=target)
-    return target
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -405,9 +405,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     _apply_collection_errors(report, collection_errors)
     _write_report(report, args.output)
-    updated_path = _maybe_update_baseline(args, baseline, observed_durations)
-    if updated_path is not None and not args.quiet:
-        print(f"Updated duration baseline written to: {updated_path}")
+    baseline_updated = _maybe_update_baseline(args, baseline, observed_durations)
+    if baseline_updated and not args.quiet:
+        print("Updated duration baseline written successfully.")
     if not args.quiet:
         print(format_summary_text(report))
     return 1 if args.strict and not report["passed"] else 0
