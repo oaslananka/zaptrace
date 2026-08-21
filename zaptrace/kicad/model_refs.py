@@ -255,7 +255,12 @@ def _sha256_path(path: Path) -> str:
     return h.hexdigest()
 
 
-def _find_model(source: str, base_dirs: list[Path]) -> Path | None:
+def _find_model(
+    source: str,
+    base_dirs: list[Path],
+    *,
+    kicad_search_paths: list[Path] | None = None,
+) -> Path | None:
     """Search for *source* under *base_dirs* and known KiCad 3D model paths."""
     src = Path(source)
     if src.is_absolute() and src.is_file():
@@ -268,8 +273,9 @@ def _find_model(source: str, base_dirs: list[Path]) -> Path | None:
             return candidate
 
     # Fall back to known KiCad library paths
-    for kicad_dir in _KICAD_3D_SEARCH_PATHS:
-        candidate = Path(kicad_dir) / source
+    fallback_paths = kicad_search_paths if kicad_search_paths is not None else [Path(d) for d in _KICAD_3D_SEARCH_PATHS]
+    for kicad_dir in fallback_paths:
+        candidate = kicad_dir / source
         if candidate.is_file():
             return candidate
 
@@ -280,6 +286,7 @@ def resolve_model_refs(
     refs: list[ModelRef],
     *,
     base_dirs: list[str | Path] | None = None,
+    kicad_search_paths: list[str | Path] | None = None,
 ) -> ModelCoverage:
     """Resolve a list of ModelRefs to physical paths and compute coverage.
 
@@ -290,6 +297,9 @@ def resolve_model_refs(
     base_dirs:
         Additional directories to search for model files before the standard
         KiCad library locations.
+    kicad_search_paths:
+        KiCad library directories to search. If omitted or None, defaults to
+        standard system search paths (_KICAD_3D_SEARCH_PATHS).
 
     Returns
     -------
@@ -297,10 +307,11 @@ def resolve_model_refs(
         Evidence record with included, missing, and degraded categories.
     """
     search_dirs: list[Path] = [Path(d) for d in (base_dirs or [])]
+    kicad_dirs: list[Path] | None = [Path(d) for d in kicad_search_paths] if kicad_search_paths is not None else None
     coverage = ModelCoverage()
 
     for ref in refs:
-        resolved_path = _find_model(ref.source, search_dirs) if ref.source else None
+        resolved_path = _find_model(ref.source, search_dirs, kicad_search_paths=kicad_dirs) if ref.source else None
 
         if resolved_path is None:
             coverage.missing.append(

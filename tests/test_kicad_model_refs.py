@@ -180,6 +180,31 @@ class TestResolveModelRefs:
         cov = resolve_model_refs([ref], base_dirs=[tmp_path])
         assert cov.included[0].license == "CC0-1.0"
 
+    def test_resolve_with_explicit_kicad_search_paths(self, tmp_path: Path):
+        kicad_lib = tmp_path / "kicad_models"
+        sub_dir = kicad_lib / "Resistor_SMD.3dshapes"
+        sub_dir.mkdir(parents=True, exist_ok=True)
+        step_file = sub_dir / "R_0402.step"
+        step_file.write_bytes(b"ISO-10303 resistor")
+        sha256 = hashlib.sha256(b"ISO-10303 resistor").hexdigest()
+
+        ref = ModelRef(ref="R1", source="Resistor_SMD.3dshapes/R_0402.step", sha256=sha256)
+        cov = resolve_model_refs([ref], kicad_search_paths=[kicad_lib])
+
+        assert len(cov.included) == 1
+        assert cov.included[0].ref == "R1"
+        assert cov.included[0].status == "included"
+        assert cov.included[0].sha256_match is True
+        assert cov.complete is True
+
+    def test_resolve_kicad_search_paths_isolated(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr("zaptrace.kicad.model_refs._KICAD_3D_SEARCH_PATHS", [])
+        ref = ModelRef(ref="R1", source="Resistor_SMD.3dshapes/R_0402_1005Metric.step")
+        cov = resolve_model_refs([ref])
+        assert len(cov.missing) == 1
+        assert cov.missing[0].status == "missing"
+        assert cov.complete is False
+
 
 # ---------------------------------------------------------------------------
 # extract_model_refs_from_kicad_pcb
@@ -281,17 +306,47 @@ class TestMCPToolIntegration:
         assert result["total"] == 0
         assert result["complete"] is True
 
-    def test_tool_with_registry(self, tmp_path: Path):
+    def test_tool_with_registry(self, monkeypatch: pytest.MonkeyPatch):
         from zaptrace.agent._tool_impls import TOOL_REGISTRY
 
+        monkeypatch.setattr("zaptrace.kicad.model_refs._KICAD_3D_SEARCH_PATHS", [])
         fn = TOOL_REGISTRY["kicad_3d_model_coverage"]["fn"]
         registry = json.dumps([{"source": "Resistor_SMD.3dshapes/R_0402_1005Metric.step", "license": "CC-BY-SA-4.0"}])
         result = fn(kicad_pcb_text=_SAMPLE_PCB, model_registry_json=registry)
         assert result["schema"] == "model-coverage-v1"
-        # Models not found (no KiCad installed) → all missing
+        # Models not found (isolated search paths) → all missing
         assert result["total"] == 2
         assert result["missing_count"] == 2
         assert result["complete"] is False
+
+    def test_tool_with_registry_models_found(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        from zaptrace.agent._tool_impls import TOOL_REGISTRY
+
+        resistor_dir = tmp_path / "Resistor_SMD.3dshapes"
+        resistor_dir.mkdir(parents=True, exist_ok=True)
+        r_step = resistor_dir / "R_0402_1005Metric.step"
+        r_content = b"ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('Resistor'),'2;1');\nENDSEC;\n"
+        r_step.write_bytes(r_content)
+        r_sha256 = hashlib.sha256(r_content).hexdigest()
+
+        cap_dir = tmp_path / "Capacitor_SMD.3dshapes"
+        cap_dir.mkdir(parents=True, exist_ok=True)
+        c_step = cap_dir / "C_0402_1005Metric.step"
+        c_content = b"ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('Capacitor'),'2;1');\nENDSEC;\n"
+        c_step.write_bytes(c_content)
+
+        monkeypatch.setattr("zaptrace.kicad.model_refs._KICAD_3D_SEARCH_PATHS", [str(tmp_path)])
+        fn = TOOL_REGISTRY["kicad_3d_model_coverage"]["fn"]
+        registry = json.dumps(
+            [{"source": "Resistor_SMD.3dshapes/R_0402_1005Metric.step", "license": "CC-BY-SA-4.0", "sha256": r_sha256}]
+        )
+        result = fn(kicad_pcb_text=_SAMPLE_PCB, model_registry_json=registry)
+        assert result["schema"] == "model-coverage-v1"
+        assert result["total"] == 2
+        assert result["included_count"] == 2
+        assert result["missing_count"] == 0
+        assert result["degraded_count"] == 0
+        assert result["complete"] is True
 
     def test_tool_never_raises(self):
         from zaptrace.agent._tool_impls import TOOL_REGISTRY
