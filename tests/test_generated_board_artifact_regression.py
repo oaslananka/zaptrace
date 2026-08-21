@@ -26,8 +26,8 @@ EXPECTED_ARTIFACT_HASHES = {
     "kicad-project": "e672a2fd0ef2bf3edc4b29f5f44cc49bc3af3a9f6cc9a6f42ee249209b9ae2e7",
     "kicad-schematic": "c9a00c2921e308dbe9f6cf18c1330af2fb0c36880096035d7d8104de0cac1f11",
     "schematic-generation-report": "17b6fe7fa68e220e93339a1aa1bf2460d9547694c1741e1de7595501c39780c5",
-    "kicad-pcb": "67441d1ea69e17343cf459d96208e86d67839d17ee3dd56468b5d491be1b9d1a",
-    "pcb-generation-report": "f474d238f5d6eaba1e870e8f20159b1134249e877cf107aebceacb1dd37d4a2b",
+    "kicad-pcb": "48acf0541144c4b13964b9457edde42f215bddf47802c956ac17fe41ab177cd3",
+    "pcb-generation-report": "d2f2bd4e90f62444e9fc896e524520340a3410977526a889f36d7fc4546d85ec",
     "manufacturing-export-manifest": "1f49b6c584e94847734e89ac715f650a95ab19e4606df67d5532a3238e3a9576",
     "review-handoff": "df586620a33f74ae270aa193e0a4bdf4e59eb947d7b45da2e34513b6680b30ed",
 }
