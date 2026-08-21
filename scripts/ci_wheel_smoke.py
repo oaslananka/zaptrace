@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -13,9 +14,9 @@ ROOT = Path(__file__).resolve().parent.parent
 _DISTRIBUTION_STEMS = ("zaptrace_eda", "zaptrace")
 
 
-def run(cmd: list[str], *, cwd: Path | None = None) -> None:
+def run(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
     print("+", " ".join(cmd))
-    subprocess.run(cmd, cwd=str(cwd or ROOT), check=True)
+    subprocess.run(cmd, cwd=str(cwd or ROOT), env=env, check=True)
 
 
 def venv_python(venv: Path) -> Path:
@@ -36,6 +37,12 @@ def select_wheel(dist_dir: Path) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a clean installed-wheel smoke test")
     parser.add_argument("--dist-dir", type=Path, default=ROOT / "dist")
+    parser.add_argument(
+        "--expected-native",
+        choices=("required", "absent", "optional"),
+        default="optional",
+        help="Enforce presence or absence of the native Rust extension",
+    )
     args = parser.parse_args()
 
     uv = shutil.which("uv")
@@ -48,11 +55,15 @@ def main() -> int:
         run([uv, "venv", str(venv)], cwd=ROOT)
         python = venv_python(venv)
         run([uv, "pip", "install", "--python", str(python), str(wheel)], cwd=ROOT)
-        run([str(python), "-c", SMOKE], cwd=ROOT)
+        env = dict(os.environ)
+        env["ZAPTRACE_EXPECTED_NATIVE"] = args.expected_native
+        run([str(python), "-c", SMOKE], cwd=Path(tmp), env=env)
     return 0
 
 
 SMOKE = r"""
+import importlib.util
+import os
 from pathlib import Path
 import tempfile
 
@@ -64,6 +75,13 @@ from zaptrace.fab import get_builtin_profile_names
 from zaptrace.library.loader import LIBRARY_ROOT, LibraryLoader
 from zaptrace.synthesis.engine import list_templates
 from zaptrace.synthesis.fab import synthesize_to_manufacturing
+
+expected_native = os.environ.get("ZAPTRACE_EXPECTED_NATIVE", "optional")
+native_found = importlib.util.find_spec("zaptrace._core") is not None
+if expected_native == "required" and not native_found:
+    raise AssertionError("zaptrace._core native extension is required but missing from wheel")
+if expected_native == "absent" and native_found:
+    raise AssertionError("zaptrace._core native extension is absent but found in wheel")
 
 loader = LibraryLoader()
 library = loader.load_all()
@@ -79,7 +97,7 @@ with tempfile.TemporaryDirectory(prefix="zaptrace-fab-smoke-") as out:
     assert result.component_count > 0, "manufacturing synthesis emitted no components"
     assert result.artifacts, "manufacturing synthesis emitted no artifacts"
 
-print(f"OK: ZapTrace {zaptrace.__version__} clean wheel smoke passed")
+print(f"OK: ZapTrace {zaptrace.__version__} clean wheel smoke passed (native={native_found})")
 """
 
 
