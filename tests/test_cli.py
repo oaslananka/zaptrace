@@ -262,3 +262,65 @@ class TestKiCadOracleCLI:
 
         assert result.exit_code == 0
         assert "ERC error: parse failed" in result.output
+
+
+class TestDoctorCommand:
+    def test_doctor_command_succeeds_in_developer_mode_when_ngspice_missing(self, monkeypatch) -> None:
+        from scripts import ci_validation_environment
+
+        def fake_which(executable: str) -> str | None:
+            if executable == "ngspice":
+                return None
+            return f"/usr/bin/{executable}"
+
+        def fake_run(path: str, _req: ci_validation_environment.ToolRequirement):
+            import subprocess
+
+            version_map = {
+                "python3": "Python 3.12.0",
+                "rustc": "rustc 1.91.0",
+                "cargo": "cargo 1.91.0",
+                "kicad-cli": "kicad-cli 9.0.0",
+                "docker": "Docker version 27.0.0",
+                "uv": "uv 0.5.0",
+            }
+            name = Path(path).name
+            return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
+
+        monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
+        monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
+
+        result = _runner().invoke(cli, ["doctor", "--strict"])
+        assert result.exit_code == 0
+        assert "Validation environment: PASS" in result.output
+        assert "ngspice: optional-missing" in result.output
+
+    def test_doctor_command_strict_fails_in_authoritative_release_when_ngspice_missing(self, monkeypatch) -> None:
+        from scripts import ci_validation_environment
+
+        def fake_which(executable: str) -> str | None:
+            if executable == "ngspice":
+                return None
+            return f"/usr/bin/{executable}"
+
+        def fake_run(path: str, _req: ci_validation_environment.ToolRequirement):
+            import subprocess
+
+            version_map = {
+                "python3": "Python 3.12.0",
+                "rustc": "rustc 1.91.0",
+                "cargo": "cargo 1.91.0",
+                "kicad-cli": "kicad-cli 9.0.0",
+                "docker": "Docker version 27.0.0",
+                "uv": "uv 0.5.0",
+            }
+            name = Path(path).name
+            return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
+
+        monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
+        monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
+
+        result = _runner().invoke(cli, ["doctor", "--strict", "--role", "authoritative-release"])
+        assert result.exit_code != 0
+        assert "Validation environment: FAIL" in result.output
+        assert "ngspice: missing" in result.output

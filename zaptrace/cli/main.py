@@ -557,7 +557,13 @@ def pipeline(source: str | None, intent: str | None, output: str | None) -> None
 @click.option("--strict", is_flag=True, help="Fail if required validation tools are missing")
 @click.option("--json", "json_output", is_flag=True, help="Print machine-readable JSON evidence")
 @click.option("--output", type=click.Path(), default=None, help="Write JSON evidence to this path")
-def doctor(strict: bool, json_output: bool, output: str | None) -> None:
+@click.option(
+    "--role",
+    type=click.Choice(["authoritative-release", "diagnostic-only", "developer"]),
+    default="developer",
+    help="Validation environment role",
+)
+def doctor(strict: bool, json_output: bool, output: str | None, role: str = "developer") -> None:
     """Run system diagnostics and validation toolchain checks."""
     import platform
     import sys
@@ -565,7 +571,7 @@ def doctor(strict: bool, json_output: bool, output: str | None) -> None:
 
     from scripts.ci_validation_environment import build_report, render_text, report_json
 
-    report = build_report()
+    report = build_report(environment_role=role)
     if output:
         out = Path(output)
         out.parent.mkdir(parents=True, exist_ok=True)

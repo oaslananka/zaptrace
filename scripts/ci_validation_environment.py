@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -127,9 +127,39 @@ TOOL_REQUIREMENTS: tuple[ToolRequirement, ...] = (
         name="ngspice",
         executable="ngspice",
         gate="simulation/release",
-        install_hint="Install ngspice for mandatory release simulation evidence.",
+        install_hint=(
+            "Install ngspice (`sudo apt-get install ngspice` or `brew install ngspice`) "
+            "for simulation sign-off gates; optional in developer mode."
+        ),
     ),
 )
+
+VALID_ENVIRONMENT_ROLES: frozenset[str] = frozenset({"authoritative-release", "diagnostic-only", "developer"})
+
+
+def get_tool_requirements(
+    environment_role: str = "authoritative-release",
+) -> tuple[ToolRequirement, ...]:
+    if environment_role not in VALID_ENVIRONMENT_ROLES:
+        raise ValueError(f"unsupported environment role: {environment_role}")
+    if environment_role in {"developer", "diagnostic-only"}:
+        return tuple(
+            replace(
+                req,
+                required=False,
+                gate="simulation/developer-optional" if req.name == "ngspice" else req.gate,
+                install_hint=(
+                    "Install ngspice (`sudo apt-get install ngspice` or `brew install ngspice`) "
+                    "for simulation sign-off gates; optional in developer mode."
+                    if req.name == "ngspice"
+                    else req.install_hint
+                ),
+            )
+            if req.name == "ngspice"
+            else req
+            for req in TOOL_REQUIREMENTS
+        )
+    return TOOL_REQUIREMENTS
 
 
 def _first_version_number(text: str) -> tuple[int, int] | None:
@@ -276,9 +306,10 @@ def build_report(
     environment_role: str = "authoritative-release",
     root: Path = ROOT,
 ) -> dict[str, Any]:
-    if environment_role not in {"authoritative-release", "diagnostic-only"}:
+    if environment_role not in VALID_ENVIRONMENT_ROLES:
         raise ValueError(f"unsupported environment role: {environment_role}")
-    tools = [check_tool(req) for req in TOOL_REQUIREMENTS]
+    requirements = get_tool_requirements(environment_role)
+    tools = [check_tool(req) for req in requirements]
     identity = capture_evidence_identity(
         root=root,
         mode=EvidenceMode.SNAPSHOT,
@@ -314,7 +345,9 @@ def build_report(
         "scoped_validator_role": "diagnostic-only",
         "lock_sha256": _lock_sha256(root),
         "locked_dependencies": _locked_dependencies(root),
-        "policy_sha256": _policy_sha256(environment_role=environment_role, commands=commands),
+        "policy_sha256": _policy_sha256(
+            environment_role=environment_role, commands=commands, requirements=requirements
+        ),
         "tools": tools,
         "blocking_tool_count": len(blockers),
         "warning_tool_count": len(warnings),
@@ -353,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="Print JSON instead of text")
     parser.add_argument(
         "--role",
-        choices=("authoritative-release", "diagnostic-only"),
+        choices=("authoritative-release", "diagnostic-only", "developer"),
         default="authoritative-release",
         help="Declare whether this host may originate release evidence",
     )

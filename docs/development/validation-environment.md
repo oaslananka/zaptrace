@@ -17,6 +17,15 @@ python scripts/ci_validation_environment.py \
   --output validation-environment.json
 ```
 
+For local developer workstation diagnostics where optional simulation tools like ngspice provide degraded guidance rather than blocking development:
+
+```bash
+python scripts/ci_validation_environment.py \
+  --role developer \
+  --strict \
+  --output validation-environment.json
+```
+
 A VPS or workstation is a `diagnostic-only` validator unless the strict report
 passes every required tool and command:
 

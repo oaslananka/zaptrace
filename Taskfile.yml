@@ -4,7 +4,7 @@ tasks:
   doctor:
     desc: Check local validation toolchain parity
     cmds:
-      - python scripts/ci_validation_environment.py --strict --output validation-environment.json
+      - python scripts/ci_validation_environment.py --role developer --strict --output validation-environment.json
 
   install:
     desc: Install all dependencies
