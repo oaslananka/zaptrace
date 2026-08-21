@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from tests.lane_policy import (
@@ -21,6 +23,14 @@ from tests.lane_policy import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@contextmanager
+def _repository_json(payload: dict[str, float]):
+    with tempfile.TemporaryDirectory(prefix="lane-profile-test-", dir=ROOT) as temp_dir:
+        path = Path(temp_dir) / "durations.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        yield path
 
 
 def test_normalize_test_path() -> None:
@@ -224,35 +234,32 @@ def test_cli_check_mode_does_not_mutate_baseline(tmp_path: Path) -> None:
 def test_cli_update_mode_explicit(tmp_path: Path) -> None:
     report_file = tmp_path / "profile-report.json"
     target_baseline = tmp_path / "custom-baseline.json"
-    durations_json = tmp_path / "durations.json"
-
     # Copy current baseline to target
     target_baseline.write_text(
         (ROOT / "config/test-duration-baseline.json").read_text(encoding="utf-8"), encoding="utf-8"
     )
-    durations_json.write_text(json.dumps({"tests/test_models.py": 1.234}), encoding="utf-8")
-
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/ci_profile_test_lanes.py",
-            "--durations-json",
-            str(durations_json),
-            "--update",
-            "--write-baseline",
-            str(target_baseline),
-            "--measured-at",
-            "2026-08-21",
-            "--source",
-            "Automated test run in isolated test suite",
-            "--output",
-            str(report_file),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    with _repository_json({"tests/test_models.py": 1.234}) as durations_json:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/ci_profile_test_lanes.py",
+                "--durations-json",
+                str(durations_json),
+                "--update",
+                "--write-baseline",
+                str(target_baseline),
+                "--measured-at",
+                "2026-08-21",
+                "--source",
+                "Automated test run in isolated test suite",
+                "--output",
+                str(report_file),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
     assert result.returncode == 0
     updated = json.loads(target_baseline.read_text(encoding="utf-8"))
@@ -263,9 +270,30 @@ def test_cli_update_mode_explicit(tmp_path: Path) -> None:
 
 def test_cli_strict_exit_code(tmp_path: Path) -> None:
     report_file = tmp_path / "strict-report.json"
-    durations_json = tmp_path / "critical-durations.json"
     # Severe drift > 50s on test_models
-    durations_json.write_text(json.dumps({"tests/test_models.py": 60.0}), encoding="utf-8")
+    with _repository_json({"tests/test_models.py": 60.0}) as durations_json:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/ci_profile_test_lanes.py",
+                "--durations-json",
+                str(durations_json),
+                "--strict",
+                "--output",
+                str(report_file),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert result.returncode == 1
+
+
+def test_cli_rejects_durations_json_outside_repository_root(tmp_path: Path) -> None:
+    durations_json = tmp_path / "outside-durations.json"
+    durations_json.write_text(json.dumps({"tests/test_models.py": 1.0}), encoding="utf-8")
 
     result = subprocess.run(
         [
@@ -273,9 +301,7 @@ def test_cli_strict_exit_code(tmp_path: Path) -> None:
             "scripts/ci_profile_test_lanes.py",
             "--durations-json",
             str(durations_json),
-            "--strict",
-            "--output",
-            str(report_file),
+            "--quiet",
         ],
         cwd=ROOT,
         capture_output=True,
@@ -283,4 +309,5 @@ def test_cli_strict_exit_code(tmp_path: Path) -> None:
         check=False,
     )
 
-    assert result.returncode == 1
+    assert result.returncode != 0
+    assert "escapes repository root" in result.stderr

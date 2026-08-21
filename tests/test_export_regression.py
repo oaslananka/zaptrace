@@ -515,3 +515,16 @@ class TestGoldenUpdate:
         missing = [n for n in expected if not _golden_path(n).exists()]
         if missing and not UPDATE_GOLDENS:
             raise AssertionError(f"Missing golden files: {missing}. Run with UPDATE_GOLDENS=1 to generate.")
+
+
+def test_generate_copper_layer_ignores_unpositioned_components() -> None:
+    design = Design(
+        meta=DesignMeta(name="unpositioned-component"),
+        components={
+            "r1": Component(id="r1", ref="R1", type="resistor"),
+        },
+    )
+
+    gerber = generate_copper_layer(design, "top")
+
+    assert gerber.endswith("M02*\n")

@@ -9,6 +9,7 @@ from zaptrace.testing.gerber_ast import (
     GerberFlash,
     GerberLine,
     GerberRegion,
+    _shoelace_area,
     canonicalize_excellon,
     canonicalize_gerber,
     parse_excellon,
@@ -34,7 +35,8 @@ def test_gerber_region_cyclic_shift_invariance() -> None:
     poly2 = [(20.0, 10.0), (20.0, 30.0), (10.0, 30.0), (10.0, 10.0)]
     r1 = GerberRegion.from_raw_vertices(poly1)
     r2 = GerberRegion.from_raw_vertices(poly2)
-    assert r1 is not None and r2 is not None
+    assert r1 is not None
+    assert r2 is not None
     assert r1.vertices == r2.vertices
     assert r1.area == r2.area == 200.0
 
@@ -166,3 +168,52 @@ M30
     dict_data = canonicalize_excellon(sample_excellon)
     assert "drills" in dict_data
     assert len(dict_data["drills"]) == 3
+
+
+def test_degenerate_geometry_helpers_are_explicit() -> None:
+    assert _shoelace_area([(0.0, 0.0), (1.0, 1.0)]) == 0.0
+    assert GerberRegion.from_raw_vertices([(0.0, 0.0), (1.0, 1.0), (0.0, 0.0)]) is None
+
+
+def test_gerber_ast_compare_reports_count_and_geometry_mismatches() -> None:
+    region = GerberRegion.from_raw_vertices([(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)])
+    assert region is not None
+    flash = GerberFlash(x=5.0, y=5.0, shape="circle", size=(1.0,))
+    line = GerberLine.create((0.0, 0.0), (5.0, 0.0), width=0.3)
+    base = GerberAST(regions=(region,), flashes=(flash,), lines=(line,))
+
+    matched, diffs = base.compare(GerberAST(regions=(), flashes=(flash,), lines=(line,)))
+    assert not matched
+    assert any("Region count mismatch" in diff for diff in diffs)
+
+    matched, diffs = base.compare(GerberAST(regions=(region,), flashes=(), lines=(line,)))
+    assert not matched
+    assert any("Flash count mismatch" in diff for diff in diffs)
+
+    changed_flash = GerberFlash(x=7.0, y=8.0, shape="rect", size=(1.0,))
+    matched, diffs = base.compare(GerberAST(regions=(region,), flashes=(changed_flash,), lines=(line,)))
+    assert not matched
+    assert any("position mismatch" in diff for diff in diffs)
+    assert any("shape mismatch" in diff for diff in diffs)
+
+    matched, diffs = base.compare(GerberAST(regions=(region,), flashes=(flash,), lines=()))
+    assert not matched
+    assert any("Line count mismatch" in diff for diff in diffs)
+
+    changed_line = GerberLine.create((1.0, 1.0), (9.0, 1.0), width=0.8)
+    matched, diffs = base.compare(GerberAST(regions=(region,), flashes=(flash,), lines=(changed_line,)))
+    assert not matched
+    assert any("coordinate mismatch" in diff for diff in diffs)
+    assert any("width mismatch" in diff for diff in diffs)
+    assert any("length mismatch" in diff for diff in diffs)
+
+
+def test_excellon_ast_compare_reports_hit_geometry_mismatches() -> None:
+    base = ExcellonAST(drills=(ExcellonHit(x=1.0, y=2.0, diameter=0.8),))
+    changed = ExcellonAST(drills=(ExcellonHit(x=3.0, y=4.0, diameter=1.2),))
+
+    matched, diffs = base.compare(changed)
+
+    assert not matched
+    assert any("position mismatch" in diff for diff in diffs)
+    assert any("diameter mismatch" in diff for diff in diffs)

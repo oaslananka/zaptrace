@@ -469,6 +469,32 @@ def validate_gerber_x2_attributes(content: str) -> dict[str, bool | list[str]]:
     }
 
 
+def _component_pads_for_layer(
+    design: Design,
+    layer: str,
+) -> list[tuple[str, float, float, float, float, str]]:
+    """Return positioned component-pad tuples for one copper layer."""
+    pads: list[tuple[str, float, float, float, float, str]] = []
+    for component in design.components.values():
+        if component.footprint_def is None or component.position is None:
+            continue
+        component_x, component_y = component.position
+        for pad in component.footprint_def.pads:
+            if pad.layer.value not in (layer, "all"):
+                continue
+            pads.append(
+                (
+                    layer,
+                    component_x + pad.position[0],
+                    component_y + pad.position[1],
+                    pad.size[0],
+                    pad.size[1],
+                    pad.shape.value,
+                )
+            )
+    return pads
+
+
 def generate_copper_layer(design: Design, layer: str = "top") -> str:
     """Generate Gerber content for a single copper layer.
 
@@ -489,23 +515,7 @@ def generate_copper_layer(design: Design, layer: str = "top") -> str:
     lines.extend(_traces_list(traces, apertures, layer))
 
     # Pads
-    for comp in design.components.values():
-        if comp.footprint_def and comp.position:
-            cx, cy = comp.position
-            for pad in comp.footprint_def.pads:
-                valid_layer = pad.layer.value in (layer, "all")
-                if not valid_layer:
-                    continue
-                shape = pad.shape.value
-                w, h = pad.size[0], pad.size[1]
-                if shape == "circle" or (shape == "rect" and abs(w - h) < 0.001):
-                    d_code = apertures.define_circle(max(w, h))
-                elif shape == "oval":
-                    d_code = apertures.define_obround(w, h)
-                else:
-                    d_code = apertures.define_rect(w, h)
-                lines.append(f"D{d_code}*\n")
-                lines.append(f"{_fmt_xy(cx + pad.position[0], cy + pad.position[1])}D03*\n")
+    lines.extend(_pads_list(_component_pads_for_layer(design, layer), apertures))
 
     # Thermal reliefs for pads in the pour
     pour_names = _LAYER_TO_POUR.get(layer, (layer,))

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from scripts import ci_validation_environment
+from tests.validation_environment_test_support import install_fake_validation_toolchain
 from zaptrace import __version__
 
 
@@ -189,25 +190,7 @@ def test_get_tool_requirements_rejects_unknown_role() -> None:
 
 
 def test_ngspice_absent_in_developer_mode_is_optional_warning(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_which(executable: str) -> str | None:
-        if executable == "ngspice":
-            return None
-        return f"/usr/bin/{executable}"
-
-    def fake_run(path: str, _req: ci_validation_environment.ToolRequirement) -> subprocess.CompletedProcess[str]:
-        version_map = {
-            "python3": "Python 3.12.0",
-            "rustc": "rustc 1.91.0",
-            "cargo": "cargo 1.91.0",
-            "kicad-cli": "kicad-cli 9.0.0",
-            "docker": "Docker version 27.0.0",
-            "uv": "uv 0.5.0",
-        }
-        name = Path(path).name
-        return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
-
-    monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
-    monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
+    install_fake_validation_toolchain(monkeypatch, ngspice="missing")
 
     report = ci_validation_environment.build_report(environment_role="developer")
 
@@ -229,25 +212,7 @@ def test_ngspice_absent_in_developer_mode_is_optional_warning(monkeypatch: pytes
 
 
 def test_ngspice_absent_in_strict_mode_is_blocking_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_which(executable: str) -> str | None:
-        if executable == "ngspice":
-            return None
-        return f"/usr/bin/{executable}"
-
-    def fake_run(path: str, _req: ci_validation_environment.ToolRequirement) -> subprocess.CompletedProcess[str]:
-        version_map = {
-            "python3": "Python 3.12.0",
-            "rustc": "rustc 1.91.0",
-            "cargo": "cargo 1.91.0",
-            "kicad-cli": "kicad-cli 9.0.0",
-            "docker": "Docker version 27.0.0",
-            "uv": "uv 0.5.0",
-        }
-        name = Path(path).name
-        return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
-
-    monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
-    monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
+    install_fake_validation_toolchain(monkeypatch, ngspice="missing")
 
     report = ci_validation_environment.build_report(environment_role="authoritative-release")
 
@@ -265,24 +230,7 @@ def test_ngspice_absent_in_strict_mode_is_blocking_failure(monkeypatch: pytest.M
 
 
 def test_ngspice_present_passes_in_both_modes(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_which(executable: str) -> str | None:
-        return f"/usr/bin/{executable}"
-
-    def fake_run(path: str, _req: ci_validation_environment.ToolRequirement) -> subprocess.CompletedProcess[str]:
-        version_map = {
-            "python3": "Python 3.12.0",
-            "rustc": "rustc 1.91.0",
-            "cargo": "cargo 1.91.0",
-            "kicad-cli": "kicad-cli 9.0.0",
-            "docker": "Docker version 27.0.0",
-            "uv": "uv 0.5.0",
-            "ngspice": "ngspice-42",
-        }
-        name = Path(path).name
-        return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
-
-    monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
-    monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
+    install_fake_validation_toolchain(monkeypatch, ngspice="present")
 
     for role in ("developer", "authoritative-release", "diagnostic-only"):
         report = ci_validation_environment.build_report(environment_role=role)
@@ -295,27 +243,8 @@ def test_ngspice_present_passes_in_both_modes(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_ngspice_execution_failure_in_developer_mode_vs_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_which(executable: str) -> str | None:
-        return f"/usr/bin/{executable}"
+    install_fake_validation_toolchain(monkeypatch, ngspice="error")
 
-    def fake_run(path: str, req: ci_validation_environment.ToolRequirement) -> subprocess.CompletedProcess[str]:
-        if req.name == "ngspice":
-            return subprocess.CompletedProcess([path], 1, "", "simulation driver error")
-        version_map = {
-            "python3": "Python 3.12.0",
-            "rustc": "rustc 1.91.0",
-            "cargo": "cargo 1.91.0",
-            "kicad-cli": "kicad-cli 9.0.0",
-            "docker": "Docker version 27.0.0",
-            "uv": "uv 0.5.0",
-        }
-        name = Path(path).name
-        return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
-
-    monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
-    monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
-
-    # In developer mode: failed execution is optional-failed (warning, not blocking)
     dev_report = ci_validation_environment.build_report(environment_role="developer")
     assert dev_report["passed"] is True
     assert "ngspice" in dev_report["warning_tools"]
@@ -323,7 +252,6 @@ def test_ngspice_execution_failure_in_developer_mode_vs_strict_mode(monkeypatch:
     ngspice_dev = next(t for t in dev_report["tools"] if t["name"] == "ngspice")
     assert ngspice_dev["status"] == "optional-failed"
 
-    # In authoritative-release mode: failed execution is blocking failure
     rel_report = ci_validation_environment.build_report(environment_role="authoritative-release")
     assert rel_report["passed"] is False
     assert "ngspice" in rel_report["blocking_tools"]
@@ -334,30 +262,10 @@ def test_ngspice_execution_failure_in_developer_mode_vs_strict_mode(monkeypatch:
 def test_validation_environment_cli_exit_codes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fake_which(executable: str) -> str | None:
-        if executable == "ngspice":
-            return None
-        return f"/usr/bin/{executable}"
+    install_fake_validation_toolchain(monkeypatch, ngspice="missing")
 
-    def fake_run(path: str, _req: ci_validation_environment.ToolRequirement) -> subprocess.CompletedProcess[str]:
-        version_map = {
-            "python3": "Python 3.12.0",
-            "rustc": "rustc 1.91.0",
-            "cargo": "cargo 1.91.0",
-            "kicad-cli": "kicad-cli 9.0.0",
-            "docker": "Docker version 27.0.0",
-            "uv": "uv 0.5.0",
-        }
-        name = Path(path).name
-        return subprocess.CompletedProcess([path], 0, version_map.get(name, "1.0.0"), "")
-
-    monkeypatch.setattr(ci_validation_environment, "_which", fake_which)
-    monkeypatch.setattr(ci_validation_environment, "_run_tool_version", fake_run)
-
-    # Developer mode strict exit code should be 0 when only ngspice is missing
     exit_code_dev = ci_validation_environment.main(["--role", "developer", "--strict"])
     assert exit_code_dev == 0
 
-    # Authoritative release mode strict exit code should be 1 when ngspice is missing
     exit_code_rel = ci_validation_environment.main(["--role", "authoritative-release", "--strict"])
     assert exit_code_rel == 1

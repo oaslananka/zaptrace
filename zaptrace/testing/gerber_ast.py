@@ -143,47 +143,72 @@ class GerberAST:
 
     def compare(self, other: GerberAST, tolerance_mm: float = 0.001) -> tuple[bool, list[str]]:
         """Compare geometric equivalence against another Gerber AST."""
-        diffs: list[str] = []
+        diffs = [
+            *_compare_regions(self.regions, other.regions, tolerance_mm),
+            *_compare_flashes(self.flashes, other.flashes, tolerance_mm),
+            *_compare_lines(self.lines, other.lines, tolerance_mm),
+        ]
+        return (not diffs, diffs)
 
-        # Compare regions
-        if len(self.regions) != len(other.regions):
-            diffs.append(f"Region count mismatch: {len(self.regions)} vs {len(other.regions)}")
-        else:
-            for i, (r1, r2) in enumerate(zip(self.regions, other.regions, strict=True)):
-                if abs(r1.area - r2.area) > tolerance_mm:
-                    diffs.append(f"Region {i} area mismatch: {r1.area} vs {r2.area}")
-                if len(r1.vertices) != len(r2.vertices):
-                    diffs.append(f"Region {i} vertex count mismatch: {len(r1.vertices)} vs {len(r2.vertices)}")
-                else:
-                    for v_idx, (v1, v2) in enumerate(zip(r1.vertices, r2.vertices, strict=True)):
-                        if math.dist(v1, v2) > tolerance_mm:
-                            diffs.append(f"Region {i} vertex {v_idx} position mismatch: {v1} vs {v2}")
 
-        # Compare flashes
-        if len(self.flashes) != len(other.flashes):
-            diffs.append(f"Flash count mismatch: {len(self.flashes)} vs {len(other.flashes)}")
-        else:
-            for i, (f1, f2) in enumerate(zip(self.flashes, other.flashes, strict=True)):
-                if math.dist((f1.x, f1.y), (f2.x, f2.y)) > tolerance_mm:
-                    diffs.append(f"Flash {i} position mismatch: ({f1.x}, {f1.y}) vs ({f2.x}, {f2.y})")
-                if f1.shape != f2.shape:
-                    diffs.append(f"Flash {i} shape mismatch: {f1.shape} vs {f2.shape}")
-                if any(abs(s1 - s2) > tolerance_mm for s1, s2 in zip(f1.size, f2.size, strict=True)):
-                    diffs.append(f"Flash {i} size mismatch: {f1.size} vs {f2.size}")
+def _compare_regions(
+    left: tuple[GerberRegion, ...],
+    right: tuple[GerberRegion, ...],
+    tolerance_mm: float,
+) -> list[str]:
+    if len(left) != len(right):
+        return [f"Region count mismatch: {len(left)} vs {len(right)}"]
+    diffs: list[str] = []
+    for index, (first, second) in enumerate(zip(left, right, strict=True)):
+        if abs(first.area - second.area) > tolerance_mm:
+            diffs.append(f"Region {index} area mismatch: {first.area} vs {second.area}")
+        if len(first.vertices) != len(second.vertices):
+            diffs.append(f"Region {index} vertex count mismatch: {len(first.vertices)} vs {len(second.vertices)}")
+            continue
+        for vertex_index, (first_vertex, second_vertex) in enumerate(zip(first.vertices, second.vertices, strict=True)):
+            if math.dist(first_vertex, second_vertex) > tolerance_mm:
+                diffs.append(
+                    f"Region {index} vertex {vertex_index} position mismatch: {first_vertex} vs {second_vertex}"
+                )
+    return diffs
 
-        # Compare lines
-        if len(self.lines) != len(other.lines):
-            diffs.append(f"Line count mismatch: {len(self.lines)} vs {len(other.lines)}")
-        else:
-            for i, (l1, l2) in enumerate(zip(self.lines, other.lines, strict=True)):
-                if math.dist(l1.start, l2.start) > tolerance_mm or math.dist(l1.end, l2.end) > tolerance_mm:
-                    diffs.append(f"Line {i} coordinate mismatch: [{l1.start}->{l1.end}] vs [{l2.start}->{l2.end}]")
-                if abs(l1.width - l2.width) > tolerance_mm:
-                    diffs.append(f"Line {i} width mismatch: {l1.width} vs {l2.width}")
-                if abs(l1.length - l2.length) > tolerance_mm:
-                    diffs.append(f"Line {i} length mismatch: {l1.length} vs {l2.length}")
 
-        return (len(diffs) == 0, diffs)
+def _compare_flashes(
+    left: tuple[GerberFlash, ...],
+    right: tuple[GerberFlash, ...],
+    tolerance_mm: float,
+) -> list[str]:
+    if len(left) != len(right):
+        return [f"Flash count mismatch: {len(left)} vs {len(right)}"]
+    diffs: list[str] = []
+    for index, (first, second) in enumerate(zip(left, right, strict=True)):
+        if math.dist((first.x, first.y), (second.x, second.y)) > tolerance_mm:
+            diffs.append(f"Flash {index} position mismatch: ({first.x}, {first.y}) vs ({second.x}, {second.y})")
+        if first.shape != second.shape:
+            diffs.append(f"Flash {index} shape mismatch: {first.shape} vs {second.shape}")
+        if any(abs(a - b) > tolerance_mm for a, b in zip(first.size, second.size, strict=True)):
+            diffs.append(f"Flash {index} size mismatch: {first.size} vs {second.size}")
+    return diffs
+
+
+def _compare_lines(
+    left: tuple[GerberLine, ...],
+    right: tuple[GerberLine, ...],
+    tolerance_mm: float,
+) -> list[str]:
+    if len(left) != len(right):
+        return [f"Line count mismatch: {len(left)} vs {len(right)}"]
+    diffs: list[str] = []
+    for index, (first, second) in enumerate(zip(left, right, strict=True)):
+        if math.dist(first.start, second.start) > tolerance_mm or math.dist(first.end, second.end) > tolerance_mm:
+            diffs.append(
+                f"Line {index} coordinate mismatch: [{first.start}->{first.end}] vs [{second.start}->{second.end}]"
+            )
+        if abs(first.width - second.width) > tolerance_mm:
+            diffs.append(f"Line {index} width mismatch: {first.width} vs {second.width}")
+        if abs(first.length - second.length) > tolerance_mm:
+            diffs.append(f"Line {index} length mismatch: {first.length} vs {second.length}")
+    return diffs
 
 
 @dataclass(frozen=True)
@@ -222,106 +247,135 @@ class ExcellonAST:
         return (len(diffs) == 0, diffs)
 
 
+@dataclass
+class _GerberParseState:
+    aperture_code: int | None
+    x: float
+    y: float
+    in_region: bool
+    region_points: list[tuple[float, float]]
+
+
+_APERTURE_DEF_RE = re.compile(r"%ADD(\d+)([A-Z]+),([^*%]+)\*%")
+_D_CODE_SELECT_RE = re.compile(r"^D(\d+)\*\s*$")
+_OPERATION_RE = re.compile(r"(?:X(-?\d+))?(?:Y(-?\d+))?(?:D0([123]))?\*")
+
+
+def _parse_aperture_definition(line: str) -> GerberAperture | None:
+    match = _APERTURE_DEF_RE.search(line)
+    if match is None:
+        return None
+    code = int(match.group(1))
+    shape_type = match.group(2)
+    shape = {"C": "circle", "R": "rect", "OB": "obround"}.get(shape_type, shape_type.lower())
+    params = tuple(_round_coord(float(item)) for item in re.split(r"[X,]", match.group(3)) if item)
+    return GerberAperture(code=code, shape=shape, params=params)
+
+
+def _finish_region(state: _GerberParseState, regions: list[GerberRegion]) -> None:
+    region = GerberRegion.from_raw_vertices(state.region_points)
+    if region is not None:
+        regions.append(region)
+    state.in_region = False
+    state.region_points = []
+
+
+def _selected_aperture(state: _GerberParseState, apertures: dict[int, GerberAperture]) -> GerberAperture | None:
+    return apertures.get(state.aperture_code or 0)
+
+
+def _apply_gerber_operation(
+    match: re.Match[str],
+    state: _GerberParseState,
+    apertures: dict[int, GerberAperture],
+    flashes: list[GerberFlash],
+    lines: list[GerberLine],
+) -> None:
+    x_text, y_text, operation = match.groups()
+    if not any((x_text, y_text, operation)):
+        return
+    previous = (state.x, state.y)
+    if x_text is not None:
+        state.x = int(x_text) / 1_000_000.0
+    if y_text is not None:
+        state.y = int(y_text) / 1_000_000.0
+    current = (state.x, state.y)
+    if operation == "1":
+        if state.in_region:
+            state.region_points.append(current)
+            return
+        aperture = _selected_aperture(state, apertures)
+        width = aperture.params[0] if aperture and aperture.params else 0.1
+        lines.append(GerberLine.create(previous, current, width))
+        return
+    if operation == "2":
+        if state.in_region:
+            state.region_points.append(current)
+        return
+    if operation == "3":
+        aperture = _selected_aperture(state, apertures)
+        flashes.append(
+            GerberFlash(
+                x=_round_coord(state.x),
+                y=_round_coord(state.y),
+                shape=aperture.shape if aperture else "circle",
+                size=aperture.params if aperture else (0.1,),
+            )
+        )
+
+
+def _consume_gerber_line(
+    line: str,
+    state: _GerberParseState,
+    apertures: dict[int, GerberAperture],
+    regions: list[GerberRegion],
+    flashes: list[GerberFlash],
+    lines: list[GerberLine],
+) -> None:
+    if not line or line.startswith("G04"):
+        return
+    aperture = _parse_aperture_definition(line)
+    if aperture is not None:
+        apertures[aperture.code] = aperture
+        return
+    if "G36*" in line:
+        state.in_region = True
+        state.region_points = []
+        return
+    if "G37*" in line:
+        _finish_region(state, regions)
+        return
+    selection = _D_CODE_SELECT_RE.match(line)
+    if selection is not None:
+        state.aperture_code = int(selection.group(1))
+        return
+    for operation in _OPERATION_RE.finditer(line):
+        _apply_gerber_operation(operation, state, apertures, flashes, lines)
+
+
 def parse_gerber(content: str) -> GerberAST:
     """Parse RS-274X Gerber content into a normalized geometric AST."""
     apertures: dict[int, GerberAperture] = {}
     regions: list[GerberRegion] = []
     flashes: list[GerberFlash] = []
     lines: list[GerberLine] = []
-
-    current_aperture_code: int | None = None
-    current_x: float = 0.0
-    current_y: float = 0.0
-    in_region: bool = False
-    region_points: list[tuple[float, float]] = []
-
-    # Regex patterns
-    aperture_def_re = re.compile(r"%ADD(\d+)([A-Z]+),([^*%]+)\*%")
-    d_code_select_re = re.compile(r"^D(\d+)\*\s*$")
-    op_re = re.compile(r"(?:X(-?\d+))?(?:Y(-?\d+))?(?:D0([123]))?\*")
+    state = _GerberParseState(aperture_code=None, x=0.0, y=0.0, in_region=False, region_points=[])
 
     for raw_line in content.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("G04"):
-            continue
+        _consume_gerber_line(raw_line.strip(), state, apertures, regions, flashes, lines)
 
-        # Aperture definitions
-        ap_match = aperture_def_re.search(line)
-        if ap_match:
-            code = int(ap_match.group(1))
-            shape_type = ap_match.group(2)
-            params_raw = ap_match.group(3)
-            shape_map = {"C": "circle", "R": "rect", "OB": "obround"}
-            shape = shape_map.get(shape_type, shape_type.lower())
-            params_split = re.split(r"[X,]", params_raw)
-            params = tuple(_round_coord(float(p)) for p in params_split if p)
-            apertures[code] = GerberAperture(code=code, shape=shape, params=params)
-            continue
-
-        # Region mode toggles
-        if "G36*" in line:
-            in_region = True
-            region_points = []
-            continue
-        if "G37*" in line:
-            in_region = False
-            region = GerberRegion.from_raw_vertices(region_points)
-            if region is not None:
-                regions.append(region)
-            region_points = []
-            continue
-
-        # Aperture selection standalone (e.g. D10*)
-        d_sel = d_code_select_re.match(line)
-        if d_sel:
-            current_aperture_code = int(d_sel.group(1))
-            continue
-
-        # Coordinate / Operation commands
-        for match in op_re.finditer(line):
-            x_str, y_str, op = match.groups()
-            if not any((x_str, y_str, op)):
-                continue
-
-            prev_x, prev_y = current_x, current_y
-            if x_str is not None:
-                current_x = int(x_str) / 1_000_000.0
-            if y_str is not None:
-                current_y = int(y_str) / 1_000_000.0
-
-            if op == "1":  # D01: draw line
-                if in_region:
-                    region_points.append((current_x, current_y))
-                else:
-                    ap = apertures.get(current_aperture_code or 0)
-                    width = ap.params[0] if ap and ap.params else 0.1
-                    line_geom = GerberLine.create((prev_x, prev_y), (current_x, current_y), width)
-                    lines.append(line_geom)
-            elif op == "2":  # D02: move without draw
-                if in_region:
-                    region_points.append((current_x, current_y))
-            elif op == "3":  # D03: flash
-                ap = apertures.get(current_aperture_code or 0)
-                shape = ap.shape if ap else "circle"
-                size = ap.params if ap else (0.1,)
-                flashes.append(
-                    GerberFlash(
-                        x=_round_coord(current_x),
-                        y=_round_coord(current_y),
-                        shape=shape,
-                        size=size,
-                    )
-                )
-
-    # Sort all geometry collections deterministically
     sorted_regions = tuple(
-        sorted(regions, key=lambda r: (r.bounding_box, r.area, r.vertices[0] if r.vertices else (0, 0)))
+        sorted(
+            regions,
+            key=lambda region: (
+                region.bounding_box,
+                region.area,
+                region.vertices[0] if region.vertices else (0, 0),
+            ),
+        )
     )
-    sorted_flashes = tuple(sorted(flashes, key=lambda f: (f.x, f.y, f.shape, f.size)))
-    sorted_lines = tuple(
-        sorted(lines, key=lambda line_item: (line_item.start, line_item.end, line_item.width, line_item.length))
-    )
-
+    sorted_flashes = tuple(sorted(flashes, key=lambda flash: (flash.x, flash.y, flash.shape, flash.size)))
+    sorted_lines = tuple(sorted(lines, key=lambda item: (item.start, item.end, item.width, item.length)))
     return GerberAST(regions=sorted_regions, flashes=sorted_flashes, lines=sorted_lines)
 
 

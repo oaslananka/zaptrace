@@ -24,8 +24,17 @@ from tests.lane_policy import (
     save_duration_baseline,
     update_duration_baseline_data,
 )
+from zaptrace.security.paths import resolve_trusted_path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _repository_input_path(value: str) -> Path:
+    """Resolve a CLI input path inside the repository trust boundary."""
+    try:
+        return resolve_trusted_path(value, trusted_root=ROOT, label="profiling input path")
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def run_pytest_profiling(
@@ -68,8 +77,7 @@ def run_pytest_profiling(
         return {}, errors
 
 
-def format_summary_text(report: dict[str, Any]) -> str:
-    """Format human-readable profiling summary for terminal/logs."""
+def _summary_header_lines(report: dict[str, Any]) -> list[str]:
     summary = report["summary"]
     status_marker = "✓" if report["passed"] else "✗"
     lines = [
@@ -86,55 +94,66 @@ def format_summary_text(report: dict[str, Any]) -> str:
         ),
         f"  Drift counts: Critical: {summary['critical_drift_count']} | Warning: {summary['warning_drift_count']}",
     ]
-
     if summary.get("imbalanced_lanes"):
         lines.append(f"  Imbalanced lanes: {', '.join(summary['imbalanced_lanes'])}")
+    return lines
 
-    lines.append("\nLane Breakdown:")
-    for lane_name, lane_data in report["lanes"].items():
-        shard_info = f"{lane_data['shard_count']} shard(s)"
-        imbal_info = (
-            f"imbalance: {lane_data['imbalance_seconds']:.2f}s" if lane_data["shard_count"] > 1 else "single shard"
-        )
+
+def _format_shard_line(shard: dict[str, Any]) -> str:
+    return (
+        f"      Shard {shard['index']}: {shard['module_count']:>2} mods | "
+        f"base: {shard['projected_baseline_seconds']:>6.2f}s | "
+        f"eff: {shard['effective_projected_seconds']:>6.2f}s | "
+        f"diff: {shard['drift_seconds']:>+6.2f}s"
+    )
+
+
+def _format_lane_lines(lanes: dict[str, Any]) -> list[str]:
+    lines = ["\nLane Breakdown:"]
+    for lane_name, lane_data in lanes.items():
+        shard_count = lane_data["shard_count"]
+        imbalance = f"imbalance: {lane_data['imbalance_seconds']:.2f}s" if shard_count > 1 else "single shard"
         lines.append(
             f"  - {lane_name:<14} [{lane_data['severity'].upper()}]: "
             f"{lane_data['module_count']:>3} mods ({lane_data['observed_module_count']:>3} obs) | "
             f"base: {lane_data['projected_baseline_seconds']:>7.2f}s | "
             f"eff: {lane_data['effective_projected_seconds']:>7.2f}s | "
-            f"{shard_info} ({imbal_info})"
+            f"{shard_count} shard(s) ({imbalance})"
         )
-        if lane_data["shard_count"] > 1:
-            for shard in lane_data["current_shards"]:
-                lines.append(
-                    f"      Shard {shard['index']}: {shard['module_count']:>2} mods | "
-                    f"base: {shard['projected_baseline_seconds']:>6.2f}s | "
-                    f"eff: {shard['effective_projected_seconds']:>6.2f}s | "
-                    f"diff: {shard['drift_seconds']:>+6.2f}s"
-                )
+        if shard_count > 1:
+            lines.extend(_format_shard_line(shard) for shard in lane_data["current_shards"])
+    return lines
 
-    if report.get("module_drifts"):
-        notable = [d for d in report["module_drifts"] if d["severity"] in ("critical", "warning")][:10]
-        if notable:
-            lines.append("\nNotable Module Drifts:")
-            for d in notable:
-                tag = "[NEW]" if d["is_new_module"] else ""
-                lines.append(
-                    f"  - {d['module']:<48} [{d['severity'].upper()} {tag}]: "
-                    f"obs: {d['observed_seconds']:>6.2f}s "
-                    f"(base: {d['baseline_seconds']:>6.2f}s, "
-                    f"diff: {d['drift_seconds']:>+6.2f}s / {d['drift_ratio'] * 100:>+5.1f}%)"
-                )
 
-    if report.get("warnings"):
-        lines.append("\nWarnings:")
-        for w in report["warnings"][:5]:
-            lines.append(f"  ! {w}")
+def _format_notable_drift_lines(module_drifts: list[dict[str, Any]]) -> list[str]:
+    notable = [item for item in module_drifts if item["severity"] in {"critical", "warning"}][:10]
+    if not notable:
+        return []
+    lines = ["\nNotable Module Drifts:"]
+    for item in notable:
+        tag = "[NEW]" if item["is_new_module"] else ""
+        lines.append(
+            f"  - {item['module']:<48} [{item['severity'].upper()} {tag}]: "
+            f"obs: {item['observed_seconds']:>6.2f}s "
+            f"(base: {item['baseline_seconds']:>6.2f}s, "
+            f"diff: {item['drift_seconds']:>+6.2f}s / {item['drift_ratio'] * 100:>+5.1f}%)"
+        )
+    return lines
 
-    if report.get("errors"):
-        lines.append("\nErrors:")
-        for e in report["errors"][:5]:
-            lines.append(f"  * {e}")
 
+def _format_message_lines(title: str, prefix: str, messages: list[str]) -> list[str]:
+    if not messages:
+        return []
+    return [f"\n{title}:", *(f"  {prefix} {message}" for message in messages[:5])]
+
+
+def format_summary_text(report: dict[str, Any]) -> str:
+    """Format human-readable profiling summary for terminal/logs."""
+    lines = _summary_header_lines(report)
+    lines.extend(_format_lane_lines(report["lanes"]))
+    lines.extend(_format_notable_drift_lines(report.get("module_drifts", [])))
+    lines.extend(_format_message_lines("Warnings", "!", report.get("warnings", [])))
+    lines.extend(_format_message_lines("Errors", "*", report.get("errors", [])))
     return "\n".join(lines)
 
 
@@ -143,7 +162,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--junit", action="append", help="Path or glob to JUnit XML file(s)")
     parser.add_argument("--durations-log", action="append", help="Path to pytest --durations=0 stdout/log file")
     parser.add_argument(
-        "--durations-json", action="append", help="Path to JSON file containing module durations mapping"
+        "--durations-json",
+        action="append",
+        type=_repository_input_path,
+        help="Repository-contained JSON file containing module durations mapping",
     )
     parser.add_argument("--run", action="store_true", help="Execute pytest on-demand to collect fresh durations")
     parser.add_argument(
@@ -236,68 +258,77 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+def _merge_collection(
+    target: dict[str, float],
+    errors: list[str],
+    collected: tuple[dict[str, float], list[str]],
+) -> None:
+    durations, collected_errors = collected
+    target.update(durations)
+    errors.extend(collected_errors)
 
-    policy: TestLanePolicy = load_lane_policy(args.policy_path)
-    baseline: DurationBaseline = load_duration_baseline(args.baseline_path)
 
-    observed_durations: dict[str, float] = {}
-    collection_errors: list[str] = []
+def _load_durations_json(path: Path) -> tuple[dict[str, float], list[str]]:
+    resolved = resolve_trusted_path(path, trusted_root=ROOT, label="durations JSON path")
+    if not resolved.is_file():
+        return {}, [f"Durations JSON file not found: {resolved}"]
+    try:
+        data = json.loads(resolved.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {}, [f"Failed to parse durations JSON {resolved}: {exc}"]
+    if not isinstance(data, dict):
+        return {}, []
+    values = data.get("module_seconds", data)
+    if not isinstance(values, dict):
+        return {}, []
+    durations = {
+        key: round(float(value), 3)
+        for key, value in values.items()
+        if isinstance(key, str) and isinstance(value, (int, float)) and value > 0
+    }
+    return durations, []
 
-    # Ingest from JUnit XML
-    if args.junit:
-        for junit_pattern in args.junit:
-            durations, errs = parse_junit_durations(junit_pattern, root=ROOT)
-            observed_durations.update(durations)
-            collection_errors.extend(errs)
 
-    # Ingest from durations log
-    if args.durations_log:
-        for log_path in args.durations_log:
-            durations, errs = parse_durations_log(log_path, root=ROOT)
-            observed_durations.update(durations)
-            collection_errors.extend(errs)
-
-    # Ingest from durations JSON
-    if args.durations_json:
-        for json_path in args.durations_json:
-            p = Path(json_path)
-            if not p.is_file():
-                collection_errors.append(f"Durations JSON file not found: {p}")
-                continue
-            try:
-                data = json.loads(p.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    if "module_seconds" in data and isinstance(data["module_seconds"], dict):
-                        data = data["module_seconds"]
-                    for k, v in data.items():
-                        if isinstance(v, (int, float)) and v > 0:
-                            observed_durations[k] = round(float(v), 3)
-            except Exception as exc:
-                collection_errors.append(f"Failed to parse durations JSON {p}: {exc}")
-
-    # Run on-demand pytest if requested
+def _collect_explicit_inputs(args: argparse.Namespace) -> tuple[dict[str, float], list[str]]:
+    observed: dict[str, float] = {}
+    errors: list[str] = []
+    for pattern in args.junit or []:
+        _merge_collection(observed, errors, parse_junit_durations(pattern, root=ROOT))
+    for log_path in args.durations_log or []:
+        _merge_collection(observed, errors, parse_durations_log(log_path, root=ROOT))
+    for json_path in args.durations_json or []:
+        _merge_collection(observed, errors, _load_durations_json(json_path))
     if args.run:
-        run_durations, run_errs = run_pytest_profiling(
-            lane=args.run_lane,
-            pytest_args=args.pytest_args,
-            root=ROOT,
+        _merge_collection(
+            observed,
+            errors,
+            run_pytest_profiling(lane=args.run_lane, pytest_args=args.pytest_args, root=ROOT),
         )
-        observed_durations.update(run_durations)
-        collection_errors.extend(run_errs)
+    return observed, errors
 
-    # Fallback auto-discovery of local JUnit files if no explicit inputs were provided
-    if not args.junit and not args.durations_log and not args.durations_json and not args.run:
-        default_junits = sorted(ROOT.glob("junit-lane-*.xml")) + sorted(ROOT.glob("junit*.xml"))
-        if default_junits:
-            for j_path in default_junits:
-                durations, errs = parse_junit_durations(j_path, root=ROOT)
-                observed_durations.update(durations)
-                collection_errors.extend(errs)
 
-    thresholds = DriftThresholds(
+def _has_explicit_inputs(args: argparse.Namespace) -> bool:
+    return bool(args.junit or args.durations_log or args.durations_json or args.run)
+
+
+def _collect_default_junit() -> tuple[dict[str, float], list[str]]:
+    observed: dict[str, float] = {}
+    errors: list[str] = []
+    paths = sorted(ROOT.glob("junit-lane-*.xml")) + sorted(ROOT.glob("junit*.xml"))
+    for path in paths:
+        _merge_collection(observed, errors, parse_junit_durations(path, root=ROOT))
+    return observed, errors
+
+
+def _collect_observed_durations(args: argparse.Namespace) -> tuple[dict[str, float], list[str]]:
+    observed, errors = _collect_explicit_inputs(args)
+    if _has_explicit_inputs(args):
+        return observed, errors
+    return _collect_default_junit()
+
+
+def _thresholds_from_args(args: argparse.Namespace) -> DriftThresholds:
+    return DriftThresholds(
         module_warning_seconds=args.warning_drift_seconds,
         module_warning_ratio=args.warning_drift_ratio,
         module_critical_seconds=args.critical_drift_seconds,
@@ -306,43 +337,63 @@ def main(argv: list[str] | None = None) -> int:
         shard_imbalance_critical_seconds=args.critical_shard_imbalance_seconds,
     )
 
+
+def _apply_collection_errors(report: dict[str, Any], errors: list[str]) -> None:
+    if not errors:
+        return
+    report["errors"].extend(errors)
+    if report["passed"]:
+        report["passed"] = False
+        report["status"] = "drift_critical"
+
+
+def _write_report(report: dict[str, Any], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _maybe_update_baseline(
+    args: argparse.Namespace,
+    baseline: DurationBaseline,
+    observed_durations: dict[str, float],
+) -> Path | None:
+    if not (args.update or args.write_baseline):
+        return None
+    target = args.write_baseline or args.baseline_path
+    updated = update_duration_baseline_data(
+        baseline=baseline,
+        observed_durations=observed_durations,
+        measured_at=args.measured_at,
+        source=args.source,
+        update_all=args.update_all,
+        prune_missing=args.prune_missing,
+        root=ROOT,
+    )
+    save_duration_baseline(updated, path=target)
+    return target
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    policy: TestLanePolicy = load_lane_policy(args.policy_path)
+    baseline: DurationBaseline = load_duration_baseline(args.baseline_path)
+    observed_durations, collection_errors = _collect_observed_durations(args)
     report = calculate_lane_shard_profile(
         policy=policy,
         baseline=baseline,
         observed_durations=observed_durations,
-        thresholds=thresholds,
+        thresholds=_thresholds_from_args(args),
         target_lane=args.lane,
         root=ROOT,
     )
-    if collection_errors:
-        report["errors"].extend(collection_errors)
-        if report["passed"]:
-            report["passed"] = False
-            report["status"] = "drift_critical"
-
-    # Write profiling report
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-    # Update baseline if requested
-    if args.update or args.write_baseline:
-        target_baseline_path = args.write_baseline or args.baseline_path
-        updated_baseline = update_duration_baseline_data(
-            baseline=baseline,
-            observed_durations=observed_durations,
-            measured_at=args.measured_at,
-            source=args.source,
-            update_all=args.update_all,
-            prune_missing=args.prune_missing,
-            root=ROOT,
-        )
-        save_duration_baseline(updated_baseline, path=target_baseline_path)
-        if not args.quiet:
-            print(f"Updated duration baseline written to: {target_baseline_path}")
-
+    _apply_collection_errors(report, collection_errors)
+    _write_report(report, args.output)
+    updated_path = _maybe_update_baseline(args, baseline, observed_durations)
+    if updated_path is not None and not args.quiet:
+        print(f"Updated duration baseline written to: {updated_path}")
     if not args.quiet:
         print(format_summary_text(report))
-
     return 1 if args.strict and not report["passed"] else 0
 
 
