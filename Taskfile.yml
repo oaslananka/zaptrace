@@ -28,6 +28,11 @@ tasks:
       - uv run python scripts/ci_test_lane_policy.py --output test-lane-inventory.json --strict
       - uv run pytest -p tests.lane_policy --collect-only --lane "all" --lane-report test-lane-collection.json
 
+  test-lane-profile:
+    desc: Profile test durations, detect shard timing drift, and emit diagnostic report
+    cmds:
+      - uv run python scripts/ci_profile_test_lanes.py --output test-lane-profiling-report.json
+
   test-unit:
     desc: Run the default fast unit lane
     cmds:

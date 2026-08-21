@@ -96,6 +96,446 @@ def load_duration_baseline(path: Path = DURATION_BASELINE_PATH) -> DurationBasel
     return DurationBaseline.model_validate_json(path.read_text(encoding="utf-8"))
 
 
+def save_duration_baseline(
+    baseline: DurationBaseline,
+    path: Path = DURATION_BASELINE_PATH,
+) -> None:
+    """Serialize duration baseline to disk with deterministic key ordering."""
+    payload = {
+        "default_module_seconds": baseline.default_module_seconds,
+        "measured_at": baseline.measured_at,
+        "module_seconds": {k: baseline.module_seconds[k] for k in sorted(baseline.module_seconds)},
+        "schema_version": baseline.schema_version,
+        "source": baseline.source,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+class DriftThresholds(BaseModel):
+    """Configurable thresholds for classifying timing drift and shard imbalance."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    module_warning_seconds: float = 2.0
+    module_warning_ratio: float = 0.30
+    module_critical_seconds: float = 10.0
+    module_critical_ratio: float = 0.50
+    shard_imbalance_warning_seconds: float = 20.0
+    shard_imbalance_critical_seconds: float = 60.0
+    lane_budget_warning_ratio: float = 0.80
+
+
+def _normalize_test_path(raw_path: str, root: Path = ROOT) -> str:
+    """Normalize a path or classname to repo-relative POSIX format."""
+    normalized = raw_path.replace("\\", "/").strip()
+    if not normalized:
+        return ""
+    try:
+        p = Path(normalized)
+        if p.is_absolute():
+            normalized = str(p.relative_to(root)).replace("\\", "/")
+    except ValueError:
+        pass
+
+    if normalized.endswith(".py"):
+        return normalized
+
+    if "::" in normalized:
+        normalized = normalized.split("::")[0]
+        if normalized.endswith(".py"):
+            return normalized
+
+    parts = normalized.split(".")
+    for i in range(len(parts), 0, -1):
+        candidate_rel = "/".join(parts[:i]) + ".py"
+        if candidate_rel.startswith("tests/") and (root / candidate_rel).is_file():
+            return candidate_rel
+        if not candidate_rel.startswith("tests/") and (root / "tests" / candidate_rel).is_file():
+            return f"tests/{candidate_rel}"
+
+    if len(parts) > 1 and parts[0] == "tests" and parts[1].startswith("test_"):
+        return f"tests/{parts[1]}.py"
+    if parts[0].startswith("test_"):
+        return f"tests/{parts[0]}.py"
+
+    return normalized
+
+
+def parse_junit_durations(
+    source: str | Path | list[str | Path],
+    root: Path = ROOT,
+) -> tuple[dict[str, float], list[str]]:
+    """Parse test module durations from one or more JUnit XML files."""
+    import glob
+    import xml.etree.ElementTree as ET
+
+    sources: list[Path] = []
+    if isinstance(source, (str, Path)):
+        s_str = str(source)
+        p = Path(source)
+        if "*" in s_str or "?" in s_str:
+            sources = [Path(match) for match in sorted(glob.glob(s_str, recursive=True))]
+        elif p.is_dir():
+            sources = sorted(p.glob("*.xml"))
+        else:
+            sources = [p]
+    else:
+        for s in source:
+            s_str = str(s)
+            p = Path(s)
+            if "*" in s_str or "?" in s_str:
+                sources.extend(Path(match) for match in sorted(glob.glob(s_str, recursive=True)))
+            else:
+                sources.append(p)
+
+    module_seconds: dict[str, float] = {}
+    errors: list[str] = []
+
+    for path in sources:
+        if not path.is_file():
+            errors.append(f"JUnit file not found: {path}")
+            continue
+        try:
+            tree = ET.parse(path)
+            root_elem = tree.getroot()
+        except Exception as exc:
+            errors.append(f"Failed to parse JUnit XML {path}: {exc}")
+            continue
+
+        for testcase in root_elem.iter("testcase"):
+            file_attr = testcase.get("file")
+            classname_attr = testcase.get("classname")
+            raw_path = file_attr or classname_attr or ""
+            module = _normalize_test_path(raw_path, root=root)
+            if not module or not module.endswith(".py"):
+                continue
+
+            time_raw = testcase.get("time")
+            try:
+                duration = float(time_raw) if time_raw is not None else 0.0
+            except ValueError:
+                duration = 0.0
+
+            if duration > 0:
+                module_seconds[module] = round(module_seconds.get(module, 0.0) + duration, 6)
+
+    cleaned = {k: round(v, 3) for k, v in sorted(module_seconds.items())}
+    return cleaned, errors
+
+
+def parse_durations_log(
+    text_or_path: str | Path,
+    root: Path = ROOT,
+) -> tuple[dict[str, float], list[str]]:
+    """Parse test module durations from pytest --durations=0 text output or log file."""
+    import re
+
+    errors: list[str] = []
+    if isinstance(text_or_path, Path) or (
+        isinstance(text_or_path, str)
+        and (Path(text_or_path).is_file() or ("\n" not in text_or_path and text_or_path.endswith(".log")))
+    ):
+        p = Path(text_or_path)
+        if not p.is_file():
+            errors.append(f"Durations log file not found: {p}")
+            return {}, errors
+        try:
+            content = p.read_text(encoding="utf-8")
+        except Exception as exc:
+            errors.append(f"Failed to read durations log {p}: {exc}")
+            return {}, errors
+    else:
+        content = str(text_or_path)
+
+    module_seconds: dict[str, float] = {}
+    pattern = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*s\s+(?:call|setup|teardown)\s+([^\s:]+)", re.MULTILINE)
+
+    for match in pattern.finditer(content):
+        duration_str, raw_path = match.group(1), match.group(2)
+        module = _normalize_test_path(raw_path, root=root)
+        if not module or not module.endswith(".py"):
+            continue
+        try:
+            duration = float(duration_str)
+        except ValueError:
+            duration = 0.0
+        if duration > 0:
+            module_seconds[module] = round(module_seconds.get(module, 0.0) + duration, 6)
+
+    cleaned = {k: round(v, 3) for k, v in sorted(module_seconds.items())}
+    return cleaned, errors
+
+
+def calculate_lane_shard_profile(
+    *,
+    policy: TestLanePolicy,
+    baseline: DurationBaseline,
+    observed_durations: dict[str, float],
+    thresholds: DriftThresholds | None = None,
+    target_lane: PrimaryLane | Literal["all"] = "all",
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    """Aggregate per-lane/shard observed vs baseline timings and analyze drift."""
+    if thresholds is None:
+        thresholds = DriftThresholds()
+
+    all_test_files = sorted((root / "tests").glob("test_*.py"))
+    lanes_modules: dict[PrimaryLane, list[str]] = {lane: [] for lane in PRIMARY_LANES}
+    classification_errors: list[str] = []
+
+    for file_path in all_test_files:
+        rel_path = str(file_path.relative_to(root)).replace("\\", "/")
+        try:
+            lane = classify_test_path(rel_path, policy)
+            lanes_modules[lane].append(rel_path)
+        except ValueError as exc:
+            classification_errors.append(str(exc))
+
+    lanes_to_process = PRIMARY_LANES if target_lane == "all" else (cast(PrimaryLane, target_lane),)
+
+    lane_profiles: dict[str, Any] = {}
+    all_module_drifts: list[dict[str, Any]] = []
+    critical_drift_count = 0
+    warning_drift_count = 0
+    imbalanced_lanes: list[str] = []
+    warnings: list[str] = []
+
+    total_observed_seconds = 0.0
+    total_baseline_seconds = 0.0
+    observed_modules_count = 0
+    unbaselined_modules_count = 0
+
+    for lane in lanes_to_process:
+        modules = lanes_modules[lane]
+        shard_count = policy.shard_counts.get(lane, 1)
+        budget = policy.runtime_budgets_seconds.get(lane, 600)
+
+        baseline_weights = {m: module_weight(m, baseline) for m in modules}
+        observed_weights = {m: observed_durations[m] for m in modules if m in observed_durations}
+        effective_weights = {m: observed_durations.get(m, baseline_weights[m]) for m in modules}
+
+        lane_baseline_total = sum(baseline_weights.values())
+        lane_effective_total = sum(effective_weights.values())
+        lane_observed_total = sum(observed_weights.values())
+
+        total_baseline_seconds += lane_baseline_total
+        total_observed_seconds += lane_observed_total
+        observed_modules_count += len(observed_weights)
+
+        # Baseline assignment
+        baseline_assignments = assign_module_shards(baseline_weights, shard_count=shard_count)
+        # Rebalanced simulation
+        rebalanced_assignments = assign_module_shards(effective_weights, shard_count=shard_count)
+
+        current_shards: list[dict[str, Any]] = []
+        for idx in range(shard_count):
+            shard_mods = sorted(m for m, s in baseline_assignments.items() if s == idx)
+            proj_base = round(sum(baseline_weights[m] for m in shard_mods), 3)
+            eff_proj = round(sum(effective_weights[m] for m in shard_mods), 3)
+            obs_actual = round(sum(observed_weights.get(m, 0.0) for m in shard_mods), 3)
+            drift = round(eff_proj - proj_base, 3)
+            current_shards.append(
+                {
+                    "index": idx + 1,
+                    "module_count": len(shard_mods),
+                    "projected_baseline_seconds": proj_base,
+                    "effective_projected_seconds": eff_proj,
+                    "observed_actual_seconds": obs_actual,
+                    "drift_seconds": drift,
+                    "modules": shard_mods,
+                }
+            )
+
+        rebalanced_shards: list[dict[str, Any]] = []
+        for idx in range(shard_count):
+            shard_mods = sorted(m for m, s in rebalanced_assignments.items() if s == idx)
+            eff_proj = round(sum(effective_weights[m] for m in shard_mods), 3)
+            rebalanced_shards.append(
+                {
+                    "index": idx + 1,
+                    "module_count": len(shard_mods),
+                    "effective_projected_seconds": eff_proj,
+                    "modules": shard_mods,
+                }
+            )
+
+        eff_shard_totals = [s["effective_projected_seconds"] for s in current_shards]
+
+        imbalance_seconds = round(max(eff_shard_totals) - min(eff_shard_totals), 3) if eff_shard_totals else 0.0
+        imbalance_ratio = (
+            round(max(eff_shard_totals) / min(eff_shard_totals), 4)
+            if eff_shard_totals and min(eff_shard_totals) > 0
+            else 1.0
+        )
+
+        lane_severity = "ok"
+        if shard_count > 1:
+            max_shard = max(eff_shard_totals)
+            min_shard = min(eff_shard_totals)
+            if imbalance_seconds >= thresholds.shard_imbalance_critical_seconds:
+                lane_severity = "critical"
+                critical_drift_count += 1
+                imbalanced_lanes.append(lane)
+                warnings.append(
+                    f"Lane '{lane}' shard imbalance is CRITICAL: {imbalance_seconds}s "
+                    f"(max: {max_shard}s, min: {min_shard}s)"
+                )
+            elif imbalance_seconds >= thresholds.shard_imbalance_warning_seconds:
+                lane_severity = "warning"
+                warning_drift_count += 1
+                imbalanced_lanes.append(lane)
+                warnings.append(
+                    f"Lane '{lane}' shard imbalance warning: {imbalance_seconds}s "
+                    f"(max: {max_shard}s, min: {min_shard}s)"
+                )
+
+        lane_profiles[lane] = {
+            "module_count": len(modules),
+            "observed_module_count": len(observed_weights),
+            "shard_count": shard_count,
+            "runtime_budget_seconds": budget,
+            "projected_baseline_seconds": round(lane_baseline_total, 3),
+            "effective_projected_seconds": round(lane_effective_total, 3),
+            "observed_actual_seconds": round(lane_observed_total, 3),
+            "imbalance_seconds": imbalance_seconds,
+            "imbalance_ratio": imbalance_ratio,
+            "severity": lane_severity,
+            "current_shards": current_shards,
+            "rebalanced_shards": rebalanced_shards,
+        }
+
+        # Module-level drift
+        for m in modules:
+            is_new = m not in baseline.module_seconds
+            if is_new:
+                unbaselined_modules_count += 1
+            if m in observed_durations:
+                obs = observed_durations[m]
+                base_w = baseline_weights[m]
+                drift = round(obs - base_w, 3)
+                drift_ratio = round((obs - base_w) / base_w, 4) if base_w > 0 else 0.0
+
+                mod_sev = "info"
+                if is_new:
+                    if obs >= thresholds.module_critical_seconds:
+                        mod_sev = "critical"
+                        critical_drift_count += 1
+                    elif obs >= thresholds.module_warning_seconds:
+                        mod_sev = "warning"
+                        warning_drift_count += 1
+                else:
+                    if (
+                        abs(drift) >= thresholds.module_critical_seconds
+                        and abs(drift_ratio) >= thresholds.module_critical_ratio
+                    ):
+                        mod_sev = "critical"
+                        critical_drift_count += 1
+                    elif (
+                        abs(drift) >= thresholds.module_warning_seconds
+                        and abs(drift_ratio) >= thresholds.module_warning_ratio
+                    ):
+                        mod_sev = "warning"
+                        warning_drift_count += 1
+
+                all_module_drifts.append(
+                    {
+                        "module": m,
+                        "lane": lane,
+                        "baseline_seconds": round(base_w, 3),
+                        "observed_seconds": round(obs, 3),
+                        "drift_seconds": drift,
+                        "drift_ratio": drift_ratio,
+                        "is_new_module": is_new,
+                        "severity": mod_sev,
+                    }
+                )
+
+    all_module_drifts.sort(key=lambda d: (-abs(d["drift_seconds"]), d["module"]))
+
+    missing_in_repo = sorted(path for path in baseline.module_seconds if not (root / path).is_file())
+    if missing_in_repo:
+        warnings.extend(f"Baseline contains missing test module: {p}" for p in missing_in_repo)
+
+    overall_status = (
+        "drift_critical"
+        if critical_drift_count > 0 or classification_errors
+        else "drift_warning"
+        if warning_drift_count > 0 or bool(warnings)
+        else "ok"
+    )
+
+    total_modules = sum(len(lanes_modules[lane_name]) for lane_name in lanes_to_process)
+
+    return {
+        "schema_version": "1.0",
+        "gate_id": "test-lane-profiling-v1",
+        "status": overall_status,
+        "passed": overall_status != "drift_critical" and not classification_errors,
+        "summary": {
+            "target_lane": target_lane,
+            "total_modules": total_modules,
+            "observed_modules": observed_modules_count,
+            "unobserved_modules": total_modules - observed_modules_count,
+            "unbaselined_modules": unbaselined_modules_count,
+            "total_baseline_seconds": round(total_baseline_seconds, 3),
+            "total_observed_seconds": round(total_observed_seconds, 3),
+            "critical_drift_count": critical_drift_count,
+            "warning_drift_count": warning_drift_count,
+            "imbalanced_lanes": imbalanced_lanes,
+            "missing_baseline_modules": missing_in_repo,
+        },
+        "thresholds": thresholds.model_dump(),
+        "lanes": lane_profiles,
+        "module_drifts": all_module_drifts,
+        "warnings": warnings,
+        "errors": classification_errors,
+    }
+
+
+def update_duration_baseline_data(
+    baseline: DurationBaseline,
+    observed_durations: dict[str, float],
+    *,
+    measured_at: str | None = None,
+    source: str | None = None,
+    update_all: bool = False,
+    prune_missing: bool = False,
+    root: Path = ROOT,
+) -> DurationBaseline:
+    """Produce an updated DurationBaseline model with new observed timings."""
+    import datetime
+
+    date_str = measured_at or datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
+    source_str = source or f"Observed pytest module durations re-profiled on {date_str}"
+
+    new_module_seconds = dict(baseline.module_seconds)
+
+    if update_all:
+        all_modules = sorted((root / "tests").glob("test_*.py"))
+        for mod in all_modules:
+            rel = str(mod.relative_to(root)).replace("\\", "/")
+            if rel in observed_durations and observed_durations[rel] > 0:
+                new_module_seconds[rel] = round(observed_durations[rel], 3)
+            elif rel not in new_module_seconds:
+                new_module_seconds[rel] = baseline.default_module_seconds
+    else:
+        for path, dur in observed_durations.items():
+            if dur > 0:
+                new_module_seconds[path] = round(dur, 3)
+
+    if prune_missing:
+        new_module_seconds = {path: dur for path, dur in new_module_seconds.items() if (root / path).is_file()}
+
+    return DurationBaseline(
+        schema_version="1.0",
+        measured_at=date_str,
+        source=source_str,
+        default_module_seconds=baseline.default_module_seconds,
+        module_seconds={k: round(new_module_seconds[k], 3) for k in sorted(new_module_seconds)},
+    )
+
+
 def _matches(path: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
 
