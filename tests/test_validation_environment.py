@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from scripts import ci_validation_environment
+from tests.validation_environment_test_support import install_fake_validation_toolchain
 from zaptrace import __version__
 
 
@@ -179,3 +180,92 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
     assert "bash scripts/ci_install_kicad.sh ngspice" in benchmark
     assert "sudo apt-get update" not in benchmark
     assert "sudo apt-get install --no-install-recommends -y ngspice" not in benchmark
+
+
+def test_get_tool_requirements_rejects_unknown_role() -> None:
+    with pytest.raises(ValueError, match="unsupported environment role"):
+        ci_validation_environment.get_tool_requirements("invalid-role")
+    with pytest.raises(ValueError, match="unsupported environment role"):
+        ci_validation_environment.build_report(environment_role="invalid-role")
+
+
+def test_ngspice_absent_in_developer_mode_is_optional_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_validation_toolchain(monkeypatch, ngspice="missing")
+
+    report = ci_validation_environment.build_report(environment_role="developer")
+
+    assert report["environment_role"] == "developer"
+    assert report["passed"] is True
+    assert "ngspice" not in report["blocking_tools"]
+    assert "ngspice" in report["warning_tools"]
+
+    ngspice_tool = next(t for t in report["tools"] if t["name"] == "ngspice")
+    assert ngspice_tool["status"] == "optional-missing"
+    assert ngspice_tool["required"] is False
+    assert "apt-get install ngspice" in ngspice_tool["install_hint"]
+    assert "optional in developer mode" in ngspice_tool["install_hint"]
+
+    rendered = ci_validation_environment.render_text(report)
+    assert "Validation environment: PASS" in rendered
+    assert "!! ngspice: optional-missing" in rendered
+    assert "hint: Install ngspice" in rendered
+
+
+def test_ngspice_absent_in_strict_mode_is_blocking_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_validation_toolchain(monkeypatch, ngspice="missing")
+
+    report = ci_validation_environment.build_report(environment_role="authoritative-release")
+
+    assert report["environment_role"] == "authoritative-release"
+    assert report["passed"] is False
+    assert "ngspice" in report["blocking_tools"]
+
+    ngspice_tool = next(t for t in report["tools"] if t["name"] == "ngspice")
+    assert ngspice_tool["status"] == "missing"
+    assert ngspice_tool["required"] is True
+
+    rendered = ci_validation_environment.render_text(report)
+    assert "Validation environment: FAIL" in rendered
+    assert "!! ngspice: missing" in rendered
+
+
+def test_ngspice_present_passes_in_both_modes(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_validation_toolchain(monkeypatch, ngspice="present")
+
+    for role in ("developer", "authoritative-release", "diagnostic-only"):
+        report = ci_validation_environment.build_report(environment_role=role)
+        assert report["passed"] is True
+        assert "ngspice" not in report["blocking_tools"]
+        assert "ngspice" not in report["warning_tools"]
+        ngspice_tool = next(t for t in report["tools"] if t["name"] == "ngspice")
+        assert ngspice_tool["status"] == "ok"
+        assert ngspice_tool["version"] == "ngspice-42"
+
+
+def test_ngspice_execution_failure_in_developer_mode_vs_strict_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_validation_toolchain(monkeypatch, ngspice="error")
+
+    dev_report = ci_validation_environment.build_report(environment_role="developer")
+    assert dev_report["passed"] is True
+    assert "ngspice" in dev_report["warning_tools"]
+    assert "ngspice" not in dev_report["blocking_tools"]
+    ngspice_dev = next(t for t in dev_report["tools"] if t["name"] == "ngspice")
+    assert ngspice_dev["status"] == "optional-failed"
+
+    rel_report = ci_validation_environment.build_report(environment_role="authoritative-release")
+    assert rel_report["passed"] is False
+    assert "ngspice" in rel_report["blocking_tools"]
+    ngspice_rel = next(t for t in rel_report["tools"] if t["name"] == "ngspice")
+    assert ngspice_rel["status"] == "failed"
+
+
+def test_validation_environment_cli_exit_codes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_validation_toolchain(monkeypatch, ngspice="missing")
+
+    exit_code_dev = ci_validation_environment.main(["--role", "developer", "--strict"])
+    assert exit_code_dev == 0
+
+    exit_code_rel = ci_validation_environment.main(["--role", "authoritative-release", "--strict"])
+    assert exit_code_rel == 1

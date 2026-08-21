@@ -9,6 +9,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
+from tests.validation_environment_test_support import install_fake_validation_toolchain
 from zaptrace import __version__
 from zaptrace.cli.main import cli
 
@@ -262,3 +263,21 @@ class TestKiCadOracleCLI:
 
         assert result.exit_code == 0
         assert "ERC error: parse failed" in result.output
+
+
+class TestDoctorCommand:
+    def test_doctor_command_succeeds_in_developer_mode_when_ngspice_missing(self, monkeypatch) -> None:
+        install_fake_validation_toolchain(monkeypatch, ngspice="missing")
+
+        result = _runner().invoke(cli, ["doctor", "--strict"])
+        assert result.exit_code == 0
+        assert "Validation environment: PASS" in result.output
+        assert "ngspice: optional-missing" in result.output
+
+    def test_doctor_command_strict_fails_in_authoritative_release_when_ngspice_missing(self, monkeypatch) -> None:
+        install_fake_validation_toolchain(monkeypatch, ngspice="missing")
+
+        result = _runner().invoke(cli, ["doctor", "--strict", "--role", "authoritative-release"])
+        assert result.exit_code != 0
+        assert "Validation environment: FAIL" in result.output
+        assert "ngspice: missing" in result.output

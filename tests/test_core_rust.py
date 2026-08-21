@@ -38,6 +38,27 @@ class TestRustPlacer:
             assert 5.0 <= y <= 75.0
 
     @rust_test
+    def test_native_placement_matches_python_fallback_exactly(self) -> None:
+        """Native acceleration must not change deterministic placement semantics."""
+        from zaptrace.algo.placer import _place_python
+        from zaptrace.algo.placer import place_components as place_design
+        from zaptrace.core.models import BoardConfig, Component, Design, DesignMeta, Net, NetNode
+
+        design = Design(
+            meta=DesignMeta(name="native-parity"),
+            board=BoardConfig(width_mm=100.0, height_mm=80.0),
+        )
+        for index in range(4):
+            design.components[f"c{index}"] = Component(id=f"c{index}", ref=f"R{index}", type="resistor")
+        design.nets["bus"] = Net(
+            id="bus",
+            name="DATA",
+            nodes=[NetNode(component_ref=f"R{i}", pin_name="1") for i in range(4)],
+        )
+
+        assert place_design(design) == _place_python(design)
+
+    @rust_test
     def test_place_components_empty(self) -> None:
         """Zero components should return empty list."""
         from zaptrace._core import place_components  # type: ignore[attr-defined]

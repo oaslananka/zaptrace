@@ -60,6 +60,7 @@ pub(crate) fn place_components(
         })
         .collect();
 
+    let rest_length = 8.0;
     let spring_k = 0.05;
     let repulsion_strength = 2.0;
     let repulsion_radius = 10.0;
@@ -72,10 +73,16 @@ pub(crate) fn place_components(
             let (bx, by) = positions[b];
             let dx = bx - ax;
             let dy = by - ay;
-            forces[a].0 += spring_k * dx;
-            forces[a].1 += spring_k * dy;
-            forces[b].0 -= spring_k * dx;
-            forces[b].1 -= spring_k * dy;
+            let distance = (dx * dx + dy * dy).sqrt().max(0.1);
+            let stretch = distance - rest_length;
+            let unit_x = dx / distance;
+            let unit_y = dy / distance;
+            let force_x = spring_k * stretch * unit_x;
+            let force_y = spring_k * stretch * unit_y;
+            forces[a].0 += force_x;
+            forces[a].1 += force_y;
+            forces[b].0 -= force_x;
+            forces[b].1 -= force_y;
         }
 
         for i in 0..n {

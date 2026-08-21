@@ -469,6 +469,32 @@ def validate_gerber_x2_attributes(content: str) -> dict[str, bool | list[str]]:
     }
 
 
+def _component_pads_for_layer(
+    design: Design,
+    layer: str,
+) -> list[tuple[str, float, float, float, float, str]]:
+    """Return positioned component-pad tuples for one copper layer."""
+    pads: list[tuple[str, float, float, float, float, str]] = []
+    for component in design.components.values():
+        if component.footprint_def is None or component.position is None:
+            continue
+        component_x, component_y = component.position
+        for pad in component.footprint_def.pads:
+            if pad.layer.value not in (layer, "all"):
+                continue
+            pads.append(
+                (
+                    layer,
+                    component_x + pad.position[0],
+                    component_y + pad.position[1],
+                    pad.size[0],
+                    pad.size[1],
+                    pad.shape.value,
+                )
+            )
+    return pads
+
+
 def generate_copper_layer(design: Design, layer: str = "top") -> str:
     """Generate Gerber content for a single copper layer.
 
@@ -479,24 +505,25 @@ def generate_copper_layer(design: Design, layer: str = "top") -> str:
     Returns:
         RS-274X Gerber string.
     """
-    lines: list[str] = []
+    lines: list[str] = _header_list(layer.upper())
     apertures = _ApertureManager()
-    lines = _header_list(layer.upper())
+
+    # Copper pour / flood fill
+    _add_copper_pour(lines, design, apertures, layer)
 
     traces = design.routing.traces if design.routing else []
     lines.extend(_traces_list(traces, apertures, layer))
 
     # Pads
-    for comp in design.components.values():
-        if comp.footprint_def and comp.position:
-            cx, cy = comp.position
-            for pad in comp.footprint_def.pads:
-                valid_layer = pad.layer.value in (layer, "all")
-                if not valid_layer:
-                    continue
-                d_code = apertures.define_circle(max(pad.size))
-                lines.append(f"D{d_code}*\n")
-                lines.append(f"{_fmt_xy(cx + pad.position[0], cy + pad.position[1])}D03*\n")
+    lines.extend(_pads_list(_component_pads_for_layer(design, layer), apertures))
+
+    # Thermal reliefs for pads in the pour
+    pour_names = _LAYER_TO_POUR.get(layer, (layer,))
+    for pour in design.copper_pours.values():
+        if pour.layer in pour_names and pour.thermal_reliefs:
+            lines.extend(
+                _thermal_relief_list(pour.thermal_reliefs, apertures),
+            )
 
     # Insert aperture definitions
     header = apertures.header_lines()

@@ -4,7 +4,7 @@ tasks:
   doctor:
     desc: Check local validation toolchain parity
     cmds:
-      - python scripts/ci_validation_environment.py --strict --output validation-environment.json
+      - python scripts/ci_validation_environment.py --role developer --strict --output validation-environment.json
 
   install:
     desc: Install all dependencies
@@ -27,6 +27,11 @@ tasks:
     cmds:
       - uv run python scripts/ci_test_lane_policy.py --output test-lane-inventory.json --strict
       - uv run pytest -p tests.lane_policy --collect-only --lane "all" --lane-report test-lane-collection.json
+
+  test-lane-profile:
+    desc: Profile test durations, detect shard timing drift, and emit diagnostic report
+    cmds:
+      - uv run python scripts/ci_profile_test_lanes.py --output test-lane-profiling-report.json
 
   test-unit:
     desc: Run the default fast unit lane
@@ -76,9 +81,20 @@ tasks:
       - uv run ruff check --fix .
 
   build:
-    desc: Build source and wheel distributions
+    desc: Build source distribution and native platform wheel
     cmds:
-      - uv build
+      - uv build --sdist
+      - maturin build --release --manifest-path zaptrace_core/Cargo.toml --out dist
+
+  build-sdist:
+    desc: Build source distribution
+    cmds:
+      - uv build --sdist
+
+  build-wheel:
+    desc: Build native platform wheel with Maturin
+    cmds:
+      - maturin build --release --manifest-path zaptrace_core/Cargo.toml --out dist
 
   release:
     desc: Run the release quality gate and build artifacts
