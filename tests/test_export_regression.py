@@ -1,12 +1,12 @@
 """Export regression tests — golden-file comparison for all export formats.
 
 On first run (or with UPDATE_GOLDENS=1), generates golden output files from
-a reference design.  Subsequent runs regenerate exports and diff against the
+a reference design. Subsequent runs regenerate exports and diff against the
 stored goldens to catch regressions in the export pipeline.
 
 Deterministic exports (BOM, pick-and-place, report) use full golden comparison.
-Non-deterministic exports (Gerber, Excellon, SVG, manifest timestamps) use
-structural validation + fingerprinting of deterministic sections.
+RS-274X Gerber and Excellon exports use AST-level Geometric Semantic Comparison
+to eliminate formatting/LSB jitter while strictly validating geometric integrity.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import os
 import re
 from pathlib import Path
 
+from zaptrace.algo.copper_pour import CopperPourGenerator, _component_keepout
 from zaptrace.core.models import (
     BoardConfig,
     BoardDefinition,
@@ -42,6 +43,10 @@ from zaptrace.export.kicad import export_kicad_pcb, export_kicad_schematic
 from zaptrace.export.manufacturing import generate_manufacturing_bundle
 from zaptrace.export.report import generate_report
 from zaptrace.export.svg import render_schematic_svg
+from zaptrace.testing.gerber_ast import (
+    parse_excellon,
+    parse_gerber,
+)
 
 GOLDENS_DIR = Path(__file__).resolve().parent / "corpus" / "goldens"
 UPDATE_GOLDENS = os.environ.get("UPDATE_GOLDENS", "").lower() in ("1", "true", "yes")
@@ -147,6 +152,49 @@ def _reference_design() -> Design:
     )
 
 
+def _copper_pour_thermal_fixture_design() -> tuple[Design, dict[str, tuple[float, float]]]:
+    """Synthetic design exercising copper pour with thermal relief and clearance isolation."""
+    smd_gnd = FootprintDef(
+        pads=[Pad(id="1", layer=LayerSet.TOP, shape=PadShape.RECT, position=(0.0, 0.0), size=(1.0, 1.0))],
+        courtyard=(1.0, 1.0),
+    )
+    smd_vcc = FootprintDef(
+        pads=[Pad(id="1", layer=LayerSet.TOP, shape=PadShape.RECT, position=(0.0, 0.0), size=(1.0, 1.0))],
+        courtyard=(2.0, 2.0),
+    )
+    design = Design(
+        meta=DesignMeta(name="CopperPourThermalRegression", author="zaptrace", version="1.0"),
+        board=BoardConfig(width_mm=30.0, height_mm=30.0, layers=2),
+        board_def=BoardDefinition(outline=[(0, 0), (30, 0), (30, 30), (0, 30)]),
+        components={
+            "c_gnd": Component(
+                id="c_gnd",
+                ref="C_GND",
+                type="capacitor",
+                value="100n",
+                footprint="0805",
+                footprint_def=smd_gnd,
+                position=(15.0, 15.0),
+            ),
+            "c_vcc": Component(
+                id="c_vcc",
+                ref="C_VCC",
+                type="capacitor",
+                value="100n",
+                footprint="0805",
+                footprint_def=smd_vcc,
+                position=(0.0, 15.0),
+            ),
+        },
+        nets={
+            "GND": Net(id="GND", name="GND", nodes=[NetNode(component_ref="C_GND", pin_name="1")]),
+            "VCC": Net(id="VCC", name="VCC", nodes=[NetNode(component_ref="C_VCC", pin_name="1")]),
+        },
+    )
+    positions = {"c_gnd": (15.0, 15.0), "c_vcc": (0.0, 15.0)}
+    return design, positions
+
+
 # ---------------------------------------------------------------------------
 # Deterministic golden comparison helpers
 # ---------------------------------------------------------------------------
@@ -199,6 +247,20 @@ def _assert_golden(name: str, content: str, strip: bool = True) -> None:
     assert normalized == golden, f"Golden mismatch for {name!r}. Run with UPDATE_GOLDENS=1 to regenerate."
 
 
+def _assert_gerber_ast_golden(name: str, gerber_content: str) -> None:
+    """Compare generated Gerber AST against stored golden JSON."""
+    ast = parse_gerber(gerber_content)
+    ast_json = ast.to_json(indent=2)
+    _assert_golden(name, ast_json, strip=False)
+
+
+def _assert_excellon_ast_golden(name: str, excellon_content: str) -> None:
+    """Compare generated Excellon AST against stored golden JSON."""
+    ast = parse_excellon(excellon_content)
+    ast_json = ast.to_json(indent=2)
+    _assert_golden(name, ast_json, strip=False)
+
+
 # ===========================================================================
 # Regression tests
 # ===========================================================================
@@ -249,8 +311,91 @@ class TestKiCadRegression:
         _assert_golden("design.kicad_pcb", pcb_text)
 
 
+class TestCopperPourThermalRegression:
+    """EDA regression tests for copper pour flood fill, thermal relief, and clearance boundaries."""
+
+    def test_copper_pour_thermal_golden(self) -> None:
+        """Positive baseline: GND pour with thermal relief spokes on GND pad and void on VCC pad."""
+        design, positions = _copper_pour_thermal_fixture_design()
+
+        def keepout_fn(comp: Component, pos: tuple[float, float] | None) -> list[tuple[float, float]]:
+            if comp.ref == "C_GND":
+                return []
+            return _component_keepout(comp, pos, clearance=0.5)
+
+        gen = CopperPourGenerator(resolution_mm=0.5)
+        pour = gen.generate_ground_pour(
+            design=design,
+            positions=positions,
+            layer="top",
+            net_id="GND",
+            add_thermal_reliefs=True,
+            add_stitching_vias=False,
+            keepout_fn=keepout_fn,
+        )
+        assert len(pour.thermal_reliefs) == 1
+        design.copper_pours["top_GND"] = pour
+
+        gerber_content = generate_copper_layer(design, layer="top")
+        _assert_gerber_ast_golden("copper_pour_thermal.gerber.json", gerber_content)
+
+        ast = parse_gerber(gerber_content)
+        assert len(ast.regions) >= 1
+        assert ast.regions[0].area > 0
+        assert len(ast.flashes) == 2
+        # 4 thermal relief spokes rendered as GerberLine items
+        assert len(ast.lines) == 4
+
+    def test_copper_pour_clearance_violation(self) -> None:
+        """Negative regression: altered clearance changes geometry and fails semantic AST match."""
+        design, positions = _copper_pour_thermal_fixture_design()
+
+        # Baseline run
+        def base_keepout(comp: Component, pos: tuple[float, float] | None) -> list[tuple[float, float]]:
+            if comp.ref == "C_GND":
+                return []
+            return _component_keepout(comp, pos, clearance=0.5)
+
+        gen = CopperPourGenerator(resolution_mm=0.5)
+        pour_base = gen.generate_ground_pour(
+            design=design,
+            positions=positions,
+            layer="top",
+            net_id="GND",
+            add_thermal_reliefs=True,
+            add_stitching_vias=False,
+            keepout_fn=base_keepout,
+        )
+        design.copper_pours["top_GND"] = pour_base
+        base_ast = parse_gerber(generate_copper_layer(design, layer="top"))
+
+        # Altered run with enlarged clearance around VCC (creates larger void)
+        def altered_keepout(comp: Component, pos: tuple[float, float] | None) -> list[tuple[float, float]]:
+            if comp.ref == "C_GND":
+                return []
+            return _component_keepout(comp, pos, clearance=3.0)
+
+        pour_altered = gen.generate_ground_pour(
+            design=design,
+            positions=positions,
+            layer="top",
+            net_id="GND",
+            add_thermal_reliefs=True,
+            add_stitching_vias=False,
+            keepout_fn=altered_keepout,
+        )
+        design.copper_pours["top_GND"] = pour_altered
+        altered_ast = parse_gerber(generate_copper_layer(design, layer="top"))
+
+        matched, diffs = base_ast.compare(altered_ast)
+        assert not matched, "Geometric AST comparison should have failed for altered copper pour clearance"
+        assert any("area mismatch" in d or "vertex" in d for d in diffs), (
+            f"Expected region area/vertex diff, got: {diffs}"
+        )
+
+
 class TestGerberStructural:
-    """Gerber structural validation (too verbose for full golden comparison)."""
+    """Gerber structural and AST golden validation."""
 
     def _check_gerber(self, name: str, content: str) -> None:
         assert content.startswith("G04"), f"{name}: missing G04 header comment"
@@ -261,15 +406,18 @@ class TestGerberStructural:
     def test_top_copper(self) -> None:
         gerber = generate_copper_layer(_reference_design(), layer="top")
         self._check_gerber("top_copper", gerber)
+        _assert_gerber_ast_golden("top_copper.gerber.json", gerber)
 
     def test_bottom_copper(self) -> None:
         gerber = generate_copper_layer(_reference_design(), layer="bottom")
         self._check_gerber("bottom_copper", gerber)
+        _assert_gerber_ast_golden("bottom_copper.gerber.json", gerber)
 
     def test_board_outline(self) -> None:
         board = _reference_design().board
         gerber = generate_board_outline(board.width_mm, board.height_mm)
         self._check_gerber("outline", gerber)
+        _assert_gerber_ast_golden("board_outline.gerber.json", gerber)
 
     def test_gerber_bundle_contains_all_layers(self, tmp_path: Path) -> None:
         result = generate_gerber(_reference_design(), output_dir=tmp_path)
@@ -331,7 +479,7 @@ class TestManufacturingBundleStructural:
 
 
 class TestExcellonStructural:
-    """Excellon drill structural validation."""
+    """Excellon drill structural and AST golden validation."""
 
     def test_drill_format(self) -> None:
         from zaptrace.export.excellon import generate_excellon
@@ -343,6 +491,7 @@ class TestExcellonStructural:
         assert "M30" in content, "Excellon should end with M30"
         assert "T01" in content, "Excellon should have tool definitions"
         assert "%" in content, "Excellon should have percent delimiters"
+        _assert_excellon_ast_golden("drill_plated.excellon.json", content)
 
 
 class TestGoldenUpdate:
@@ -357,6 +506,11 @@ class TestGoldenUpdate:
             "schematic.svg",
             "design.kicad_sch",
             "design.kicad_pcb",
+            "copper_pour_thermal.gerber.json",
+            "top_copper.gerber.json",
+            "bottom_copper.gerber.json",
+            "board_outline.gerber.json",
+            "drill_plated.excellon.json",
         ]
         missing = [n for n in expected if not _golden_path(n).exists()]
         if missing and not UPDATE_GOLDENS:

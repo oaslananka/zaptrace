@@ -479,9 +479,11 @@ def generate_copper_layer(design: Design, layer: str = "top") -> str:
     Returns:
         RS-274X Gerber string.
     """
-    lines: list[str] = []
+    lines: list[str] = _header_list(layer.upper())
     apertures = _ApertureManager()
-    lines = _header_list(layer.upper())
+
+    # Copper pour / flood fill
+    _add_copper_pour(lines, design, apertures, layer)
 
     traces = design.routing.traces if design.routing else []
     lines.extend(_traces_list(traces, apertures, layer))
@@ -494,9 +496,24 @@ def generate_copper_layer(design: Design, layer: str = "top") -> str:
                 valid_layer = pad.layer.value in (layer, "all")
                 if not valid_layer:
                     continue
-                d_code = apertures.define_circle(max(pad.size))
+                shape = pad.shape.value
+                w, h = pad.size[0], pad.size[1]
+                if shape == "circle" or (shape == "rect" and abs(w - h) < 0.001):
+                    d_code = apertures.define_circle(max(w, h))
+                elif shape == "oval":
+                    d_code = apertures.define_obround(w, h)
+                else:
+                    d_code = apertures.define_rect(w, h)
                 lines.append(f"D{d_code}*\n")
                 lines.append(f"{_fmt_xy(cx + pad.position[0], cy + pad.position[1])}D03*\n")
+
+    # Thermal reliefs for pads in the pour
+    pour_names = _LAYER_TO_POUR.get(layer, (layer,))
+    for pour in design.copper_pours.values():
+        if pour.layer in pour_names and pour.thermal_reliefs:
+            lines.extend(
+                _thermal_relief_list(pour.thermal_reliefs, apertures),
+            )
 
     # Insert aperture definitions
     header = apertures.header_lines()
