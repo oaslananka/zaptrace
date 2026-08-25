@@ -18,7 +18,7 @@ from zaptrace.export.mesh import export_pcb_obj, export_pcb_stl
 from zaptrace.viewer.threedee import ThreeDeeBundle, generate_3d_viewer
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_3d_design() -> Design:
     return Design(
         meta=DesignMeta(name="mesh-test-board", version="1.0.0"),

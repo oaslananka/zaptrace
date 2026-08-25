@@ -91,7 +91,7 @@ class SqliteSupplyCache:
                 )
                 data["cache"] = cache_meta.model_dump()
                 return BomProviderResult.model_validate(data)
-            except (json.JSONDecodeError, ValueError, KeyError):
+            except (ValueError, KeyError):
                 return None
 
     def put(

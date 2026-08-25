@@ -836,44 +836,35 @@ def generate_footprint(
     return None
 
 
-def generate_footprint_for_component(
-    component_package: str,
-    component_type: str = "",
-    layer: LayerSet = LayerSet.TOP,
-    lcsc_id: str | None = None,
-) -> FootprintDef | None:
-    """Generate a footprint for a component based on its package and type.
+def _import_lcsc_footprint(lcsc_id: str, layer: LayerSet) -> FootprintDef | None:
+    from zaptrace.ee.imports import import_lcsc_component
 
-    Handles connectors, crystals, and special types beyond ``generate_footprint``.
-    If an lcsc_id is provided, attempts to import the component geometry from LCSC/EasyEDA.
-    """
-    if lcsc_id:
-        from zaptrace.ee.imports import import_lcsc_component
+    fp, _ = import_lcsc_component(lcsc_id)
+    if fp is not None:
+        for p in fp.pads:
+            if p.layer == LayerSet.TOP and layer == LayerSet.BOTTOM:
+                p.layer = LayerSet.BOTTOM
+        return fp
+    return None
 
-        fp, _ = import_lcsc_component(lcsc_id)
-        if fp is not None:
-            for p in fp.pads:
-                if p.layer == LayerSet.TOP and layer == LayerSet.BOTTOM:
-                    p.layer = LayerSet.BOTTOM
-            return fp
 
-    pkg = component_package.strip().upper()
-    ctype = component_type.strip().lower()
-
-    # Connectors
-    pkg_lower = pkg.lower()
+def _match_header_footprint(ctype: str, pkg: str, pkg_lower: str) -> FootprintDef | None:
     is_header = "header" in ctype or "pin" in ctype or "pinhead" in pkg_lower or "header" in pkg_lower
     is_terminal = "terminal" in ctype or "terminal" in pkg_lower
-    if is_header or is_terminal:
-        # Parse pin count from the package/footprint name, e.g. "1x4", "2x8", "2P".
-        import re
+    if not (is_header or is_terminal):
+        return None
+    import re
 
-        m = re.search(r"(\d{1,4})x(\d{1,4})", pkg, re.IGNORECASE)
-        if m:
-            return footprint_header(rows=int(m.group(1)), cols=int(m.group(2)))
-        m = re.search(r"(\d{1,4})p\b", pkg, re.IGNORECASE)
-        if m:
-            return footprint_header(rows=1, cols=int(m.group(1)))
+    m = re.search(r"(\d{1,4})x(\d{1,4})", pkg, re.IGNORECASE)
+    if m:
+        return footprint_header(rows=int(m.group(1)), cols=int(m.group(2)))
+    m = re.search(r"(\d{1,4})p\b", pkg, re.IGNORECASE)
+    if m:
+        return footprint_header(rows=1, cols=int(m.group(1)))
+    return None
+
+
+def _match_special_footprint(ctype: str, pkg_lower: str, layer: LayerSet) -> FootprintDef | None:
     if "usb-a" in ctype or "usb_a" in ctype or "usb-a" in pkg_lower:
         return footprint_usb_a(layer)
     if "usb-c" in ctype or "usb_c" in ctype or "usb-c" in pkg_lower:
@@ -890,8 +881,33 @@ def generate_footprint_for_component(
         ctype == "module" and "no-such" not in pkg_lower and "qfn" not in pkg_lower
     ):
         return footprint_module(layer=layer)
+    return None
 
-    # Fall through to standard package generation
+
+def generate_footprint_for_component(
+    component_package: str,
+    component_type: str = "",
+    layer: LayerSet = LayerSet.TOP,
+    lcsc_id: str | None = None,
+) -> FootprintDef | None:
+    """Generate a footprint for a component based on its package and type."""
+    if lcsc_id:
+        imported = _import_lcsc_footprint(lcsc_id, layer)
+        if imported is not None:
+            return imported
+
+    pkg = component_package.strip().upper()
+    ctype = component_type.strip().lower()
+    pkg_lower = pkg.lower()
+
+    header = _match_header_footprint(ctype, pkg, pkg_lower)
+    if header is not None:
+        return header
+
+    special = _match_special_footprint(ctype, pkg_lower, layer)
+    if special is not None:
+        return special
+
     return generate_footprint(pkg, layer=layer)
 
 

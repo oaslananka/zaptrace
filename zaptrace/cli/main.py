@@ -1000,38 +1000,45 @@ def supply_compare(mpn: str) -> None:
     """Compare prices and stock for an MPN across all configured distributors."""
     from zaptrace.supply import DigiKeyBomProvider, LcscBomProvider, MouserBomProvider
 
-    providers = [
-        ("LCSC", LcscBomProvider()),
-        ("DigiKey", DigiKeyBomProvider()),
-        ("Mouser", MouserBomProvider()),
-    ]
+    providers = {
+        "LCSC": LcscBomProvider(),
+        "DigiKey": DigiKeyBomProvider(),
+        "Mouser": MouserBomProvider(),
+    }
     rows = []
-    for name, prov in providers:
+    col_distributor = "Distributor"
+    col_part_number = "Part Number"
+    col_stock = "Stock"
+    col_unit_price = "Unit Price"
+    col_lifecycle = "Lifecycle"
+    col_source = "Source"
+
+    for name, prov in providers.items():
         res = prov.lookup_mpn(mpn)
         if res:
             price = f"${res.price_breaks[0].unit_price:.4f}" if res.price_breaks else "—"
             rows.append(
                 {
-                    "Distributor": name,
-                    "Part Number": res.distributor_part_number or res.mpn,
-                    "Stock": str(res.stock or 0),
-                    "Unit Price": price,
-                    "Lifecycle": str(res.lifecycle),
-                    "Source": res.cache.status,
+                    col_distributor: name,
+                    col_part_number: res.distributor_part_number or res.mpn,
+                    col_stock: str(res.stock or 0),
+                    col_unit_price: price,
+                    col_lifecycle: str(res.lifecycle),
+                    col_source: res.cache.status,
                 }
             )
         else:
             rows.append(
                 {
-                    "Distributor": name,
-                    "Part Number": "—",
-                    "Stock": "0",
-                    "Unit Price": "—",
-                    "Lifecycle": "unknown",
-                    "Source": "miss",
+                    col_distributor: name,
+                    col_part_number: "—",
+                    col_stock: "0",
+                    col_unit_price: "—",
+                    col_lifecycle: "unknown",
+                    col_source: "miss",
                 }
             )
-    cols = ["Distributor", "Part Number", "Stock", "Unit Price", "Lifecycle", "Source"]
+    cols = [col_distributor, col_part_number, col_stock, col_unit_price, col_lifecycle, col_source]
     table_rows = [[r[c] for c in cols] for r in rows]
     print_table(f"Distributor Comparison: {mpn}", cols, table_rows)
 
