@@ -152,6 +152,25 @@ def _open_validated_parent(target: ValidatedOutputPath) -> int:
 
 def _write_text_safely(target: ValidatedOutputPath, content: str) -> None:
     """Atomically replace one validated output without following symlinks."""
+    parent_path = target.allowed_root
+    for part in target.relative_parent_parts:
+        parent_path = parent_path / part
+
+    if os.name != "posix":
+        parent_path.mkdir(parents=True, exist_ok=True)
+        destination = parent_path / target.filename
+        temporary_path = parent_path / f".zaptrace-{secrets.token_hex(12)}.tmp"
+        try:
+            temporary_path.write_text(content, encoding="utf-8", newline="\n")
+            temporary_path.replace(destination)
+        except OSError as exc:
+            raise HumanReferenceError(f"cannot safely write output {target.filename}: {_bounded(str(exc))}") from exc
+        finally:
+            if temporary_path.exists():
+                with contextlib.suppress(OSError):
+                    temporary_path.unlink()
+        return
+
     directory_fd = -1
     temporary_name = f".zaptrace-{secrets.token_hex(12)}.tmp"
     temporary_created = False

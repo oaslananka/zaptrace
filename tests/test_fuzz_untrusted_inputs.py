@@ -10,12 +10,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import yaml
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 
-from zaptrace.core.exceptions import ParseError
-from zaptrace.core.parser import parse_str
+hypothesis = pytest.importorskip("hypothesis")
+import yaml  # noqa: E402
+from hypothesis import HealthCheck, given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from zaptrace.core.exceptions import ParseError  # noqa: E402
+from zaptrace.core.parser import parse_str  # noqa: E402
 
 _SMALL_SCALARS = st.one_of(
     st.none(),

@@ -25,9 +25,10 @@ def _trusted_temporary_parent(temporary_parent: Path | None) -> Path:
     metadata = parent.stat()
     if not stat.S_ISDIR(metadata.st_mode):
         raise ValueError("temporary parent must be a directory")
-    mode = stat.S_IMODE(metadata.st_mode)
-    if mode & stat.S_IWOTH and not mode & stat.S_ISVTX:
-        raise ValueError("world-writable temporary parent must use the sticky bit")
+    if os.name == "posix":
+        mode = stat.S_IMODE(metadata.st_mode)
+        if mode & stat.S_IWOTH and not mode & stat.S_ISVTX:
+            raise ValueError("world-writable temporary parent must use the sticky bit")
     return parent
 
 
@@ -43,10 +44,11 @@ def _validate_private_directory(path: Path, parent: Path) -> None:
     if path.parent.resolve(strict=True) != parent:
         raise ValueError("private HOME directory escaped the trusted temporary parent")
 
-    path.chmod(_PRIVATE_MODE)
-    metadata = path.lstat()
-    if stat.S_IMODE(metadata.st_mode) != _PRIVATE_MODE:
-        raise ValueError("private HOME directory must use mode 0700")
+    if os.name == "posix":
+        path.chmod(_PRIVATE_MODE)
+        metadata = path.lstat()
+        if stat.S_IMODE(metadata.st_mode) != _PRIVATE_MODE:
+            raise ValueError("private HOME directory must use mode 0700")
     if hasattr(os, "geteuid") and metadata.st_uid != os.geteuid():
         raise ValueError("private HOME directory must be owned by the current process user")
 

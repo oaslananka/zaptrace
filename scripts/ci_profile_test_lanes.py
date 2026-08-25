@@ -87,7 +87,7 @@ def run_pytest_profiling(
 
 def _summary_header_lines(report: dict[str, Any]) -> list[str]:
     summary = report["summary"]
-    status_marker = "✓" if report["passed"] else "✗"
+    status_marker = "OK" if report["passed"] else "FAIL"
     lines = [
         f"Test Lane Duration Profile Summary [{status_marker} {report['status'].upper()}]",
         (

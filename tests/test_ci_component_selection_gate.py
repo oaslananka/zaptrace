@@ -151,7 +151,10 @@ def test_gate_rejects_symlinked_corpus(tmp_path: Path) -> None:
     target = tmp_path / "prompts.yaml"
     _write_corpus(target)
     link = tmp_path / "linked-prompts.yaml"
-    link.symlink_to(target)
+    try:
+        link.symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="symbolic link"):
         build_gate_report(root, link, minimum_governed_parts=1, allowed_root=tmp_path)

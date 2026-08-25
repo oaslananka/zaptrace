@@ -281,3 +281,57 @@ class TestDoctorCommand:
         assert result.exit_code != 0
         assert "Validation environment: FAIL" in result.output
         assert "ngspice: missing" in result.output
+
+
+class TestNewV1Commands:
+    def test_init_creates_project_files(self, tmp_path) -> None:
+        target = tmp_path / "new_project"
+        result = _runner().invoke(cli, ["init", "new_project", "--dir", str(tmp_path)])
+        assert result.exit_code == 0
+        assert (target / "design.yaml").exists()
+        assert (target / "zaptrace.yaml").exists()
+        assert (target / ".gitignore").exists()
+        assert "initialized successfully" in result.output
+
+    def test_supply_check_and_cache(self) -> None:
+        result = _runner().invoke(cli, ["supply", "cache"])
+        assert result.exit_code == 0
+        assert "Supply Cache Stats" in result.output
+
+    def test_panel_create(self, tmp_path) -> None:
+        cfg_file = tmp_path / "panel_cfg.yaml"
+        panel_yaml = (
+            "name: test-panel\n"
+            "panel_width_mm: 100\n"
+            "panel_height_mm: 80\n"
+            "boards:\n"
+            "  - board_id: b1\n"
+            "    width_mm: 30\n"
+            "    height_mm: 20\n"
+            "    count_x: 2\n"
+            "    count_y: 2\n"
+        )
+        cfg_file.write_text(panel_yaml, encoding="utf-8")
+        out_dir = tmp_path / "out_panel"
+        result = _runner().invoke(cli, ["panel", "create", "-c", str(cfg_file), "-o", str(out_dir)])
+        assert result.exit_code == 0
+        assert (out_dir / "panel.svg").exists()
+        assert (out_dir / "panel_result.json").exists()
+
+    def test_3d_viewer_generation(self, tmp_path) -> None:
+        design_path = tmp_path / "board.yaml"
+        design_path.write_text(
+            "schema_version: '2.0'\nmeta:\n  name: sample-3d-board\n  version: 0.1.0\n"
+            "board:\n  width_mm: 50.0\n  height_mm: 40.0\n  layers: 2\n"
+            "components:\n  r1:\n    ref: R1\n    type: resistor\n    value: 10k\n    footprint: '0402'\n",
+            encoding="utf-8",
+        )
+        out_dir = tmp_path / "out_3d"
+        cmd = ["3d", str(design_path), "-o", str(out_dir), "--export-obj", "--export-stl"]
+        result = _runner().invoke(cli, cmd)
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+        assert (out_dir / "index.html").exists()
+        assert any(p.suffix == ".obj" for p in out_dir.iterdir())
+        assert any(p.suffix == ".stl" for p in out_dir.iterdir())
+
+

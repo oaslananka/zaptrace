@@ -218,13 +218,13 @@ def test_altium_import_fidelity_no_native_writer() -> None:
 
 
 def test_readme_mentions_altium_import_only() -> None:
-    readme = (REPO_ROOT / "README.md").read_text()
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     assert "Altium" in readme, "README must mention Altium"
     assert "import" in readme.lower(), "README must mention import"
 
 
 def test_capability_matrix_import_only_statement() -> None:
-    readme = (REPO_ROOT / "README.md").read_text()
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     lines_with_altium = [ln for ln in readme.splitlines() if "Altium" in ln]
     table_row = next(
         (ln for ln in lines_with_altium if "import" in ln.lower()),
@@ -235,13 +235,13 @@ def test_capability_matrix_import_only_statement() -> None:
 
 
 def test_current_state_audit_altium_entry() -> None:
-    audit = (REPO_ROOT / "docs" / "strategy" / "current-state-audit.md").read_text()
+    audit = (REPO_ROOT / "docs" / "strategy" / "current-state-audit.md").read_text(encoding="utf-8")
     assert "Altium" in audit, "current-state-audit.md must mention Altium"
     assert "import" in audit.lower()
 
 
 def test_current_state_audit_no_native_writer_claim() -> None:
-    audit = (REPO_ROOT / "docs" / "strategy" / "current-state-audit.md").read_text()
+    audit = (REPO_ROOT / "docs" / "strategy" / "current-state-audit.md").read_text(encoding="utf-8")
     lines_with_altium = [ln for ln in audit.splitlines() if "Altium" in ln]
     for line in lines_with_altium:
         assert "native Altium writer" not in line.lower() or "not" in line.lower(), (

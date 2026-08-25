@@ -50,7 +50,10 @@ def test_architecture_compiler_gate_rejects_symlinked_corpus(tmp_path: Path) -> 
     corpus = tmp_path / "corpus.yaml"
     corpus.write_text(CORPUS.read_text(encoding="utf-8"), encoding="utf-8")
     link = tmp_path / "linked.yaml"
-    link.symlink_to(corpus)
+    try:
+        link.symlink_to(corpus)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="symbolic link"):
         build_gate_report(link, allowed_root=tmp_path)

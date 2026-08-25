@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from scripts import ci_reuse_check
@@ -13,7 +14,8 @@ def test_reuse_tool_is_pinned_through_reproducible_uvx() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     assert 'EXPECTED_REUSE_VERSION = "6.2.0"' in script
-    assert '"--from", f"reuse=={EXPECTED_REUSE_VERSION}", "reuse"' in script
+    assert '"--from", f"reuse=={EXPECTED_REUSE_VERSION}"' in script
+    assert '"reuse"' in script
     assert "reuse==6.2.0" not in pyproject
 
 
@@ -103,7 +105,12 @@ def test_checker_invokes_pinned_uvx_command(monkeypatch, tmp_path: Path) -> None
     monkeypatch.setattr(ci_reuse_check.subprocess, "run", fake_run)
 
     assert ci_reuse_check._run_reuse_lint(tmp_path) == (0, "ok")
-    assert observed["command"] == ["/usr/bin/uvx", "--from", "reuse==6.2.0", "reuse", "lint"]
+    expected_command = (
+        ["/usr/bin/uvx", "--from", "reuse==6.2.0", "--with", "charset-normalizer", "reuse", "lint"]
+        if os.name == "nt"
+        else ["/usr/bin/uvx", "--from", "reuse==6.2.0", "reuse", "lint"]
+    )
+    assert observed["command"] == expected_command
     assert observed["cwd"] == tmp_path
     assert observed["check"] is False
 

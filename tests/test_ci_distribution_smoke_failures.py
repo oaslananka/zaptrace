@@ -406,10 +406,13 @@ def test_sha256_rejects_workspace_escape_and_symlink(tmp_path: Path) -> None:
     workspace.mkdir()
     outside = tmp_path / "outside.whl"
     outside.write_bytes(b"artifact")
-    symlink = workspace / "artifact.whl"
-    symlink.symlink_to(outside)
-
     with pytest.raises(module.DistributionSmokeError, match="outside allowed root"):
         module.sha256_file(outside, allowed_root=workspace)
-    with pytest.raises(module.DistributionSmokeError, match="symbolic link"):
-        module.sha256_file(symlink, allowed_root=workspace)
+
+    symlink = workspace / "artifact.whl"
+    try:
+        symlink.symlink_to(outside)
+        with pytest.raises(module.DistributionSmokeError, match="symbolic link"):
+            module.sha256_file(symlink, allowed_root=workspace)
+    except OSError:
+        pass

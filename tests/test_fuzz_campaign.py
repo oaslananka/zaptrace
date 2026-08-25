@@ -11,13 +11,22 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 
-from scripts import ci_fuzz_campaign
-from zaptrace.export.path_policy import safe_export_stem
-from zaptrace.security import fuzz_campaign
-from zaptrace.security.fuzz_campaign import FuzzCase, FuzzResult, build_cases, execute_target, load_manifest, mutate
+hypothesis = pytest.importorskip("hypothesis")
+from hypothesis import HealthCheck, given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from scripts import ci_fuzz_campaign  # noqa: E402
+from zaptrace.export.path_policy import safe_export_stem  # noqa: E402
+from zaptrace.security import fuzz_campaign  # noqa: E402
+from zaptrace.security.fuzz_campaign import (  # noqa: E402
+    FuzzCase,
+    FuzzResult,
+    build_cases,
+    execute_target,
+    load_manifest,
+    mutate,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "tests" / "corpus" / "fuzz" / "manifest.json"

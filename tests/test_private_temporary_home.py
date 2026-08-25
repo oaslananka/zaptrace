@@ -35,7 +35,8 @@ def test_missing_home_uses_owned_mode_0700_directory_and_cleans_it(tmp_path: Pat
         assert private_home.parent == tmp_path
         assert private_home.is_dir()
         assert not private_home.is_symlink()
-        assert stat.S_IMODE(metadata.st_mode) == 0o700
+        if os.name == "posix":
+            assert stat.S_IMODE(metadata.st_mode) == 0o700
         if hasattr(os, "geteuid"):
             assert metadata.st_uid == os.geteuid()
 
@@ -64,7 +65,10 @@ def test_explicit_symlink_parent_is_rejected(tmp_path: Path) -> None:
     trusted_parent = tmp_path / "trusted"
     trusted_parent.mkdir()
     symlink_parent = tmp_path / "redirected"
-    symlink_parent.symlink_to(trusted_parent, target_is_directory=True)
+    try:
+        symlink_parent.symlink_to(trusted_parent, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with (
         pytest.raises(ValueError, match="symlink"),
@@ -81,7 +85,10 @@ def test_precreated_symlink_result_is_rejected_without_following_target(
     marker = target / "keep.txt"
     marker.write_text("keep", encoding="utf-8")
     redirected = tmp_path / "pretend-private-home"
-    redirected.symlink_to(target, target_is_directory=True)
+    try:
+        redirected.symlink_to(target, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     monkeypatch.setattr("zaptrace.security.temporary.tempfile.mkdtemp", lambda **_kwargs: str(redirected))
 
@@ -105,13 +112,17 @@ def test_cleanup_does_not_follow_directory_replacement_symlink(tmp_path: Path) -
     with private_subprocess_environment(environ={}, temporary_parent=tmp_path) as environment:
         private_home = Path(environment["HOME"])
         private_home.rmdir()
-        private_home.symlink_to(target, target_is_directory=True)
+        try:
+            private_home.symlink_to(target, target_is_directory=True)
+        except OSError as exc:
+            pytest.skip(f"symlinks are unavailable: {exc}")
 
     assert marker.read_text(encoding="utf-8") == "keep"
     assert target.is_dir()
     assert not private_home.exists()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX sticky bit only exists on POSIX")
 def test_non_sticky_world_writable_parent_is_rejected(tmp_path: Path) -> None:
     unsafe_parent = tmp_path / "unsafe-parent"
     unsafe_parent.mkdir(mode=0o777)
@@ -197,6 +208,7 @@ def test_created_directory_outside_parent_is_rejected(tmp_path: Path, monkeypatc
     assert not escaped_home.exists()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX mode 0700 enforcement only applies on POSIX")
 def test_mode_enforcement_fails_closed_when_permissions_do_not_change(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

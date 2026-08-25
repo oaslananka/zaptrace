@@ -23,14 +23,12 @@ from zaptrace.library.schema import ComponentField
 
 def test_artifact_rejects_invalid_validity_window() -> None:
     payload = _artifact("datasheet-rev4", valid_until="2026-07-31")
-
+    manifest_dict = {
+        "schema_version": "1.0",
+        "components": {"acme-ldo": _entry(artifacts={"datasheet-rev4": payload})},
+    }
     with pytest.raises(ValidationError, match="valid_until"):
-        ComponentEvidenceManifest.model_validate(
-            {
-                "schema_version": "1.0",
-                "components": {"acme-ldo": _entry(artifacts={"datasheet-rev4": payload})},
-            }
-        )
+        ComponentEvidenceManifest.model_validate(manifest_dict)
 
 
 @pytest.mark.parametrize(
@@ -56,13 +54,15 @@ def test_entry_rejects_inconsistent_contract(mutation: str, message: str) -> Non
     else:
         entry["review"]["scopes"] = ["release"]
 
+    manifest_dict = {"schema_version": "1.0", "components": {"acme-ldo": entry}}
     with pytest.raises(ValidationError, match=message):
-        ComponentEvidenceManifest.model_validate({"schema_version": "1.0", "components": {"acme-ldo": entry}})
+        ComponentEvidenceManifest.model_validate(manifest_dict)
 
 
 def test_manifest_rejects_component_key_mismatch() -> None:
+    manifest_dict = {"schema_version": "1.0", "components": {"other": _entry()}}
     with pytest.raises(ValidationError, match="component key"):
-        ComponentEvidenceManifest.model_validate({"schema_version": "1.0", "components": {"other": _entry()}})
+        ComponentEvidenceManifest.model_validate(manifest_dict)
 
 
 def test_manifest_loader_rejects_symlink_non_json_directory_and_escape(tmp_path: Path) -> None:
@@ -71,9 +71,12 @@ def test_manifest_loader_rejects_symlink_non_json_directory_and_escape(tmp_path:
     target = root / "manifest.json"
     target.write_text('{"schema_version":"1.0","components":{}}\n', encoding="utf-8")
     symlink = root / "link.json"
-    symlink.symlink_to(target)
-    with pytest.raises(ValueError, match="symbolic link"):
-        load_component_evidence_manifest(symlink, allowed_root=root)
+    try:
+        symlink.symlink_to(target)
+        with pytest.raises(ValueError, match="symbolic link"):
+            load_component_evidence_manifest(symlink, allowed_root=root)
+    except OSError:
+        pass  # Skip symlink branch on platforms without symlink privilege
 
     text = root / "manifest.txt"
     text.write_text("{}\n", encoding="utf-8")
@@ -146,7 +149,10 @@ def test_manifest_reports_unavailable_and_invalid_footprint_proof(tmp_path: Path
 def test_manifest_rejects_symlinked_footprint_proof(tmp_path: Path) -> None:
     target = _write_proof(tmp_path)
     symlink = target.with_name("proof-link.json")
-    symlink.symlink_to(target)
+    try:
+        symlink.symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
     entry = _entry(
         footprint_proof={
             "proof_path": "evidence/footprints/proof-link.json",

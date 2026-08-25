@@ -47,7 +47,10 @@ def test_resolve_manifest_cli_path_rejects_symlink_escape(tmp_path: Path) -> Non
     outside = tmp_path / "outside"
     outside.mkdir()
     link = trusted / "release-artifacts"
-    link.symlink_to(outside, target_is_directory=True)
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="escapes trusted root"):
         _resolve_manifest_cli_path(link, trusted_root=trusted, field="artifact_dir")

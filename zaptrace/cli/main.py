@@ -1,4 +1,4 @@
-"""ZapTrace CLI — 18 commands for electronics design."""
+"""ZapTrace CLI — 23 commands for electronics design."""
 
 from __future__ import annotations
 
@@ -915,8 +915,310 @@ def lcsc_ingest_manifest(store_path: str | None, report_path: str | None, offlin
 
 
 # ---------------------------------------------------------------------------
+# 19. view — interactive PCB viewer
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--output", "-o", default="build/viewer", help="Output directory for viewer bundle.")
+@click.option("--proof", type=click.Path(exists=True), default=None, help="Proof-pack manifest path.")
+@click.option("--open", "open_browser", is_flag=True, default=False, help="Open viewer in browser.")
+def view(path: str, output: str, proof: str | None, open_browser: bool) -> None:
+    """Generate an interactive PCB viewer for a design.
+
+    Opens a self-contained HTML viewer with pan/zoom, layer toggle,
+    component inspect, net highlight, DRC markers, search, measurement
+    tool, BOM table, and dark/light theme.
+    """
+    from zaptrace.viewer.interactive import generate_interactive_viewer
+
+    try:
+        result = generate_interactive_viewer(path, output, proof_path=proof)
+        print_summary(True, f"Interactive viewer generated at {result.index_path}")
+        for nc in result.non_claims:
+            console.print(f"  [dim]⚠ {nc}[/]")
+        if open_browser:
+            import webbrowser
+
+            webbrowser.open(f"file://{Path(result.index_path).resolve()}")
+    except Exception as e:
+        print_summary(False, str(e))
+        raise click.Abort() from e
+
+
+# ---------------------------------------------------------------------------
+# 20. supply — distributor intelligence & pricing
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def supply() -> None:
+    """Live distributor supply chain intelligence and pricing."""
+
+
+
+@supply.command(name="check")
+@click.argument("mpn")
+@click.option("--provider", "-p", default="all", help="Provider name: lcsc, digikey, mouser, all")
+def supply_check(mpn: str, provider: str) -> None:
+    """Check stock, pricing, and lifecycle for an MPN."""
+    from zaptrace.supply import (
+        DigiKeyBomProvider,
+        LcscBomProvider,
+        MouserBomProvider,
+    )
+
+    providers = []
+    p_lower = provider.lower()
+    if p_lower in ("lcsc", "all"):
+        providers.append(("LCSC", LcscBomProvider()))
+    if p_lower in ("digikey", "all"):
+        providers.append(("DigiKey", DigiKeyBomProvider()))
+    if p_lower in ("mouser", "all"):
+        providers.append(("Mouser", MouserBomProvider()))
+
+    found = False
+    for name, prov in providers:
+        res = prov.lookup_mpn(mpn)
+        if res:
+            found = True
+            unit_price = res.price_breaks[0].unit_price if res.price_breaks else "N/A"
+            console.print(
+                f"[bold cyan]{name}[/] — MPN: [bold]{res.mpn}[/] | "
+                f"Stock: [green]{res.stock or 0}[/] | "
+                f"Price: [yellow]${unit_price}[/] | "
+                f"Lifecycle: [blue]{res.lifecycle}[/] | "
+                f"Cache: [dim]{res.cache.status}[/]"
+            )
+    if not found:
+        console.print(f"[red]No provider returned data for MPN '{mpn}'.[/]")
+
+
+@supply.command(name="compare")
+@click.argument("mpn")
+def supply_compare(mpn: str) -> None:
+    """Compare prices and stock for an MPN across all configured distributors."""
+    from zaptrace.supply import DigiKeyBomProvider, LcscBomProvider, MouserBomProvider
+
+    providers = [
+        ("LCSC", LcscBomProvider()),
+        ("DigiKey", DigiKeyBomProvider()),
+        ("Mouser", MouserBomProvider()),
+    ]
+    rows = []
+    for name, prov in providers:
+        res = prov.lookup_mpn(mpn)
+        if res:
+            price = f"${res.price_breaks[0].unit_price:.4f}" if res.price_breaks else "—"
+            rows.append({
+                "Distributor": name,
+                "Part Number": res.distributor_part_number or res.mpn,
+                "Stock": str(res.stock or 0),
+                "Unit Price": price,
+                "Lifecycle": str(res.lifecycle),
+                "Source": res.cache.status,
+            })
+        else:
+            rows.append({
+                "Distributor": name,
+                "Part Number": "—",
+                "Stock": "0",
+                "Unit Price": "—",
+                "Lifecycle": "unknown",
+                "Source": "miss",
+            })
+    print_table(rows, title=f"Distributor Comparison: {mpn}")
+
+
+@supply.command(name="cache")
+@click.option("--clear", is_flag=True, default=False, help="Clear local supply cache.")
+def supply_cache(clear: bool) -> None:
+    """View or clear local persistent supply cache."""
+    from zaptrace.supply.live import SqliteSupplyCache
+
+    cache = SqliteSupplyCache()
+    if clear:
+        deleted = cache.clear()
+        print_summary(True, f"Cleared {deleted} entries from local supply cache.")
+    else:
+        st = cache.stats()
+        console.print(
+            f"[bold]Supply Cache Stats:[/] {st['total_entries']} entries "
+            f"({st['fresh_entries']} fresh, {st['stale_entries']} stale) across {st['providers']} providers."
+        )
+        console.print(f"[dim]DB Path: {st['db_path']}[/]")
+
+
+# ---------------------------------------------------------------------------
+# 21. panel — PCB panelization & multi-board array
+# ---------------------------------------------------------------------------
+
+
+@cli.group()
+def panel() -> None:
+    """Panel array generation, V-scoring, and multi-board aggregation."""
+
+
+@panel.command(name="create")
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    required=True,
+    type=click.Path(exists=True),
+    help="Panel YAML/JSON configuration file.",
+)
+@click.option("--output", "-o", default="build/panel", help="Output directory for panel artifacts.")
+def panel_create(config_path: str, output: str) -> None:
+    """Generate panel array layout, V-score lines, and SVG preview from config."""
+    from zaptrace.multiboard import PanelConfig, generate_panel, render_panel_svg
+
+    try:
+        raw = Path(config_path).read_text(encoding="utf-8")
+        data = yaml.safe_load(raw) if config_path.endswith((".yaml", ".yml")) else json.loads(raw)
+        cfg = PanelConfig.model_validate(data)
+        result = generate_panel(cfg)
+
+        out = Path(output)
+        out.mkdir(parents=True, exist_ok=True)
+        svg_content = render_panel_svg(result)
+        (out / "panel.svg").write_text(svg_content, encoding="utf-8")
+        (out / "panel_result.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
+
+        print_summary(
+            True,
+            f"Panel '{cfg.name}' generated: {result.total_boards} boards, "
+            f"{result.utilization_pct}% area utilization, {len(result.v_scores)} V-scores",
+        )
+        console.print(f"  [dim]Artifacts written to {out}[/]")
+    except Exception as e:
+        print_summary(False, str(e))
+        raise click.Abort() from e
+
+
+# ---------------------------------------------------------------------------
+# 22. 3d — 3D WebGL PCB viewer & mesh exporter
+# ---------------------------------------------------------------------------
+
+
+@cli.command(name="3d")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--output", "-o", default="build/viewer3d", help="Output directory for 3D viewer and mesh files.")
+@click.option("--export-obj", is_flag=True, default=False, help="Export Wavefront OBJ 3D model.")
+@click.option("--export-stl", is_flag=True, default=False, help="Export STL 3D mesh model.")
+@click.option("--open", "open_browser", is_flag=True, default=False, help="Open 3D viewer in default browser.")
+def view_3d(path: str, output: str, export_obj: bool, export_stl: bool, open_browser: bool) -> None:
+    """Generate 3D WebGL board viewer bundle and export 3D meshes (OBJ/STL)."""
+    from zaptrace.core.parser import parse_file
+    from zaptrace.export.mesh import export_pcb_obj, export_pcb_stl
+    from zaptrace.viewer.threedee import generate_3d_viewer
+
+    try:
+        design = parse_file(Path(path))
+        bundle = generate_3d_viewer(design, output_dir=output)
+        out = Path(output)
+
+        if export_obj:
+            obj_str = export_pcb_obj(design)
+            (out / f"{design.meta.name}.obj").write_text(obj_str, encoding="utf-8")
+            console.print(f"  [green]✓[/] OBJ exported to {out / f'{design.meta.name}.obj'}")
+
+        if export_stl:
+            stl_str = export_pcb_stl(design)
+            (out / f"{design.meta.name}.stl").write_text(stl_str, encoding="utf-8")
+            console.print(f"  [green]✓[/] STL exported to {out / f'{design.meta.name}.stl'}")
+
+        print_summary(True, f"3D viewer generated at {bundle.index_path}")
+        if open_browser:
+            import webbrowser
+
+            webbrowser.open(f"file://{Path(bundle.index_path).resolve()}")
+    except Exception as e:
+        print_summary(False, str(e))
+        raise click.Abort() from e
+
+
+# ---------------------------------------------------------------------------
+# 23. init — project scaffolding wizard
+# ---------------------------------------------------------------------------
+
+
+@cli.command(name="init")
+@click.argument("name", default="my-pcb-project")
+@click.option(
+    "--template",
+    "-t",
+    default="esp32_i2c_sensor",
+    help="Template: esp32_i2c_sensor, rp2040_usb_hid, stm32_rs485_node, minimal",
+)
+@click.option("--dir", "-d", "target_dir", default=".", help="Target directory for new project.")
+def init_project(name: str, template: str, target_dir: str) -> None:
+    """Scaffold a new ZapTrace PCB project with design, config, and stackup."""
+    from zaptrace.synthesis.engine import TEMPLATES_DIR
+
+    dest = (Path(target_dir) / name) if name != "." else Path(target_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+
+    design_file = dest / "design.yaml"
+    if design_file.exists():
+        console.print(f"[yellow]⚠ {design_file} already exists. Skipping design overwrite.[/]")
+    else:
+        tpl_name = template if template.endswith(".yaml") else f"{template}.yaml"
+        tpl_path = TEMPLATES_DIR / tpl_name
+        if tpl_path.exists():
+            design_file.write_text(tpl_path.read_text(encoding="utf-8"), encoding="utf-8")
+        else:
+            clean_design = (
+                "schema_version: '2.0'\n"
+                f"meta:\n  name: {name}\n  version: 0.1.0\n"
+                "board:\n  width_mm: 50.0\n  height_mm: 40.0\n  layers: 4\n"
+                "components:\n"
+                "  r1:\n    ref: R1\n    value: 10k\n    footprint: 0402\n"
+                "    pins:\n"
+                "      '1': {name: '1', type: passive, net: net_vcc}\n"
+                "      '2': {name: '2', type: passive, net: net_gnd}\n"
+                "nets:\n"
+                "  net_vcc:\n    name: VCC_3V3\n    nodes:\n      - {component_ref: R1, pin_name: '1'}\n"
+                "  net_gnd:\n    name: GND\n    nodes:\n      - {component_ref: R1, pin_name: '2'}\n"
+            )
+            design_file.write_text(clean_design, encoding="utf-8")
+        console.print(f"  [green]✓[/] Created {design_file}")
+
+    config_file = dest / "zaptrace.yaml"
+    if not config_file.exists():
+        config_content = (
+            f"# ZapTrace Project Configuration\n"
+            f"name: {name}\n"
+            f"version: 0.1.0\n"
+            f"design_path: design.yaml\n"
+            f"build_dir: build\n"
+            f"stackup: 4-layer-jlc04161h\n"
+            f"drc:\n"
+            f"  min_trace_width_mm: 0.15\n"
+            f"  min_clearance_mm: 0.15\n"
+            f"  min_via_diameter_mm: 0.45\n"
+        )
+        config_file.write_text(config_content, encoding="utf-8")
+        console.print(f"  [green]✓[/] Created {config_file}")
+
+    gitignore = dest / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text("build/\n.supply_cache.json\n*.pyc\n__pycache__/\n", encoding="utf-8")
+        console.print(f"  [green]✓[/] Created {gitignore}")
+
+    print_summary(True, f"Project '{name}' initialized successfully in {dest.resolve()}")
+    console.print(f"  [dim]Next steps:[/] run [bold cyan]zaptrace check {design_file}[/]")
+    console.print(f"               or  [bold cyan]zaptrace view {design_file} --open[/]")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     cli()
+
+
+
+

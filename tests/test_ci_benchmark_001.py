@@ -124,7 +124,10 @@ def test_resolve_benchmark_input_rejects_symlink_escape(tmp_path: Path) -> None:
     outside = tmp_path / "outside.json"
     outside.write_text("{}", encoding="utf-8")
     link = trusted / "report.json"
-    link.symlink_to(outside)
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="escapes benchmark root"):
         _resolve_benchmark_input(

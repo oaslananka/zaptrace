@@ -57,7 +57,10 @@ def test_main_rejects_bom_symlink_escape(tmp_path: Path, capsys: pytest.CaptureF
     outside = tmp_path / "outside.json"
     outside.write_text("[]\n", encoding="utf-8")
     link = trusted / "bom.json"
-    link.symlink_to(outside)
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     assert main([str(link)], trusted_root=trusted) == 2
     assert "BOM path escapes repository root" in capsys.readouterr().err
@@ -79,7 +82,10 @@ def test_main_rejects_pr_comment_symlink_escape(tmp_path: Path, capsys: pytest.C
     outside = tmp_path / "outside"
     outside.mkdir()
     reports = trusted / "reports"
-    reports.symlink_to(outside, target_is_directory=True)
+    try:
+        reports.symlink_to(outside, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     assert main([str(bom), "--pr-comment", str(reports / "bom-risk.md")], trusted_root=trusted) == 2
     assert "PR comment path escapes repository root" in capsys.readouterr().err

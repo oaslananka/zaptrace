@@ -148,7 +148,10 @@ def test_symlink_input_is_rejected(tmp_path: Path) -> None:
     target = workspace / "target.json"
     target.write_text("{}", encoding="utf-8")
     link = workspace / "cargo-audit.json"
-    link.symlink_to(target)
+    try:
+        link.symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ci_cargo_audit.CargoAuditEvidenceError, match="symbolic link"):
         ci_cargo_audit.load_raw_report(link, workspace)

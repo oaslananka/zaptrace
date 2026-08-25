@@ -167,7 +167,10 @@ def test_marker_owned_output_is_cleaned_without_following_symlinks(tmp_path: Pat
     (nested / "old.json").write_text("{}", encoding="utf-8")
     outside = tmp_path / "outside.txt"
     outside.write_text("safe", encoding="utf-8")
-    (owned / "outside-link").symlink_to(outside)
+    try:
+        (owned / "outside-link").symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     result = _prepare_output_dir(owned, trusted_root=tmp_path)
 

@@ -115,6 +115,42 @@ _IC_DIMENSIONS: dict[str, tuple[float, float, float, int]] = {
     "DIP-28": (13.97, 34.04, 2.54, 28),
 }
 
+_DFN_DIMENSIONS: dict[str, tuple[float, float, float, int]] = {
+    # (body_w, body_h, pitch, pin_count)
+    "DFN-6": (2.0, 2.0, 0.65, 6),
+    "DFN-8": (2.0, 3.0, 0.5, 8),
+    "DFN-8-3X3": (3.0, 3.0, 0.65, 8),
+    "DFN-10": (3.0, 3.0, 0.5, 10),
+    "DFN-12": (3.0, 3.0, 0.45, 12),
+    "DFN-14": (3.0, 4.0, 0.5, 14),
+}
+
+_BGA_DIMENSIONS: dict[str, tuple[int, int, float, float]] = {
+    # (rows, cols, pitch, ball_diameter)
+    "BGA-48": (6, 8, 0.8, 0.4),
+    "BGA-64": (8, 8, 0.8, 0.4),
+    "BGA-96": (8, 12, 0.8, 0.4),
+    "BGA-100": (10, 10, 0.8, 0.4),
+    "BGA-144": (12, 12, 0.8, 0.4),
+    "BGA-256": (16, 16, 0.8, 0.4),
+}
+
+_WLCSP_DIMENSIONS: dict[str, tuple[int, int, float, float]] = {
+    # (rows, cols, pitch, pad_diameter)
+    "WLCSP-4": (2, 2, 0.4, 0.22),
+    "WLCSP-6": (2, 3, 0.4, 0.22),
+    "WLCSP-9": (3, 3, 0.4, 0.22),
+    "WLCSP-12": (3, 4, 0.4, 0.22),
+    "WLCSP-16": (4, 4, 0.4, 0.22),
+    "WLCSP-20": (4, 5, 0.4, 0.22),
+    "WLCSP-25": (5, 5, 0.4, 0.22),
+}
+
+_BGA_ROW_LETTERS: list[str] = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M",
+    "N", "P", "R", "T", "U", "V", "W", "Y", "AA", "AB", "AC", "AD", "AE", "AF",
+]
+
 # Package alias map (user-friendly → canonical)
 _PACKAGE_ALIASES: dict[str, str] = {
     # Resistor / capacitor packages
@@ -139,6 +175,9 @@ _PACKAGE_ALIASES: dict[str, str] = {
     "tssop16": "TSSOP-16",
     "tssop20": "TSSOP-20",
     "msop8": "MSOP-8",
+    "dfn6": "DFN-6",
+    "dfn8": "DFN-8",
+    "dfn10": "DFN-10",
     "qfn16": "QFN-16",
     "qfn32": "QFN-32",
     "qfn48": "QFN-48",
@@ -150,6 +189,11 @@ _PACKAGE_ALIASES: dict[str, str] = {
     "dip16": "DIP-16",
     "dip28": "DIP-28",
     "sot23": "SOT-23",
+    "bga48": "BGA-48",
+    "bga64": "BGA-64",
+    "bga96": "BGA-96",
+    "wlcsp4": "WLCSP-4",
+    "wlcsp16": "WLCSP-16",
 }
 
 
@@ -504,6 +548,218 @@ def footprint_test_pad(layer: LayerSet = LayerSet.TOP) -> FootprintDef:
     )
 
 
+def footprint_dfn(
+    package: str,
+    layer: LayerSet = LayerSet.TOP,
+) -> FootprintDef | None:
+    """Generate DFN (Dual Flat No-lead) footprint with centre thermal pad."""
+    dims = _DFN_DIMENSIONS.get(package.upper())
+    if dims is None:
+        return None
+    body_w, body_h, pitch, pin_count = dims
+    pins_per_side = pin_count // 2
+    pad_w = 0.3 if pin_count > 8 else 0.4
+    pad_l = 0.8
+    pads: list[Pad] = []
+    y_span = (pins_per_side - 1) * pitch
+    x_off = body_w / 2 - pad_l / 2
+    for i in range(pins_per_side):
+        y = -y_span / 2 + i * pitch
+        pads.append(Pad(id=f"{i + 1}", layer=layer, shape=PadShape.RECT, position=(-x_off, y), size=(pad_l, pad_w)))
+    for i in range(pins_per_side):
+        y = y_span / 2 - i * pitch
+        n = pins_per_side + i + 1
+        pads.append(Pad(id=f"{n}", layer=layer, shape=PadShape.RECT, position=(x_off, y), size=(pad_l, pad_w)))
+    thermal_w = max(0.5, body_w - 2 * pad_l - 0.4)
+    thermal_h = max(0.5, body_h - 0.8)
+    pads.append(Pad(id="0", layer=layer, shape=PadShape.RECT, position=(0.0, 0.0), size=(thermal_w, thermal_h)))
+    outline = _make_outline(body_w, body_h)
+    return FootprintDef(
+        pads=pads,
+        outline=outline,
+        courtyard=(body_w + 0.6, body_h + 0.6),
+        thermal_pads=["0"],
+        description=f"{package} footprint",
+        source="IPC-7351B",
+    )
+
+
+def footprint_bga(
+    package: str | None = None,
+    *,
+    rows: int | None = None,
+    cols: int | None = None,
+    pitch: float | None = None,
+    ball_diameter: float | None = None,
+    layer: LayerSet = LayerSet.TOP,
+) -> FootprintDef | None:
+    """Generate a Ball Grid Array (BGA) footprint with standard JEDEC alphanumeric IDs."""
+    if package:
+        dims = _BGA_DIMENSIONS.get(package.upper())
+        if dims is not None:
+            r, c, p, bd = dims
+            rows = rows or r
+            cols = cols or c
+            pitch = pitch or p
+            ball_diameter = ball_diameter or bd
+        elif rows is None:
+            return None
+
+    r_count = rows or 8
+    c_count = cols or 8
+    p_val = pitch or 0.8
+    b_diam = ball_diameter or 0.4
+
+    pads: list[Pad] = []
+    x_span = (c_count - 1) * p_val
+    y_span = (r_count - 1) * p_val
+
+    for r_idx in range(r_count):
+        row_letter = _BGA_ROW_LETTERS[r_idx] if r_idx < len(_BGA_ROW_LETTERS) else f"R{r_idx + 1}"
+        y = y_span / 2 - r_idx * p_val
+        for c_idx in range(c_count):
+            col_num = c_idx + 1
+            x = -x_span / 2 + c_idx * p_val
+            pad_id = f"{row_letter}{col_num}"
+            pads.append(
+                Pad(
+                    id=pad_id,
+                    layer=layer,
+                    shape=PadShape.CIRCLE,
+                    position=(x, y),
+                    size=(b_diam, b_diam),
+                )
+            )
+
+    body_w = x_span + 2.0
+    body_h = y_span + 2.0
+    outline = _make_outline(body_w, body_h)
+    desc = f"BGA-{r_count * c_count} ({r_count}x{c_count}, {p_val}mm pitch)"
+    return FootprintDef(
+        pads=pads,
+        outline=outline,
+        courtyard=(body_w + 1.0, body_h + 1.0),
+        description=desc,
+        source="JEDEC/IPC-7351",
+    )
+
+
+def footprint_wlcsp(
+    package: str | None = None,
+    *,
+    rows: int | None = None,
+    cols: int | None = None,
+    pitch: float | None = None,
+    pad_diameter: float | None = None,
+    layer: LayerSet = LayerSet.TOP,
+) -> FootprintDef | None:
+    """Generate a Wafer-Level Chip Scale Package (WLCSP) footprint with JEDEC ball IDs."""
+    if package:
+        dims = _WLCSP_DIMENSIONS.get(package.upper())
+        if dims is not None:
+            r, c, p, pd = dims
+            rows = rows or r
+            cols = cols or c
+            pitch = pitch or p
+            pad_diameter = pad_diameter or pd
+        elif rows is None:
+            return None
+
+    r_count = rows or 4
+    c_count = cols or 4
+    p_val = pitch or 0.4
+    p_diam = pad_diameter or 0.22
+
+    pads: list[Pad] = []
+    x_span = (c_count - 1) * p_val
+    y_span = (r_count - 1) * p_val
+
+    for r_idx in range(r_count):
+        row_letter = _BGA_ROW_LETTERS[r_idx] if r_idx < len(_BGA_ROW_LETTERS) else f"R{r_idx + 1}"
+        y = y_span / 2 - r_idx * p_val
+        for c_idx in range(c_count):
+            col_num = c_idx + 1
+            x = -x_span / 2 + c_idx * p_val
+            pad_id = f"{row_letter}{col_num}"
+            pads.append(
+                Pad(
+                    id=pad_id,
+                    layer=layer,
+                    shape=PadShape.CIRCLE,
+                    position=(x, y),
+                    size=(p_diam, p_diam),
+                )
+            )
+
+    body_w = x_span + 0.6
+    body_h = y_span + 0.6
+    outline = _make_outline(body_w, body_h)
+    desc = f"WLCSP-{r_count * c_count} ({r_count}x{c_count}, {p_val}mm pitch)"
+    return FootprintDef(
+        pads=pads,
+        outline=outline,
+        courtyard=(body_w + 0.4, body_h + 0.4),
+        description=desc,
+        source="JEDEC",
+    )
+
+
+def footprint_module(
+    width: float = 18.0,
+    height: float = 25.5,
+    pins_left: int = 19,
+    pins_right: int = 19,
+    pins_bottom: int = 0,
+    pitch: float = 1.27,
+    pad_w: float = 1.5,
+    pad_h: float = 0.9,
+    layer: LayerSet = LayerSet.TOP,
+    description: str = "SMD castellation module",
+) -> FootprintDef:
+    """Generate perimeter castellation SMD module footprint (e.g. ESP32-WROOM, LoRa)."""
+    pads: list[Pad] = []
+    pad_num = 1
+
+    if pins_left > 0:
+        y_span = (pins_left - 1) * pitch
+        x_pos = -width / 2 + pad_w / 2
+        for i in range(pins_left):
+            y_pos = y_span / 2 - i * pitch
+            pads.append(
+                Pad(id=f"{pad_num}", layer=layer, shape=PadShape.RECT, position=(x_pos, y_pos), size=(pad_w, pad_h))
+            )
+            pad_num += 1
+
+    if pins_bottom > 0:
+        x_span = (pins_bottom - 1) * pitch
+        y_pos = -height / 2 + pad_w / 2
+        for i in range(pins_bottom):
+            x_pos = -x_span / 2 + i * pitch
+            pads.append(
+                Pad(id=f"{pad_num}", layer=layer, shape=PadShape.RECT, position=(x_pos, y_pos), size=(pad_h, pad_w))
+            )
+            pad_num += 1
+
+    if pins_right > 0:
+        y_span = (pins_right - 1) * pitch
+        x_pos = width / 2 - pad_w / 2
+        for i in range(pins_right):
+            y_pos = -y_span / 2 + i * pitch
+            pads.append(
+                Pad(id=f"{pad_num}", layer=layer, shape=PadShape.RECT, position=(x_pos, y_pos), size=(pad_w, pad_h))
+            )
+            pad_num += 1
+
+    outline = _make_outline(width, height)
+    return FootprintDef(
+        pads=pads,
+        outline=outline,
+        courtyard=(width + 1.0, height + 1.0),
+        description=description,
+        source="generic-module",
+    )
+
+
 # ---------------------------------------------------------------------------
 #  Master dispatch
 # ---------------------------------------------------------------------------
@@ -532,7 +788,7 @@ def generate_footprint(
     """Generate a ``FootprintDef`` for the given package name.
 
     Supports IPC chip codes (0402, 0603, …), SOT, SOIC, TSSOP, MSOP, QFN, QFP,
-    DIP, header patterns, USB-A/USB-C, JST, crystal, and test probes.
+    DIP, DFN, BGA, WLCSP, header patterns, USB-A/USB-C, JST, crystal, and test probes.
 
     Returns ``None`` if the package is unknown.
     """
@@ -544,7 +800,16 @@ def generate_footprint(
     chip = footprint_chip(key, layer=layer)
     if chip is not None:
         return chip
-    return _named_package_footprint(key, layer)
+    named = _named_package_footprint(key, layer)
+    if named is not None:
+        return named
+    if key.startswith("DFN"):
+        return footprint_dfn(key, layer=layer)
+    if key.startswith("BGA") and key != "BGA-256":
+        return footprint_bga(key, layer=layer)
+    if key.startswith("WLCSP"):
+        return footprint_wlcsp(key, layer=layer)
+    return None
 
 
 def generate_footprint_for_component(
@@ -597,6 +862,11 @@ def generate_footprint_for_component(
         return footprint_solder_jumper(layer)
     if "test" in ctype or "probe" in ctype:
         return footprint_test_pad(layer)
+    if (
+        pkg_lower in ("module", "smd-module", "castellated-module")
+        or (ctype == "module" and "no-such" not in pkg_lower and "qfn" not in pkg_lower)
+    ):
+        return footprint_module(layer=layer)
 
     # Fall through to standard package generation
     return generate_footprint(pkg, layer=layer)
@@ -710,6 +980,10 @@ def list_supported_packages() -> list[str]:
     keys.update(_SOT_TH_DIMENSIONS.keys())
     # IC packages
     keys.update(_IC_DIMENSIONS)
+    # DFN / BGA / WLCSP
+    keys.update(_DFN_DIMENSIONS)
+    keys.update(_BGA_DIMENSIONS)
+    keys.update(_WLCSP_DIMENSIONS)
 
     # Explicit names
     keys.add("HEADER")
@@ -719,6 +993,7 @@ def list_supported_packages() -> list[str]:
     keys.add("CRYSTAL-SMD")
     keys.add("SOLDER-JUMPER")
     keys.add("TEST-PAD")
+    keys.add("MODULE")
 
     return sorted(keys)
 
@@ -731,6 +1006,9 @@ _PACKAGE_HANDLERS: dict[str, Any] = {
     "chip": _CHIP_DIMENSIONS,
     "sot": _SOT_TH_DIMENSIONS,
     "ic": _IC_DIMENSIONS,
+    "dfn": _DFN_DIMENSIONS,
+    "bga": _BGA_DIMENSIONS,
+    "wlcsp": _WLCSP_DIMENSIONS,
     "specials": {
         "USB-A": footprint_usb_a,
         "USB-C": footprint_usb_c,
@@ -738,5 +1016,7 @@ _PACKAGE_HANDLERS: dict[str, Any] = {
         "CRYSTAL-SMD": footprint_crystal_smd,
         "SOLDER-JUMPER": footprint_solder_jumper,
         "TEST-PAD": footprint_test_pad,
+        "MODULE": footprint_module,
     },
 }
+

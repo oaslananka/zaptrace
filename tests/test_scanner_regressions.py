@@ -43,7 +43,10 @@ def test_output_artifact_rejects_existing_symlink_escape(tmp_path: Path) -> None
     output_dir.mkdir()
     outside = tmp_path / "outside.kicad_sch"
     outside.write_text("outside", encoding="utf-8")
-    (output_dir / "board.kicad_sch").symlink_to(outside)
+    try:
+        (output_dir / "board.kicad_sch").symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="escapes output directory"):
         resolve_output_artifact(output_dir, "board", ".kicad_sch")

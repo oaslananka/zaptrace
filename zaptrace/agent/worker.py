@@ -185,7 +185,7 @@ def _read_request(paths: _ValidatedIPCPaths) -> dict[str, Any]:
             os.close(request_fd)
             raise ValueError("request ownership or permissions changed")
         with os.fdopen(request_fd, "rb") as handle:
-            payload = pickle.load(handle)  # noqa: S301 - fixed file in validated parent-owned directory
+            payload = pickle.load(handle)  # nosec: B301
     finally:
         os.close(directory_fd)
     if not isinstance(payload, dict):

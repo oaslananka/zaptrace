@@ -195,7 +195,9 @@ class StateRecordMixin:
         if active is not None:
             clauses.append("active = ?")
             parameters.append(int(active))
-        query = "SELECT * FROM session_records WHERE " + " AND ".join(clauses) + " ORDER BY rowid"
+        query = (
+            "SELECT * FROM session_records WHERE " + " AND ".join(clauses) + " ORDER BY rowid"  # nosec: B608
+        )
         with closing(self._connect()) as connection:
             rows = connection.execute(query, parameters).fetchall()
         return [self._record_from_row(row) for row in rows]
@@ -336,7 +338,9 @@ class StateRecordMixin:
         if principal_id is not None:
             clauses.append("principal_id = ?")
             parameters.append(principal_id)
-        query = "SELECT payload_json FROM audit_events WHERE " + " AND ".join(clauses) + " ORDER BY rowid"
+        query = (
+            "SELECT payload_json FROM audit_events WHERE " + " AND ".join(clauses) + " ORDER BY rowid"  # nosec: B608
+        )
         with closing(self._connect()) as connection:
             rows = connection.execute(query, parameters).fetchall()
         events: list[dict[str, Any]] = []

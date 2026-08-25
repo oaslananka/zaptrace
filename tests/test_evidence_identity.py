@@ -18,9 +18,11 @@ from zaptrace.evidence.identity import (
 
 
 def _write_project(root: Path, *, version: str = "1.2.3") -> None:
-    (root / "pyproject.toml").write_text(f'[project]\nname = "zaptrace"\nversion = "{version}"\n', encoding="utf-8")
-    (root / "uv.lock").write_text("version = 1\n", encoding="utf-8")
-    (root / "source.txt").write_text("alpha\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        f'[project]\nname = "zaptrace"\nversion = "{version}"\n', encoding="utf-8", newline="\n"
+    )
+    (root / "uv.lock").write_text("version = 1\n", encoding="utf-8", newline="\n")
+    (root / "source.txt").write_text("alpha\n", encoding="utf-8", newline="\n")
 
 
 def test_snapshot_identity_contains_required_reproducibility_fields(tmp_path: Path) -> None:
@@ -151,7 +153,7 @@ def test_verify_identity_detects_stale_lock_and_source_inputs(tmp_path: Path) ->
 
 def test_hash_source_inputs_is_path_and_content_stable(tmp_path: Path) -> None:
     _write_project(tmp_path)
-    (tmp_path / "other.txt").write_text("omega\n", encoding="utf-8")
+    (tmp_path / "other.txt").write_text("omega\n", encoding="utf-8", newline="\n")
 
     first = hash_source_inputs(tmp_path, ["other.txt", "source.txt"])
     second = hash_source_inputs(tmp_path, ["source.txt", "other.txt"])
