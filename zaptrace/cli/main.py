@@ -957,7 +957,6 @@ def supply() -> None:
     """Live distributor supply chain intelligence and pricing."""
 
 
-
 @supply.command(name="check")
 @click.argument("mpn")
 @click.option("--provider", "-p", default="all", help="Provider name: lcsc, digikey, mouser, all")
@@ -1011,24 +1010,30 @@ def supply_compare(mpn: str) -> None:
         res = prov.lookup_mpn(mpn)
         if res:
             price = f"${res.price_breaks[0].unit_price:.4f}" if res.price_breaks else "—"
-            rows.append({
-                "Distributor": name,
-                "Part Number": res.distributor_part_number or res.mpn,
-                "Stock": str(res.stock or 0),
-                "Unit Price": price,
-                "Lifecycle": str(res.lifecycle),
-                "Source": res.cache.status,
-            })
+            rows.append(
+                {
+                    "Distributor": name,
+                    "Part Number": res.distributor_part_number or res.mpn,
+                    "Stock": str(res.stock or 0),
+                    "Unit Price": price,
+                    "Lifecycle": str(res.lifecycle),
+                    "Source": res.cache.status,
+                }
+            )
         else:
-            rows.append({
-                "Distributor": name,
-                "Part Number": "—",
-                "Stock": "0",
-                "Unit Price": "—",
-                "Lifecycle": "unknown",
-                "Source": "miss",
-            })
-    print_table(rows, title=f"Distributor Comparison: {mpn}")
+            rows.append(
+                {
+                    "Distributor": name,
+                    "Part Number": "—",
+                    "Stock": "0",
+                    "Unit Price": "—",
+                    "Lifecycle": "unknown",
+                    "Source": "miss",
+                }
+            )
+    cols = ["Distributor", "Part Number", "Stock", "Unit Price", "Lifecycle", "Source"]
+    table_rows = [[r[c] for c in cols] for r in rows]
+    print_table(f"Distributor Comparison: {mpn}", cols, table_rows)
 
 
 @supply.command(name="cache")
@@ -1218,7 +1223,3 @@ def init_project(name: str, template: str, target_dir: str) -> None:
 
 if __name__ == "__main__":
     cli()
-
-
-
-

@@ -37,14 +37,13 @@ class LiveDigiKeyProvider:
         self.client_id = os.environ.get("ZAPTRACE_DIGIKEY_CLIENT_ID", "")
         self.client_secret = os.environ.get("ZAPTRACE_DIGIKEY_CLIENT_SECRET", "")
         self._fixture_parts: dict[str, Any] = {}
-        self._load_fixture(
-            fixture_path or Path(__file__).parent.parent / "fixtures" / "digikey_parts.yaml"
-        )
+        self._load_fixture(fixture_path or Path(__file__).parent.parent / "fixtures" / "digikey_parts.yaml")
 
-    def _load_fixture(self, path: Path) -> None:
-        if path.exists():
+    def _load_fixture(self, path: str | Path) -> None:
+        p = Path(path)
+        if p.exists():
             try:
-                data = yaml.safe_load(path.read_text(encoding="utf-8"))
+                data = yaml.safe_load(p.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     self._fixture_parts = data.get("parts", data)
             except Exception:

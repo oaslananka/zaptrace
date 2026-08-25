@@ -221,14 +221,16 @@ def generate_3d_viewer(
     for ref, c in sorted(design.components.items()):
         pos = positions.get(ref)
         if pos:
-            comps_data.append({
-                "ref": ref,
-                "value": c.value,
-                "footprint": c.footprint,
-                "x": pos[0],
-                "y": pos[1],
-                "height": _estimate_height(c.footprint),
-            })
+            comps_data.append(
+                {
+                    "ref": ref,
+                    "value": c.value,
+                    "footprint": c.footprint,
+                    "x": pos[0],
+                    "y": pos[1],
+                    "height": _estimate_height(c.footprint),
+                }
+            )
 
     data_payload = {
         "design_name": design.meta.name,

@@ -166,16 +166,22 @@ def render_panel_svg(panel: PanelResult, scale: float = 4.0) -> str:
         bw = b.width_mm * scale
         bh = b.height_mm * scale
         body.append(f'<rect class="board" x="{bx:.1f}" y="{by:.1f}" width="{bw:.1f}" height="{bh:.1f}"/>')
-        body.append(f'<text class="label" x="{bx + 6:.1f}" y="{by + 16:.1f}">{html.escape(b.board_id)} #{b.index + 1}</text>')
+        body.append(
+            f'<text class="label" x="{bx + 6:.1f}" y="{by + 16:.1f}">{html.escape(b.board_id)} #{b.index + 1}</text>'
+        )
 
     # V-score lines
     for vs in panel.v_scores:
         if vs.orientation == "vertical":
             vx = ox + vs.position_mm * scale
-            body.append(f'<line class="vscore" x1="{vx:.1f}" y1="{oy}" x2="{vx:.1f}" y2="{oy + ph * scale:.1f}"><title>V-Score X={vs.position_mm}mm</title></line>')
+            body.append(
+                f'<line class="vscore" x1="{vx:.1f}" y1="{oy}" x2="{vx:.1f}" y2="{oy + ph * scale:.1f}"><title>V-Score X={vs.position_mm}mm</title></line>'
+            )
         else:
             vy = oy + vs.position_mm * scale
-            body.append(f'<line class="vscore" x1="{ox}" y1="{vy:.1f}" x2="{ox + pw * scale:.1f}" y2="{vy:.1f}"><title>V-Score Y={vs.position_mm}mm</title></line>')
+            body.append(
+                f'<line class="vscore" x1="{ox}" y1="{vy:.1f}" x2="{ox + pw * scale:.1f}" y2="{vy:.1f}"><title>V-Score Y={vs.position_mm}mm</title></line>'
+            )
 
     # Breakout tabs
     for t in panel.tabs:
@@ -188,14 +194,18 @@ def render_panel_svg(panel: PanelResult, scale: float = 4.0) -> str:
         hx = ox + th.x * scale
         hy = oy + th.y * scale
         hr = (th.diameter_mm * scale) / 2
-        body.append(f'<circle class="tooling" cx="{hx:.1f}" cy="{hy:.1f}" r="{hr:.1f}"><title>Tooling Hole dia={th.diameter_mm}mm</title></circle>')
+        body.append(
+            f'<circle class="tooling" cx="{hx:.1f}" cy="{hy:.1f}" r="{hr:.1f}"><title>Tooling Hole dia={th.diameter_mm}mm</title></circle>'
+        )
 
     # Fiducials
     for fd in panel.fiducials:
         fx = ox + fd.x * scale
         fy = oy + fd.y * scale
         fr = (fd.copper_diameter_mm * scale) / 2
-        body.append(f'<circle class="fiducial" cx="{fx:.1f}" cy="{fy:.1f}" r="{fr:.1f}"><title>Fiducial</title></circle>')
+        body.append(
+            f'<circle class="fiducial" cx="{fx:.1f}" cy="{fy:.1f}" r="{fr:.1f}"><title>Fiducial</title></circle>'
+        )
 
     body.append("</svg>")
     return "\n".join(body)

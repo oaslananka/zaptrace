@@ -42,9 +42,7 @@ class SqliteSupplyCache:
                 )
                 """
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_mpn_provider ON supply_cache (mpn, provider)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_mpn_provider ON supply_cache (mpn, provider)")
             conn.commit()
 
     def get(

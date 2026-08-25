@@ -333,5 +333,3 @@ class TestNewV1Commands:
         assert (out_dir / "index.html").exists()
         assert any(p.suffix == ".obj" for p in out_dir.iterdir())
         assert any(p.suffix == ".stl" for p in out_dir.iterdir())
-
-

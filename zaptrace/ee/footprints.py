@@ -147,8 +147,32 @@ _WLCSP_DIMENSIONS: dict[str, tuple[int, int, float, float]] = {
 }
 
 _BGA_ROW_LETTERS: list[str] = [
-    "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M",
-    "N", "P", "R", "T", "U", "V", "W", "Y", "AA", "AB", "AC", "AD", "AE", "AF",
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "P",
+    "R",
+    "T",
+    "U",
+    "V",
+    "W",
+    "Y",
+    "AA",
+    "AB",
+    "AC",
+    "AD",
+    "AE",
+    "AF",
 ]
 
 # Package alias map (user-friendly → canonical)
@@ -862,9 +886,8 @@ def generate_footprint_for_component(
         return footprint_solder_jumper(layer)
     if "test" in ctype or "probe" in ctype:
         return footprint_test_pad(layer)
-    if (
-        pkg_lower in ("module", "smd-module", "castellated-module")
-        or (ctype == "module" and "no-such" not in pkg_lower and "qfn" not in pkg_lower)
+    if pkg_lower in ("module", "smd-module", "castellated-module") or (
+        ctype == "module" and "no-such" not in pkg_lower and "qfn" not in pkg_lower
     ):
         return footprint_module(layer=layer)
 
@@ -1019,4 +1042,3 @@ _PACKAGE_HANDLERS: dict[str, Any] = {
         "MODULE": footprint_module,
     },
 }
-

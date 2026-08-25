@@ -104,9 +104,6 @@ class TestLengthMatchingAndSkew:
         )
         assert len(meanders) > 1
 
-        total_meander_len = sum(
-            math.hypot(s.end[0] - s.start[0], s.end[1] - s.start[1])
-            for s in meanders
-        )
+        total_meander_len = sum(math.hypot(s.end[0] - s.start[0], s.end[1] - s.start[1]) for s in meanders)
         assert total_meander_len > direct_dist
         assert abs(total_meander_len - target_len) < 2.0

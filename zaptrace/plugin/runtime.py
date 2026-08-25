@@ -48,9 +48,7 @@ class PluginRuntimeConfig:
     max_execution_seconds: float = 15.0
     allow_unverified_signatures: bool = False
     sandbox_workspace: Path | None = None
-    allowed_env_vars: set[str] = field(
-        default_factory=lambda: {"PATH", "SYSTEMROOT", "TEMP", "TMP", "PYTHONPATH"}
-    )
+    allowed_env_vars: set[str] = field(default_factory=lambda: {"PATH", "SYSTEMROOT", "TEMP", "TMP", "PYTHONPATH"})
 
 
 class HardenedPluginRuntime:
@@ -132,9 +130,7 @@ class HardenedPluginRuntime:
             )
 
         # 4. Prepare sanitized environment
-        clean_env = {
-            k: v for k, v in os.environ.items() if k.upper() in self.config.allowed_env_vars
-        }
+        clean_env = {k: v for k, v in os.environ.items() if k.upper() in self.config.allowed_env_vars}
         clean_env["ZAPTRACE_PLUGIN_ID"] = plugin_id
         clean_env["ZAPTRACE_SANDBOX_ACTIVE"] = "1"
 

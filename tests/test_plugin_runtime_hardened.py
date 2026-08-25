@@ -82,7 +82,6 @@ print('done')
     return pdir
 
 
-
 class TestHardenedPluginRuntime:
     """Test process sandbox, timeout, and admission in runtime."""
 

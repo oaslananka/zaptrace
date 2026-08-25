@@ -14,5 +14,3 @@ __all__ = [
     "generate_interactive_viewer",
     "generate_static_viewer",
 ]
-
-

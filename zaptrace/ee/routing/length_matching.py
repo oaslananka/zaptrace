@@ -114,14 +114,8 @@ def analyze_diff_pair_skew(
     er: float = 4.2,
 ) -> SkewReport:
     """Analyze intra-pair length and propagation delay skew between differential pair traces."""
-    len_p = sum(
-        math.hypot(t.end[0] - t.start[0], t.end[1] - t.start[1])
-        for t in traces_p
-    )
-    len_n = sum(
-        math.hypot(t.end[0] - t.start[0], t.end[1] - t.start[1])
-        for t in traces_n
-    )
+    len_p = sum(math.hypot(t.end[0] - t.start[0], t.end[1] - t.start[1]) for t in traces_p)
+    len_n = sum(math.hypot(t.end[0] - t.start[0], t.end[1] - t.start[1]) for t in traces_n)
 
     delta_len = abs(len_p - len_n)
     delay_per_mm = signal_propagation_delay_ps_per_mm(er)

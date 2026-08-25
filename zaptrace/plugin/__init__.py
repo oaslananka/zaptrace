@@ -34,4 +34,3 @@ __all__ = [
     "generate_plugin_manifest_schema",
     "load_plugin_manifest",
 ]
-

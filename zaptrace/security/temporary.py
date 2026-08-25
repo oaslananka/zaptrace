@@ -49,7 +49,8 @@ def _validate_private_directory(path: Path, parent: Path) -> None:
         metadata = path.lstat()
         if stat.S_IMODE(metadata.st_mode) != _PRIVATE_MODE:
             raise ValueError("private HOME directory must use mode 0700")
-    if hasattr(os, "geteuid") and metadata.st_uid != os.geteuid():
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is not None and metadata.st_uid != geteuid():
         raise ValueError("private HOME directory must be owned by the current process user")
 
 

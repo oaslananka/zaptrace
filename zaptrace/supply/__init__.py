@@ -61,4 +61,3 @@ __all__ = [
     "create_provider_from_env",
     "enrich_bom_with_provider",
 ]
-

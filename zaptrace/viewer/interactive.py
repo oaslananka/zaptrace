@@ -164,10 +164,7 @@ def _extract_viewer_data(design: Design) -> ViewerData:
     components: list[ViewerComponent] = []
     for comp in design.components.values():
         pos = placement.get(comp.id, comp.position or (0.0, 0.0))
-        pins = [
-            {"name": p.name, "type": p.type, "net": p.net or ""}
-            for p in comp.pins.values()
-        ]
+        pins = [{"name": p.name, "type": p.type, "net": p.net or ""} for p in comp.pins.values()]
         components.append(
             ViewerComponent(
                 id=comp.id,
@@ -293,9 +290,7 @@ def _build_interactive_html(design_name: str, data_json_str: str) -> str:
     dn = html.escape(design_name)
 
     # The template uses %DESIGN_NAME% and %DATA_JSON% as placeholders.
-    template = _INTERACTIVE_TEMPLATE.replace("%DESIGN_NAME%", dn).replace(
-        "%DATA_JSON%", data_json_str
-    )
+    template = _INTERACTIVE_TEMPLATE.replace("%DESIGN_NAME%", dn).replace("%DATA_JSON%", data_json_str)
     return template
 
 
