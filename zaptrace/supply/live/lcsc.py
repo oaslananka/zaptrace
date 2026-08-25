@@ -63,7 +63,7 @@ class LiveLcscProvider:
                     if result is not None:
                         self.cache.put(result)
                         return result
-        except (httpx.RequestError, httpx.HTTPStatusError, ValueError, KeyError):
+        except Exception:
             pass
 
         # 4. Fallback to stale cache

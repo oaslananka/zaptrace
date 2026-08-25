@@ -230,3 +230,205 @@ class TestDistributorProviders:
         assert limiter.acquire(1.0)
         # Block and acquire with timeout
         assert limiter.acquire(0.5, timeout=0.1)
+
+    def test_digikey_query_live_api_mocked(
+        self, temp_cache: SqliteSupplyCache, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("ZAPTRACE_DIGIKEY_CLIENT_ID", "test_id")
+        monkeypatch.setenv("ZAPTRACE_DIGIKEY_CLIENT_SECRET", "test_secret")
+        prov = LiveDigiKeyProvider(cache=temp_cache)
+        assert prov.client_id == "test_id"
+
+        class DummyResponse:
+            def __init__(self, status_code: int, data: dict) -> None:
+                self.status_code = status_code
+                self._data = data
+
+            def json(self) -> dict:
+                return self._data
+
+        class DummyClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self) -> DummyClient:
+                return self
+
+            def __exit__(self, *args) -> None:
+                pass
+
+            def post(self, url: str, **kwargs) -> DummyResponse:
+                if "oauth2" in url:
+                    return DummyResponse(200, {"access_token": "mock_token_123"})
+                return DummyResponse(
+                    200,
+                    {
+                        "Products": [
+                            {
+                                "Manufacturer": {"Value": "Texas Instruments"},
+                                "DigiKeyPartNumber": "296-LM358-ND",
+                                "QuantityAvailable": 12000,
+                                "ProductStatus": {"Value": "Active"},
+                                "StandardPricing": [{"BreakQuantity": 1, "UnitPrice": 0.35}],
+                            }
+                        ]
+                    },
+                )
+
+        import httpx
+
+        monkeypatch.setattr(httpx, "Client", DummyClient)
+        res = prov.lookup_mpn("LM358DR")
+        assert res is not None
+        assert res.mpn == "LM358DR"
+        assert res.stock == 12000
+
+        # Test fresh cache hit on second query
+        cached = prov.lookup_mpn("LM358DR")
+        assert cached is not None
+        assert cached.stock == 12000
+
+    def test_mouser_query_live_api_mocked(self, temp_cache: SqliteSupplyCache, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ZAPTRACE_MOUSER_API_KEY", "mock_key_456")
+        prov = LiveMouserProvider(cache=temp_cache)
+        assert prov.api_key == "mock_key_456"
+
+        class DummyResponse:
+            def __init__(self, status_code: int, data: dict) -> None:
+                self.status_code = status_code
+                self._data = data
+
+            def json(self) -> dict:
+                return self._data
+
+        class DummyClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self) -> DummyClient:
+                return self
+
+            def __exit__(self, *args) -> None:
+                pass
+
+            def post(self, url: str, **kwargs) -> DummyResponse:
+                return DummyResponse(
+                    200,
+                    {
+                        "SearchResults": {
+                            "Parts": [
+                                {
+                                    "Manufacturer": "Microchip",
+                                    "MouserPartNumber": "579-ATMEGA328P-PU",
+                                    "AvailabilityInStock": "3500 In Stock",
+                                    "ROHSStatus": "RoHS Compliant",
+                                    "PriceBreaks": [{"Quantity": 1, "Price": "$2.50", "Currency": "USD"}],
+                                }
+                            ]
+                        }
+                    },
+                )
+
+        import httpx
+
+        monkeypatch.setattr(httpx, "Client", DummyClient)
+        res = prov.lookup_mpn("ATMEGA328P-PU")
+        assert res is not None
+        assert res.mpn == "ATMEGA328P-PU"
+        assert res.stock == 3500
+
+    def test_lcsc_query_live_api_mocked(self, temp_cache: SqliteSupplyCache, monkeypatch: pytest.MonkeyPatch) -> None:
+        prov = LiveLcscProvider(cache=temp_cache)
+
+        class DummyResponse:
+            def __init__(self, status_code: int, data: dict) -> None:
+                self.status_code = status_code
+                self._data = data
+
+            def json(self) -> dict:
+                return self._data
+
+        class DummyClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self) -> DummyClient:
+                return self
+
+            def __exit__(self, *args) -> None:
+                pass
+
+            def post(self, url: str, **kwargs) -> DummyResponse:
+                return DummyResponse(
+                    200,
+                    {
+                        "result": [
+                            {
+                                "productCode": "C2040",
+                                "stockNumber": 50000,
+                                "productPrice": 0.002,
+                                "brandNameEn": "Samsung",
+                                "rohs": True,
+                            }
+                        ]
+                    },
+                )
+
+        import httpx
+
+        monkeypatch.setattr(httpx, "Client", DummyClient)
+        res = prov.lookup_mpn("CL21B104KBCNNNC")
+        assert res is not None
+        assert res.mpn == "CL21B104KBCNNNC"
+        assert res.stock == 50000
+
+    def test_fixture_fallback_and_invalid_file(self, tmp_path: Path) -> None:
+        empty_file = tmp_path / "empty.json"
+        empty_file.write_text("invalid json", encoding="utf-8")
+        prov_dk = LiveDigiKeyProvider(fixture_path=empty_file)
+        assert prov_dk._fixture_parts == {}
+        prov_mouser = LiveMouserProvider(fixture_path=empty_file)
+        assert prov_mouser._fixture_parts == {}
+
+    def test_fixture_lookup_hits(self, temp_cache: SqliteSupplyCache) -> None:
+        prov_dk = LiveDigiKeyProvider(cache=temp_cache)
+        res_dk = prov_dk.lookup_mpn("ESP32-S3-WROOM-1-N8")
+        assert res_dk is not None
+        assert res_dk.provider == "digikey"
+        assert res_dk.stock == 1500
+
+        prov_mo = LiveMouserProvider(cache=temp_cache)
+        res_mo = prov_mo.lookup_mpn("ESP32-S3-WROOM-1-N8")
+        assert res_mo is not None
+        assert res_mo.provider == "mouser"
+        assert res_mo.stock == 2100
+
+    def test_http_error_handling(self, temp_cache: SqliteSupplyCache, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ZAPTRACE_DIGIKEY_CLIENT_ID", "test_id")
+        monkeypatch.setenv("ZAPTRACE_DIGIKEY_CLIENT_SECRET", "test_secret")
+        monkeypatch.setenv("ZAPTRACE_MOUSER_API_KEY", "test_key")
+
+        class ErrorClient:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            def __enter__(self) -> ErrorClient:
+                return self
+
+            def __exit__(self, *args) -> None:
+                pass
+
+            def post(self, url: str, **kwargs) -> None:
+                raise RuntimeError("Network failure")
+
+        import httpx
+
+        monkeypatch.setattr(httpx, "Client", ErrorClient)
+        prov_dk = LiveDigiKeyProvider(cache=temp_cache)
+        assert prov_dk.lookup_mpn("NONEXISTENT_PART_123") is None
+
+        prov_mo = LiveMouserProvider(cache=temp_cache)
+        assert prov_mo.lookup_mpn("NONEXISTENT_PART_123") is None
+
+        prov_lc = LiveLcscProvider(cache=temp_cache)
+        assert prov_lc.lookup_mpn("NONEXISTENT_PART_123") is None

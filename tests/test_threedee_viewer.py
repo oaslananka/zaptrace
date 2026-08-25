@@ -65,6 +65,16 @@ class TestMeshExport:
         assert "outer loop" in stl_text
         assert "vertex" in stl_text
 
+    def test_export_pcb_obj_with_unplaced_and_unknown_footprints(self, sample_3d_design: Design) -> None:
+        sample_3d_design.components["c_unplaced"] = Component(
+            id="c_unplaced", ref="C1", footprint="CUSTOM_PKG_999", type="capacitor"
+        )
+        # Only r1 and u1 are in placement, c_unplaced has no placement
+        obj_text = export_pcb_obj(sample_3d_design)
+        assert "o Substrate_FR4" in obj_text
+        stl_text = export_pcb_stl(sample_3d_design)
+        assert "solid mesh-test-board" in stl_text
+
 
 class TestThreeDeeViewer:
     """Test 3D WebGL HTML bundle generator."""

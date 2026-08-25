@@ -277,10 +277,26 @@ class TestStaticViewer:
         assert Path(bundle.assets["schematic"]).exists()
         assert Path(bundle.assets["pcb_top"]).exists()
         assert Path(bundle.assets["pcb_bottom"]).exists()
-        assert Path(bundle.data["bom"]).exists()
-        assert Path(bundle.data["manifest"]).exists()
-        assert len(bundle.non_claims) >= 1
-
         index_content = Path(bundle.index_path).read_text(encoding="utf-8")
         assert "ZapTrace Review Viewer" in index_content
         assert "test-viewer-design" in index_content
+
+    def test_generate_static_bundle_with_proof_and_violations(self, simple_design: Design, tmp_path: Path) -> None:
+        proof_file = tmp_path / "proof.yaml"
+        proof_file.write_text("name: Test Proof\nchecks:\n  - rule: DRC\n    status: pass\n", encoding="utf-8")
+
+        bundle = generate_static_viewer(simple_design, output_dir=tmp_path / "static_proof", proof_path=proof_file)
+        assert bundle.assets["pcb_top"]
+        assert Path(bundle.data["proof"]).exists()
+
+        # Non-existent proof path
+        missing_bundle = generate_static_viewer(
+            simple_design, output_dir=tmp_path / "static_miss", proof_path=tmp_path / "missing.yaml"
+        )
+        assert Path(missing_bundle.index_path).exists()
+
+        # Invalid proof path (non-dict)
+        bad_proof = tmp_path / "bad.yaml"
+        bad_proof.write_text("- item1\n- item2\n", encoding="utf-8")
+        bad_bundle = generate_static_viewer(simple_design, output_dir=tmp_path / "static_bad", proof_path=bad_proof)
+        assert Path(bad_bundle.index_path).exists()

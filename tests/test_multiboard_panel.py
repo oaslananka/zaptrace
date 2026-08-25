@@ -139,3 +139,42 @@ class TestPanelGeneration:
         assert "V-Score Y=" in svg
         assert "tooling" in svg
         assert "fiducial" in svg
+
+    def test_render_tab_route_panel_svg(self) -> None:
+        config = PanelConfig(
+            name="tab-svg-panel",
+            panel_width_mm=100.0,
+            panel_height_mm=80.0,
+            separation=PanelSeparationMethod.TAB_ROUTE,
+            boards=[
+                BoardInstance(
+                    board_id="b_tab",
+                    width_mm=30.0,
+                    height_mm=30.0,
+                    count_x=2,
+                    count_y=2,
+                )
+            ],
+        )
+        result = generate_panel(config)
+        svg = render_panel_svg(result)
+        assert 'class="tab"' in svg
+
+    def test_panel_without_fiducials_and_tooling_holes(self) -> None:
+        config = PanelConfig(
+            name="plain-panel",
+            auto_fiducials=False,
+            auto_tooling_holes=False,
+            boards=[
+                BoardInstance(
+                    board_id="b_plain",
+                    width_mm=20.0,
+                    height_mm=20.0,
+                    count_x=1,
+                    count_y=1,
+                )
+            ],
+        )
+        result = generate_panel(config)
+        assert len(result.fiducials) == 0
+        assert len(result.tooling_holes) == 0
