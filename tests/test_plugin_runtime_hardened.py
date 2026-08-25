@@ -14,7 +14,7 @@ from zaptrace.plugin.runtime import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def valid_plugin_dir(tmp_path: Path) -> Path:
     """Create a temporary valid plugin directory."""
     pdir = tmp_path / "simple_plugin"
@@ -50,7 +50,7 @@ print(json.dumps(out))
     return pdir
 
 
-@pytest.fixture()
+@pytest.fixture
 def slow_plugin_dir(tmp_path: Path) -> Path:
     """Create a temporary plugin that sleeps indefinitely."""
     pdir = tmp_path / "slow_plugin"

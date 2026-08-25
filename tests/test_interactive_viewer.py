@@ -28,7 +28,7 @@ from zaptrace.viewer.interactive import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_design() -> Design:
     """Minimal design with two components, one net, one trace, and one DRC violation."""
     return Design(

@@ -20,7 +20,9 @@ def create_live_provider(
         return LiveDigiKeyProvider(cache=cache)
     if p == "mouser":
         return LiveMouserProvider(cache=cache)
-    return LiveLcscProvider(cache=cache)
+    if p == "lcsc":
+        return LiveLcscProvider(cache=cache)
+    raise ValueError(f"unknown live distributor: {provider_name}")
 
 
 __all__ = [

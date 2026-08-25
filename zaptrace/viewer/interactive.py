@@ -155,11 +155,7 @@ class ViewerData(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _extract_viewer_data(design: Design) -> ViewerData:
-    """Convert a Design to a ViewerData bundle."""
-    board_def = canonical_board_definition(design)
-
-    # Components
+def _extract_components(design: Design) -> list[ViewerComponent]:
     placement = design.placement or {}
     components: list[ViewerComponent] = []
     for comp in design.components.values():
@@ -180,8 +176,10 @@ def _extract_viewer_data(design: Design) -> ViewerData:
                 dnp=comp.dnp,
             )
         )
+    return components
 
-    # Nets
+
+def _extract_nets(design: Design) -> list[ViewerNet]:
     net_classes = design.net_classes or {}
     nets: list[ViewerNet] = []
     for net in design.nets.values():
@@ -194,80 +192,94 @@ def _extract_viewer_data(design: Design) -> ViewerData:
                 nodes=[{"ref": n.component_ref, "pin": n.pin_name} for n in net.nodes],
             )
         )
+    return nets
 
-    # Traces and vias
+
+def _extract_traces_and_vias(design: Design) -> tuple[list[ViewerTrace], list[ViewerVia]]:
     traces: list[ViewerTrace] = []
     vias: list[ViewerVia] = []
-    if design.routing:
-        for seg in design.routing.traces:
-            traces.append(
-                ViewerTrace(
-                    start_x=float(seg.start[0]),
-                    start_y=float(seg.start[1]),
-                    end_x=float(seg.end[0]),
-                    end_y=float(seg.end[1]),
-                    width=seg.width,
-                    layer=seg.layer,
-                    net_id=seg.net_id,
-                )
+    if not design.routing:
+        return traces, vias
+    for seg in design.routing.traces:
+        traces.append(
+            ViewerTrace(
+                start_x=float(seg.start[0]),
+                start_y=float(seg.start[1]),
+                end_x=float(seg.end[0]),
+                end_y=float(seg.end[1]),
+                width=seg.width,
+                layer=seg.layer,
+                net_id=seg.net_id,
             )
-        for via_tuple in design.routing.vias:
-            net_id = via_tuple[4] if len(via_tuple) > 4 else ""
-            vias.append(
-                ViewerVia(
-                    x=float(via_tuple[0]),
-                    y=float(via_tuple[1]),
-                    diameter=float(via_tuple[2]),
-                    drill=float(via_tuple[3]),
-                    net_id=str(net_id),
-                )
+        )
+    for via_tuple in design.routing.vias:
+        net_id = via_tuple[4] if len(via_tuple) > 4 else ""
+        vias.append(
+            ViewerVia(
+                x=float(via_tuple[0]),
+                y=float(via_tuple[1]),
+                diameter=float(via_tuple[2]),
+                drill=float(via_tuple[3]),
+                net_id=str(net_id),
             )
+        )
+    return traces, vias
 
-    # Violations
+
+def _parse_violation_location(loc: Any) -> tuple[float | None, float | None]:
+    if isinstance(loc, str) and "," in loc:
+        parts = loc.strip("() ").split(",")
+        with contextlib.suppress(ValueError, IndexError):
+            return float(parts[0]), float(parts[1])
+    return None, None
+
+
+def _extract_violations(design: Design) -> list[ViewerViolation]:
     violations: list[ViewerViolation] = []
-    if design.drc_result:
-        for v in design.drc_result.violations:
-            loc = v.location
-            vx, vy = None, None
-            if isinstance(loc, str) and "," in loc:
-                parts = loc.strip("() ").split(",")
-                with contextlib.suppress(ValueError, IndexError):
-                    vx, vy = float(parts[0]), float(parts[1])
-            violations.append(
-                ViewerViolation(
-                    rule_id=v.rule_id,
-                    severity=v.severity,
-                    message=v.message,
-                    x=vx,
-                    y=vy,
-                    net_id=v.net_id,
-                    component_ref=v.component_id,
-                )
+    if not design.drc_result:
+        return violations
+    for v in design.drc_result.violations:
+        vx, vy = _parse_violation_location(v.location)
+        violations.append(
+            ViewerViolation(
+                rule_id=v.rule_id,
+                severity=v.severity,
+                message=v.message,
+                x=vx,
+                y=vy,
+                net_id=v.net_id,
+                component_ref=v.component_id,
             )
+        )
+    return violations
 
-    # BOM
-    bom_items: list[dict[str, Any]] = []
+
+def _extract_bom_items(design: Design) -> list[dict[str, Any]]:
     with contextlib.suppress(Exception):
         bom_json = json.loads(generate_bom_json(design))
-        bom_items = bom_json.get("items", [])
+        return bom_json.get("items", [])
+    return []
 
-    # Board
+
+def _extract_viewer_data(design: Design) -> ViewerData:
+    """Convert a Design to a ViewerData bundle."""
+    board_def = canonical_board_definition(design)
+    traces, vias = _extract_traces_and_vias(design)
     board = ViewerBoard(
         width_mm=board_def.width,
         height_mm=board_def.height,
         layers=board_def.layers,
         outline=board_def.outline if board_def.outline else [],
     )
-
     return ViewerData(
         design_name=design.meta.name,
         board=board,
-        components=components,
-        nets=nets,
+        components=_extract_components(design),
+        nets=_extract_nets(design),
         traces=traces,
         vias=vias,
-        violations=violations,
-        bom=bom_items,
+        violations=_extract_violations(design),
+        bom=_extract_bom_items(design),
         non_claims=[
             "interactive local review artifact, not cloud upload",
             "viewer is inspection-only and does not mutate designs",

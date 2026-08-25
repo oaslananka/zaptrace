@@ -115,3 +115,27 @@ class TestPanelGeneration:
         # 2 per board * 4 boards = 8
         assert r_item["quantity"] == 8
         assert len(r_item["refs"]) == 4
+
+    def test_render_vscore_panel_svg(self) -> None:
+        config = PanelConfig(
+            name="vscore-svg-panel",
+            panel_width_mm=120.0,
+            panel_height_mm=100.0,
+            separation=PanelSeparationMethod.V_SCORE,
+            boards=[
+                BoardInstance(
+                    board_id="b1",
+                    width_mm=30.0,
+                    height_mm=30.0,
+                    count_x=2,
+                    count_y=2,
+                )
+            ],
+        )
+        result = generate_panel(config)
+        svg = render_panel_svg(result)
+        assert "vscore" in svg
+        assert "V-Score X=" in svg
+        assert "V-Score Y=" in svg
+        assert "tooling" in svg
+        assert "fiducial" in svg

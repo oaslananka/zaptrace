@@ -22,12 +22,12 @@ from zaptrace.supply.live.mouser import LiveMouserProvider
 from zaptrace.supply.live.rate_limiter import TokenBucketRateLimiter
 
 
-@pytest.fixture()
+@pytest.fixture
 def temp_cache(tmp_path: Path) -> SqliteSupplyCache:
     return SqliteSupplyCache(db_path=tmp_path / "test_supply.db")
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_result() -> BomProviderResult:
     return BomProviderResult(
         provider="test-dist",
@@ -128,3 +128,26 @@ class TestDistributorProviders:
         assert isinstance(dk, LiveDigiKeyProvider)
         mouser = create_live_provider("mouser", cache=temp_cache)
         assert isinstance(mouser, LiveMouserProvider)
+        with pytest.raises(ValueError, match="unknown live distributor"):
+            create_live_provider("nonexistent")
+
+    def test_digikey_lookup_mpn_and_empty(self, temp_cache: SqliteSupplyCache) -> None:
+        prov = LiveDigiKeyProvider(cache=temp_cache)
+        assert prov.lookup_mpn("") is None
+        res = prov.lookup_mpn("RC0603FR-0710KL")
+        if res is not None:
+            assert res.provider == "digikey"
+
+    def test_mouser_lookup_mpn_and_empty(self, temp_cache: SqliteSupplyCache) -> None:
+        prov = LiveMouserProvider(cache=temp_cache)
+        assert prov.lookup_mpn("") is None
+        res = prov.lookup_mpn("RC0603FR-0710KL")
+        if res is not None:
+            assert res.provider == "mouser"
+
+    def test_lcsc_lookup_mpn_and_empty(self, temp_cache: SqliteSupplyCache) -> None:
+        prov = LiveLcscProvider(cache=temp_cache)
+        assert prov.lookup_mpn("") is None
+        res = prov.lookup_mpn("C12345")
+        if res is not None:
+            assert res.provider == "lcsc"

@@ -171,7 +171,7 @@ def generate_meander_segments(
     # Reserve straight lead-in and lead-out
     margin = 1.0
     active_span = max(0.1, direct_dist - 2 * margin)
-    step = active_span / (num_cycles * 2)
+    step = min(pitch_mm, active_span / (num_cycles * 2))
 
     cur = start
     first_point = (start[0] + ux * margin, start[1] + uy * margin)
