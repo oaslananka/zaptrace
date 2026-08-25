@@ -26,6 +26,10 @@ from zaptrace.viewer.interactive import (
     _extract_viewer_data,
     generate_interactive_viewer,
 )
+from zaptrace.viewer.static import (
+    ViewerBundle,
+    generate_static_viewer,
+)
 
 
 @pytest.fixture
@@ -261,3 +265,22 @@ class TestInteractiveViewerGeneration:
         assert "</html>" in html_content
         assert "<script>" in html_content
         assert "</script>" in html_content
+
+
+class TestStaticViewer:
+    """Test static review viewer bundle generation."""
+
+    def test_generate_static_bundle(self, simple_design: Design, tmp_path: Path) -> None:
+        bundle = generate_static_viewer(simple_design, output_dir=tmp_path / "static_viewer")
+        assert isinstance(bundle, ViewerBundle)
+        assert Path(bundle.index_path).exists()
+        assert Path(bundle.assets["schematic"]).exists()
+        assert Path(bundle.assets["pcb_top"]).exists()
+        assert Path(bundle.assets["pcb_bottom"]).exists()
+        assert Path(bundle.data["bom"]).exists()
+        assert Path(bundle.data["manifest"]).exists()
+        assert len(bundle.non_claims) >= 1
+
+        index_content = Path(bundle.index_path).read_text(encoding="utf-8")
+        assert "ZapTrace Review Viewer" in index_content
+        assert "test-viewer-design" in index_content

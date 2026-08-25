@@ -151,3 +151,82 @@ class TestDistributorProviders:
         res = prov.lookup_mpn("C12345")
         if res is not None:
             assert res.provider == "lcsc"
+
+    def test_digikey_parse_api_response(self, temp_cache: SqliteSupplyCache) -> None:
+        prov = LiveDigiKeyProvider(cache=temp_cache)
+        raw_data = {
+            "Products": [
+                {
+                    "Manufacturer": {"Value": "Yageo"},
+                    "DigiKeyPartNumber": "311-10.0KFRTR-ND",
+                    "QuantityAvailable": 5000,
+                    "ProductStatus": {"Value": "Active"},
+                    "Classifications": {"RoHS": "ROHS3 Compliant"},
+                    "PackageType": {"Value": "0402"},
+                    "StandardPricing": [
+                        {"BreakQuantity": 1, "UnitPrice": 0.10},
+                        {"BreakQuantity": 100, "UnitPrice": 0.02},
+                    ],
+                }
+            ]
+        }
+        res = prov._parse_api_response("RC0402FR-0710KL", raw_data)
+        assert res is not None
+        assert res.mpn == "RC0402FR-0710KL"
+        assert res.stock == 5000
+        assert res.manufacturer == "Yageo"
+        assert len(res.price_breaks) == 2
+        assert prov._parse_api_response("RC0402", {"Products": []}) is None
+
+    def test_mouser_parse_api_response(self, temp_cache: SqliteSupplyCache) -> None:
+        prov = LiveMouserProvider(cache=temp_cache)
+        raw_data = {
+            "SearchResults": {
+                "Parts": [
+                    {
+                        "Manufacturer": "Vishay",
+                        "MouserPartNumber": "71-CRCW060310K0FKEA",
+                        "AvailabilityInStock": "2500 In Stock",
+                        "ROHSStatus": "RoHS Compliant",
+                        "Package": "0603",
+                        "PriceBreaks": [
+                            {"Quantity": 1, "Price": "$0.12", "Currency": "USD"},
+                            {"Quantity": 50, "Price": "$0.05", "Currency": "USD"},
+                        ],
+                    }
+                ]
+            }
+        }
+        res = prov._parse_api_response("CRCW060310K0FKEA", raw_data)
+        assert res is not None
+        assert res.stock == 2500
+        assert res.manufacturer == "Vishay"
+        assert len(res.price_breaks) == 2
+        assert prov._parse_api_response("X", {"SearchResults": {"Parts": []}}) is None
+
+    def test_lcsc_parse_response(self, temp_cache: SqliteSupplyCache) -> None:
+        prov = LiveLcscProvider(cache=temp_cache)
+        raw_data = {
+            "result": [
+                {
+                    "productCode": "C123456",
+                    "stockNumber": 10000,
+                    "productPrice": 0.005,
+                    "brandNameEn": "UNI-ROYAL",
+                    "rohs": True,
+                    "encapStandard": "0402",
+                }
+            ]
+        }
+        res = prov._parse_response("0402WGF1002TCE", raw_data)
+        assert res is not None
+        assert res.distributor_part_number == "C123456"
+        assert res.stock == 10000
+        assert res.price_breaks[0].unit_price == 0.005
+        assert prov._parse_response("X", {"result": []}) is None
+
+    def test_rate_limiter_blocking_acquire(self) -> None:
+        limiter = TokenBucketRateLimiter(rate=50.0, capacity=1.0)
+        assert limiter.acquire(1.0)
+        # Block and acquire with timeout
+        assert limiter.acquire(0.5, timeout=0.1)
