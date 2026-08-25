@@ -118,10 +118,12 @@ class TestSupportedPackagesList:
     def test_special_component_type_dispatches(self) -> None:
         # Header pin count variations
         h_2p = generate_footprint_for_component("2P", component_type="header")
-        assert h_2p is not None and len(h_2p.pads) == 2
+        assert h_2p is not None
+        assert len(h_2p.pads) == 2
 
         h_term = generate_footprint_for_component("2x4", component_type="terminal")
-        assert h_term is not None and len(h_term.pads) == 8
+        assert h_term is not None
+        assert len(h_term.pads) == 8
 
         # USB, JST, Crystal, Jumper, Testpad
         assert generate_footprint_for_component("USB", component_type="usb-a") is not None
