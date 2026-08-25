@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 import subprocess
 from pathlib import Path
@@ -106,7 +107,8 @@ def test_kicad_subprocess_uses_ephemeral_private_home_when_home_is_missing(
         observed_home = Path(env["HOME"])
         assert observed_home.is_dir()
         assert not observed_home.is_symlink()
-        assert stat.S_IMODE(observed_home.stat().st_mode) == 0o700
+        if os.name == "posix":
+            assert stat.S_IMODE(observed_home.stat().st_mode) == 0o700
         return subprocess.CompletedProcess(["kicad-cli", "--version"], 0, "9.0.0", "")
 
     monkeypatch.delenv("HOME", raising=False)

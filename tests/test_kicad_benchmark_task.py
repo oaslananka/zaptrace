@@ -648,7 +648,7 @@ def test_corpus_provenance_hashes_match_committed_files() -> None:
         assert "kicad-cli 10.0.5" in provenance
         declared = dict(re.findall(r"- `([^`]+)`: `([0-9a-f]{64})`", provenance))
         actual = {
-            str(path.relative_to(project)): hashlib.sha256(path.read_bytes()).hexdigest()
+            path.relative_to(project).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(project.rglob("*"))
             if path.is_file() and path.name != "PROVENANCE.txt"
         }

@@ -37,9 +37,9 @@ def _print_task_header(spec: Any) -> None:
 
 
 def _print_run(project: Path, result: TaskRunResult) -> None:
-    icon = {"pass": "✓", "fail": "✗", "skip": "⊘", "error": "!"}.get(result.status, "?")
+    icon = {"pass": "OK", "fail": "FAIL", "skip": "SKIP", "error": "ERR"}.get(result.status, "?")
     print(f"  [{icon}] {project.name}: {result.status.upper()} (hash={result.run_hash[:12]})")
-    grader_icons = {"pass": " ✓", "fail": " ✗", "skip": " ⊘", "error": " !"}
+    grader_icons = {"pass": " +", "fail": " x", "skip": " -", "error": " !"}
     for grader in result.grader_results:
         print(f"      {grader_icons.get(grader.status, ' ?')} {grader.grader_id}: {grader.detail[:80]}")
     for violation in result.threshold_violations:

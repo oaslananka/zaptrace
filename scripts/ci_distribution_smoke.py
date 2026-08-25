@@ -126,9 +126,10 @@ def verify_native_state(
 def resolve_console_script(name: str) -> Path:
     """Resolve a console entry point from the active clean environment."""
     scripts_dir = Path(sys.executable).absolute().parent
-    candidates = [scripts_dir / name]
     if os.name == "nt":
-        candidates.extend((scripts_dir / f"{name}.exe", scripts_dir / f"{name}.cmd"))
+        candidates = [scripts_dir / f"{name}.exe", scripts_dir / f"{name}.cmd", scripts_dir / name]
+    else:
+        candidates = [scripts_dir / name]
     for candidate in candidates:
         if candidate.is_file():
             return candidate.resolve()
@@ -136,6 +137,13 @@ def resolve_console_script(name: str) -> Path:
     if not resolved:
         raise DistributionSmokeError(f"Installed console script is missing: {name}")
     return Path(resolved).resolve()
+
+
+def _console_script_command(name: str) -> list[str]:
+    script = resolve_console_script(name)
+    if os.name == "nt" and script.suffix.lower() not in (".exe", ".cmd", ".bat"):
+        return [sys.executable, str(script)]
+    return [str(script)]
 
 
 def _bounded(value: str) -> str:
@@ -167,8 +175,9 @@ def _run_command(args: list[str], *, timeout_s: float) -> dict[str, Any]:
 def run_console_checks(expected_version: str, *, timeout_s: float = 15.0) -> dict[str, Any]:
     """Exercise installed CLI entry points without importing the source tree."""
     cli = resolve_console_script("zaptrace")
-    version_result = _run_command([str(cli), "--version"], timeout_s=timeout_s)
-    help_result = _run_command([str(cli), "--help"], timeout_s=timeout_s)
+    cli_cmd = _console_script_command("zaptrace")
+    version_result = _run_command([*cli_cmd, "--version"], timeout_s=timeout_s)
+    help_result = _run_command([*cli_cmd, "--help"], timeout_s=timeout_s)
     version_output = f"{version_result['stdout']}\n{version_result['stderr']}"
     if expected_version not in version_output:
         raise DistributionSmokeError(
@@ -254,7 +263,7 @@ def probe_api(*, timeout_s: float = 15.0) -> dict[str, Any]:
         }
     )
     process = subprocess.Popen(
-        [str(resolve_console_script("zaptrace-api"))],
+        [*_console_script_command("zaptrace-api")],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -329,7 +338,7 @@ def probe_mcp_http(*, timeout_s: float = 15.0) -> dict[str, Any]:
         }
     )
     process = subprocess.Popen(
-        [str(resolve_console_script("zaptrace-mcp-http"))],
+        [*_console_script_command("zaptrace-mcp-http")],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -33,6 +34,8 @@ def _reuse_command(*args: str) -> list[str]:
         uvx = str(user_uvx) if user_uvx.is_file() else None
     if uvx is None:
         raise RuntimeError("uvx is required to run the pinned REUSE compliance tool")
+    if os.name == "nt":
+        return [uvx, "--from", f"reuse=={EXPECTED_REUSE_VERSION}", "--with", "charset-normalizer", "reuse", *args]
     return [uvx, "--from", f"reuse=={EXPECTED_REUSE_VERSION}", "reuse", *args]
 
 

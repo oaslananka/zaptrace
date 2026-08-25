@@ -313,11 +313,11 @@ class SQLiteStateStore(StateRecordMixin):
             names = sorted(designs)
             if names:
                 placeholders = ",".join("?" for _ in names)
-                connection.execute(
-                    f"DELETE FROM design_heads WHERE session_id = ? "  # noqa: S608 - placeholders only
-                    f"AND design_name NOT IN ({placeholders})",
-                    (session_id, *names),
+                delete_query = (
+                    f"DELETE FROM design_heads WHERE session_id = ? "
+                    f"AND design_name NOT IN ({placeholders})"  # nosec: B608
                 )
+                connection.execute(delete_query, (session_id, *names))
             else:
                 connection.execute("DELETE FROM design_heads WHERE session_id = ?", (session_id,))
 

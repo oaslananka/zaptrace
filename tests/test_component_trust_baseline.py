@@ -169,7 +169,10 @@ def test_baseline_load_rejects_workspace_escape(tmp_path: Path) -> None:
 def test_baseline_load_rejects_symlink(tmp_path: Path) -> None:
     real = write_trust_baseline(_baseline(part=ComponentTrustTier.HEURISTIC), tmp_path / "real.json")
     link = tmp_path / "baseline.json"
-    link.symlink_to(real)
+    try:
+        link.symlink_to(real)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="symbolic link"):
         load_trust_baseline(link, allowed_root=tmp_path)

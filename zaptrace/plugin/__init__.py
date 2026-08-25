@@ -13,13 +13,21 @@ from zaptrace.plugin.manifest import (
     generate_plugin_manifest_schema,
     load_plugin_manifest,
 )
+from zaptrace.plugin.runtime import (
+    HardenedPluginRuntime,
+    PluginExecutionResult,
+    PluginRuntimeConfig,
+)
 
 __all__ = [
+    "HardenedPluginRuntime",
     "PluginAdmissionResult",
     "PluginCapability",
     "PluginEntry",
+    "PluginExecutionResult",
     "PluginManifest",
     "PluginPermissions",
+    "PluginRuntimeConfig",
     "PluginSigning",
     "admit_plugin_manifest",
     "discover_plugin_manifests",

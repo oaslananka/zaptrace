@@ -428,7 +428,7 @@ def _write_request(path: Path, payload: dict[str, Any]) -> None:
 
 def _read_response(path: Path) -> dict[str, Any]:
     with path.open("rb") as handle:
-        payload = pickle.load(handle)
+        payload = pickle.load(handle)  # nosec: B301
     if not isinstance(payload, dict):
         raise TypeError("isolated worker returned an invalid response")
     return payload

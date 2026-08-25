@@ -429,7 +429,7 @@ def main() -> int:
             {
                 "gate_id": "compose-runtime-smoke-v1",
                 "passed": passed,
-                "summary_path": str(SUMMARY_PATH.relative_to(ROOT)),
+                "summary_path": SUMMARY_PATH.relative_to(ROOT).as_posix(),
             },
             sort_keys=True,
         )

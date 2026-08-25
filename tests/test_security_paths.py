@@ -30,7 +30,10 @@ def test_resolve_trusted_path_rejects_symlink_escape(tmp_path: Path) -> None:
     outside = tmp_path / "outside.yaml"
     outside.write_text("value: true\n", encoding="utf-8")
     link = trusted / "input.yaml"
-    link.symlink_to(outside)
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="config path escapes repository root"):
         resolve_trusted_path(link, trusted_root=trusted, label="config path")

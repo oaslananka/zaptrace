@@ -242,7 +242,10 @@ def test_validation_rejects_workspace_escape_and_symlink(tmp_path: Path) -> None
     outside = tmp_path / "outside.kicad_sch"
     outside.write_text("external", encoding="utf-8")
     source.unlink()
-    source.symlink_to(outside)
+    try:
+        source.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     report = api.validate_external_corpus(root, manifest_path=manifest_path)
 

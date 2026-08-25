@@ -105,7 +105,10 @@ def test_validate_ipc_paths_rejects_symlink_request(tmp_path: Path) -> None:
     workspace, request_path, response_path = _ipc_paths(tmp_path)
     target = request_path.parent / "request-target.pickle"
     request_path.rename(target)
-    request_path.symlink_to(target)
+    try:
+        request_path.symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="regular non-symlink file"):
         _validate(request_path, response_path, workspace)

@@ -559,7 +559,10 @@ def test_human_reference_output_path_rejects_existing_symlink(tmp_path: Path) ->
     destination = tmp_path / "destination.json"
     destination.write_text("unchanged\n", encoding="utf-8")
     output = tmp_path / "report.json"
-    output.symlink_to(destination)
+    try:
+        output.symlink_to(destination)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     with pytest.raises(ValueError, match="symbolic link"):
         module._resolve_output_path(Path("."), output)
@@ -570,7 +573,10 @@ def test_human_reference_output_path_rejects_symlink_parent(tmp_path: Path) -> N
     destination = tmp_path / "destination"
     destination.mkdir()
     linked_parent = tmp_path / "linked"
-    linked_parent.symlink_to(destination, target_is_directory=True)
+    try:
+        linked_parent.symlink_to(destination, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
     output = linked_parent / "report.json"
 
     with pytest.raises(ValueError, match="symbolic link"):
@@ -583,7 +589,10 @@ def test_human_reference_safe_writer_blocks_symlink_swap(tmp_path: Path) -> None
     target = module._resolve_output_path(Path("."), output)
     destination = tmp_path / "destination.json"
     destination.write_text("unchanged\n", encoding="utf-8")
-    output.symlink_to(destination)
+    try:
+        output.symlink_to(destination)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
 
     module._write_text_safely(target, "replacement\n")
 

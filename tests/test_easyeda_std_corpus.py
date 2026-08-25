@@ -197,10 +197,10 @@ class TestCapabilityMatrixDistinction:
     """Verify docs clearly distinguish EasyEDA Standard from EasyEDA Pro."""
 
     def test_readme_mentions_easyeda_standard(self) -> None:
-        readme = (_REPO_ROOT / "README.md").read_text()
+        readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
         assert "easyeda" in readme.lower() or "EasyEDA" in readme
 
     def test_capability_matrix_entry_exists(self) -> None:
         """The capability matrix doc must mention both Standard and Pro."""
-        audit = (_REPO_ROOT / "docs" / "strategy" / "current-state-audit.md").read_text()
+        audit = (_REPO_ROOT / "docs" / "strategy" / "current-state-audit.md").read_text(encoding="utf-8")
         assert "EasyEDA" in audit

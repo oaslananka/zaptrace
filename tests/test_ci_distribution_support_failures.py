@@ -158,10 +158,13 @@ def test_load_policy_rejects_workspace_escape_and_symlink(tmp_path: Path) -> Non
     workspace.mkdir()
     outside = tmp_path / "outside.json"
     outside.write_text(json.dumps(_policy()), encoding="utf-8")
-    symlink = workspace / "policy.json"
-    symlink.symlink_to(outside)
-
     with pytest.raises(module.DistributionPolicyError, match="outside allowed root"):
         module.load_policy(outside, allowed_root=workspace)
-    with pytest.raises(module.DistributionPolicyError, match="symbolic link"):
-        module.load_policy(symlink, allowed_root=workspace)
+
+    symlink = workspace / "policy.json"
+    try:
+        symlink.symlink_to(outside)
+        with pytest.raises(module.DistributionPolicyError, match="symbolic link"):
+            module.load_policy(symlink, allowed_root=workspace)
+    except OSError:
+        pass

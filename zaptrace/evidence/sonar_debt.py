@@ -232,7 +232,7 @@ class SonarWebApiClient:
     def _default_transport(url: str, headers: dict[str, str]) -> SonarApiResponse:
         request = Request(url, headers=headers, method="GET")
         try:
-            with urlopen(request, timeout=30) as response:  # noqa: S310 - fixed/validated Sonar HTTPS endpoint
+            with urlopen(request, timeout=30) as response:  # nosec B310 # noqa: S310 - fixed/validated Sonar HTTPS endpoint
                 return SonarApiResponse(body=response.read(), headers=dict(response.headers.items()))
         except HTTPError as exc:
             path = urlparse(url).path

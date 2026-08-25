@@ -58,7 +58,7 @@ def _run_gate() -> int:
         score = metrics["overall_score"]
         degs = len(metrics["degradation_report"])
         scores.append(score)
-        icon = "✓" if score >= MIN_MEAN_SCORE else "✗"
+        icon = "OK" if score >= MIN_MEAN_SCORE else "FAIL"
         print(
             f"  [{icon}] {fixture.name}: score={score:.3f}"
             f"  (comp={metrics['component_jaccard']:.3f}"
