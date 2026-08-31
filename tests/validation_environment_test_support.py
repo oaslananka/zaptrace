@@ -12,8 +12,8 @@ from scripts import ci_validation_environment
 
 _VERSION_OUTPUTS = {
     "python3": "Python 3.12.0",
-    "rustc": "rustc 1.91.0",
-    "cargo": "cargo 1.91.0",
+    "rustc": "rustc 1.98.0",
+    "cargo": "cargo 1.98.0",
     "kicad-cli": "kicad-cli 9.0.0",
     "docker": "Docker version 27.0.0",
     "uv": "uv 0.5.0",

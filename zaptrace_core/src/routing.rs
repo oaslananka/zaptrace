@@ -202,7 +202,9 @@ mod tests {
         let points = [(1e308, 0.0), (-1e308, 0.0), (0.0, 1.0)];
         let segments = route_mst(&points).unwrap();
         let reached: Vec<(f64, f64)> = segments
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|edge| (edge[1].2, edge[1].3))
             .collect();
 
