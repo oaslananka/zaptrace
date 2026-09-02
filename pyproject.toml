@@ -79,6 +79,7 @@ markers = [
     "corpus: tests that exercise committed interoperability corpora",
     "slow: tests outside the bounded fast-feedback lanes",
     "rust: compatibility alias for native-extension tests",
+    "asyncio: asynchronous test coroutines",
 ]
 filterwarnings = [
     "ignore:Using .*httpx.* with .*starlette.testclient.* is deprecated.*",
