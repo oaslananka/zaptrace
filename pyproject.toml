@@ -1,6 +1,6 @@
 [project]
 name = "zaptrace-eda"
-version = "0.3.4.dev0"
+version = "0.3.5.dev0"
 description = "Agent-native electronics design core"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -23,6 +23,13 @@ dependencies = [
     "pydantic-settings>=2.14.2",
     "defusedxml>=0.7",
 ]
+
+[project.urls]
+Homepage = "https://github.com/oaslananka/zaptrace"
+Repository = "https://github.com/oaslananka/zaptrace"
+Issues = "https://github.com/oaslananka/zaptrace/issues"
+Documentation = "https://oaslananka.github.io/zaptrace"
+Changelog = "https://github.com/oaslananka/zaptrace/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 mcp = ["fastmcp>=3.4,<4", "mcp>=1.28,<2"]

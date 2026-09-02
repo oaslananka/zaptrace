@@ -55,6 +55,7 @@ junit.xml
 # --- IDE ---
 .vscode/
 .idea/
+.sonarlint/
 *.swp
 *.swo
 *~
