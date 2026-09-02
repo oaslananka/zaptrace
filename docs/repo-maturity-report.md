@@ -104,7 +104,7 @@ GitHub Releases are the authoritative publication channel for the current pre-1.
 - GitHub artifact attestations;
 - generated release notes and changelog context.
 
-PyPI and GHCR publication are not claimed until naming, credentials, support matrix, and package-policy work are explicitly completed.
+PyPI publication is active for verified releases (`v0.3.3+`) as `zaptrace-eda` via OIDC Trusted Publisher. GHCR publication remains intentionally disabled; the pinned Dockerfile is continuously built and verified but no official registry image is claimed.
 
 ## Current maturity limitations
 

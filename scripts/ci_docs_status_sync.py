@@ -337,22 +337,31 @@ def _validate_public_facts(public_facts: dict[str, Any], revision: str) -> list[
         if "not yet on PyPI" in text:
             errors.append(f"{doc_path_str}: contains stale 'not yet on PyPI' claim; PyPI publication is active")
 
-        # Check latest published tag (soft check)
-        _ = pkg.get("latest_published_tag", "v0.3.3")
+        # Check latest published tag - validate against public-facts
+        latest_tag = pkg.get("latest_published_tag", "v0.3.3")
         if "latest published" in text.lower() or "latest release" in text.lower():
             tag_pattern = re.compile(r"\bv?(\d+\.\d+\.\d+)\b")
-            for _ in tag_pattern.finditer(text):
-                # Soft check - just ensure version is mentioned if discussing latest
-                pass
+            found_latest = False
+            for match in tag_pattern.finditer(text):
+                version = match.group(1)
+                if f"v{version}" == latest_tag or version == latest_tag.lstrip("v"):
+                    found_latest = True
+                    break
+            if not found_latest:
+                errors.append(
+                    f"{doc_path_str}: discusses 'latest published' or 'latest release' but does not mention "
+                    f"the expected latest tag {latest_tag}"
+                )
 
     # Cross-check distribution channels
     active_channels = [c["name"] for c in dist.get("channels", []) if c.get("status") == "active"]
     if "pypi" in active_channels:
+        pypi_disabled_pattern = re.compile(r"PyPI.*not.*enabled", re.IGNORECASE)
         for doc_path_str in GOVERNED_DOCS:
             doc_path = Path(doc_path_str)
             if doc_path.is_file():
                 text = doc_path.read_text(encoding="utf-8", errors="ignore")
-                if "not yet on PyPI" in text or "PyPI.*not.*enabled" in text:
+                if "not yet on PyPI" in text or pypi_disabled_pattern.search(text):
                     errors.append(f"{doc_path_str}: claims PyPI not enabled but public-facts shows PyPI active")
 
     return errors

@@ -89,7 +89,7 @@ jobs:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-24.04
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.build.outputs.docs_status_passed == 'true'
     permissions:
       pages: write
       id-token: write
@@ -108,7 +108,7 @@ jobs:
     name: Post-deploy freshness verification
     runs-on: ubuntu-24.04
     needs: [build, deploy]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.build.outputs.docs_status_passed == 'true'
     permissions:
       contents: read
     steps:
