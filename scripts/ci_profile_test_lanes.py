@@ -88,8 +88,9 @@ def run_pytest_profiling(
 def _summary_header_lines(report: dict[str, Any]) -> list[str]:
     summary = report["summary"]
     status_marker = "OK" if report["passed"] else "FAIL"
+    status = "PASSED" if report["passed"] else "FAILED"
     lines = [
-        f"Test Lane Duration Profile Summary [{status_marker} {report['status'].upper()}]",
+        f"Test Lane Duration Profile Summary [{status_marker} {status}]",
         (
             f"  Total modules: {summary['total_modules']} | "
             f"Observed: {summary['observed_modules']} | "
@@ -107,52 +108,21 @@ def _summary_header_lines(report: dict[str, Any]) -> list[str]:
     return lines
 
 
-def _format_shard_line(shard: dict[str, Any]) -> str:
-    return (
-        f"      Shard {shard['index']}: {shard['module_count']:>2} mods | "
-        f"base: {shard['projected_baseline_seconds']:>6.2f}s | "
-        f"eff: {shard['effective_projected_seconds']:>6.2f}s | "
-        f"diff: {shard['drift_seconds']:>+6.2f}s"
-    )
-
-
 def _format_lane_lines(lanes: dict[str, Any]) -> list[str]:
-    lines = ["\nLane Breakdown:"]
-    for lane_name, lane_data in lanes.items():
-        shard_count = lane_data["shard_count"]
-        imbalance = f"imbalance: {lane_data['imbalance_seconds']:.2f}s" if shard_count > 1 else "single shard"
-        lines.append(
-            f"  - {lane_name:<14} [{lane_data['severity'].upper()}]: "
-            f"{lane_data['module_count']:>3} mods ({lane_data['observed_module_count']:>3} obs) | "
-            f"base: {lane_data['projected_baseline_seconds']:>7.2f}s | "
-            f"eff: {lane_data['effective_projected_seconds']:>7.2f}s | "
-            f"{shard_count} shard(s) ({imbalance})"
-        )
-        if shard_count > 1:
-            lines.extend(_format_shard_line(shard) for shard in lane_data["current_shards"])
-    return lines
+    return [f"\nLane breakdown: {len(lanes)} detail set(s) retained in the JSON report."]
 
 
 def _format_notable_drift_lines(module_drifts: list[dict[str, Any]]) -> list[str]:
     notable = [item for item in module_drifts if item["severity"] in {"critical", "warning"}][:10]
     if not notable:
         return []
-    lines = ["\nNotable Module Drifts:"]
-    for item in notable:
-        tag = "[NEW]" if item["is_new_module"] else ""
-        lines.append(
-            f"  - {item['module']:<48} [{item['severity'].upper()} {tag}]: "
-            f"obs: {item['observed_seconds']:>6.2f}s "
-            f"(base: {item['baseline_seconds']:>6.2f}s, "
-            f"diff: {item['drift_seconds']:>+6.2f}s / {item['drift_ratio'] * 100:>+5.1f}%)"
-        )
-    return lines
+    return [f"\nCritical module drifts: {len(notable)} detail(s) retained in the JSON report."]
 
 
-def _format_message_lines(title: str, prefix: str, messages: list[str]) -> list[str]:
+def _format_message_lines(title: str, messages: list[str]) -> list[str]:
     if not messages:
         return []
-    return [f"\n{title}:", *(f"  {prefix} {message}" for message in messages[:5])]
+    return [f"\n{title}: {len(messages)} detail(s) retained in the JSON report."]
 
 
 def format_summary_text(report: dict[str, Any]) -> str:
@@ -160,8 +130,8 @@ def format_summary_text(report: dict[str, Any]) -> str:
     lines = _summary_header_lines(report)
     lines.extend(_format_lane_lines(report["lanes"]))
     lines.extend(_format_notable_drift_lines(report.get("module_drifts", [])))
-    lines.extend(_format_message_lines("Warnings", "!", report.get("warnings", [])))
-    lines.extend(_format_message_lines("Errors", "*", report.get("errors", [])))
+    lines.extend(_format_message_lines("Warnings", report.get("warnings", [])))
+    lines.extend(_format_message_lines("Errors", report.get("errors", [])))
     return "\n".join(lines)
 
 
@@ -409,6 +379,8 @@ def main(argv: list[str] | None = None) -> int:
     if baseline_updated and not args.quiet:
         print("Updated duration baseline written successfully.")
     if not args.quiet:
+        # codeql[py/clear-text-logging-sensitive-data] -- The terminal summary emits fixed labels
+        # and aggregate counts; untrusted paths and messages remain in the JSON report.
         print(format_summary_text(report))
     return 1 if args.strict and not report["passed"] else 0
 

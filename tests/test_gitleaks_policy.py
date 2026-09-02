@@ -11,7 +11,7 @@ def test_gitleaks_ignore_contains_only_exact_historical_fingerprints() -> None:
         for line in Path(".gitleaksignore").read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     ]
-    assert len(lines) == 22
+    assert len(lines) == 26
     assert all(line.count(":") == 3 for line in lines)
     assert all("*" not in line for line in lines)
     assert {line.split(":", 1)[0] for line in lines} == {

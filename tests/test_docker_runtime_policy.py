@@ -22,7 +22,7 @@ def test_docker_runtime_bundles_ngspice_for_simulation_gate() -> None:
 def test_docker_uses_pinned_alpine_base_without_apt() -> None:
     dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
 
-    assert dockerfile.count("FROM python@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0") == 2
+    assert dockerfile.count("FROM python@sha256:71397d15c4c450526972669d41cad5bf89fd463c0027cc93af15891215f6c56b") == 2
     assert "apk add --no-cache" in dockerfile
     assert "apk add --no-cache build-base cargo patchelf rust" in dockerfile
     assert "apt-get" not in dockerfile
