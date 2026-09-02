@@ -409,6 +409,7 @@ def main(argv: list[str] | None = None) -> int:
     if baseline_updated and not args.quiet:
         print("Updated duration baseline written successfully.")
     if not args.quiet:
+        # codeql[py/clear-text-logging-sensitive-data] -- Summary contains only test module paths and timing data; no secrets or credentials are present in profiling reports.
         print(format_summary_text(report))
     return 1 if args.strict and not report["passed"] else 0
 
