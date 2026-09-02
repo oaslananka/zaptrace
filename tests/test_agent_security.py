@@ -235,7 +235,7 @@ class TestEnrichAuditEvent:
         from zaptrace.security.sandbox import enrich_audit_event
 
         event = enrich_audit_event(
-            {"metadata": {"api_key": "AKIA1234567890123456"}},
+            {"metadata": {"api_key": "AKIA89AB89AB89AB89AB"}},
             session_id,
         )
         assert "[REDACTED]" in event["metadata"]["api_key"]
@@ -318,7 +318,7 @@ class TestReplaySessionLog:
         entry = record_tool_call(
             session_id,
             "design_inspect",
-            {"api_key": "AKIA1234567890123456"},
+            {"api_key": "AKIA89AB89AB89AB89AB"},
             result={"ok": True},
             duration_ms=1.0,
         )

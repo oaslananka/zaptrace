@@ -9,6 +9,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
+from scripts.ci_profile_test_lanes import format_summary_text
 from tests.lane_policy import (
     DriftThresholds,
     DurationBaseline,
@@ -23,6 +24,46 @@ from tests.lane_policy import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_profile_summary_omits_untrusted_detail_strings() -> None:
+    synthetic_token = "AKIA" + "1234567890123456"
+    report = {
+        "passed": False,
+        "status": "drift_critical",
+        "summary": {
+            "total_modules": 1,
+            "observed_modules": 1,
+            "unobserved_modules": 0,
+            "unbaselined_modules": 0,
+            "total_baseline_seconds": 1.0,
+            "total_observed_seconds": 2.0,
+            "critical_drift_count": 1,
+            "warning_drift_count": 0,
+        },
+        "lanes": {},
+        "module_drifts": [
+            {
+                "module": f"tests/{synthetic_token}.py",
+                "severity": "critical",
+                "is_new_module": False,
+                "observed_seconds": 2.0,
+                "baseline_seconds": 1.0,
+                "drift_seconds": 1.0,
+                "drift_ratio": 1.0,
+            }
+        ],
+        "warnings": [f"credential={synthetic_token}"],
+        "errors": ["token=secret-value"],
+    }
+
+    summary = format_summary_text(report)
+
+    assert synthetic_token not in summary
+    assert "secret-value" not in summary
+    assert "Critical module drifts: 1" in summary
+    assert "Warnings: 1 detail(s) retained in the JSON report." in summary
+    assert "Errors: 1 detail(s) retained in the JSON report." in summary
 
 
 @contextmanager
