@@ -9,7 +9,7 @@ ZapTrace is an AI-native, verification-first, open-source EDA (Electronic Design
 No. ZapTrace is a backend engine for programmatic electronics design. You can use it alongside KiCad — ZapTrace generates KiCad-compatible files, and you can open them in KiCad for further editing.
 
 ### Is ZapTrace ready for production?
-ZapTrace is in alpha development (`0.3.4.dev0`); the latest published baseline is `v0.3.3`, whose tagged workflow completed TestPyPI, production PyPI, and GitHub Release verification. The historical `v0.3.2` tagged attempt stopped before any registry upload and remains failed-release evidence. It works for simple to moderate designs, but **all outputs require human review before fabrication**. See [SAFETY.md](SAFETY.md).
+ZapTrace is in alpha development (`0.3.5.dev0`); the latest published PyPI baseline is legacy `v0.3.3` without public Git provenance. The historical `v0.3.2` and `v0.3.4` tagged attempts remain failed-release evidence. The first fully traceable release will be `v0.3.5`. It works for simple to moderate designs, but **all outputs require human review before fabrication**. See [SAFETY.md](SAFETY.md).
 
 ### Who is ZapTrace for?
 - **AI/Agent developers** building electronics design workflows
