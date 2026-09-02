@@ -4,7 +4,15 @@
 
 ### Changed
 
-- Advanced post-release development identity to Python `0.3.4.dev0` / Cargo `0.3.4-dev.0` after the successful `v0.3.3` multi-channel release, and updated public installation/support contracts to record verified production PyPI availability alongside GitHub Releases.
+- Advanced post-release development identity to Python `0.3.5.dev0` / Cargo `0.3.5-dev.0` after the successful `v0.3.4` multi-channel release, and updated public installation/support contracts to record verified production PyPI availability alongside GitHub Releases.
+
+## [0.3.4] - 2026-09-02
+
+### Changed
+
+- Marked `v0.3.3` as a legacy PyPI-only baseline without public Git provenance; `v0.3.4` is the first fully public-repository-traceable release with immutable annotated tag, GitHub Release, SBOM, checksum manifest, attestations, and clean-install evidence for all supported platforms.
+- Fixed package metadata: added `project.urls` table (Homepage, Repository, Issues, Documentation, Changelog) to `pyproject.toml`.
+- Synchronized Python, Cargo, uv.lock, and runtime version surfaces to `0.3.4`.
 
 ## [0.3.3] - 2026-08-18
 

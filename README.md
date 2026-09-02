@@ -120,11 +120,11 @@ This release still makes no fabrication-readiness claim. A pass means the config
 
 ## Quickstart
 
-ZapTrace is pre-1.0. The registry distribution identity is `zaptrace-eda` while the Python import package and CLI remain `zaptrace`. The verified `v0.3.3` release is available from production PyPI and the matching GitHub Release. For a clean PyPI install:
+ZapTrace is pre-1.0. The registry distribution identity is `zaptrace-eda` while the Python import package and CLI remain `zaptrace`. The verified `v0.3.4` release is the first fully public-repository-traceable release (immutable annotated tag, GitHub Release with SBOM/checksums/attestations, clean-install evidence). The `v0.3.3` release remains on PyPI as a legacy baseline without Git provenance. For a clean PyPI install:
 
 ```bash
 uv venv --python 3.13
-uv pip install "zaptrace-eda==0.3.3"
+uv pip install "zaptrace-eda==0.3.4"
 source .venv/bin/activate
 
 # Run diagnostics
@@ -440,8 +440,9 @@ Persistence is opt-in; unset deployments retain process-local behavior. Isolated
 
 | Horizon | Focus |
 |---------|-------|
-| **Published baseline (v0.3.3)** | Verified multi-channel release: GitHub Release evidence plus TestPyPI → production PyPI Trusted Publishing, exact registry hashes, clean-install verification, and supported native/source artifacts |
-| **Active development (0.3.4.dev0)** | Unreleased post-release development line; snapshot evidence only until a future release-preparation branch and exact annotated tag pass the release gates |
+| **Published baseline (v0.3.4)** | First fully traceable release: immutable annotated tag, GitHub Release with SBOM/checksums/attestations, TestPyPI → production PyPI Trusted Publishing, exact registry hashes, clean-install verification for all supported platforms |
+| **Legacy baseline (v0.3.3)** | PyPI-only release without public Git provenance; preserved as immutable historical evidence |
+| **Active development (0.3.5.dev0)** | Unreleased post-release development line; snapshot evidence only until a future release-preparation branch and exact annotated tag pass the release gates |
 | **Next (v0.4.0)** | Topology and layout depth, bounded evaluation coverage, review evidence, and controlled release-readiness hardening |
 | **Later** | Larger component library, live distributor integrations, deeper routing fidelity, solver-grade SI/PI/thermal integrations, multi-board workflows |
 
