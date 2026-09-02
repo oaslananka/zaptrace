@@ -175,3 +175,64 @@ def test_current_state_guard_rejects_reintroduced_drift(tmp_path: Path) -> None:
     assert any("claims 503 component records but code has 504" in error for error in errors)
     assert any("KiCad export is unidirectional" in error for error in errors)
     assert any("No release automation" in error for error in errors)
+
+
+def test_public_facts_matches_committed_configuration() -> None:
+    from scripts.ci_docs_status_sync import load_public_facts
+
+    facts = load_public_facts()
+    assert facts, "public-facts.json should load successfully"
+    assert facts["package"]["name"] == "zaptrace-eda"
+    assert facts["package"]["import_name"] == "zaptrace"
+    assert facts["package"]["current_version"] == "0.3.5.dev0"
+    assert facts["package"]["status"] == "unreleased-development"
+    assert facts["package"]["latest_published_tag"] == "v0.3.3"
+
+    mcp = facts["mcp"]
+    assert mcp["total_exposed_tool_count"] == actual_mcp_tool_count()
+    assert mcp["design_tool_count"] == actual_tool_count()
+    assert mcp["session_admin_tool_count"] == len(actual_mcp_admin_tool_names())
+    assert mcp["session_tools"] == actual_mcp_admin_tool_names()
+
+
+def test_public_facts_validation_detects_deliberate_mismatch() -> None:
+    from scripts.ci_docs_status_sync import _validate_public_facts, load_public_facts, source_revision
+
+    facts = load_public_facts()
+    revision = source_revision()
+
+    # Base state passes
+    assert _validate_public_facts(facts, revision) == []
+
+    # Deliberate MCP tool count mismatch fails
+    bad_facts = json.loads(json.dumps(facts))
+    bad_facts["mcp"]["total_exposed_tool_count"] = 999
+    bad_facts["mcp"]["design_tool_count"] = 996
+    errors = _validate_public_facts(bad_facts, revision)
+    assert any("claims 96 MCP tools but public-facts has 999" in e for e in errors)
+    assert any("claims 93 design tools but public-facts has 996" in e for e in errors)
+
+    # Deliberate deployment SHA mismatch fails
+    bad_sha_facts = json.loads(json.dumps(facts))
+    bad_sha_facts["documentation"]["deployment_source_sha"] = "0000000000000000000000000000000000000000"
+    errors = _validate_public_facts(bad_sha_facts, revision)
+    assert any("documentation deployment source SHA mismatch" in e for e in errors)
+
+
+def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
+    workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
+
+    # Workflow uses uv run --no-project for docs status validation
+    assert "uv run --no-project python scripts/ci_docs_status_sync.py" in workflow
+
+    # Workflow captures source SHA and embeds deployment provenance
+    assert "Capture source SHA" in workflow
+    assert "site/deployment-provenance.json" in workflow
+    assert "source_sha" in workflow
+    assert "deployment_timestamp" in workflow
+
+    # Post-deploy freshness verification job exists
+    assert "freshness-check:" in workflow
+    assert "Post-deploy freshness verification" in workflow
+    assert "deployed-provenance.json" in workflow
+    assert "FRESHNESS CHECK FAILED" in workflow

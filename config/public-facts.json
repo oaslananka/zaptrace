@@ -4,7 +4,7 @@
   "package": {
     "name": "zaptrace-eda",
     "import_name": "zaptrace",
-    "current_version": "0.3.4.dev0",
+    "current_version": "0.3.5.dev0",
     "status": "unreleased-development",
     "latest_published_tag": "v0.3.3",
     "latest_published_version": "0.3.3",
@@ -115,7 +115,7 @@
     "design_tool_count": 93,
     "session_admin_tool_count": 3,
     "total_exposed_tool_count": 96,
-    "session_tools": ["session_create", "session_list", "session_destroy"]
+    "session_tools": ["session_create", "session_destroy", "session_list"]
   },
   "documentation": {
     "deployment_source_sha": "unknown",

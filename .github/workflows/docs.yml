@@ -59,7 +59,7 @@ jobs:
       - name: Validate docs/status sync
         id: docs_status
         run: |
-          uvx --no-build --from . python scripts/ci_docs_status_sync.py --output docs-status.json
+          uv run --no-project python scripts/ci_docs_status_sync.py --output docs-status.json
           echo "passed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build documentation
