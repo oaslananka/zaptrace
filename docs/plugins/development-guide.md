@@ -18,7 +18,7 @@ Minimal manifest fixture:
   "name": "My Plugin",
   "version": "0.1.0",
   "min_zaptrace_version": "0.2.0",
-  "max_zaptrace_version": "0.3.4",
+  "max_zaptrace_version": "0.3.5",
   "entry": {"type": "python_module", "path": "my_plugin"},
   "extension_points": ["report_generator"],
   "capabilities": ["design:read", "proof:read", "host:log"],

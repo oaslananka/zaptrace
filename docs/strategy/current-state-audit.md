@@ -22,7 +22,7 @@ The generated docs-status report records the source revision, the selected capab
 
 ## Current repository facts
 
-- Python distribution identity: `zaptrace-eda` `0.3.4.dev0`, with import package and CLI identity `zaptrace`, Python 3.12+, in `unreleased-development`; the latest published baseline is `v0.3.3`, whose tagged workflow completed TestPyPI, production PyPI, and GitHub Release verification. The immutable `v0.3.2` tag remains failed-release evidence and was not reused.
+- Python distribution identity: `zaptrace-eda` `0.3.5.dev0`, with import package and CLI identity `zaptrace`, Python 3.12+, in `unreleased-development`; the published baseline is `v0.3.3` (legacy PyPI baseline without Git provenance). The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence and were not reused. The first fully traceable release will be `v0.3.5`.
 - Verification rules: 29 ERC rules and 16 DRC rules, derived from the registered rule lists.
 - Agent surface: 93 design tools plus 3 session-administration tools, for 96 MCP-exposed tools total.
 - Component library baseline: **504 component records**, schema version 2.0, with trust tiers currently `{"heuristic": 504}` in `config/component-trust-baseline.json`.

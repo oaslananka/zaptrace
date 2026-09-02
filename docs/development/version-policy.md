@@ -4,28 +4,28 @@ ZapTrace uses one explicit release line across Python metadata, runtime reportin
 
 ## Active development identity
 
-The active `main` identity after publishing `v0.3.3` is:
+The active `main` identity after publishing `v0.3.3` and preserving aborted `v0.3.4` candidate evidence is:
 
 | Surface | Version |
 |---------|---------|
-| Python distribution, CLI, REST API, MCP server | `0.3.4.dev0` |
-| Rust crate and Cargo lock package | `0.3.4-dev.0` |
+| Python distribution, CLI, REST API, MCP server | `0.3.5.dev0` |
+| Rust crate and Cargo lock package | `0.3.5-dev.0` |
 | Current source ref | `main` |
 | Latest published baseline | `v0.3.3` |
 | Distribution state | `unreleased-development` |
 
-The `v0.3.3` tagged-release workflow completed the TestPyPI → PyPI → GitHub Release chain successfully. The immutable `v0.3.2` tag remains failed-release evidence and was not reused. The active `0.3.4.dev0` tree is unreleased snapshot evidence (`mode=snapshot`, `published=false`) until a future release-preparation branch and exact annotated tag pass the release gates.
+The `v0.3.3` release is recorded as a legacy PyPI baseline without Git provenance. The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence and were not reused. The active `0.3.5.dev0` tree is unreleased snapshot evidence (`mode=snapshot`, `published=false`) until a future release-preparation branch and exact annotated tag pass the release gates.
 
 ## Lifecycle transitions
 
 ZapTrace distinguishes development, release preparation, and tagged publication:
 
-1. **Development:** Python `0.3.4.dev0`; Cargo `0.3.4-dev.0`. Branch and pull-request evidence is unreleased snapshot evidence.
+1. **Development:** Python `0.3.5.dev0`; Cargo `0.3.5-dev.0`. Branch and pull-request evidence is unreleased snapshot evidence.
 2. **Release preparation:** a repository-owned branch named exactly `release/v<version>` may carry an RC or final package identity before its tag exists. Quality records this as `release-preparation` with `published=false`; development versions, mismatched branch names, and already-used release tags are rejected.
-3. **Release candidate:** Python `0.3.4rc1`; Cargo `0.3.4-rc.1`; annotated tag `v0.3.4rc1`. The report state is `tagged-release-candidate`.
-4. **Final release:** Python and Cargo `0.3.4`; annotated tag `v0.3.4`. The report state is `tagged-final-release`.
+3. **Release candidate:** Python `0.3.5rc1`; Cargo `0.3.5-rc.1`; annotated tag `v0.3.5rc1`. The report state is `tagged-release-candidate`.
+4. **Final release:** Python and Cargo `0.3.5`; annotated tag `v0.3.5`. The report state is `tagged-final-release`.
 
-Immediately after a final release is cut, `main` receives a post-release bump to the next patch's `.dev0` line. After `v0.3.3`, development advances to Python `0.3.4.dev0` and Cargo `0.3.4-dev.0` before unrelated changes are merged.
+Immediately after a final release is cut, `main` receives a post-release bump to the next patch's `.dev0` line. After `v0.3.3` and aborted `v0.3.4`, development advances to Python `0.3.5.dev0` and Cargo `0.3.5-dev.0` before unrelated changes are merged.
 
 ## Synchronization rules
 

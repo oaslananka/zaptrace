@@ -1,6 +1,6 @@
 [package]
 name = "zaptrace-core"
-version = "0.3.4-dev.0"
+version = "0.3.5-dev.0"
 edition = "2021"
 description = "Accelerated placement and routing routines for ZapTrace"
 
