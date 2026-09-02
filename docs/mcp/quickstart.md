@@ -8,7 +8,10 @@
 ## 1. Starting the Server
 
 ```bash
-# Install from source (pre-1.0, not yet on PyPI)
+# Option A: Install verified release from PyPI (recommended)
+uv pip install zaptrace-eda
+
+# Option B: Install from source (pre-1.0 development)
 git clone https://github.com/oaslananka/zaptrace.git && cd zaptrace && uv sync --all-extras
 
 # Start MCP server (stdio transport)

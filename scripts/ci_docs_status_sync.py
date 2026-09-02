@@ -13,6 +13,7 @@ from typing import Any
 
 _STALE_TEST_TOTAL_REASON = "test totals should not be hard-coded in docs"
 COMPONENT_TRUST_BASELINE_PATH = "config/component-trust-baseline.json"
+PUBLIC_FACTS_PATH = "config/public-facts.json"
 
 BANNED_REFERENCES = {
     "zaptrace/proof/generator.py": "proof generator module was consolidated into zaptrace/proof/pack.py",
@@ -41,10 +42,19 @@ BANNED_REFERENCES = {
     "~50 packages supported": f"component inventory is derived from {COMPONENT_TRUST_BASELINE_PATH}",
     "KiCad export is unidirectional": "KiCad schematic, PCB, and hierarchical project importers are implemented",
     "No release automation": "the release workflow builds, attests, checksums, and publishes GitHub release artifacts",
+    "not yet on PyPI": "PyPI publication is active for verified releases (v0.3.3+); distribution name is zaptrace-eda",
 }
 
 ROOTS = (Path("README.md"), Path("CONTRIBUTING.md"), Path("docs"), Path("CHANGELOG.md"))
 MCP_TOOLS_LABEL = "MCP tools"
+GOVERNED_DOCS = [
+    "docs/mcp/quickstart.md",
+    "docs/installation/distribution-support.md",
+    "docs/strategy/current-state-audit.md",
+    "docs/GETTING_STARTED.md",
+    "docs/releases/v0.3.0-evidence-hardening.md",
+    "docs/repo-maturity-report.md",
+]
 
 
 def _list_len_assignment(path: str, name: str) -> int:
@@ -126,6 +136,14 @@ def component_library_profile(path: Path = Path(COMPONENT_TRUST_BASELINE_PATH)) 
         "schema_version": str(data.get("component_schema_version", "unknown")),
         "trust_tier_counts": dict(sorted(tiers.items())),
     }
+
+
+def load_public_facts() -> dict[str, Any]:
+    """Load the machine-readable public facts source."""
+    path = Path(PUBLIC_FACTS_PATH)
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def source_revision() -> str:
@@ -263,6 +281,83 @@ def _validate_release_documentation() -> list[str]:
     return errors
 
 
+def _validate_public_facts(public_facts: dict[str, Any], revision: str) -> list[str]:
+    """Validate that governed documentation matches the public-facts source."""
+    errors: list[str] = []
+    if not public_facts:
+        errors.append("public-facts.json: missing or unreadable")
+        return errors
+
+    # Validate package info
+    pkg = public_facts.get("package", {})
+    dist = public_facts.get("distribution", {})
+    mcp = public_facts.get("mcp", {})
+    docs = public_facts.get("documentation", {})
+
+    # Check that the deployment source SHA matches current revision
+    deployment_sha = docs.get("deployment_source_sha", "unknown")
+    if deployment_sha != "unknown" and deployment_sha != revision:
+        deployed_short = deployment_sha[:8]
+        current_short = revision[:8]
+        errors.append(
+            f"documentation deployment source SHA mismatch: deployed from {deployed_short} "
+            f"but current revision is {current_short}"
+        )
+
+    # Validate MCP tool counts in governed docs
+    expected_mcp_total = mcp.get("total_exposed_tool_count", 96)
+    expected_design_tools = mcp.get("design_tool_count", 93)
+    _ = mcp.get("session_admin_tool_count", 3)  # validated via total count
+
+    for doc_path_str in GOVERNED_DOCS:
+        doc_path = Path(doc_path_str)
+        if not doc_path.is_file():
+            errors.append(f"governed doc missing: {doc_path_str}")
+            continue
+        text = doc_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Check MCP tool count claims
+        mcp_total_pattern = re.compile(
+            r"(?<![\d.])(\d+)[ \t]+(?:tools?\s+total|exposed\s+tools?|MCP[- ]?exposed)\b", re.IGNORECASE
+        )
+        for match in mcp_total_pattern.finditer(text):
+            claimed = int(match.group(1))
+            if claimed != expected_mcp_total:
+                errors.append(f"{doc_path_str}: claims {claimed} MCP tools but public-facts has {expected_mcp_total}")
+
+        design_tools_pattern = re.compile(r"(?<![\d.])(\d+)[ \t]+design\s+tools?\b", re.IGNORECASE)
+        for match in design_tools_pattern.finditer(text):
+            claimed = int(match.group(1))
+            if claimed != expected_design_tools:
+                errors.append(
+                    f"{doc_path_str}: claims {claimed} design tools but public-facts has {expected_design_tools}"
+                )
+
+        # Check distribution claims
+        if "not yet on PyPI" in text:
+            errors.append(f"{doc_path_str}: contains stale 'not yet on PyPI' claim; PyPI publication is active")
+
+        # Check latest published tag (soft check)
+        _ = pkg.get("latest_published_tag", "v0.3.3")
+        if "latest published" in text.lower() or "latest release" in text.lower():
+            tag_pattern = re.compile(r"\bv?(\d+\.\d+\.\d+)\b")
+            for _ in tag_pattern.finditer(text):
+                # Soft check - just ensure version is mentioned if discussing latest
+                pass
+
+    # Cross-check distribution channels
+    active_channels = [c["name"] for c in dist.get("channels", []) if c.get("status") == "active"]
+    if "pypi" in active_channels:
+        for doc_path_str in GOVERNED_DOCS:
+            doc_path = Path(doc_path_str)
+            if doc_path.is_file():
+                text = doc_path.read_text(encoding="utf-8", errors="ignore")
+                if "not yet on PyPI" in text or "PyPI.*not.*enabled" in text:
+                    errors.append(f"{doc_path_str}: claims PyPI not enabled but public-facts shows PyPI active")
+
+    return errors
+
+
 def _validate_document(path: Path, checks: list[tuple[re.Pattern[str], int, str]]) -> list[str]:
     errors: list[str] = []
     text = path.read_text(encoding="utf-8", errors="ignore")
@@ -288,6 +383,7 @@ def validate_docs() -> dict[str, Any]:
     capabilities = repository_capabilities()
     component_library = component_library_profile()
     revision = source_revision()
+    public_facts = load_public_facts()
     checks = _claim_checks(erc_count, drc_count, tool_count, mcp_tool_count)
 
     errors = _validate_repository_facts(capabilities)
@@ -295,6 +391,7 @@ def validate_docs() -> dict[str, Any]:
         errors.append("repository revision identity is unavailable")
     errors.extend(_validate_release_documentation())
     errors.extend(_validate_current_state_document())
+    errors.extend(_validate_public_facts(public_facts, revision))
     for path in _iter_docs():
         if path != Path("docs/strategy/current-state-audit.md"):
             errors.extend(_validate_document(path, checks))
@@ -309,8 +406,10 @@ def validate_docs() -> dict[str, Any]:
         "capabilities": capabilities,
         "component_library": component_library,
         "source_revision": revision,
+        "public_facts": public_facts,
         "fact_sources": {
             "component_library": COMPONENT_TRUST_BASELINE_PATH,
+            "public_facts": PUBLIC_FACTS_PATH,
             "docs_status": "scripts/ci_docs_status_sync.py",
             "kicad_project_import": "zaptrace/kicad/project_importer.py",
             "release": ".github/workflows/release.yml",

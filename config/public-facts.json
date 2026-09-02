@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-02T00:00:00Z",
+  "package": {
+    "name": "zaptrace-eda",
+    "import_name": "zaptrace",
+    "current_version": "0.3.4.dev0",
+    "status": "unreleased-development",
+    "latest_published_tag": "v0.3.3",
+    "latest_published_version": "0.3.3",
+    "python_requires": ">=3.12",
+    "development_status_classifier": "Development Status :: 3 - Alpha"
+  },
+  "distribution": {
+    "channels": [
+      {
+        "name": "github-releases",
+        "status": "active",
+        "description": "Authoritative channel for source distributions, supported native wheels, checksums, SBOMs, attestations, and clean-install evidence"
+      },
+      {
+        "name": "pypi",
+        "status": "active",
+        "description": "Production PyPI publication enabled for verified releases via OIDC Trusted Publisher; distribution name is zaptrace-eda"
+      },
+      {
+        "name": "testpypi",
+        "status": "staging",
+        "description": "Staging channel for pre-release verification; not a supported end-user distribution channel"
+      },
+      {
+        "name": "ghcr",
+        "status": "disabled",
+        "description": "Container image publication not enabled; Dockerfile is continuously built and verified but no official registry image is claimed"
+      }
+    ],
+    "registry_identity": "zaptrace-eda",
+    "import_and_cli_identity": "zaptrace"
+  },
+  "supported_platforms": [
+    {
+      "target_id": "native-linux-x86_64-cp313",
+      "os": "linux",
+      "arch": "x86_64",
+      "python": "CPython 3.13",
+      "artifact": "native wheel (manylinux_x86_64)",
+      "native_extension": "required",
+      "support_level": "supported",
+      "channels": ["github-releases", "pypi"]
+    },
+    {
+      "target_id": "native-macos-x86_64-cp313",
+      "os": "macos",
+      "arch": "x86_64",
+      "python": "CPython 3.13",
+      "artifact": "native wheel (macosx_x86_64)",
+      "native_extension": "required",
+      "support_level": "supported",
+      "channels": ["github-releases", "pypi"]
+    },
+    {
+      "target_id": "native-macos-arm64-cp313",
+      "os": "macos",
+      "arch": "arm64",
+      "python": "CPython 3.13",
+      "artifact": "native wheel (macosx_arm64)",
+      "native_extension": "required",
+      "support_level": "supported",
+      "channels": ["github-releases", "pypi"]
+    },
+    {
+      "target_id": "sdist-linux-x86_64-cp313",
+      "os": "linux",
+      "arch": "x86_64",
+      "python": "CPython 3.13",
+      "artifact": "source distribution",
+      "native_extension": "absent",
+      "support_level": "supported",
+      "channels": ["github-releases", "pypi"]
+    },
+    {
+      "target_id": "source-linux-x86_64-cp312",
+      "os": "linux",
+      "arch": "x86_64",
+      "python": "CPython 3.12",
+      "artifact": "source distribution",
+      "native_extension": "absent",
+      "support_level": "best-effort",
+      "channels": ["github-releases", "pypi"]
+    },
+    {
+      "target_id": "source-linux-x86_64-cp314",
+      "os": "linux",
+      "arch": "x86_64",
+      "python": "CPython 3.14",
+      "artifact": "source distribution",
+      "native_extension": "absent",
+      "support_level": "best-effort",
+      "channels": ["github-releases", "pypi"]
+    },
+    {
+      "target_id": "container-linux-x86_64-cp313",
+      "os": "linux",
+      "arch": "x86_64",
+      "python": "CPython 3.13",
+      "artifact": "container image (linux/amd64)",
+      "native_extension": "required",
+      "support_level": "best-effort",
+      "channels": ["source-build-only"]
+    }
+  ],
+  "mcp": {
+    "protocol_version": "2025-06-18",
+    "transport": ["stdio", "streamable-http"],
+    "design_tool_count": 93,
+    "session_admin_tool_count": 3,
+    "total_exposed_tool_count": 96,
+    "session_tools": ["session_create", "session_list", "session_destroy"]
+  },
+  "documentation": {
+    "deployment_source_sha": "unknown",
+    "deployment_timestamp": "unknown",
+    "freshness_check_enabled": true,
+    "governed_pages": [
+      "docs/mcp/quickstart.md",
+      "docs/installation/distribution-support.md",
+      "docs/strategy/current-state-audit.md",
+      "docs/GETTING_STARTED.md",
+      "docs/releases/v0.3.0-evidence-hardening.md",
+      "docs/repo-maturity-report.md"
+    ]
+  },
+  "fact_sources": {
+    "package_version": "pyproject.toml",
+    "version_policy": "config/version-policy.json",
+    "distribution_policy": "config/distribution-support.json",
+    "component_baseline": "config/component-trust-baseline.json",
+    "mcp_registry": "zaptrace/agent/tool_impls/registry.py",
+    "mcp_server": "zaptrace/mcp/server.py",
+    "erc_rules": "zaptrace/erc/runner.py",
+    "drc_rules": "zaptrace/ee/drc/engine.py",
+    "release_workflow": ".github/workflows/release.yml",
+    "docs_status_script": "scripts/ci_docs_status_sync.py"
+  }
+}
