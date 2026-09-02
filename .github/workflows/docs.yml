@@ -112,52 +112,19 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Wait for deployment to propagate
-        run: sleep 10
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
 
-      - name: Fetch deployed provenance
-        id: fetch_provenance
-        run: |
-          url="https://oaslananka.github.io/zaptrace/deployment-provenance.json"
-          echo "Fetching deployment provenance from $url"
-          for attempt in {1..6}; do
-            if response=$(curl -sf "$url" 2>/dev/null); then
-              echo "$response" > deployed-provenance.json
-              echo "provenance_fetched=true" >> "$GITHUB_OUTPUT"
-              break
-            fi
-            echo "Attempt $attempt failed, retrying in 10s..."
-            sleep 10
-          done
-          if [[ ! -f deployed-provenance.json ]]; then
-            echo "Failed to fetch deployment provenance after 6 attempts"
-            exit 1
-          fi
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
 
-      - name: Verify deployment freshness
+      - name: Verify deployment freshness with robust backoff
         run: |
           expected_sha="${{ needs.build.outputs.source_sha }}"
-          deployed_sha=$(jq -r '.source_sha' deployed-provenance.json)
-          deployed_ts=$(jq -r '.deployment_timestamp' deployed-provenance.json)
-          echo "Expected source SHA: $expected_sha"
-          echo "Deployed source SHA: $deployed_sha"
-          echo "Deployment timestamp: $deployed_ts"
-
-          if [[ "$deployed_sha" != "$expected_sha" ]]; then
-            echo "::error::FRESHNESS CHECK FAILED: Deployed documentation (${deployed_sha:0:8}) does not match expected revision (${expected_sha:0:8})"
-            echo "This indicates the GitHub Pages deployment is stale or was built from a different commit."
-            exit 1
-          fi
-
-          echo "::notice::Freshness check passed: Deployed documentation matches expected revision ${expected_sha:0:8}"
-
-      - name: Update public-facts with deployment info
-        if: success()
-        run: |
-          # This step documents the successful deployment for reference
-          # The actual public-facts.json update would be done via a separate PR or automated process
-          sha="${{ needs.build.outputs.source_sha }}"
-          timestamp=$(jq -r '.deployment_timestamp' deployed-provenance.json)
-          echo "Documentation successfully deployed from $sha at $timestamp"
-          echo "deployment_sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "deployment_timestamp=$timestamp" >> "$GITHUB_OUTPUT"
+          uv run --no-project python scripts/ci_docs_status_sync.py \
+            --verify-freshness \
+            --expected-sha "$expected_sha" \
+            --output deployed-provenance.json

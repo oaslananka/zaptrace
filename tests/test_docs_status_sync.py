@@ -194,6 +194,12 @@ def test_public_facts_matches_committed_configuration() -> None:
     assert mcp["session_admin_tool_count"] == len(actual_mcp_admin_tool_names())
     assert mcp["session_tools"] == actual_mcp_admin_tool_names()
 
+    docs = facts["documentation"]
+    assert docs["deployment_source_sha"] == "HEAD"
+    assert docs["freshness_check_enabled"] is True
+    assert docs["deployment_evidence_path"] == "site/deployment-provenance.json"
+    assert docs["deployment_provenance_url"] == "https://oaslananka.github.io/zaptrace/deployment-provenance.json"
+
 
 def test_public_facts_validation_detects_deliberate_mismatch() -> None:
     from scripts.ci_docs_status_sync import _validate_public_facts, load_public_facts, source_revision
@@ -218,6 +224,103 @@ def test_public_facts_validation_detects_deliberate_mismatch() -> None:
     errors = _validate_public_facts(bad_sha_facts, revision)
     assert any("documentation deployment source SHA mismatch" in e for e in errors)
 
+    # Deployment source SHA missing or 'unknown' fails fail-closed
+    unknown_facts = json.loads(json.dumps(facts))
+    unknown_facts["documentation"]["deployment_source_sha"] = "unknown"
+    errors = _validate_public_facts(unknown_facts, revision)
+    assert any("missing or 'unknown'" in e for e in errors)
+
+
+def test_deployment_evidence_verification_fail_closed(tmp_path: Path) -> None:
+    from scripts.ci_docs_status_sync import _validate_public_facts, load_public_facts, source_revision
+
+    facts = load_public_facts()
+    revision = source_revision()
+
+    valid_evidence = tmp_path / "valid-provenance.json"
+    valid_evidence.write_text(json.dumps({"source_sha": revision, "deployment_timestamp": "2026-09-02T12:00:00Z"}))
+    assert _validate_public_facts(facts, revision, deployment_evidence_path=valid_evidence) == []
+
+    mismatched_evidence = tmp_path / "mismatched-provenance.json"
+    mismatched_evidence.write_text(
+        json.dumps({"source_sha": "0000000000000000000000000000000000000000", "deployment_timestamp": "now"})
+    )
+    errors = _validate_public_facts(facts, revision, deployment_evidence_path=mismatched_evidence)
+    assert any("deployment provenance evidence mismatch" in e for e in errors)
+
+    corrupt_evidence = tmp_path / "corrupt-provenance.json"
+    corrupt_evidence.write_text("not json content")
+    errors = _validate_public_facts(facts, revision, deployment_evidence_path=corrupt_evidence)
+    assert any("failed to read deployment provenance evidence" in e for e in errors)
+
+
+def test_verify_deployment_freshness_robust_polling_success() -> None:
+    from scripts.ci_docs_status_sync import verify_deployment_freshness
+
+    expected_sha = "180e6aef31c87eef86a0c995540ec2ecfd27deb9"
+    calls: list[str] = []
+    sleeps: list[float] = []
+
+    def mock_fetch(url: str) -> str:
+        calls.append(url)
+        if len(calls) == 1:
+            # First attempt returns stale deployment provenance
+            return json.dumps(
+                {
+                    "source_sha": "b7fa54075747088cc8996293455f3a604ed5e259",
+                    "deployment_timestamp": "2026-08-21T00:00:00Z",
+                }
+            )
+        return json.dumps(
+            {
+                "source_sha": expected_sha,
+                "deployment_timestamp": "2026-09-03T02:00:00Z",
+            }
+        )
+
+    def mock_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    result = verify_deployment_freshness(
+        expected_sha=expected_sha,
+        max_attempts=5,
+        initial_backoff=2.0,
+        backoff_multiplier=2.0,
+        fetcher=mock_fetch,
+        sleeper=mock_sleep,
+    )
+
+    assert result["passed"] is True
+    assert result["attempts"] == 2
+    assert result["deployed_sha"] == expected_sha
+    assert sleeps == [2.0]
+
+
+def test_verify_deployment_freshness_robust_polling_timeout() -> None:
+    from scripts.ci_docs_status_sync import verify_deployment_freshness
+
+    expected_sha = "180e6aef31c87eef86a0c995540ec2ecfd27deb9"
+
+    def mock_fetch(url: str) -> str:
+        return json.dumps(
+            {
+                "source_sha": "0000000000000000000000000000000000000000",
+                "deployment_timestamp": "stale",
+            }
+        )
+
+    result = verify_deployment_freshness(
+        expected_sha=expected_sha,
+        max_attempts=3,
+        initial_backoff=0.1,
+        fetcher=mock_fetch,
+        sleeper=lambda s: None,
+    )
+
+    assert result["passed"] is False
+    assert result["attempts"] == 3
+    assert "does not match expected revision" in result["error"]
+
 
 def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
     workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
@@ -231,8 +334,12 @@ def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
     assert "source_sha" in workflow
     assert "deployment_timestamp" in workflow
 
-    # Post-deploy freshness verification job exists
+    # Post-deploy freshness verification job exists and uses robust backoff
     assert "freshness-check:" in workflow
     assert "Post-deploy freshness verification" in workflow
+    assert "--verify-freshness" in workflow
+    assert "--expected-sha" in workflow
     assert "deployed-provenance.json" in workflow
-    assert "FRESHNESS CHECK FAILED" in workflow
+
+    # Repo self-mutation is not performed
+    assert "Update public-facts with deployment info" not in workflow

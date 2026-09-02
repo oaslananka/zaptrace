@@ -118,8 +118,11 @@
     "session_tools": ["session_create", "session_destroy", "session_list"]
   },
   "documentation": {
-    "deployment_source_sha": "unknown",
-    "deployment_timestamp": "unknown",
+    "deployment_source_sha": "HEAD",
+    "audit_baseline_deployed_sha": "b7fa54075747088cc8996293455f3a604ed5e259",
+    "deployment_timestamp": "dynamic",
+    "deployment_evidence_path": "site/deployment-provenance.json",
+    "deployment_provenance_url": "https://oaslananka.github.io/zaptrace/deployment-provenance.json",
     "freshness_check_enabled": true,
     "governed_pages": [
       "docs/mcp/quickstart.md",
