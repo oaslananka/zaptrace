@@ -1,1 +1,1 @@
-ngspice=46-r0
+ngspice=42-r0
