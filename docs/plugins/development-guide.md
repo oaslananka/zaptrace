@@ -60,6 +60,7 @@ pip install zaptrace-my-plugin  # Auto-discovered
 # my_plugin/__init__.py
 from zaptrace.plugin import BasePlugin, PluginManifest
 
+
 class MyPlugin(BasePlugin):
     """Custom analysis plugin."""
 
@@ -83,6 +84,7 @@ class MyPlugin(BasePlugin):
 from zaptrace.mcp import tool
 from zaptrace.models import Design
 
+
 @tool(
     name="my_custom_analysis",
     description="Run custom thermal analysis on a design",
@@ -105,11 +107,13 @@ async def custom_thermal_analysis(
     for comp in design.components:
         if comp.thermal_resistance:
             temp_rise = comp.power * comp.thermal_resistance
-            results.append({
-                "ref": comp.ref,
-                "temp_rise": temp_rise,
-                "junction_temp": ambient_temp + temp_rise,
-            })
+            results.append(
+                {
+                    "ref": comp.ref,
+                    "temp_rise": temp_rise,
+                    "junction_temp": ambient_temp + temp_rise,
+                }
+            )
 
     return {"components": results, "ambient_temp": ambient_temp}
 ```
@@ -119,6 +123,7 @@ async def custom_thermal_analysis(
 ```python
 # my_plugin/exporter.py
 from zaptrace.export import BaseExporter
+
 
 class STEPExporter(BaseExporter):
     """Export 3D model as STEP file."""

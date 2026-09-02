@@ -135,6 +135,7 @@ Checks can be defined as Python scripts:
 from zaptrace.proof.manifest import CheckDefinition
 from zaptrace.proof.checker import CheckResult, CheckStatus
 
+
 def run(check: CheckDefinition, design) -> CheckResult:
     """Verify all bypass caps are within 5mm of IC power pins."""
     violations = []
