@@ -13,7 +13,7 @@ ZapTrace uses multiple independent controls rather than treating one scanner as 
 
 - **Semgrep OSS** runs community rules plus `.semgrep.yml` in CI and the repository-specific rules in pre-commit.
 - **CodeQL** publishes GitHub code-scanning results.
-  - Alert `py/clear-text-logging-sensitive-data` in `scripts/ci_profile_test_lanes.py`: Dismissed as false positive with inline `# codeql[py/clear-text-logging-sensitive-data]` suppression. The terminal summary emitted by `format_summary_text()` produces only fixed metric labels and aggregate counts (module totals, timing weights, drift counts); it explicitly avoids logging raw inputs, secrets, or detailed message strings. Detailed messages and paths are retained exclusively in the JSON report artifact. Non-sensitive data flow is verified by `tests/test_test_lane_profiling.py::test_profile_summary_omits_untrusted_detail_strings`.
+  - `scripts/ci_profile_test_lanes.py` renders terminal output only from explicitly selected aggregate values. Raw input-derived paths and messages remain exclusively in the JSON report artifact; `tests/test_test_lane_profiling.py` verifies that untrusted detail strings cannot enter the terminal summary.
 - **SonarQube Cloud** uses its existing GitHub automatic-analysis integration. A second CI scanner is intentionally not configured because Sonar does not support running automatic and CI-based analysis concurrently for the same project.
 
 ## Risk-based Python test policy

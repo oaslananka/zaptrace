@@ -85,54 +85,68 @@ def run_pytest_profiling(
         return {}, errors
 
 
-def _summary_header_lines(report: dict[str, Any]) -> list[str]:
-    summary = report["summary"]
-    status_marker = "OK" if report["passed"] else "FAIL"
-    status = "PASSED" if report["passed"] else "FAILED"
+def format_terminal_summary(
+    *,
+    passed: bool,
+    total_modules: int,
+    observed_modules: int,
+    unobserved_modules: int,
+    unbaselined_modules: int,
+    total_baseline_seconds: float,
+    total_observed_seconds: float,
+    critical_drift_count: int,
+    warning_drift_count: int,
+    lane_detail_count: int,
+    notable_drift_count: int,
+    warnings_count: int,
+    errors_count: int,
+    untrusted_detail: str | None = None,
+) -> str:
+    """Render a terminal-safe summary from explicitly selected aggregate values."""
+    del untrusted_detail
+    status_marker = "OK" if passed else "FAIL"
+    status = "PASSED" if passed else "FAILED"
     lines = [
         f"Test Lane Duration Profile Summary [{status_marker} {status}]",
         (
-            f"  Total modules: {summary['total_modules']} | "
-            f"Observed: {summary['observed_modules']} | "
-            f"Unobserved: {summary['unobserved_modules']} | "
-            f"Unbaselined: {summary['unbaselined_modules']}"
+            f"  Total modules: {total_modules} | Observed: {observed_modules} | "
+            f"Unobserved: {unobserved_modules} | Unbaselined: {unbaselined_modules}"
         ),
-        (
-            f"  Total baseline weight: {summary['total_baseline_seconds']:.2f}s | "
-            f"Observed total: {summary['total_observed_seconds']:.2f}s"
-        ),
-        f"  Drift counts: Critical: {summary['critical_drift_count']} | Warning: {summary['warning_drift_count']}",
+        (f"  Total baseline weight: {total_baseline_seconds:.2f}s | Observed total: {total_observed_seconds:.2f}s"),
+        f"  Drift counts: Critical: {critical_drift_count} | Warning: {warning_drift_count}",
+        f"\nLane breakdown: {lane_detail_count} detail set(s) retained in the JSON report.",
     ]
-    if summary.get("imbalanced_lanes"):
-        lines.append(f"  Imbalanced lanes: {', '.join(summary['imbalanced_lanes'])}")
-    return lines
-
-
-def _format_lane_lines(lanes: dict[str, Any]) -> list[str]:
-    return [f"\nLane breakdown: {len(lanes)} detail set(s) retained in the JSON report."]
-
-
-def _format_notable_drift_lines(module_drifts: list[dict[str, Any]]) -> list[str]:
-    notable = [item for item in module_drifts if item["severity"] in {"critical", "warning"}][:10]
-    if not notable:
-        return []
-    return [f"\nCritical module drifts: {len(notable)} detail(s) retained in the JSON report."]
-
-
-def _format_message_lines(title: str, messages: list[str]) -> list[str]:
-    if not messages:
-        return []
-    return [f"\n{title}: {len(messages)} detail(s) retained in the JSON report."]
+    if notable_drift_count:
+        lines.append(f"\nCritical module drifts: {notable_drift_count} detail(s) retained in the JSON report.")
+    if warnings_count:
+        lines.append(f"\nWarnings: {warnings_count} detail(s) retained in the JSON report.")
+    if errors_count:
+        lines.append(f"\nErrors: {errors_count} detail(s) retained in the JSON report.")
+    return "\n".join(lines)
 
 
 def format_summary_text(report: dict[str, Any]) -> str:
     """Format human-readable profiling summary for terminal/logs."""
-    lines = _summary_header_lines(report)
-    lines.extend(_format_lane_lines(report["lanes"]))
-    lines.extend(_format_notable_drift_lines(report.get("module_drifts", [])))
-    lines.extend(_format_message_lines("Warnings", report.get("warnings", [])))
-    lines.extend(_format_message_lines("Errors", report.get("errors", [])))
-    return "\n".join(lines)
+    summary = report["summary"]
+    notable_drift_count = min(
+        10,
+        sum(1 for item in report.get("module_drifts", []) if item["severity"] in {"critical", "warning"}),
+    )
+    return format_terminal_summary(
+        passed=bool(report["passed"]),
+        total_modules=int(summary["total_modules"]),
+        observed_modules=int(summary["observed_modules"]),
+        unobserved_modules=int(summary["unobserved_modules"]),
+        unbaselined_modules=int(summary["unbaselined_modules"]),
+        total_baseline_seconds=float(summary["total_baseline_seconds"]),
+        total_observed_seconds=float(summary["total_observed_seconds"]),
+        critical_drift_count=int(summary["critical_drift_count"]),
+        warning_drift_count=int(summary["warning_drift_count"]),
+        lane_detail_count=len(report["lanes"]),
+        notable_drift_count=notable_drift_count,
+        warnings_count=len(report.get("warnings", [])),
+        errors_count=len(report.get("errors", [])),
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -265,7 +279,7 @@ def _load_durations_json(path: Path) -> tuple[dict[str, float], list[str]]:
     durations = {
         key: round(float(value), 3)
         for key, value in values.items()
-        if isinstance(key, str) and isinstance(value, (int, float)) and value > 0
+        if isinstance(key, str) and isinstance(value, int | float) and value > 0
     }
     return durations, []
 
@@ -379,8 +393,28 @@ def main(argv: list[str] | None = None) -> int:
     if baseline_updated and not args.quiet:
         print("Updated duration baseline written successfully.")
     if not args.quiet:
-        # codeql[py/clear-text-logging-sensitive-data] -- Terminal summary emits only aggregate metrics and counts.
-        print(format_summary_text(report))
+        summary = report["summary"]
+        notable_drift_count = min(
+            10,
+            sum(1 for item in report.get("module_drifts", []) if item["severity"] in {"critical", "warning"}),
+        )
+        print(
+            format_terminal_summary(
+                passed=bool(report["passed"]),
+                total_modules=int(summary["total_modules"]),
+                observed_modules=int(summary["observed_modules"]),
+                unobserved_modules=int(summary["unobserved_modules"]),
+                unbaselined_modules=int(summary["unbaselined_modules"]),
+                total_baseline_seconds=float(summary["total_baseline_seconds"]),
+                total_observed_seconds=float(summary["total_observed_seconds"]),
+                critical_drift_count=int(summary["critical_drift_count"]),
+                warning_drift_count=int(summary["warning_drift_count"]),
+                lane_detail_count=len(report["lanes"]),
+                notable_drift_count=notable_drift_count,
+                warnings_count=len(report.get("warnings", [])),
+                errors_count=len(report.get("errors", [])),
+            )
+        )
     return 1 if args.strict and not report["passed"] else 0
 
 

@@ -106,9 +106,9 @@ def test_committed_alpine_runtime_manifest_matches_pinned_base_repository() -> N
     assert manifest.read_text(encoding="utf-8").splitlines() == [
         "libcrypto3=3.5.8-r0",
         "libssl3=3.5.8-r0",
-        "musl=1.2.5-r11",
-        "musl-utils=1.2.5-r11",
-        "ngspice=42-r0",
+        "musl=1.2.6-r2",
+        "musl-utils=1.2.6-r2",
+        "ngspice=46-r0",
         "zlib=1.3.2-r0",
     ]
 
@@ -118,12 +118,17 @@ def test_lock_report_records_upgraded_runtime_os_packages(tmp_path: Path) -> Non
     manifest.write_bytes(_hashed_manifest())
     apk_manifest = tmp_path / "container-apk.txt"
     apk_manifest.write_text(
-        "libcrypto3=3.5.8-r0\n"
-        "libssl3=3.5.8-r0\n"
-        "musl=1.2.5-r11\n"
-        "musl-utils=1.2.5-r11\n"
-        "ngspice=42-r0\n"
-        "zlib=1.3.2-r0\n",
+        "\n".join(
+            [
+                "libcrypto3=3.5.8-r0",
+                "libssl3=3.5.8-r0",
+                "musl=1.2.6-r2",
+                "musl-utils=1.2.6-r2",
+                "ngspice=46-r0",
+                "zlib=1.3.2-r0",
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -134,9 +139,9 @@ def test_lock_report_records_upgraded_runtime_os_packages(tmp_path: Path) -> Non
     assert report["apk_manifest"]["packages"] == [
         "libcrypto3=3.5.8-r0",
         "libssl3=3.5.8-r0",
-        "musl=1.2.5-r11",
-        "musl-utils=1.2.5-r11",
-        "ngspice=42-r0",
+        "musl=1.2.6-r2",
+        "musl-utils=1.2.6-r2",
+        "ngspice=46-r0",
         "zlib=1.3.2-r0",
     ]
     assert len(report["apk_manifest"]["sha256"]) == 64
