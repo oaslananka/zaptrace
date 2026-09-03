@@ -25,6 +25,7 @@ CURRENT_STATE_AUDIT_DOC_PATH = "docs/strategy/current-state-audit.md"
 NOT_YET_ON_PYPI = "not yet on PyPI"
 _SHA1_RE_PATTERN = r"[0-9a-fA-F]{40}"
 DEFAULT_DEPLOYMENT_EVIDENCE_PATH = Path("site/deployment-provenance.json")
+DEFAULT_PROVENANCE_URL = "https://oaslananka.github.io/zaptrace/deployment-provenance.json"
 ALLOWED_PROVENANCE_HOSTS = frozenset({"oaslananka.github.io"})
 ALLOWED_PROVENANCE_SCHEMES = frozenset({"https"})
 
@@ -98,7 +99,7 @@ def _validate_safe_provenance_url(url: str) -> str:
     hostname = (parsed.hostname or "").lower()
     if not hostname or hostname not in ALLOWED_PROVENANCE_HOSTS:
         raise ValueError(f"unauthorized host {hostname!r}; only {sorted(ALLOWED_PROVENANCE_HOSTS)} allowed")
-    return url.strip()
+    return DEFAULT_PROVENANCE_URL
 
 
 def _list_len_assignment(path: str, name: str) -> int:
@@ -333,22 +334,60 @@ def _validate_deployment_sha(docs: dict[str, Any], revision: str) -> list[str]:
             "documentation deployment_source_sha is missing or 'unknown'; "
             "must be bound to expected revision ('HEAD' or 40-character SHA) fail-closed"
         )
-    elif deployment_sha == "HEAD":
-        pass
-    elif re.fullmatch(_SHA1_RE_PATTERN, deployment_sha):
-        if deployment_sha != revision:
-            deployed_short = deployment_sha[:8]
-            current_short = revision[:8]
+    elif deployment_sha != "HEAD":
+        if re.fullmatch(_SHA1_RE_PATTERN, deployment_sha):
+            if deployment_sha != revision:
+                deployed_short = deployment_sha[:8]
+                current_short = revision[:8]
+                errors.append(
+                    f"documentation deployment source SHA mismatch: deployed from {deployed_short} "
+                    f"but current revision is {current_short}"
+                )
+        else:
             errors.append(
-                f"documentation deployment source SHA mismatch: deployed from {deployed_short} "
-                f"but current revision is {current_short}"
+                f"documentation deployment_source_sha invalid: {deployment_sha!r}; "
+                "must be 'HEAD' or a 40-character commit SHA"
             )
-    else:
-        errors.append(
-            f"documentation deployment_source_sha invalid: {deployment_sha!r}; "
-            "must be 'HEAD' or a 40-character commit SHA"
-        )
     return errors
+
+
+def _resolve_evidence_file(
+    deployment_evidence_path: Path | None,
+) -> tuple[Path | None, list[str]]:
+    if deployment_evidence_path is not None:
+        try:
+            return _validate_safe_evidence_path(deployment_evidence_path), []
+        except ValueError as exc:
+            return None, [f"invalid deployment provenance evidence path: {exc}"]
+    if DEFAULT_DEPLOYMENT_EVIDENCE_PATH.is_file():
+        return DEFAULT_DEPLOYMENT_EVIDENCE_PATH, []
+    return None, []
+
+
+def _verify_evidence_payload(evidence_file: Path, revision: str) -> list[str]:
+    if not evidence_file.is_file():
+        return [f"deployment provenance evidence file not found: {evidence_file}"]
+    try:
+        abs_target = os.path.abspath(str(evidence_file))
+        base_repo = os.path.abspath(os.getcwd())
+        base_temp = os.path.abspath(tempfile.gettempdir())
+        in_repo = abs_target.startswith(base_repo + os.sep)
+        in_temp = abs_target.startswith(base_temp + os.sep)
+        if not (in_repo or in_temp):
+            return [f"deployment provenance evidence file outside allowed directory: {evidence_file}"]
+        with open(abs_target, encoding="utf-8") as f:
+            evidence_data = json.load(f)
+        evidence_sha = str(evidence_data.get("source_sha", ""))
+        if not re.fullmatch(_SHA1_RE_PATTERN, evidence_sha):
+            return [f"deployment provenance evidence contains invalid source_sha: {evidence_sha!r}"]
+        if evidence_sha != revision:
+            return [
+                f"deployment provenance evidence mismatch: evidence SHA {evidence_sha[:8]} "
+                f"does not match expected revision {revision[:8]}"
+            ]
+        return []
+    except (json.JSONDecodeError, OSError) as exc:
+        return [f"failed to read deployment provenance evidence from {evidence_file}: {exc}"]
 
 
 def _validate_deployment_evidence(
@@ -364,40 +403,10 @@ def _validate_deployment_evidence(
             f"public-facts deployment_evidence_path invalid: {facts_evidence_path!r}; expected {expected_rel!r}"
         )
 
-    evidence_file: Path | None = None
-    if deployment_evidence_path is not None:
-        try:
-            evidence_file = _validate_safe_evidence_path(deployment_evidence_path)
-        except ValueError as exc:
-            errors.append(f"invalid deployment provenance evidence path: {exc}")
-            return errors
-    elif DEFAULT_DEPLOYMENT_EVIDENCE_PATH.is_file():
-        evidence_file = DEFAULT_DEPLOYMENT_EVIDENCE_PATH
-
-    if evidence_file is not None:
-        if not evidence_file.is_file():
-            errors.append(f"deployment provenance evidence file not found: {evidence_file}")
-            return errors
-        try:
-            abs_target = os.path.abspath(str(evidence_file))
-            base_repo = os.path.abspath(os.getcwd())
-            base_temp = os.path.abspath(tempfile.gettempdir())
-            if not (abs_target.startswith(base_repo + os.sep) or abs_target.startswith(base_temp + os.sep)):
-                errors.append(f"deployment provenance evidence file outside allowed directory: {evidence_file}")
-                return errors
-            with open(abs_target, encoding="utf-8") as f:
-                evidence_data = json.load(f)
-            evidence_sha = str(evidence_data.get("source_sha", ""))
-            if not re.fullmatch(_SHA1_RE_PATTERN, evidence_sha):
-                errors.append(f"deployment provenance evidence contains invalid source_sha: {evidence_sha!r}")
-            elif evidence_sha != revision:
-                errors.append(
-                    f"deployment provenance evidence mismatch: evidence SHA {evidence_sha[:8]} "
-                    f"does not match expected revision {revision[:8]}"
-                )
-        except (json.JSONDecodeError, OSError) as exc:
-            errors.append(f"failed to read deployment provenance evidence from {evidence_file}: {exc}")
-
+    evidence_file, resolve_errors = _resolve_evidence_file(deployment_evidence_path)
+    errors.extend(resolve_errors)
+    if evidence_file is not None and not resolve_errors:
+        errors.extend(_verify_evidence_payload(evidence_file, revision))
     return errors
 
 
@@ -666,51 +675,42 @@ def verify_deployment_freshness(
     }
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate docs/status sync guard and deployment freshness")
-    parser.add_argument("--output", type=Path, help="Write JSON verification report")
-    parser.add_argument("--deployment-evidence", type=Path, help="Path to local deployment provenance evidence file")
-    parser.add_argument("--verify-freshness", action="store_true", help="Perform post-deploy freshness verification")
-    parser.add_argument("--expected-sha", type=str, help="Expected source SHA for freshness verification")
-    parser.add_argument("--provenance-url", type=str, help="Deployment provenance URL for freshness verification")
-    parser.add_argument("--max-attempts", type=int, default=15, help="Max polling attempts")
-    parser.add_argument("--timeout", type=float, default=180.0, help="Max total timeout in seconds")
-    args = parser.parse_args(argv)
+def _handle_verify_freshness(args: argparse.Namespace) -> int:
+    expected = args.expected_sha or source_revision()
+    if not expected or expected == "unknown":
+        print("error: expected SHA must be provided or resolvable from git", file=sys.stderr)
+        return 1
 
-    if args.verify_freshness:
-        expected = args.expected_sha or source_revision()
-        if not expected or expected == "unknown":
-            print("error: expected SHA must be provided or resolvable from git", file=sys.stderr)
-            return 1
-        url = args.provenance_url
-        if not url:
-            facts = load_public_facts()
-            url = facts.get("documentation", {}).get(
-                "deployment_provenance_url",
-                "https://oaslananka.github.io/zaptrace/deployment-provenance.json",
-            )
-        try:
-            url = _validate_safe_provenance_url(url)
-        except ValueError as exc:
-            print(f"error: invalid provenance URL: {exc}", file=sys.stderr)
-            return 1
-        result = verify_deployment_freshness(
-            expected_sha=expected,
-            url=url,
-            max_attempts=args.max_attempts,
-            timeout_seconds=args.timeout,
-        )
-        if args.output:
-            args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        if not result["passed"]:
-            print(f"FRESHNESS CHECK FAILED: {result.get('error')}", file=sys.stderr)
-            return 1
-        print(
-            f"freshness-check passed: deployed documentation matches expected revision {expected[:8]} "
-            f"after {result['attempts']} attempts"
-        )
-        return 0
+    facts = load_public_facts()
+    url = facts.get("documentation", {}).get(
+        "deployment_provenance_url",
+        DEFAULT_PROVENANCE_URL,
+    )
+    try:
+        safe_url = _validate_safe_provenance_url(url)
+    except ValueError as exc:
+        print(f"error: invalid provenance URL: {exc}", file=sys.stderr)
+        return 1
 
+    result = verify_deployment_freshness(
+        expected_sha=expected,
+        url=safe_url,
+        max_attempts=args.max_attempts,
+        timeout_seconds=args.timeout,
+    )
+    if args.output:
+        args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not result["passed"]:
+        print(f"FRESHNESS CHECK FAILED: {result.get('error')}", file=sys.stderr)
+        return 1
+    print(
+        f"freshness-check passed: deployed documentation matches expected revision {expected[:8]} "
+        f"after {result['attempts']} attempts"
+    )
+    return 0
+
+
+def _handle_validate_docs(args: argparse.Namespace) -> int:
     evidence_path: Path | None = None
     if args.deployment_evidence:
         try:
@@ -734,6 +734,21 @@ def main(argv: list[str] | None = None) -> int:
         f"MCP-exposed tools={result['mcp_tool_count']}"
     )
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate docs/status sync guard and deployment freshness")
+    parser.add_argument("--output", type=Path, help="Write JSON verification report")
+    parser.add_argument("--deployment-evidence", type=Path, help="Path to local deployment provenance evidence file")
+    parser.add_argument("--verify-freshness", action="store_true", help="Perform post-deploy freshness verification")
+    parser.add_argument("--expected-sha", type=str, help="Expected source SHA for freshness verification")
+    parser.add_argument("--max-attempts", type=int, default=15, help="Max polling attempts")
+    parser.add_argument("--timeout", type=float, default=180.0, help="Max total timeout in seconds")
+    args = parser.parse_args(argv)
+
+    if args.verify_freshness:
+        return _handle_verify_freshness(args)
+    return _handle_validate_docs(args)
 
 
 if __name__ == "__main__":  # pragma: no cover

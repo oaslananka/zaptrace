@@ -327,8 +327,8 @@ def test_verify_deployment_freshness_robust_polling_timeout() -> None:
 def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
     workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
 
-    # Workflow uses uv run --locked --no-build for docs status validation
-    assert "uv run --locked --no-build python scripts/ci_docs_status_sync.py" in workflow
+    # Workflow uses uv run --no-project for docs status validation
+    assert "uv run --no-project python scripts/ci_docs_status_sync.py" in workflow
 
     # Workflow captures source SHA and embeds deployment provenance
     assert "Capture source SHA" in workflow
@@ -381,3 +381,34 @@ def test_provenance_url_ssrf_rejected_fail_closed() -> None:
 
     with pytest.raises(ValueError, match="unauthorized host"):
         _default_provenance_fetcher("https://evil.internal.net/steal")
+
+
+def test_verify_freshness_cli_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import scripts.ci_docs_status_sync as sync_mod
+
+    expected_sha = "180e6aef31c87eef86a0c995540ec2ecfd27deb9"
+
+    def mock_fetch(url: str) -> str:
+        return json.dumps(
+            {
+                "source_sha": expected_sha,
+                "deployment_timestamp": "2026-09-03T02:00:00Z",
+            }
+        )
+
+    monkeypatch.setattr(sync_mod, "_default_provenance_fetcher", mock_fetch)
+
+    output = tmp_path / "freshness-report.json"
+    code = main([
+        "--verify-freshness",
+        "--expected-sha",
+        expected_sha,
+        "--output",
+        str(output),
+        "--max-attempts",
+        "1",
+    ])
+    assert code == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["passed"] is True
+    assert report["deployed_sha"] == expected_sha

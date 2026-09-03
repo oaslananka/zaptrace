@@ -59,7 +59,7 @@ jobs:
       - name: Validate docs/status sync
         id: docs_status
         run: |
-          uv run --locked --no-build python scripts/ci_docs_status_sync.py --output docs-status.json
+          uv run --no-project python scripts/ci_docs_status_sync.py --output docs-status.json
           echo "passed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build documentation
@@ -128,7 +128,7 @@ jobs:
         env:
           EXPECTED_SHA: ${{ needs.build.outputs.source_sha }}
         run: |
-          uv run --locked --no-build python scripts/ci_docs_status_sync.py \
+          uv run --no-project python scripts/ci_docs_status_sync.py \
             --verify-freshness \
             --expected-sha "$EXPECTED_SHA" \
             --output deployed-provenance.json
