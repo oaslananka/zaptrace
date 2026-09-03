@@ -104,8 +104,8 @@ def test_committed_alpine_runtime_manifest_matches_pinned_base_repository() -> N
     manifest = Path("requirements/container-apk.txt")
 
     assert manifest.read_text(encoding="utf-8").splitlines() == [
-        "libcrypto3=3.3.7-r0",
-        "libssl3=3.3.7-r0",
+        "libcrypto3=3.5.8-r0",
+        "libssl3=3.5.8-r0",
         "musl=1.2.5-r11",
         "musl-utils=1.2.5-r11",
         "ngspice=42-r0",
@@ -118,8 +118,8 @@ def test_lock_report_records_upgraded_runtime_os_packages(tmp_path: Path) -> Non
     manifest.write_bytes(_hashed_manifest())
     apk_manifest = tmp_path / "container-apk.txt"
     apk_manifest.write_text(
-        "libcrypto3=3.3.7-r0\n"
-        "libssl3=3.3.7-r0\n"
+        "libcrypto3=3.5.8-r0\n"
+        "libssl3=3.5.8-r0\n"
         "musl=1.2.5-r11\n"
         "musl-utils=1.2.5-r11\n"
         "ngspice=42-r0\n"
@@ -132,8 +132,8 @@ def test_lock_report_records_upgraded_runtime_os_packages(tmp_path: Path) -> Non
     assert report["status"] == "pass"
     assert report["checks"]["apk_manifest_is_exactly_pinned"] is True
     assert report["apk_manifest"]["packages"] == [
-        "libcrypto3=3.3.7-r0",
-        "libssl3=3.3.7-r0",
+        "libcrypto3=3.5.8-r0",
+        "libssl3=3.5.8-r0",
         "musl=1.2.5-r11",
         "musl-utils=1.2.5-r11",
         "ngspice=42-r0",

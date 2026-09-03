@@ -379,8 +379,7 @@ def main(argv: list[str] | None = None) -> int:
     if baseline_updated and not args.quiet:
         print("Updated duration baseline written successfully.")
     if not args.quiet:
-        # codeql[py/clear-text-logging-sensitive-data] -- The terminal summary emits fixed labels
-        # and aggregate counts; untrusted paths and messages remain in the JSON report.
+        # codeql[py/clear-text-logging-sensitive-data] -- Terminal summary emits only aggregate metrics and counts.
         print(format_summary_text(report))
     return 1 if args.strict and not report["passed"] else 0
 
