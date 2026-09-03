@@ -1,6 +1,6 @@
 [project]
 name = "zaptrace-eda"
-version = "0.3.5.dev0"
+version = "0.3.5"
 description = "Agent-native electronics design core"
 requires-python = ">=3.12"
 license = {text = "MIT"}

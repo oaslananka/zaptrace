@@ -1,10 +1,12 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.5] - 2026-09-03
 
 ### Changed
 
-- Advanced post-release development identity to Python `0.3.5.dev0` / Cargo `0.3.5-dev.0` after the aborted `v0.3.4` candidate, preparing `v0.3.5` as the first fully traceable release.
+- Synchronized package identity to final `0.3.5` across Python (`pyproject.toml`), Rust (`zaptrace_core/Cargo.toml`), lockfiles (`uv.lock`, `Cargo.lock`), runtime surfaces, and public-facts documentation for release-preparation review.
+- Updated CHANGELOG and public-facts for release-preparation state (`mode=release-preparation`, `published=false`) without claiming publication before the tag workflow succeeds.
+- Preserved immutable failed `v0.3.4` evidence at tag `v0.3.4` (commit `76ecc97bdd93292e0901fc6a3d03f705d2ab7916`) without deletion, movement, rewrite, or reuse.
 
 ## [0.3.4] - 2026-09-02
 

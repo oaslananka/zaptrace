@@ -16,7 +16,7 @@ ZapTrace uses PEP 440 package versions, Cargo-compatible SemVer mappings, and `v
 
 ## Post-release development bump
 
-The post-release development bump is mandatory. After publishing or candidate abort, `main` advances to Python `0.3.5.dev0` and Cargo `0.3.5-dev.0`; it must not continue presenting the final `0.3.3` identity. The Quality workflow rejects a final version on the development branch and rejects a development line whose corresponding final tag already exists.
+The post-release development bump is mandatory. After publishing or candidate abort, `main` advances to Python `0.3.6.dev0` and Cargo `0.3.6-dev.0`; it must not continue presenting the final `0.3.5` identity. The Quality workflow rejects a final version on the development branch and rejects a development line whose corresponding final tag already exists.
 
 Future release tags must be annotated and resolve to the exact checked-out commit. The historical `v0.3.0` lightweight tag is grandfathered and remains historical evidence only. Cryptographic tag verification is not currently required; reports state this explicitly and do not claim a verified signature.
 
