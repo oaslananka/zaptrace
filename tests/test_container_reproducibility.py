@@ -29,7 +29,7 @@ def _toolchain() -> policy.ToolchainIdentity:
     )
 
 
-def _runtime_files(tmp_path: Path, *, apk_pin: str = "ngspice=46-r0") -> tuple[Path, Path, Path]:
+def _runtime_files(tmp_path: Path, *, apk_pin: str = "ngspice=42-r0") -> tuple[Path, Path, Path]:
     manifest = tmp_path / "container-runtime.txt"
     manifest.write_bytes(_hashed_manifest())
     apk_manifest = tmp_path / "container-apk.txt"
@@ -100,6 +100,53 @@ def test_committed_builder_manifest_is_hash_locked() -> None:
     assert policy.parse_hashed_manifest(manifest) == ["maturin==1.13.3", "uv==0.11.29"]
 
 
+def test_committed_alpine_runtime_manifest_matches_pinned_base_repository() -> None:
+    manifest = Path("requirements/container-apk.txt")
+
+    assert manifest.read_text(encoding="utf-8").splitlines() == [
+        "libcrypto3=3.5.8-r0",
+        "libssl3=3.5.8-r0",
+        "musl=1.2.6-r2",
+        "musl-utils=1.2.6-r2",
+        "ngspice=46-r0",
+        "zlib=1.3.2-r0",
+    ]
+
+
+def test_lock_report_records_upgraded_runtime_os_packages(tmp_path: Path) -> None:
+    manifest = tmp_path / "container-runtime.txt"
+    manifest.write_bytes(_hashed_manifest())
+    apk_manifest = tmp_path / "container-apk.txt"
+    apk_manifest.write_text(
+        "\n".join(
+            [
+                "libcrypto3=3.5.8-r0",
+                "libssl3=3.5.8-r0",
+                "musl=1.2.6-r2",
+                "musl-utils=1.2.6-r2",
+                "ngspice=46-r0",
+                "zlib=1.3.2-r0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = policy.build_lock_report(manifest, _hashed_manifest(), "uv 0.11.29", apk_manifest)
+
+    assert report["status"] == "pass"
+    assert report["checks"]["apk_manifest_is_exactly_pinned"] is True
+    assert report["apk_manifest"]["packages"] == [
+        "libcrypto3=3.5.8-r0",
+        "libssl3=3.5.8-r0",
+        "musl=1.2.6-r2",
+        "musl-utils=1.2.6-r2",
+        "ngspice=46-r0",
+        "zlib=1.3.2-r0",
+    ]
+    assert len(report["apk_manifest"]["sha256"]) == 64
+
+
 def test_manifest_requires_exact_pins_and_hashes(tmp_path: Path) -> None:
     manifest = tmp_path / "container-runtime.txt"
     manifest.write_bytes(_hashed_manifest())
@@ -149,7 +196,7 @@ def test_lock_report_records_exact_alpine_runtime_manifest(tmp_path: Path) -> No
 
     assert report["status"] == "pass"
     assert report["checks"]["apk_manifest_is_exactly_pinned"] is True
-    assert report["apk_manifest"]["packages"] == ["ngspice=46-r0"]
+    assert report["apk_manifest"]["packages"] == ["ngspice=42-r0"]
     assert len(report["apk_manifest"]["sha256"]) == 64
 
 

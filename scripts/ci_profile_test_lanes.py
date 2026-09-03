@@ -11,7 +11,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from tests.lane_policy import (
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tests.lane_policy import (  # noqa: E402
     PRIMARY_LANES,
     DriftThresholds,
     DurationBaseline,
@@ -24,9 +28,7 @@ from tests.lane_policy import (
     save_duration_baseline,
     update_duration_baseline_data,
 )
-from zaptrace.security.paths import resolve_trusted_path
-
-ROOT = Path(__file__).resolve().parents[1]
+from zaptrace.security.paths import resolve_trusted_path  # noqa: E402
 
 
 def _repository_input_path(value: str) -> Path:
@@ -85,84 +87,68 @@ def run_pytest_profiling(
         return {}, errors
 
 
-def _summary_header_lines(report: dict[str, Any]) -> list[str]:
-    summary = report["summary"]
-    status_marker = "OK" if report["passed"] else "FAIL"
+def format_terminal_summary(
+    *,
+    passed: bool,
+    total_modules: int,
+    observed_modules: int,
+    unobserved_modules: int,
+    unbaselined_modules: int,
+    total_baseline_seconds: float,
+    total_observed_seconds: float,
+    critical_drift_count: int,
+    warning_drift_count: int,
+    lane_detail_count: int,
+    notable_drift_count: int,
+    warnings_count: int,
+    errors_count: int,
+    untrusted_detail: str | None = None,
+) -> str:
+    """Render a terminal-safe summary from explicitly selected aggregate values."""
+    del untrusted_detail
+    status_marker = "OK" if passed else "FAIL"
+    status = "PASSED" if passed else "FAILED"
     lines = [
-        f"Test Lane Duration Profile Summary [{status_marker} {report['status'].upper()}]",
+        f"Test Lane Duration Profile Summary [{status_marker} {status}]",
         (
-            f"  Total modules: {summary['total_modules']} | "
-            f"Observed: {summary['observed_modules']} | "
-            f"Unobserved: {summary['unobserved_modules']} | "
-            f"Unbaselined: {summary['unbaselined_modules']}"
+            f"  Total modules: {total_modules} | Observed: {observed_modules} | "
+            f"Unobserved: {unobserved_modules} | Unbaselined: {unbaselined_modules}"
         ),
-        (
-            f"  Total baseline weight: {summary['total_baseline_seconds']:.2f}s | "
-            f"Observed total: {summary['total_observed_seconds']:.2f}s"
-        ),
-        f"  Drift counts: Critical: {summary['critical_drift_count']} | Warning: {summary['warning_drift_count']}",
+        (f"  Total baseline weight: {total_baseline_seconds:.2f}s | Observed total: {total_observed_seconds:.2f}s"),
+        f"  Drift counts: Critical: {critical_drift_count} | Warning: {warning_drift_count}",
+        f"\nLane breakdown: {lane_detail_count} detail set(s) retained in the JSON report.",
     ]
-    if summary.get("imbalanced_lanes"):
-        lines.append(f"  Imbalanced lanes: {', '.join(summary['imbalanced_lanes'])}")
-    return lines
-
-
-def _format_shard_line(shard: dict[str, Any]) -> str:
-    return (
-        f"      Shard {shard['index']}: {shard['module_count']:>2} mods | "
-        f"base: {shard['projected_baseline_seconds']:>6.2f}s | "
-        f"eff: {shard['effective_projected_seconds']:>6.2f}s | "
-        f"diff: {shard['drift_seconds']:>+6.2f}s"
-    )
-
-
-def _format_lane_lines(lanes: dict[str, Any]) -> list[str]:
-    lines = ["\nLane Breakdown:"]
-    for lane_name, lane_data in lanes.items():
-        shard_count = lane_data["shard_count"]
-        imbalance = f"imbalance: {lane_data['imbalance_seconds']:.2f}s" if shard_count > 1 else "single shard"
-        lines.append(
-            f"  - {lane_name:<14} [{lane_data['severity'].upper()}]: "
-            f"{lane_data['module_count']:>3} mods ({lane_data['observed_module_count']:>3} obs) | "
-            f"base: {lane_data['projected_baseline_seconds']:>7.2f}s | "
-            f"eff: {lane_data['effective_projected_seconds']:>7.2f}s | "
-            f"{shard_count} shard(s) ({imbalance})"
-        )
-        if shard_count > 1:
-            lines.extend(_format_shard_line(shard) for shard in lane_data["current_shards"])
-    return lines
-
-
-def _format_notable_drift_lines(module_drifts: list[dict[str, Any]]) -> list[str]:
-    notable = [item for item in module_drifts if item["severity"] in {"critical", "warning"}][:10]
-    if not notable:
-        return []
-    lines = ["\nNotable Module Drifts:"]
-    for item in notable:
-        tag = "[NEW]" if item["is_new_module"] else ""
-        lines.append(
-            f"  - {item['module']:<48} [{item['severity'].upper()} {tag}]: "
-            f"obs: {item['observed_seconds']:>6.2f}s "
-            f"(base: {item['baseline_seconds']:>6.2f}s, "
-            f"diff: {item['drift_seconds']:>+6.2f}s / {item['drift_ratio'] * 100:>+5.1f}%)"
-        )
-    return lines
-
-
-def _format_message_lines(title: str, prefix: str, messages: list[str]) -> list[str]:
-    if not messages:
-        return []
-    return [f"\n{title}:", *(f"  {prefix} {message}" for message in messages[:5])]
+    if notable_drift_count:
+        lines.append(f"\nCritical module drifts: {notable_drift_count} detail(s) retained in the JSON report.")
+    if warnings_count:
+        lines.append(f"\nWarnings: {warnings_count} detail(s) retained in the JSON report.")
+    if errors_count:
+        lines.append(f"\nErrors: {errors_count} detail(s) retained in the JSON report.")
+    return "\n".join(lines)
 
 
 def format_summary_text(report: dict[str, Any]) -> str:
     """Format human-readable profiling summary for terminal/logs."""
-    lines = _summary_header_lines(report)
-    lines.extend(_format_lane_lines(report["lanes"]))
-    lines.extend(_format_notable_drift_lines(report.get("module_drifts", [])))
-    lines.extend(_format_message_lines("Warnings", "!", report.get("warnings", [])))
-    lines.extend(_format_message_lines("Errors", "*", report.get("errors", [])))
-    return "\n".join(lines)
+    summary = report["summary"]
+    notable_drift_count = min(
+        10,
+        sum(1 for item in report.get("module_drifts", []) if item["severity"] in {"critical", "warning"}),
+    )
+    return format_terminal_summary(
+        passed=bool(report["passed"]),
+        total_modules=int(summary["total_modules"]),
+        observed_modules=int(summary["observed_modules"]),
+        unobserved_modules=int(summary["unobserved_modules"]),
+        unbaselined_modules=int(summary["unbaselined_modules"]),
+        total_baseline_seconds=float(summary["total_baseline_seconds"]),
+        total_observed_seconds=float(summary["total_observed_seconds"]),
+        critical_drift_count=int(summary["critical_drift_count"]),
+        warning_drift_count=int(summary["warning_drift_count"]),
+        lane_detail_count=len(report["lanes"]),
+        notable_drift_count=notable_drift_count,
+        warnings_count=len(report.get("warnings", [])),
+        errors_count=len(report.get("errors", [])),
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -295,7 +281,7 @@ def _load_durations_json(path: Path) -> tuple[dict[str, float], list[str]]:
     durations = {
         key: round(float(value), 3)
         for key, value in values.items()
-        if isinstance(key, str) and isinstance(value, (int, float)) and value > 0
+        if isinstance(key, str) and isinstance(value, int | float) and value > 0
     }
     return durations, []
 
