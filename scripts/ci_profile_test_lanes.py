@@ -11,7 +11,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from tests.lane_policy import (
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tests.lane_policy import (  # noqa: E402
     PRIMARY_LANES,
     DriftThresholds,
     DurationBaseline,
@@ -24,9 +28,7 @@ from tests.lane_policy import (
     save_duration_baseline,
     update_duration_baseline_data,
 )
-from zaptrace.security.paths import resolve_trusted_path
-
-ROOT = Path(__file__).resolve().parents[1]
+from zaptrace.security.paths import resolve_trusted_path  # noqa: E402
 
 
 def _repository_input_path(value: str) -> Path:
@@ -393,28 +395,7 @@ def main(argv: list[str] | None = None) -> int:
     if baseline_updated and not args.quiet:
         print("Updated duration baseline written successfully.")
     if not args.quiet:
-        summary = report["summary"]
-        notable_drift_count = min(
-            10,
-            sum(1 for item in report.get("module_drifts", []) if item["severity"] in {"critical", "warning"}),
-        )
-        print(
-            format_terminal_summary(
-                passed=bool(report["passed"]),
-                total_modules=int(summary["total_modules"]),
-                observed_modules=int(summary["observed_modules"]),
-                unobserved_modules=int(summary["unobserved_modules"]),
-                unbaselined_modules=int(summary["unbaselined_modules"]),
-                total_baseline_seconds=float(summary["total_baseline_seconds"]),
-                total_observed_seconds=float(summary["total_observed_seconds"]),
-                critical_drift_count=int(summary["critical_drift_count"]),
-                warning_drift_count=int(summary["warning_drift_count"]),
-                lane_detail_count=len(report["lanes"]),
-                notable_drift_count=notable_drift_count,
-                warnings_count=len(report.get("warnings", [])),
-                errors_count=len(report.get("errors", [])),
-            )
-        )
+        print(format_summary_text(report))
     return 1 if args.strict and not report["passed"] else 0
 
 
