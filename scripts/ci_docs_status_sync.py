@@ -5,10 +5,13 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
+import urllib.parse
 import urllib.request
 from collections import Counter
 from collections.abc import Callable
@@ -18,6 +21,12 @@ from typing import Any
 _STALE_TEST_TOTAL_REASON = "test totals should not be hard-coded in docs"
 COMPONENT_TRUST_BASELINE_PATH = "config/component-trust-baseline.json"
 PUBLIC_FACTS_PATH = "config/public-facts.json"
+CURRENT_STATE_AUDIT_DOC_PATH = "docs/strategy/current-state-audit.md"
+NOT_YET_ON_PYPI = "not yet on PyPI"
+_SHA1_RE_PATTERN = r"[0-9a-fA-F]{40}"
+DEFAULT_DEPLOYMENT_EVIDENCE_PATH = Path("site/deployment-provenance.json")
+ALLOWED_PROVENANCE_HOSTS = frozenset({"oaslananka.github.io"})
+ALLOWED_PROVENANCE_SCHEMES = frozenset({"https"})
 
 BANNED_REFERENCES = {
     "zaptrace/proof/generator.py": "proof generator module was consolidated into zaptrace/proof/pack.py",
@@ -46,7 +55,7 @@ BANNED_REFERENCES = {
     "~50 packages supported": f"component inventory is derived from {COMPONENT_TRUST_BASELINE_PATH}",
     "KiCad export is unidirectional": "KiCad schematic, PCB, and hierarchical project importers are implemented",
     "No release automation": "the release workflow builds, attests, checksums, and publishes GitHub release artifacts",
-    "not yet on PyPI": "PyPI publication is active for verified releases (v0.3.3+); distribution name is zaptrace-eda",
+    NOT_YET_ON_PYPI: "PyPI publication is active for verified releases (v0.3.3+); distribution name is zaptrace-eda",
 }
 
 ROOTS = (Path("README.md"), Path("CONTRIBUTING.md"), Path("docs"), Path("CHANGELOG.md"))
@@ -54,11 +63,42 @@ MCP_TOOLS_LABEL = "MCP tools"
 GOVERNED_DOCS = [
     "docs/mcp/quickstart.md",
     "docs/installation/distribution-support.md",
-    "docs/strategy/current-state-audit.md",
+    CURRENT_STATE_AUDIT_DOC_PATH,
     "docs/GETTING_STARTED.md",
     "docs/releases/v0.3.0-evidence-hardening.md",
     "docs/repo-maturity-report.md",
 ]
+
+
+def _validate_safe_evidence_path(raw_path: Path | str) -> Path:
+    """Validate that the evidence path is within the allowed repository or temp root."""
+    path_str = str(raw_path).strip()
+    if not path_str or "\0" in path_str:
+        raise ValueError("empty or null-byte path is not permitted")
+    normalized_parts = path_str.replace("\\", "/").split("/")
+    if ".." in normalized_parts:
+        raise ValueError(f"path traversal '..' is not allowed: {raw_path}")
+
+    abs_path = os.path.abspath(path_str)
+    base_repo = os.path.abspath(os.getcwd())
+    base_temp = os.path.abspath(tempfile.gettempdir())
+
+    in_repo = abs_path == base_repo or abs_path.startswith(base_repo + os.sep)
+    in_temp = abs_path == base_temp or abs_path.startswith(base_temp + os.sep)
+    if not (in_repo or in_temp):
+        raise ValueError(f"evidence path {raw_path} escapes allowed repository or temp directory")
+    return Path(abs_path)
+
+
+def _validate_safe_provenance_url(url: str) -> str:
+    """Ensure provenance URL uses HTTPS and targets an authorized host."""
+    parsed = urllib.parse.urlsplit(url.strip())
+    if parsed.scheme not in ALLOWED_PROVENANCE_SCHEMES:
+        raise ValueError(f"invalid scheme {parsed.scheme!r}; only https is allowed")
+    hostname = (parsed.hostname or "").lower()
+    if not hostname or hostname not in ALLOWED_PROVENANCE_HOSTS:
+        raise ValueError(f"unauthorized host {hostname!r}; only {sorted(ALLOWED_PROVENANCE_HOSTS)} allowed")
+    return url.strip()
 
 
 def _list_len_assignment(path: str, name: str) -> int:
@@ -162,7 +202,7 @@ def source_revision() -> str:
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
     revision = completed.stdout.strip()
-    return revision if re.fullmatch(r"[0-9a-fA-F]{40}", revision) else "unknown"
+    return revision if re.fullmatch(_SHA1_RE_PATTERN, revision) else "unknown"
 
 
 def internal_public_plan_paths(root: Path = Path("docs")) -> list[str]:
@@ -248,7 +288,7 @@ def _validate_repository_facts(capabilities: dict[str, bool]) -> list[str]:
     return errors
 
 
-def _validate_current_state_document(path: Path = Path("docs/strategy/current-state-audit.md")) -> list[str]:
+def _validate_current_state_document(path: Path = Path(CURRENT_STATE_AUDIT_DOC_PATH)) -> list[str]:
     """Validate machine-derived claims that are allowed in the current-state audit."""
     profile = component_library_profile()
     checks = [
@@ -285,24 +325,8 @@ def _validate_release_documentation() -> list[str]:
     return errors
 
 
-def _validate_public_facts(
-    public_facts: dict[str, Any],
-    revision: str,
-    deployment_evidence_path: Path | None = None,
-) -> list[str]:
-    """Validate that governed documentation matches the public-facts source."""
+def _validate_deployment_sha(docs: dict[str, Any], revision: str) -> list[str]:
     errors: list[str] = []
-    if not public_facts:
-        errors.append("public-facts.json: missing or unreadable")
-        return errors
-
-    # Validate package info
-    pkg = public_facts.get("package", {})
-    dist = public_facts.get("distribution", {})
-    mcp = public_facts.get("mcp", {})
-    docs = public_facts.get("documentation", {})
-
-    # Check that the deployment source SHA matches expected revision fail-closed
     deployment_sha = docs.get("deployment_source_sha")
     if not deployment_sha or deployment_sha == "unknown":
         errors.append(
@@ -310,8 +334,8 @@ def _validate_public_facts(
             "must be bound to expected revision ('HEAD' or 40-character SHA) fail-closed"
         )
     elif deployment_sha == "HEAD":
-        pass  # dynamically bound to repository revision being validated
-    elif re.fullmatch(r"[0-9a-fA-F]{40}", deployment_sha):
+        pass
+    elif re.fullmatch(_SHA1_RE_PATTERN, deployment_sha):
         if deployment_sha != revision:
             deployed_short = deployment_sha[:8]
             current_short = revision[:8]
@@ -324,90 +348,161 @@ def _validate_public_facts(
             f"documentation deployment_source_sha invalid: {deployment_sha!r}; "
             "must be 'HEAD' or a 40-character commit SHA"
         )
+    return errors
 
-    # Validate deployment provenance evidence if present or explicitly configured
-    evidence_file = deployment_evidence_path
-    if evidence_file is None and "deployment_evidence_path" in docs:
-        candidate = Path(docs["deployment_evidence_path"])
-        if candidate.is_file():
-            evidence_file = candidate
+
+def _validate_deployment_evidence(
+    docs: dict[str, Any],
+    revision: str,
+    deployment_evidence_path: Path | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    expected_rel = str(DEFAULT_DEPLOYMENT_EVIDENCE_PATH).replace("\\", "/")
+    facts_evidence_path = docs.get("deployment_evidence_path")
+    if facts_evidence_path is not None and facts_evidence_path != expected_rel:
+        errors.append(
+            f"public-facts deployment_evidence_path invalid: {facts_evidence_path!r}; expected {expected_rel!r}"
+        )
+
+    evidence_file: Path | None = None
+    if deployment_evidence_path is not None:
+        try:
+            evidence_file = _validate_safe_evidence_path(deployment_evidence_path)
+        except ValueError as exc:
+            errors.append(f"invalid deployment provenance evidence path: {exc}")
+            return errors
+    elif DEFAULT_DEPLOYMENT_EVIDENCE_PATH.is_file():
+        evidence_file = DEFAULT_DEPLOYMENT_EVIDENCE_PATH
 
     if evidence_file is not None:
         if not evidence_file.is_file():
             errors.append(f"deployment provenance evidence file not found: {evidence_file}")
-        else:
-            try:
-                evidence_data = json.loads(evidence_file.read_text(encoding="utf-8"))
-                evidence_sha = str(evidence_data.get("source_sha", ""))
-                if not re.fullmatch(r"[0-9a-fA-F]{40}", evidence_sha):
-                    errors.append(f"deployment provenance evidence contains invalid source_sha: {evidence_sha!r}")
-                elif evidence_sha != revision:
-                    errors.append(
-                        f"deployment provenance evidence mismatch: evidence SHA {evidence_sha[:8]} "
-                        f"does not match expected revision {revision[:8]}"
-                    )
-            except (json.JSONDecodeError, OSError) as exc:
-                errors.append(f"failed to read deployment provenance evidence from {evidence_file}: {exc}")
+            return errors
+        try:
+            abs_target = os.path.abspath(str(evidence_file))
+            base_repo = os.path.abspath(os.getcwd())
+            base_temp = os.path.abspath(tempfile.gettempdir())
+            if not (abs_target.startswith(base_repo + os.sep) or abs_target.startswith(base_temp + os.sep)):
+                errors.append(f"deployment provenance evidence file outside allowed directory: {evidence_file}")
+                return errors
+            with open(abs_target, encoding="utf-8") as f:
+                evidence_data = json.load(f)
+            evidence_sha = str(evidence_data.get("source_sha", ""))
+            if not re.fullmatch(_SHA1_RE_PATTERN, evidence_sha):
+                errors.append(f"deployment provenance evidence contains invalid source_sha: {evidence_sha!r}")
+            elif evidence_sha != revision:
+                errors.append(
+                    f"deployment provenance evidence mismatch: evidence SHA {evidence_sha[:8]} "
+                    f"does not match expected revision {revision[:8]}"
+                )
+        except (json.JSONDecodeError, OSError) as exc:
+            errors.append(f"failed to read deployment provenance evidence from {evidence_file}: {exc}")
 
-    # Validate MCP tool counts in governed docs
+    return errors
+
+
+_MCP_TOTAL_PATTERN = re.compile(
+    r"(?<![\d.])(\d+)[ \t]+(?:tools?\s+total|exposed\s+tools?|MCP[- ]?exposed)\b",
+    re.IGNORECASE,
+)
+_DESIGN_TOOLS_PATTERN = re.compile(r"(?<![\d.])(\d+)[ \t]+design\s+tools?\b", re.IGNORECASE)
+_LATEST_TAG_PATTERN = re.compile(r"\bv?(\d+\.\d+\.\d+)\b")
+_PYPI_DISABLED_PATTERN = re.compile(
+    r"\bPyPI\b[^\n\r]*?\bnot\b\s+(?:\w+\s+)?enabled\b",
+    re.IGNORECASE,
+)
+
+
+def _validate_doc_mcp_claims(text: str, doc_path_str: str, mcp: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
     expected_mcp_total = mcp.get("total_exposed_tool_count", 96)
     expected_design_tools = mcp.get("design_tool_count", 93)
-    _ = mcp.get("session_admin_tool_count", 3)  # validated via total count
+
+    for match in _MCP_TOTAL_PATTERN.finditer(text):
+        claimed = int(match.group(1))
+        if claimed != expected_mcp_total:
+            errors.append(f"{doc_path_str}: claims {claimed} MCP tools but public-facts has {expected_mcp_total}")
+
+    for match in _DESIGN_TOOLS_PATTERN.finditer(text):
+        claimed = int(match.group(1))
+        if claimed != expected_design_tools:
+            errors.append(f"{doc_path_str}: claims {claimed} design tools but public-facts has {expected_design_tools}")
+    return errors
+
+
+def _validate_doc_tag_claims(text: str, doc_path_str: str, latest_tag: str) -> list[str]:
+    lower_text = text.lower()
+    if "latest published" not in lower_text and "latest release" not in lower_text:
+        return []
+
+    for match in _LATEST_TAG_PATTERN.finditer(text):
+        version = match.group(1)
+        if f"v{version}" == latest_tag or version == latest_tag.lstrip("v"):
+            return []
+
+    return [
+        f"{doc_path_str}: discusses 'latest published' or 'latest release' but does not mention "
+        f"the expected latest tag {latest_tag}"
+    ]
+
+
+def _validate_doc_distribution_claims(
+    text: str,
+    doc_path_str: str,
+    pypi_is_active: bool,
+) -> list[str]:
+    errors: list[str] = []
+    if NOT_YET_ON_PYPI in text:
+        errors.append(f"{doc_path_str}: contains stale '{NOT_YET_ON_PYPI}' claim; PyPI publication is active")
+
+    if pypi_is_active and (NOT_YET_ON_PYPI in text or _PYPI_DISABLED_PATTERN.search(text)):
+        errors.append(f"{doc_path_str}: claims PyPI not enabled but public-facts shows PyPI active")
+
+    return errors
+
+
+def _validate_governed_doc(
+    doc_path_str: str,
+    mcp: dict[str, Any],
+    latest_tag: str,
+    pypi_is_active: bool,
+) -> list[str]:
+    doc_path = Path(doc_path_str)
+    if not doc_path.is_file():
+        return [f"governed doc missing: {doc_path_str}"]
+
+    text = doc_path.read_text(encoding="utf-8", errors="ignore")
+    errors: list[str] = []
+    errors.extend(_validate_doc_mcp_claims(text, doc_path_str, mcp))
+    errors.extend(_validate_doc_tag_claims(text, doc_path_str, latest_tag))
+    errors.extend(_validate_doc_distribution_claims(text, doc_path_str, pypi_is_active))
+    return errors
+
+
+def _validate_public_facts(
+    public_facts: dict[str, Any],
+    revision: str,
+    deployment_evidence_path: Path | None = None,
+) -> list[str]:
+    """Validate that governed documentation matches the public-facts source."""
+    if not public_facts:
+        return ["public-facts.json: missing or unreadable"]
+
+    pkg = public_facts.get("package", {})
+    dist = public_facts.get("distribution", {})
+    mcp = public_facts.get("mcp", {})
+    docs = public_facts.get("documentation", {})
+
+    errors: list[str] = []
+    errors.extend(_validate_deployment_sha(docs, revision))
+    errors.extend(_validate_deployment_evidence(docs, revision, deployment_evidence_path))
+
+    latest_tag = str(pkg.get("latest_published_tag", "v0.3.3"))
+    active_channels = [c["name"] for c in dist.get("channels", []) if c.get("status") == "active"]
+    pypi_is_active = "pypi" in active_channels
 
     for doc_path_str in GOVERNED_DOCS:
-        doc_path = Path(doc_path_str)
-        if not doc_path.is_file():
-            errors.append(f"governed doc missing: {doc_path_str}")
-            continue
-        text = doc_path.read_text(encoding="utf-8", errors="ignore")
-
-        # Check MCP tool count claims
-        mcp_total_pattern = re.compile(
-            r"(?<![\d.])(\d+)[ \t]+(?:tools?\s+total|exposed\s+tools?|MCP[- ]?exposed)\b", re.IGNORECASE
-        )
-        for match in mcp_total_pattern.finditer(text):
-            claimed = int(match.group(1))
-            if claimed != expected_mcp_total:
-                errors.append(f"{doc_path_str}: claims {claimed} MCP tools but public-facts has {expected_mcp_total}")
-
-        design_tools_pattern = re.compile(r"(?<![\d.])(\d+)[ \t]+design\s+tools?\b", re.IGNORECASE)
-        for match in design_tools_pattern.finditer(text):
-            claimed = int(match.group(1))
-            if claimed != expected_design_tools:
-                errors.append(
-                    f"{doc_path_str}: claims {claimed} design tools but public-facts has {expected_design_tools}"
-                )
-
-        # Check distribution claims
-        if "not yet on PyPI" in text:
-            errors.append(f"{doc_path_str}: contains stale 'not yet on PyPI' claim; PyPI publication is active")
-
-        # Check latest published tag - validate against public-facts
-        latest_tag = pkg.get("latest_published_tag", "v0.3.3")
-        if "latest published" in text.lower() or "latest release" in text.lower():
-            tag_pattern = re.compile(r"\bv?(\d+\.\d+\.\d+)\b")
-            found_latest = False
-            for match in tag_pattern.finditer(text):
-                version = match.group(1)
-                if f"v{version}" == latest_tag or version == latest_tag.lstrip("v"):
-                    found_latest = True
-                    break
-            if not found_latest:
-                errors.append(
-                    f"{doc_path_str}: discusses 'latest published' or 'latest release' but does not mention "
-                    f"the expected latest tag {latest_tag}"
-                )
-
-    # Cross-check distribution channels
-    active_channels = [c["name"] for c in dist.get("channels", []) if c.get("status") == "active"]
-    if "pypi" in active_channels:
-        pypi_disabled_pattern = re.compile(r"PyPI.*not.*enabled", re.IGNORECASE)
-        for doc_path_str in GOVERNED_DOCS:
-            doc_path = Path(doc_path_str)
-            if doc_path.is_file():
-                text = doc_path.read_text(encoding="utf-8", errors="ignore")
-                if "not yet on PyPI" in text or pypi_disabled_pattern.search(text):
-                    errors.append(f"{doc_path_str}: claims PyPI not enabled but public-facts shows PyPI active")
+        errors.extend(_validate_governed_doc(doc_path_str, mcp, latest_tag, pypi_is_active))
 
     return errors
 
@@ -447,7 +542,7 @@ def validate_docs(deployment_evidence_path: Path | None = None) -> dict[str, Any
     errors.extend(_validate_current_state_document())
     errors.extend(_validate_public_facts(public_facts, revision, deployment_evidence_path=deployment_evidence_path))
     for path in _iter_docs():
-        if path != Path("docs/strategy/current-state-audit.md"):
+        if path != Path(CURRENT_STATE_AUDIT_DOC_PATH):
             errors.extend(_validate_document(path, checks))
 
     docs_info = public_facts.get("documentation", {})
@@ -483,8 +578,9 @@ def validate_docs(deployment_evidence_path: Path | None = None) -> dict[str, Any
 
 
 def _default_provenance_fetcher(target_url: str) -> str:
+    safe_url = _validate_safe_provenance_url(target_url)
     req = urllib.request.Request(
-        target_url,
+        safe_url,
         headers={"User-Agent": "zaptrace-freshness-verifier/1.0", "Cache-Control": "no-cache"},
     )
     with urllib.request.urlopen(req, timeout=10.0) as resp:
@@ -509,8 +605,10 @@ def verify_deployment_freshness(
     backoff = initial_backoff
     last_error = "no attempts made"
     history: list[dict[str, Any]] = []
+    attempts_made = 0
 
     for attempt in range(1, max_attempts + 1):
+        attempts_made = attempt
         elapsed = time.time() - start_time
         if elapsed > timeout_seconds:
             last_error = (
@@ -562,7 +660,7 @@ def verify_deployment_freshness(
         "passed": False,
         "expected_sha": expected_sha,
         "error": last_error,
-        "attempts": min(attempt, max_attempts),
+        "attempts": attempts_made,
         "elapsed_seconds": round(time.time() - start_time, 2),
         "history": history,
     }
@@ -591,6 +689,11 @@ def main(argv: list[str] | None = None) -> int:
                 "deployment_provenance_url",
                 "https://oaslananka.github.io/zaptrace/deployment-provenance.json",
             )
+        try:
+            url = _validate_safe_provenance_url(url)
+        except ValueError as exc:
+            print(f"error: invalid provenance URL: {exc}", file=sys.stderr)
+            return 1
         result = verify_deployment_freshness(
             expected_sha=expected,
             url=url,
@@ -608,7 +711,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
 
-    result = validate_docs(deployment_evidence_path=args.deployment_evidence)
+    evidence_path: Path | None = None
+    if args.deployment_evidence:
+        try:
+            evidence_path = _validate_safe_evidence_path(args.deployment_evidence)
+        except ValueError as exc:
+            print(f"error: invalid deployment evidence path: {exc}", file=sys.stderr)
+            return 1
+
+    result = validate_docs(deployment_evidence_path=evidence_path)
     if args.output:
         args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if not result["passed"]:

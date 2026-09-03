@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.ci_docs_status_sync import (
     actual_drc_rule_count,
     actual_erc_rule_count,
@@ -325,8 +327,8 @@ def test_verify_deployment_freshness_robust_polling_timeout() -> None:
 def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
     workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
 
-    # Workflow uses uv run --no-project for docs status validation
-    assert "uv run --no-project python scripts/ci_docs_status_sync.py" in workflow
+    # Workflow uses uv run --locked --no-build for docs status validation
+    assert "uv run --locked --no-build python scripts/ci_docs_status_sync.py" in workflow
 
     # Workflow captures source SHA and embeds deployment provenance
     assert "Capture source SHA" in workflow
@@ -343,3 +345,39 @@ def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
 
     # Repo self-mutation is not performed
     assert "Update public-facts with deployment info" not in workflow
+
+
+def test_deployment_evidence_path_traversal_rejected_fail_closed(tmp_path: Path) -> None:
+    from scripts.ci_docs_status_sync import (
+        _validate_public_facts,
+        _validate_safe_evidence_path,
+        load_public_facts,
+        source_revision,
+    )
+
+    with pytest.raises(ValueError, match="path traversal"):
+        _validate_safe_evidence_path("../../../etc/passwd")
+
+    with pytest.raises(ValueError, match="escapes allowed"):
+        _validate_safe_evidence_path("/some/unauthorized/root/file.json")
+
+    facts = load_public_facts()
+    revision = source_revision()
+    errors = _validate_public_facts(facts, revision, deployment_evidence_path=Path("../traversal.json"))
+    assert any("invalid deployment provenance evidence path" in e for e in errors)
+
+
+def test_provenance_url_ssrf_rejected_fail_closed() -> None:
+    from scripts.ci_docs_status_sync import _default_provenance_fetcher, _validate_safe_provenance_url
+
+    with pytest.raises(ValueError, match="invalid scheme"):
+        _validate_safe_provenance_url("http://oaslananka.github.io/zaptrace/deployment-provenance.json")
+
+    with pytest.raises(ValueError, match="unauthorized host"):
+        _validate_safe_provenance_url("https://malicious.evil.com/deployment-provenance.json")
+
+    with pytest.raises(ValueError, match="unauthorized host"):
+        _validate_safe_provenance_url("https://169.254.169.254/latest/meta-data")
+
+    with pytest.raises(ValueError, match="unauthorized host"):
+        _default_provenance_fetcher("https://evil.internal.net/steal")
