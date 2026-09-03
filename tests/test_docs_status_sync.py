@@ -327,8 +327,8 @@ def test_verify_deployment_freshness_robust_polling_timeout() -> None:
 def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
     workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
 
-    # Workflow uses uv run --no-project for docs status validation
-    assert "uv run --no-project python scripts/ci_docs_status_sync.py" in workflow
+    # Workflow uses python3 for docs status validation
+    assert "python3 scripts/ci_docs_status_sync.py" in workflow
 
     # Workflow captures source SHA and embeds deployment provenance
     assert "Capture source SHA" in workflow
