@@ -382,6 +382,10 @@ def test_provenance_url_ssrf_rejected_fail_closed() -> None:
     with pytest.raises(ValueError, match="unauthorized host"):
         _default_provenance_fetcher("https://evil.internal.net/steal")
 
+    custom_url = "https://oaslananka.github.io/zaptrace/custom-provenance.json"
+    assert _validate_safe_provenance_url(custom_url) == custom_url
+    assert _validate_safe_provenance_url(f"  {custom_url}  ") == custom_url
+
 
 def test_verify_freshness_cli_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import scripts.ci_docs_status_sync as sync_mod
@@ -399,15 +403,17 @@ def test_verify_freshness_cli_success(monkeypatch: pytest.MonkeyPatch, tmp_path:
     monkeypatch.setattr(sync_mod, "_default_provenance_fetcher", mock_fetch)
 
     output = tmp_path / "freshness-report.json"
-    code = main([
-        "--verify-freshness",
-        "--expected-sha",
-        expected_sha,
-        "--output",
-        str(output),
-        "--max-attempts",
-        "1",
-    ])
+    code = main(
+        [
+            "--verify-freshness",
+            "--expected-sha",
+            expected_sha,
+            "--output",
+            str(output),
+            "--max-attempts",
+            "1",
+        ]
+    )
     assert code == 0
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["passed"] is True

@@ -93,13 +93,14 @@ def _validate_safe_evidence_path(raw_path: Path | str) -> Path:
 
 def _validate_safe_provenance_url(url: str) -> str:
     """Ensure provenance URL uses HTTPS and targets an authorized host."""
-    parsed = urllib.parse.urlsplit(url.strip())
+    clean_url = url.strip()
+    parsed = urllib.parse.urlsplit(clean_url)
     if parsed.scheme not in ALLOWED_PROVENANCE_SCHEMES:
         raise ValueError(f"invalid scheme {parsed.scheme!r}; only https is allowed")
     hostname = (parsed.hostname or "").lower()
     if not hostname or hostname not in ALLOWED_PROVENANCE_HOSTS:
         raise ValueError(f"unauthorized host {hostname!r}; only {sorted(ALLOWED_PROVENANCE_HOSTS)} allowed")
-    return DEFAULT_PROVENANCE_URL
+    return clean_url
 
 
 def _list_len_assignment(path: str, name: str) -> int:
