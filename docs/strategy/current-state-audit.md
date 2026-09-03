@@ -16,6 +16,7 @@ The CI guard `scripts/ci_docs_status_sync.py` validates selected public claims a
 | Release automation, SBOM, checksums, attestations | `.github/workflows/release.yml` |
 | Main-branch ruleset contract | `config/github-main-ruleset.json`, checked by `scripts/ci_repository_ruleset.py` |
 | Documentation fact guard | `scripts/ci_docs_status_sync.py` |
+| Public distribution facts | `config/public-facts.json`, validated by `scripts/ci_docs_status_sync.py` |
 
 The generated docs-status report records the source revision, the selected capability booleans, the component-library profile, and navigation drift. Those machine-derived values are evidence about repository state, not proof of electrical correctness or fabrication readiness.
 

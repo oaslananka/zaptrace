@@ -16,7 +16,7 @@ The project remains a **Professional OSS candidate**, not a foundation-grade or 
 | Repository hygiene | Passed | Community files, issue forms, artifact policy, and repository-policy evidence are present. |
 | Quality automation | Passed | Ruff, Pyright, Python matrix tests, Rust checks, package build, documentation build, benchmarks, KiCad, Docker, and release summary gates run in CI. |
 | Security automation | Passed with bounded scope | Dependency audit, Cargo audit, Semgrep, CodeQL, secret scanning, fuzzing, and exact-image Trivy scanning are active. Scanner success is not a proof of runtime safety. |
-| Release integrity | Passed for GitHub Releases | Version consistency, source identity, SBOM, `SHA256SUMS`, attestations, and release verification guidance are implemented. External registry publishing remains intentionally disabled. |
+| Release integrity | Passed for GitHub Releases | Version consistency, source identity, SBOM, `SHA256SUMS`, attestations, and release verification guidance are implemented; PyPI publishing is active for verified releases while container registry publishing remains disabled. |
 | Main-branch integrity | Passed | The active `main-branch-integrity` ruleset is defined in `config/github-main-ruleset.json` and verified from the live GitHub API into `repository-ruleset-evidence.json`. |
 | Governance | Partial | Roles and continuity policy are documented, but the bus factor is one and independent review is not yet enforceable. |
 | License hygiene | Passed for tracked-file metadata | Pinned REUSE 6.2.0 verification covers project-owned and vendored files; dependency-license compatibility and legal review remain separate concerns. |
@@ -104,7 +104,7 @@ GitHub Releases are the authoritative publication channel for the current pre-1.
 - GitHub artifact attestations;
 - generated release notes and changelog context.
 
-PyPI and GHCR publication are not claimed until naming, credentials, support matrix, and package-policy work are explicitly completed.
+PyPI publication is active for verified releases (`v0.3.3+`) as `zaptrace-eda` via OIDC Trusted Publisher. GHCR publication remains intentionally disabled; the pinned Dockerfile is continuously built and verified but no official registry image is claimed.
 
 ## Current maturity limitations
 

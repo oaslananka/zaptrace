@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.ci_docs_status_sync import (
     actual_drc_rule_count,
     actual_erc_rule_count,
@@ -175,3 +177,244 @@ def test_current_state_guard_rejects_reintroduced_drift(tmp_path: Path) -> None:
     assert any("claims 503 component records but code has 504" in error for error in errors)
     assert any("KiCad export is unidirectional" in error for error in errors)
     assert any("No release automation" in error for error in errors)
+
+
+def test_public_facts_matches_committed_configuration() -> None:
+    from scripts.ci_docs_status_sync import load_public_facts
+
+    facts = load_public_facts()
+    assert facts, "public-facts.json should load successfully"
+    assert facts["package"]["name"] == "zaptrace-eda"
+    assert facts["package"]["import_name"] == "zaptrace"
+    assert facts["package"]["current_version"] == "0.3.5.dev0"
+    assert facts["package"]["status"] == "unreleased-development"
+    assert facts["package"]["latest_published_tag"] == "v0.3.3"
+
+    mcp = facts["mcp"]
+    assert mcp["total_exposed_tool_count"] == actual_mcp_tool_count()
+    assert mcp["design_tool_count"] == actual_tool_count()
+    assert mcp["session_admin_tool_count"] == len(actual_mcp_admin_tool_names())
+    assert mcp["session_tools"] == actual_mcp_admin_tool_names()
+
+    docs = facts["documentation"]
+    assert docs["deployment_source_sha"] == "HEAD"
+    assert docs["freshness_check_enabled"] is True
+    assert docs["deployment_evidence_path"] == "site/deployment-provenance.json"
+    assert docs["deployment_provenance_url"] == "https://oaslananka.github.io/zaptrace/deployment-provenance.json"
+
+
+def test_public_facts_validation_detects_deliberate_mismatch() -> None:
+    from scripts.ci_docs_status_sync import _validate_public_facts, load_public_facts, source_revision
+
+    facts = load_public_facts()
+    revision = source_revision()
+
+    # Base state passes
+    assert _validate_public_facts(facts, revision) == []
+
+    # Deliberate MCP tool count mismatch fails
+    bad_facts = json.loads(json.dumps(facts))
+    bad_facts["mcp"]["total_exposed_tool_count"] = 999
+    bad_facts["mcp"]["design_tool_count"] = 996
+    errors = _validate_public_facts(bad_facts, revision)
+    assert any("claims 96 MCP tools but public-facts has 999" in e for e in errors)
+    assert any("claims 93 design tools but public-facts has 996" in e for e in errors)
+
+    # Deliberate deployment SHA mismatch fails
+    bad_sha_facts = json.loads(json.dumps(facts))
+    bad_sha_facts["documentation"]["deployment_source_sha"] = "0000000000000000000000000000000000000000"
+    errors = _validate_public_facts(bad_sha_facts, revision)
+    assert any("documentation deployment source SHA mismatch" in e for e in errors)
+
+    # Deployment source SHA missing or 'unknown' fails fail-closed
+    unknown_facts = json.loads(json.dumps(facts))
+    unknown_facts["documentation"]["deployment_source_sha"] = "unknown"
+    errors = _validate_public_facts(unknown_facts, revision)
+    assert any("missing or 'unknown'" in e for e in errors)
+
+
+def test_deployment_evidence_verification_fail_closed(tmp_path: Path) -> None:
+    from scripts.ci_docs_status_sync import _validate_public_facts, load_public_facts, source_revision
+
+    facts = load_public_facts()
+    revision = source_revision()
+
+    valid_evidence = tmp_path / "valid-provenance.json"
+    valid_evidence.write_text(json.dumps({"source_sha": revision, "deployment_timestamp": "2026-09-02T12:00:00Z"}))
+    assert _validate_public_facts(facts, revision, deployment_evidence_path=valid_evidence) == []
+
+    mismatched_evidence = tmp_path / "mismatched-provenance.json"
+    mismatched_evidence.write_text(
+        json.dumps({"source_sha": "0000000000000000000000000000000000000000", "deployment_timestamp": "now"})
+    )
+    errors = _validate_public_facts(facts, revision, deployment_evidence_path=mismatched_evidence)
+    assert any("deployment provenance evidence mismatch" in e for e in errors)
+
+    corrupt_evidence = tmp_path / "corrupt-provenance.json"
+    corrupt_evidence.write_text("not json content")
+    errors = _validate_public_facts(facts, revision, deployment_evidence_path=corrupt_evidence)
+    assert any("failed to read deployment provenance evidence" in e for e in errors)
+
+
+def test_verify_deployment_freshness_robust_polling_success() -> None:
+    from scripts.ci_docs_status_sync import verify_deployment_freshness
+
+    expected_sha = "180e6aef31c87eef86a0c995540ec2ecfd27deb9"
+    calls: list[str] = []
+    sleeps: list[float] = []
+
+    def mock_fetch(url: str) -> str:
+        calls.append(url)
+        if len(calls) == 1:
+            # First attempt returns stale deployment provenance
+            return json.dumps(
+                {
+                    "source_sha": "b7fa54075747088cc8996293455f3a604ed5e259",
+                    "deployment_timestamp": "2026-08-21T00:00:00Z",
+                }
+            )
+        return json.dumps(
+            {
+                "source_sha": expected_sha,
+                "deployment_timestamp": "2026-09-03T02:00:00Z",
+            }
+        )
+
+    def mock_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    result = verify_deployment_freshness(
+        expected_sha=expected_sha,
+        max_attempts=5,
+        initial_backoff=2.0,
+        backoff_multiplier=2.0,
+        fetcher=mock_fetch,
+        sleeper=mock_sleep,
+    )
+
+    assert result["passed"] is True
+    assert result["attempts"] == 2
+    assert result["deployed_sha"] == expected_sha
+    assert sleeps == [2.0]
+
+
+def test_verify_deployment_freshness_robust_polling_timeout() -> None:
+    from scripts.ci_docs_status_sync import verify_deployment_freshness
+
+    expected_sha = "180e6aef31c87eef86a0c995540ec2ecfd27deb9"
+
+    def mock_fetch(url: str) -> str:
+        return json.dumps(
+            {
+                "source_sha": "0000000000000000000000000000000000000000",
+                "deployment_timestamp": "stale",
+            }
+        )
+
+    result = verify_deployment_freshness(
+        expected_sha=expected_sha,
+        max_attempts=3,
+        initial_backoff=0.1,
+        fetcher=mock_fetch,
+        sleeper=lambda s: None,
+    )
+
+    assert result["passed"] is False
+    assert result["attempts"] == 3
+    assert "does not match expected revision" in result["error"]
+
+
+def test_docs_workflow_embeds_provenance_and_verifies_freshness() -> None:
+    workflow = Path(".github/workflows/docs.yml").read_text(encoding="utf-8")
+
+    # Workflow uses python3 for docs status validation
+    assert "python3 scripts/ci_docs_status_sync.py" in workflow
+
+    # Workflow captures source SHA and embeds deployment provenance
+    assert "Capture source SHA" in workflow
+    assert "site/deployment-provenance.json" in workflow
+    assert "source_sha" in workflow
+    assert "deployment_timestamp" in workflow
+
+    # Post-deploy freshness verification job exists and uses robust backoff
+    assert "freshness-check:" in workflow
+    assert "Post-deploy freshness verification" in workflow
+    assert "--verify-freshness" in workflow
+    assert "--expected-sha" in workflow
+    assert "deployed-provenance.json" in workflow
+
+    # Repo self-mutation is not performed
+    assert "Update public-facts with deployment info" not in workflow
+
+
+def test_deployment_evidence_path_traversal_rejected_fail_closed(tmp_path: Path) -> None:
+    from scripts.ci_docs_status_sync import (
+        _validate_public_facts,
+        _validate_safe_evidence_path,
+        load_public_facts,
+        source_revision,
+    )
+
+    with pytest.raises(ValueError, match="path traversal"):
+        _validate_safe_evidence_path("../../../etc/passwd")
+
+    with pytest.raises(ValueError, match="escapes allowed"):
+        _validate_safe_evidence_path("/some/unauthorized/root/file.json")
+
+    facts = load_public_facts()
+    revision = source_revision()
+    errors = _validate_public_facts(facts, revision, deployment_evidence_path=Path("../traversal.json"))
+    assert any("invalid deployment provenance evidence path" in e for e in errors)
+
+
+def test_provenance_url_ssrf_rejected_fail_closed() -> None:
+    from scripts.ci_docs_status_sync import _default_provenance_fetcher, _validate_safe_provenance_url
+
+    with pytest.raises(ValueError, match="invalid scheme"):
+        _validate_safe_provenance_url("http://oaslananka.github.io/zaptrace/deployment-provenance.json")
+
+    with pytest.raises(ValueError, match="unauthorized host"):
+        _validate_safe_provenance_url("https://malicious.evil.com/deployment-provenance.json")
+
+    with pytest.raises(ValueError, match="unauthorized host"):
+        _validate_safe_provenance_url("https://169.254.169.254/latest/meta-data")
+
+    with pytest.raises(ValueError, match="unauthorized host"):
+        _default_provenance_fetcher("https://evil.internal.net/steal")
+
+    custom_url = "https://oaslananka.github.io/zaptrace/custom-provenance.json"
+    assert _validate_safe_provenance_url(custom_url) == custom_url
+    assert _validate_safe_provenance_url(f"  {custom_url}  ") == custom_url
+
+
+def test_verify_freshness_cli_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import scripts.ci_docs_status_sync as sync_mod
+
+    expected_sha = "180e6aef31c87eef86a0c995540ec2ecfd27deb9"
+
+    def mock_fetch(url: str) -> str:
+        return json.dumps(
+            {
+                "source_sha": expected_sha,
+                "deployment_timestamp": "2026-09-03T02:00:00Z",
+            }
+        )
+
+    monkeypatch.setattr(sync_mod, "_default_provenance_fetcher", mock_fetch)
+
+    output = tmp_path / "freshness-report.json"
+    code = main(
+        [
+            "--verify-freshness",
+            "--expected-sha",
+            expected_sha,
+            "--output",
+            str(output),
+            "--max-attempts",
+            "1",
+        ]
+    )
+    assert code == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["passed"] is True
+    assert report["deployed_sha"] == expected_sha
