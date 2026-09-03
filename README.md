@@ -442,7 +442,7 @@ Persistence is opt-in; unset deployments retain process-local behavior. Isolated
 |---------|-------|
 | **Legacy baseline (v0.3.3)** | PyPI-only release without public Git provenance; preserved as immutable historical evidence |
 | **Failed candidate (v0.3.4)** | Aborted release candidate at commit 76ecc97; workflow failed before publication and is preserved immutably as failed evidence |
-| **Active development (0.3.5.dev0)** | Unreleased post-release development line preparing the first fully traceable `v0.3.5` release; snapshot evidence only until the exact release candidate passes all release gates |
+| **Active development (0.3.5)** | Release-preparation identity synchronizing all version surfaces for the first fully traceable `v0.3.5` release candidate; snapshot evidence only until the exact release candidate passes all release gates |
 | **Next (v0.4.0)** | Topology and layout depth, bounded evaluation coverage, review evidence, and controlled release-readiness hardening |
 | **Later** | Larger component library, live distributor integrations, deeper routing fidelity, solver-grade SI/PI/thermal integrations, multi-board workflows |
 

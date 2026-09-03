@@ -8,13 +8,13 @@ The active `main` identity after publishing `v0.3.3` and preserving aborted `v0.
 
 | Surface | Version |
 |---------|---------|
-| Python distribution, CLI, REST API, MCP server | `0.3.5.dev0` |
-| Rust crate and Cargo lock package | `0.3.5-dev.0` |
+| Python distribution, CLI, REST API, MCP server | `0.3.5` |
+| Rust crate and Cargo lock package | `0.3.5` |
 | Current source ref | `main` |
 | Latest published baseline | `v0.3.3` |
-| Distribution state | `unreleased-development` |
+| Distribution state | `release-preparation` |
 
-The `v0.3.3` release is recorded as a legacy PyPI baseline without Git provenance. The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence and were not reused. The active `0.3.5.dev0` tree is unreleased snapshot evidence (`mode=snapshot`, `published=false`) until a future release-preparation branch and exact annotated tag pass the release gates.
+The `v0.3.3` release is recorded as a legacy PyPI baseline without Git provenance. The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence and were not reused. The active `0.3.5` tree is release-preparation evidence (`mode=release-preparation`, `published=false`) until a future release-preparation branch and exact annotated tag pass the release gates.
 
 ## Lifecycle transitions
 

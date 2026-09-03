@@ -186,8 +186,8 @@ def test_public_facts_matches_committed_configuration() -> None:
     assert facts, "public-facts.json should load successfully"
     assert facts["package"]["name"] == "zaptrace-eda"
     assert facts["package"]["import_name"] == "zaptrace"
-    assert facts["package"]["current_version"] == "0.3.5.dev0"
-    assert facts["package"]["status"] == "unreleased-development"
+    assert facts["package"]["current_version"] == "0.3.5"
+    assert facts["package"]["status"] == "release-preparation"
     assert facts["package"]["latest_published_tag"] == "v0.3.3"
 
     mcp = facts["mcp"]

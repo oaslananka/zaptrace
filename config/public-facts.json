@@ -4,8 +4,8 @@
   "package": {
     "name": "zaptrace-eda",
     "import_name": "zaptrace",
-    "current_version": "0.3.5.dev0",
-    "status": "unreleased-development",
+    "current_version": "0.3.5",
+    "status": "release-preparation",
     "latest_published_tag": "v0.3.3",
     "latest_published_version": "0.3.3",
     "python_requires": ">=3.12",
