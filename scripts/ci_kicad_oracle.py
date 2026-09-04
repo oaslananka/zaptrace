@@ -214,15 +214,11 @@ def _validate_schematic(sch_path: Path) -> int:
     return 0
 
 
-def _validate_pcb(pcb_path: Path) -> int:
-    """Validate a .kicad_pcb file with kicad-cli's built-in DRC."""
-    print(f"\n--- Validating PCB: {pcb_path.name} ---")
-
-    # Step 1: try to export SVG (validates that KiCad can parse the file)
+def _export_pcb_svg(pcb_path: Path) -> int | None:
     svg_out = pcb_path.with_name(f"{pcb_path.stem}.pcb.svg")
     if svg_out.exists():
         svg_out.unlink()
-    export_command = [
+    command = [
         "pcb",
         "export",
         "svg",
@@ -233,7 +229,7 @@ def _validate_pcb(pcb_path: Path) -> int:
         "--output",
         str(svg_out),
     ]
-    result = _run_kicad_cli(export_command)
+    result = _run_kicad_cli(command)
     if result.returncode != 0:
         detail = result.stderr.strip()
         if "created with a more recent version" in detail or "Expecting ')'" in detail:
@@ -257,152 +253,171 @@ def _validate_pcb(pcb_path: Path) -> int:
         "passed",
         f"PCB SVG generated ({svg_out.stat().st_size} bytes)",
         exit_code=result.returncode,
-        command=[str(KICAD_CLI), *export_command],
+        command=[str(KICAD_CLI), *command],
         report_path=str(svg_out),
         report_sha256=_sha256_path(svg_out),
     )
     print(f"OK: PCB SVG generated ({svg_out.stat().st_size} bytes)")
+    return None
 
-    # Step 2: run kicad-cli DRC (requires a .kicad_pro project file)
+
+def _ensure_pcb_project(pcb_path: Path) -> None:
     pro_path = pcb_path.with_suffix(".kicad_pro")
-    if not pro_path.exists():
-        # Create a minimal project file if it does not exist
-        pro_data = {
-            "meta": {"version": 1},
-            "board": {"design_settings": {"defaults": {"copper_line_width": 0.25}}},
-            "sheets": [["", pcb_path.stem]],
-        }
-        pro_path.write_text(json.dumps(pro_data, indent=2), encoding="utf-8")
-        print(f"OK: Created minimal project file: {pro_path.name}")
+    if pro_path.exists():
+        return
+    pro_data = {
+        "meta": {"version": 1},
+        "board": {"design_settings": {"defaults": {"copper_line_width": 0.25}}},
+        "sheets": [["", pcb_path.stem]],
+    }
+    pro_path.write_text(json.dumps(pro_data, indent=2), encoding="utf-8")
+    print(f"OK: Created minimal project file: {pro_path.name}")
 
-    drc_json_out = pcb_path.with_suffix(".drc.json")
-    drc_text_out = pcb_path.with_suffix(".drc")
-    drc_command = ["pcb", "drc", "--format", "json", "--output", str(drc_json_out), str(pcb_path)]
-    drc_result = _run_kicad_cli(drc_command)
-    drc_out = drc_json_out if drc_json_out.exists() else drc_text_out
-    if not drc_json_out.exists():
-        # Older KiCad builds may not support JSON DRC output. Fall back to text
-        # evidence, but still record the exact fallback command and hash.
-        drc_command = ["pcb", "drc", str(pcb_path), "--output", str(drc_text_out)]
-        drc_result = _run_kicad_cli(drc_command)
-        drc_out = drc_text_out
 
+def _run_pcb_drc(pcb_path: Path) -> tuple[subprocess.CompletedProcess[str], Path, list[str]]:
+    json_out = pcb_path.with_suffix(".drc.json")
+    text_out = pcb_path.with_suffix(".drc")
+    command = ["pcb", "drc", "--format", "json", "--output", str(json_out), str(pcb_path)]
+    result = _run_kicad_cli(command)
+    if json_out.exists():
+        return result, json_out, command
+    command = ["pcb", "drc", str(pcb_path), "--output", str(text_out)]
+    return _run_kicad_cli(command), text_out, command
+
+
+def _drc_has_error_finding(report_path: Path, report_text: str) -> bool:
+    if report_path.suffix != ".json":
+        lowered = report_text.lower()
+        return "local override; error" in lowered or "severity: error" in lowered
+    try:
+        parsed = json.loads(report_text)
+    except json.JSONDecodeError:
+        parsed = {}
+    serialized = json.dumps(parsed).lower()
+    return '"severity": "error"' in serialized or '"severity":"error"' in serialized
+
+
+def _record_drc_report(
+    report_path: Path,
+    report_text: str,
+    result: subprocess.CompletedProcess[str],
+    command: list[str],
+) -> None:
+    meta = {
+        "report_path": str(report_path),
+        "report_sha256": _sha256_path(report_path),
+        "command": [str(KICAD_CLI), *command],
+        "exit_code": result.returncode,
+    }
+    if _drc_has_error_finding(report_path, report_text):
+        _record_check("pcb_drc", "failed", "DRC reported error-severity violations", **meta)
+        print("FAIL: DRC reported error-severity violations")
+        return
+    message = "DRC report generated"
+    if report_path.suffix != ".json" and "** Found 0 DRC violations **" not in report_text:
+        message = "DRC report generated with warnings only"
+        print("WARN: DRC reported warnings (review recommended)")
+    _record_check("pcb_drc", "passed", message, **meta)
+
+
+def _record_missing_drc(result: subprocess.CompletedProcess[str], command: list[str]) -> None:
+    detail = result.stderr.strip()
+    msg = (
+        f"No DRC report generated: {detail}"
+        if detail
+        else "No DRC report generated (kicad-cli version may not support 'pcb drc')"
+    )
+    _record_check("pcb_drc", "skipped", msg, exit_code=result.returncode, command=[str(KICAD_CLI), *command])
+    print(f"NOTE: {msg}")
+
+
+def _validate_pcb(pcb_path: Path) -> int:
+    """Validate a .kicad_pcb file with kicad-cli's built-in DRC."""
+    print(f"\n--- Validating PCB: {pcb_path.name} ---")
+    terminal = _export_pcb_svg(pcb_path)
+    if terminal is not None:
+        return terminal
+
+    _ensure_pcb_project(pcb_path)
+    drc_result, drc_out, drc_command = _run_pcb_drc(pcb_path)
     if drc_out.exists():
         drc_text = drc_out.read_text(encoding="utf-8")
         print(f"DRC report ({drc_out.stat().st_size} bytes):")
         for line in drc_text.splitlines()[:20]:
             print(f"  {line}")
-        has_error_finding = False
-        if drc_out.suffix == ".json":
-            try:
-                drc_json = json.loads(drc_text)
-            except json.JSONDecodeError:
-                drc_json = {}
-            serialized = json.dumps(drc_json).lower()
-            has_error_finding = '"severity": "error"' in serialized or '"severity":"error"' in serialized
-        else:
-            # KiCad text DRC reports can include the word "Errors" in the header
-            # even when all findings are warnings. Treat warnings as review evidence,
-            # but fail the oracle only on explicit error-severity findings.
-            has_error_finding = "local override; error" in drc_text.lower() or "severity: error" in drc_text.lower()
-        report_meta = {
-            "report_path": str(drc_out),
-            "report_sha256": _sha256_path(drc_out),
-            "command": [str(KICAD_CLI), *drc_command],
-            "exit_code": drc_result.returncode,
-        }
-        if has_error_finding:
-            _record_check("pcb_drc", "failed", "DRC reported error-severity violations", **report_meta)
-            print("FAIL: DRC reported error-severity violations")
-        else:
-            message = "DRC report generated"
-            if drc_out.suffix != ".json" and "** Found 0 DRC violations **" not in drc_text:
-                message = "DRC report generated with warnings only"
-                print("WARN: DRC reported warnings (review recommended)")
-            _record_check("pcb_drc", "passed", message, **report_meta)
+        _record_drc_report(drc_out, drc_text, drc_result, drc_command)
     else:
-        detail = drc_result.stderr.strip()
-        if detail:
-            msg = f"No DRC report generated: {detail}"
-            _record_check(
-                "pcb_drc",
-                "skipped",
-                msg,
-                exit_code=drc_result.returncode,
-                command=[str(KICAD_CLI), *drc_command],
-            )
-            print(f"NOTE: {msg}")
-        else:
-            msg = "No DRC report generated (kicad-cli version may not support 'pcb drc')"
-            _record_check(
-                "pcb_drc",
-                "skipped",
-                msg,
-                exit_code=drc_result.returncode,
-                command=[str(KICAD_CLI), *drc_command],
-            )
-            print(f"NOTE: {msg}")
+        _record_missing_drc(drc_result, drc_command)
 
     print("OK: PCB file parses and exports correctly in KiCad")
     return 0
 
 
-def main(argv: list[str] | None = None, *, trusted_root: Path = ROOT) -> int:
-    parser = argparse.ArgumentParser(description="KiCad CLI Oracle")
-    parser.add_argument("--check", action="store_true", help="Only check if kicad-cli is available")
-    parser.add_argument("--output", help="Write structured oracle summary JSON")
-    parser.add_argument("--strict-skips", action="store_true", help="Return non-zero when any oracle check is skipped")
-    parser.add_argument(
-        "--skip-approval-id",
-        default="",
-        help="Approved skip identifier for release evidence when a skip is expected",
-    )
-    args = parser.parse_args(argv)
-    try:
-        output_path = (
-            resolve_trusted_path(args.output, trusted_root=trusted_root, label="output path") if args.output else None
-        )
-    except (OSError, ValueError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 2
+def _resolve_oracle_output(raw_output: str | None, trusted_root: Path) -> Path | None:
+    if not raw_output:
+        return None
+    return resolve_trusted_path(raw_output, trusted_root=trusted_root, label="output path")
 
-    if not _check_kicad_cli():
-        _write_summary(output_path, status="skipped", skip_approval_id=args.skip_approval_id)
-        if args.check:
-            return 0  # --check only: report availability silently
-        if args.skip_approval_id:
-            print("SKIP-APPROVED: kicad-cli not available; approval id recorded")
-        else:
-            print("SKIP-UNAPPROVED: kicad-cli not available; install KiCad to run the oracle")
-        return 1 if args.strict_skips and not args.skip_approval_id else 0
 
-    version = _run_subprocess([str(KICAD_CLI), "--version"]).stdout.strip()
-
+def _unavailable_result(args: argparse.Namespace, output_path: Path | None) -> int:
+    _write_summary(output_path, status="skipped", skip_approval_id=args.skip_approval_id)
     if args.check:
-        _write_summary(output_path, status="passed", version=version, cli_path=str(KICAD_CLI))
         return 0
+    if args.skip_approval_id:
+        print("SKIP-APPROVED: kicad-cli not available; approval id recorded")
+    else:
+        print("SKIP-UNAPPROVED: kicad-cli not available; install KiCad to run the oracle")
+    return 1 if args.strict_skips and not args.skip_approval_id else 0
 
-    if _kicad_major(version) < 9:
-        msg = f"kicad-cli {version} is too old for the modern KiCad PCB format emitted by ZapTrace"
-        _record_check("version", "skipped", msg)
-        _write_summary(
-            output_path,
-            status="skipped",
-            version=version,
-            cli_path=str(KICAD_CLI),
-            skip_approval_id=args.skip_approval_id,
-        )
+
+def _old_version_result(args: argparse.Namespace, output_path: Path | None, version: str) -> int:
+    msg = f"kicad-cli {version} is too old for the modern KiCad PCB format emitted by ZapTrace"
+    _record_check("version", "skipped", msg)
+    _write_summary(
+        output_path,
+        status="skipped",
+        version=version,
+        cli_path=str(KICAD_CLI),
+        skip_approval_id=args.skip_approval_id,
+    )
+    if args.skip_approval_id:
+        print(f"SKIP-APPROVED: {msg}")
+    else:
+        print(f"SKIP-UNAPPROVED: {msg}")
+    return 1 if args.strict_skips and not args.skip_approval_id else 0
+
+
+def _final_oracle_result(
+    args: argparse.Namespace,
+    output_path: Path | None,
+    version: str,
+    exit_code: int,
+) -> int:
+    status = _overall_status()
+    _write_summary(
+        output_path,
+        status=status,
+        version=version,
+        cli_path=str(KICAD_CLI),
+        skip_approval_id=args.skip_approval_id,
+    )
+    if status == "failed":
+        print(f"\n❌ KiCad CLI oracle: FAILED (exit={exit_code})")
+        return 1
+    if status == "skipped":
         if args.skip_approval_id:
-            print(f"SKIP-APPROVED: {msg}")
+            print("\n⚠️ KiCad CLI oracle: SKIP-APPROVED (approval id recorded)")
         else:
-            print(f"SKIP-UNAPPROVED: {msg}")
+            print("\n⚠️ KiCad CLI oracle: SKIP-UNAPPROVED (approval id required for strict release gates)")
         return 1 if args.strict_skips and not args.skip_approval_id else 0
+    print("\n✅ KiCad CLI oracle: ALL CHECKS PASSED")
+    return 0
 
+
+def _run_full_oracle(args: argparse.Namespace, output_path: Path | None, version: str) -> int:
     with tempfile.TemporaryDirectory(prefix="zaptrace-kicad-oracle-") as tmpdir:
         output_dir = Path(tmpdir)
         design = _build_smoke_design()
-
-        # Export KiCad files
         sch_files = export_kicad_schematic(design, output_dir)
         pcb_files = export_kicad_pcb(design, output_dir)
 
@@ -411,32 +426,39 @@ def main(argv: list[str] | None = None, *, trusted_root: Path = ROOT) -> int:
             fsize = Path(fpath).stat().st_size
             print(f"  {kind}: {Path(fpath).name} ({fsize} bytes)")
 
-        # Validate with kicad-cli
         exit_code = 0
         if "schematic" in sch_files:
             exit_code |= _validate_schematic(Path(sch_files["schematic"]))
         if "pcb" in pcb_files:
             exit_code |= _validate_pcb(Path(pcb_files["pcb"]))
+        return _final_oracle_result(args, output_path, version, exit_code)
 
-        status = _overall_status()
-        _write_summary(
-            output_path,
-            status=status,
-            version=version,
-            cli_path=str(KICAD_CLI),
-            skip_approval_id=args.skip_approval_id,
-        )
-        if status == "failed":
-            print(f"\n❌ KiCad CLI oracle: FAILED (exit={exit_code})")
-            return 1
-        if status == "skipped":
-            if args.skip_approval_id:
-                print("\n⚠️ KiCad CLI oracle: SKIP-APPROVED (approval id recorded)")
-            else:
-                print("\n⚠️ KiCad CLI oracle: SKIP-UNAPPROVED (approval id required for strict release gates)")
-            return 1 if args.strict_skips and not args.skip_approval_id else 0
-        print("\n✅ KiCad CLI oracle: ALL CHECKS PASSED")
+
+def main(argv: list[str] | None = None, *, trusted_root: Path = ROOT) -> int:
+    parser = argparse.ArgumentParser(description="KiCad CLI Oracle")
+    parser.add_argument("--check", action="store_true", help="Only check if kicad-cli is available")
+    parser.add_argument("--output", help="Write structured oracle summary JSON")
+    parser.add_argument("--strict-skips", action="store_true", help="Return non-zero when any oracle check is skipped")
+    parser.add_argument(
+        "--skip-approval-id", default="", help="Approved skip identifier for release evidence when a skip is expected"
+    )
+    args = parser.parse_args(argv)
+    try:
+        output_path = _resolve_oracle_output(args.output, trusted_root)
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
+    if not _check_kicad_cli():
+        return _unavailable_result(args, output_path)
+
+    version = _run_subprocess([str(KICAD_CLI), "--version"]).stdout.strip()
+    if args.check:
+        _write_summary(output_path, status="passed", version=version, cli_path=str(KICAD_CLI))
         return 0
+    if _kicad_major(version) < 9:
+        return _old_version_result(args, output_path, version)
+    return _run_full_oracle(args, output_path, version)
 
 
 if __name__ == "__main__":

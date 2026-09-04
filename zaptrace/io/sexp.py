@@ -85,105 +85,79 @@ class SexpParseError(ValueError):
 # ---------------------------------------------------------------------------
 
 
+class _TokenizerCursor:
+    def __init__(self, source: str) -> None:
+        self.source = source
+        self.index = 0
+        self.line = 1
+        self.col = 1
+
+    @property
+    def done(self) -> bool:
+        return self.index >= len(self.source)
+
+    @property
+    def current(self) -> str:
+        return self.source[self.index]
+
+    def advance(self) -> None:
+        if self.index < len(self.source) and self.source[self.index] == "\n":
+            self.line += 1
+            self.col = 1
+        else:
+            self.col += 1
+        self.index += 1
+
+    def skip_comment(self) -> None:
+        while not self.done and self.current != "\n":
+            self.advance()
+
+    def quoted_token(self) -> Token:
+        token_line, token_col = self.line, self.col
+        self.advance()
+        chars: list[str] = []
+        while not self.done:
+            char = self.current
+            if char == "\\" and self.index + 1 < len(self.source):
+                self.advance()
+                chars.append(_decode_escape(self.current))
+                self.advance()
+                continue
+            if char == '"':
+                self.advance()
+                return Token("".join(chars), token_line, token_col, is_quoted=True)
+            chars.append(char)
+            self.advance()
+        raise SexpParseError("Unterminated quoted string", token_line, token_col)
+
+    def bare_token(self) -> Token:
+        token_line, token_col = self.line, self.col
+        chars: list[str] = []
+        while not self.done and self.current not in ' \t\r\n()";\\':
+            chars.append(self.current)
+            self.advance()
+        return Token("".join(chars), token_line, token_col)
+
+
 def tokenize(s: str) -> list[Token]:
-    """Tokenize an S-expression string into a list of :class:`Token` objects.
-
-    Supports:
-
-    - Bare atoms: ``hello``, ``123``, ``F.Cu``, ``1.5mm``
-    - Quoted strings: ``"hello world"``, ``"say \\"hi\\""``, ``""``
-    - Escape sequences inside quoted strings: ``\\n``, ``\\t``, ``\\\\ ``,
-      ``\\"``
-    - Parentheses as individual tokens
-    - Semicolon comments (stripped, not tokenized)
-
-    Parameters
-    ----------
-    s:
-        The full S-expression source string.
-
-    Returns
-    -------
-    list[Token]
-        Ordered token stream (no parentheses in the final list; they are
-        returned as ``Token("(", ...)`` and ``Token(")", ...)``).
-
-    Raises
-    ------
-    SexpParseError
-        If a quoted string is never closed.
-    """
+    """Tokenize an S-expression string into location-aware tokens."""
     tokens: list[Token] = []
-    i = 0
-    line = 1
-    col = 1
-
-    def advance(n: int = 1) -> None:
-        nonlocal i, line, col
-        for _ in range(n):
-            if i < len(s) and s[i] == "\n":
-                line += 1
-                col = 1
-            else:
-                col += 1
-            i += 1
-
-    while i < len(s):
-        ch = s[i]
-
-        # Whitespace
-        if ch in " \t\r\n":
-            advance()
-            continue
-
-        # Semicolon comment — skip to end of line
-        if ch == ";":
-            while i < len(s) and s[i] != "\n":
-                advance()
-            continue
-
-        # Parentheses
-        if ch in "()":
-            tokens.append(Token(ch, line, col))
-            advance()
-            continue
-
-        # Quoted string
-        if ch == '"':
-            tok_line, tok_col = line, col
-            advance()  # skip opening quote
-            buf: list[str] = []
-            while i < len(s):
-                c = s[i]
-                if c == "\\" and i + 1 < len(s):
-                    advance()  # skip backslash
-                    esc = s[i]
-                    buf.append(_decode_escape(esc))
-                    advance()
-                    continue
-                if c == '"':
-                    advance()  # skip closing quote
-                    break
-                buf.append(c)
-                advance()
-            else:
-                raise SexpParseError("Unterminated quoted string", tok_line, tok_col)
-            tokens.append(Token("".join(buf), tok_line, tok_col, is_quoted=True))
-            continue
-
-        # A backslash is only valid as an escape inside a quoted string.
-        # Reject it explicitly so the tokenizer always advances or raises.
-        if ch == "\\":
-            raise SexpParseError("Unexpected backslash outside quoted string", line, col)
-
-        # Bare atom — everything that is not whitespace, parens, or a quote
-        tok_line, tok_col = line, col
-        atom_chars: list[str] = []
-        while i < len(s) and s[i] not in ' \t\r\n()";\\':
-            atom_chars.append(s[i])
-            advance()
-        tokens.append(Token("".join(atom_chars), tok_line, tok_col))
-
+    cursor = _TokenizerCursor(s)
+    while not cursor.done:
+        char = cursor.current
+        if char in " \t\r\n":
+            cursor.advance()
+        elif char == ";":
+            cursor.skip_comment()
+        elif char in "()":
+            tokens.append(Token(char, cursor.line, cursor.col))
+            cursor.advance()
+        elif char == '"':
+            tokens.append(cursor.quoted_token())
+        elif char == "\\":
+            raise SexpParseError("Unexpected backslash outside quoted string", cursor.line, cursor.col)
+        else:
+            tokens.append(cursor.bare_token())
     return tokens
 
 

@@ -123,67 +123,119 @@ def _net_voltage(design: Design, net_id: str) -> float | None:
     return _voltage_from_net_name(net.name) or _voltage_from_net_name(net.id)
 
 
-def _entry_for_regulator(component: Component, design: Design) -> RegulatorMarginEntry:
-    input_nets = _pin_nets(component, PinType.POWER)
-    output_nets = _pin_nets(component, PinType.OUTPUT)
-    rail_current = _rail_current_by_id(design)
-    kind = _regulator_kind(component)
+def _resolve_regulator_values(
+    component: Component,
+    design: Design,
+    input_nets: list[str],
+    output_nets: list[str],
+) -> tuple[float | None, float | None, float | None]:
     vin = _float_prop(component, "input_voltage_v", "vin_v")
     if vin is None:
         vin = _parse_voltage(component.voltage_supply)
     if vin is None and input_nets:
         vin = _net_voltage(design, input_nets[0])
+
     vout = _float_prop(component, "output_voltage_v", "vout_v")
     if vout is None and output_nets:
         vout = _net_voltage(design, output_nets[0])
+
     iout = _float_prop(component, "output_current_a", "iout_a", "load_current_a")
     if iout is None and output_nets:
-        iout = rail_current.get(output_nets[0])
+        iout = _rail_current_by_id(design).get(output_nets[0])
+    return vin, vout, iout
+
+
+def _missing_regulator_fields(
+    *,
+    kind: str,
+    vin: float | None,
+    vout: float | None,
+    iout: float | None,
+    dropout: float | None,
+    theta: float | None,
+    ambient: float | None,
+    tj_max: float | None,
+) -> list[str]:
+    missing = [
+        name
+        for name, value in (
+            ("vin_v", vin),
+            ("vout_v", vout),
+            ("iout_a", iout),
+            ("theta_ja_c_per_w", theta),
+            ("ambient_c", ambient),
+            ("junction_max_c", tj_max),
+        )
+        if value is None
+    ]
+    if kind == "linear" and dropout is None:
+        missing.append("dropout_v")
+    return missing
+
+
+def _power_dissipation(
+    component: Component,
+    *,
+    kind: str,
+    vin: float | None,
+    vout: float | None,
+    iout: float | None,
+    missing: list[str],
+) -> float | None:
+    if vin is None or vout is None or iout is None:
+        return None
+    if kind == "linear":
+        return round(max(0.0, vin - vout) * iout, 6)
+    efficiency = _float_prop(component, "efficiency", "efficiency_pct")
+    if efficiency is None:
+        missing.append("efficiency")
+        return None
+    eff = efficiency / 100.0 if efficiency > 1 else efficiency
+    if eff <= 0:
+        return None
+    return round((vout * iout) * (1.0 - eff) / eff, 6)
+
+
+def _margin_status(
+    missing: list[str],
+    dropout_margin: float | None,
+    thermal_margin: float | None,
+) -> tuple[RegulatorMarginStatus, str]:
+    if (dropout_margin is not None and dropout_margin < 0) or (thermal_margin is not None and thermal_margin < 0):
+        return RegulatorMarginStatus.FAIL, "regulator dropout or thermal margin failed"
+    if missing:
+        return RegulatorMarginStatus.HUMAN_REVIEW_REQUIRED, "regulator margin has missing metadata"
+    return RegulatorMarginStatus.PASS, "regulator dropout and thermal margins pass"
+
+
+def _entry_for_regulator(component: Component, design: Design) -> RegulatorMarginEntry:
+    input_nets = _pin_nets(component, PinType.POWER)
+    output_nets = _pin_nets(component, PinType.OUTPUT)
+    kind = _regulator_kind(component)
+    vin, vout, iout = _resolve_regulator_values(component, design, input_nets, output_nets)
     dropout = _float_prop(component, "dropout_voltage_v", "ldo_dropout_v")
     theta = _float_prop(component, "theta_ja_c_per_w", "thermal_resistance_c_per_w")
     ambient = _float_prop(component, "ambient_c", "ambient_temperature_c", "max_ambient_c")
     tj_max = _float_prop(component, "junction_max_c", "t_junction_max_c", "tj_max_c")
-    missing: list[str] = []
-    for name, value in (
-        ("vin_v", vin),
-        ("vout_v", vout),
-        ("iout_a", iout),
-        ("theta_ja_c_per_w", theta),
-        ("ambient_c", ambient),
-        ("junction_max_c", tj_max),
-    ):
-        if value is None:
-            missing.append(name)
-    if kind == "linear" and dropout is None:
-        missing.append("dropout_v")
-    dropout_margin = None
-    if kind == "linear" and vin is not None and vout is not None and dropout is not None:
-        dropout_margin = round(vin - vout - dropout, 6)
-    pd = None
-    if vin is not None and vout is not None and iout is not None:
-        if kind == "linear":
-            pd = round(max(0.0, vin - vout) * iout, 6)
-        else:
-            efficiency = _float_prop(component, "efficiency", "efficiency_pct")
-            if efficiency is not None:
-                eff = efficiency / 100.0 if efficiency > 1 else efficiency
-                if eff > 0:
-                    pd = round((vout * iout) * (1.0 - eff) / eff, 6)
-            else:
-                missing.append("efficiency")
-    junction = None
-    thermal_margin = None
-    if pd is not None and theta is not None and ambient is not None and tj_max is not None:
-        junction = round(ambient + pd * theta, 6)
-        thermal_margin = round(tj_max - junction, 6)
-    status = RegulatorMarginStatus.PASS
-    message = "regulator dropout and thermal margins pass"
-    if missing:
-        status = RegulatorMarginStatus.HUMAN_REVIEW_REQUIRED
-        message = "regulator margin has missing metadata"
-    if (dropout_margin is not None and dropout_margin < 0) or (thermal_margin is not None and thermal_margin < 0):
-        status = RegulatorMarginStatus.FAIL
-        message = "regulator dropout or thermal margin failed"
+    missing = _missing_regulator_fields(
+        kind=kind,
+        vin=vin,
+        vout=vout,
+        iout=iout,
+        dropout=dropout,
+        theta=theta,
+        ambient=ambient,
+        tj_max=tj_max,
+    )
+    dropout_margin = (
+        round(vin - vout - dropout, 6)
+        if kind == "linear" and vin is not None and vout is not None and dropout is not None
+        else None
+    )
+    pd = _power_dissipation(component, kind=kind, vin=vin, vout=vout, iout=iout, missing=missing)
+    junction = round(ambient + pd * theta, 6) if pd is not None and theta is not None and ambient is not None else None
+    thermal_margin = round(tj_max - junction, 6) if junction is not None and tj_max is not None else None
+    status, message = _margin_status(missing, dropout_margin, thermal_margin)
     return RegulatorMarginEntry(
         component_ref=component.ref,
         regulator_type=kind,

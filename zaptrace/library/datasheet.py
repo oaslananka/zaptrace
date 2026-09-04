@@ -651,118 +651,110 @@ def _first(text: str, pattern: re.Pattern[str]) -> tuple[str, str] | None:
     return None
 
 
-def extract_datasheet(raw_text: str) -> DatasheetExtract:
-    """Heuristically extract structured data from raw datasheet text.
-
-    The ``confidence`` of each field reflects the quality of the match:
-    - 0.9 — explicit label + value pair matched cleanly
-    - 0.7 — approximate/partial match
-    - 0.5 — inferred from context
-    - 0.0 — not found
-
-    Args:
-        raw_text: Raw text content of the datasheet (UTF-8 string).
-
-    Returns:
-        A :class:`DatasheetExtract` with all extractable fields filled in.
-    """
-    extract = DatasheetExtract()
-    losses: list[str] = []
-
-    # Part number (look for the most prominent part number in first 500 chars)
-    header = raw_text[:500]
-    part_matches = _PART_RE.findall(header)
+def _extract_identity(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    part_matches = _PART_RE.findall(raw_text[:500])
     if part_matches:
-        pn = max(part_matches, key=len)
-        extract.part_number = ExtractedField(pn, 0.8, pn)
+        part_number = max(part_matches, key=len)
+        extract.part_number = ExtractedField(part_number, 0.8, part_number)
     else:
         losses.append("part_number: no alphanumeric part number found in header")
 
-    # Manufacturer
-    mfr_m = _MANUFACTURER_RE.search(raw_text)
-    if mfr_m:
-        extract.manufacturer = ExtractedField(mfr_m.group(1), 0.9, mfr_m.group(0))
+    manufacturer = _MANUFACTURER_RE.search(raw_text)
+    if manufacturer:
+        extract.manufacturer = ExtractedField(manufacturer.group(1), 0.9, manufacturer.group(0))
     else:
         losses.append("manufacturer: not recognized")
 
-    # Package
-    pkg_m = _PACKAGE_RE.search(raw_text)
-    if pkg_m:
-        extract.package = ExtractedField(pkg_m.group(0).upper(), 0.85, pkg_m.group(0))
+    package = _PACKAGE_RE.search(raw_text)
+    if package:
+        extract.package = ExtractedField(package.group(0).upper(), 0.85, package.group(0))
     else:
         losses.append("package: not detected")
 
-    # Supply voltage range
-    vr_m = _VOLTAGE_RANGE_RE.search(raw_text)
-    if vr_m:
-        try:
-            extract.supply_voltage_min_v = ExtractedField(float(vr_m.group(1)), 0.9, vr_m.group(0)[:50])
-            extract.supply_voltage_max_v = ExtractedField(float(vr_m.group(2)), 0.9, vr_m.group(0)[:50])
-        except ValueError:
-            losses.append("supply_voltage: range parse failed")
-    else:
+
+def _extract_voltage_range(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    match = _VOLTAGE_RANGE_RE.search(raw_text)
+    if not match:
         losses.append("supply_voltage_min_v/max_v: no range pattern found")
+        return
+    try:
+        extract.supply_voltage_min_v = ExtractedField(float(match.group(1)), 0.9, match.group(0)[:50])
+        extract.supply_voltage_max_v = ExtractedField(float(match.group(2)), 0.9, match.group(0)[:50])
+    except ValueError:
+        losses.append("supply_voltage: range parse failed")
 
-    # Output current
-    cur_m = _CURRENT_RE.search(raw_text)
-    if cur_m:
-        try:
-            val = float(cur_m.group(1))
-            unit = cur_m.group(2).lower()
-            if unit == "ma":
-                val /= 1000.0
-            extract.output_current_max_a = ExtractedField(val, 0.8, cur_m.group(0))
-        except (ValueError, IndexError):
-            losses.append("output_current: parse failed")
-    else:
+
+def _extract_output_current(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    match = _CURRENT_RE.search(raw_text)
+    if not match:
         losses.append("output_current_max_a: not found")
+        return
+    try:
+        value = float(match.group(1))
+        if match.group(2).lower() == "ma":
+            value /= 1000.0
+        extract.output_current_max_a = ExtractedField(value, 0.8, match.group(0))
+    except (ValueError, IndexError):
+        losses.append("output_current: parse failed")
 
-    # Operating temperature
-    temp_m = _TEMP_RANGE_RE.search(raw_text)
-    if temp_m:
-        try:
-            extract.operating_temp_min_c = ExtractedField(float(temp_m.group(1)), 0.85, temp_m.group(0)[:50])
-            extract.operating_temp_max_c = ExtractedField(float(temp_m.group(2)), 0.85, temp_m.group(0)[:50])
-        except (ValueError, IndexError):
-            losses.append("operating_temp: range parse failed")
-    else:
+
+def _extract_temperature(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    match = _TEMP_RANGE_RE.search(raw_text)
+    if not match:
         losses.append("operating_temp_min_c/max_c: not found")
+        return
+    try:
+        extract.operating_temp_min_c = ExtractedField(float(match.group(1)), 0.85, match.group(0)[:50])
+        extract.operating_temp_max_c = ExtractedField(float(match.group(2)), 0.85, match.group(0)[:50])
+    except (ValueError, IndexError):
+        losses.append("operating_temp: range parse failed")
 
-    # Dropout voltage (for LDOs)
-    do_m = _DROPOUT_RE.search(raw_text)
-    if do_m:
-        try:
-            val = float(do_m.group(1))
-            if do_m.group(2).lower() == "mv":
-                val /= 1000.0
-            extract.dropout_voltage_v = ExtractedField(val, 0.9, do_m.group(0))
-        except (ValueError, IndexError):
-            losses.append("dropout_voltage: parse failed")
-    else:
+
+def _extract_dropout(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    match = _DROPOUT_RE.search(raw_text)
+    if not match:
         losses.append("dropout_voltage_v: not detected (may not be applicable)")
+        return
+    try:
+        value = float(match.group(1))
+        if match.group(2).lower() == "mv":
+            value /= 1000.0
+        extract.dropout_voltage_v = ExtractedField(value, 0.9, match.group(0))
+    except (ValueError, IndexError):
+        losses.append("dropout_voltage: parse failed")
 
-    # Quiescent current
-    qi_m = _QUIESCENT_RE.search(raw_text)
-    if qi_m:
-        try:
-            val = float(qi_m.group(1))
-            unit = qi_m.group(2).lower()
-            if unit in ("ma",):
-                val *= 1000.0
-            extract.quiescent_current_ua = ExtractedField(val, 0.85, qi_m.group(0))
-        except (ValueError, IndexError):
-            losses.append("quiescent_current: parse failed")
-    else:
+
+def _extract_quiescent_current(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    match = _QUIESCENT_RE.search(raw_text)
+    if not match:
         losses.append("quiescent_current_ua: not found")
+        return
+    try:
+        value = float(match.group(1))
+        if match.group(2).lower() == "ma":
+            value *= 1000.0
+        extract.quiescent_current_ua = ExtractedField(value, 0.85, match.group(0))
+    except (ValueError, IndexError):
+        losses.append("quiescent_current: parse failed")
 
-    # Pin function table
-    for pm in _PIN_TABLE_RE.finditer(raw_text):
-        pin_id = pm.group(2).upper()
-        func = pm.group(3).strip()[:80]
-        extract.pin_functions[pin_id] = func
 
+def _extract_pin_functions(raw_text: str, extract: DatasheetExtract, losses: list[str]) -> None:
+    for match in _PIN_TABLE_RE.finditer(raw_text):
+        extract.pin_functions[match.group(2).upper()] = match.group(3).strip()[:80]
     if not extract.pin_functions:
         losses.append("pin_functions: no pin table detected")
 
+
+def extract_datasheet(raw_text: str) -> DatasheetExtract:
+    """Heuristically extract structured data from raw datasheet text."""
+    extract = DatasheetExtract()
+    losses: list[str] = []
+    _extract_identity(raw_text, extract, losses)
+    _extract_voltage_range(raw_text, extract, losses)
+    _extract_output_current(raw_text, extract, losses)
+    _extract_temperature(raw_text, extract, losses)
+    _extract_dropout(raw_text, extract, losses)
+    _extract_quiescent_current(raw_text, extract, losses)
+    _extract_pin_functions(raw_text, extract, losses)
     extract.import_losses = losses
     return extract

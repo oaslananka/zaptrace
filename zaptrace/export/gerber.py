@@ -288,45 +288,79 @@ def _add_copper_pour(
 # ---------------------------------------------------------------------------
 
 
+def _collect_gerber_pads(design: Design) -> list[tuple[str, float, float, float, float, str]]:
+    pads: list[tuple[str, float, float, float, float, str]] = []
+    for comp in design.components.values():
+        if not comp.footprint_def or not comp.position:
+            continue
+        cx, cy = comp.position
+        for pad in comp.footprint_def.pads:
+            layer = "top" if pad.layer.value in ("top", "all") else "bottom"
+            pads.append((layer, cx + pad.position[0], cy + pad.position[1], pad.size[0], pad.size[1], pad.shape.value))
+    return pads
+
+
+def _gerber_copper_lines(
+    design: Design,
+    layer_name: str,
+    pads: list[tuple[str, float, float, float, float, str]],
+    apertures: _ApertureManager,
+) -> list[str]:
+    lines = _header_list(layer_name.upper())
+    _add_copper_pour(lines, design, apertures, layer_name)
+    traces = design.routing.traces if design.routing else []
+    lines.extend(_traces_list(traces, apertures, layer_name))
+    lines.extend(_pads_list([pad for pad in pads if pad[0] == layer_name], apertures))
+    for pour in design.copper_pours.values():
+        if pour.layer == layer_name and pour.thermal_reliefs:
+            lines.extend(_thermal_relief_list(pour.thermal_reliefs, apertures))
+    _insert_after_lpc(lines, apertures.header_lines())
+    lines.append(_EOF)
+    return lines
+
+
+def _gerber_pad_layer_lines(
+    layer_name: str, pads: list[tuple[str, float, float, float, float, str]], apertures: _ApertureManager
+) -> list[str]:
+    copper_layer = "top" if layer_name == "top_paste" else layer_name.replace("_mask", "")
+    header_name = "TOP_PASTE" if layer_name == "top_paste" else layer_name.upper()
+    lines = _header_list(header_name)
+    lines.extend(_pads_list([pad for pad in pads if pad[0] == copper_layer], apertures))
+    _insert_after_lpc(lines, apertures.header_lines())
+    lines.append(_EOF)
+    return lines
+
+
+def _render_gerber_layer(
+    design: Design,
+    layer_name: str,
+    pads: list[tuple[str, float, float, float, float, str]],
+    width: float,
+    height: float,
+) -> str:
+    apertures = _ApertureManager()
+    if layer_name == "outline":
+        lines = [*_header_list("OUTLINE"), *_outline_list(width, height), _EOF]
+    elif layer_name in ("top", "bottom"):
+        lines = _gerber_copper_lines(design, layer_name, pads, apertures)
+    elif layer_name in ("top_mask", "bottom_mask", "top_paste"):
+        lines = _gerber_pad_layer_lines(layer_name, pads, apertures)
+    elif layer_name == "top_silk":
+        lines = [*_header_list("TOP_SILK"), *_silk_list(design), _EOF]
+    else:
+        lines = [*_header_list(layer_name.upper()), _EOF]
+    return "".join(lines)
+
+
 def generate_gerber(design: Design, output_dir: str | Path | None = None, prefix: str = "") -> dict[str, str]:
-    """Generate Gerber files for all PCB layers.
-
-    Args:
-        design: The design to export.
-        output_dir: Directory to write files. ``None`` = return content as strings.
-        prefix: Filename prefix (usually design name).
-
-    Returns:
-        Map of layer name → file path (if ``output_dir``) or layer name → content string.
-    """
+    """Generate Gerber files for all PCB layers."""
     use_files = output_dir is not None
     out_dir = Path(output_dir) if output_dir else Path()
     if use_files:
         out_dir.mkdir(parents=True, exist_ok=True)
-
     prefix = safe_export_stem(prefix or design.meta.name or "board")
     board = canonical_board_definition(design)
-    bw = board.width
-    bh = board.height
-
-    # Build pad list from component footprints
-    pads: list[tuple[str, float, float, float, float, str]] = []
-    for comp in design.components.values():
-        if comp.footprint_def and comp.position:
-            cx, cy = comp.position
-            for pad in comp.footprint_def.pads:
-                px = cx + pad.position[0]
-                py = cy + pad.position[1]
-                layer = "top" if pad.layer.value in ("top", "all") else "bottom"
-                shape = pad.shape.value
-                pads.append((layer, px, py, pad.size[0], pad.size[1], shape))
-
-    # Build traces from routing
-    traces = design.routing.traces if design.routing else []
-
-    result: dict[str, str] = {}
-
-    # Define which layers to generate
+    pads = _collect_gerber_pads(design)
     layer_configs = [
         ("top", prefix + ".GTL"),
         ("bottom", prefix + ".GBL"),
@@ -336,63 +370,15 @@ def generate_gerber(design: Design, output_dir: str | Path | None = None, prefix
         ("bottom_mask", prefix + ".GBS"),
         ("top_paste", prefix + ".GPT"),
     ]
-
+    result: dict[str, str] = {}
     for layer_name, filename in layer_configs:
-        lines: list[str] = []
-        apertures = _ApertureManager()
-
-        if layer_name == "outline":
-            lines = _header_list("OUTLINE")
-            lines.extend(_outline_list(bw, bh))
-            lines.append(_EOF)
-        elif layer_name in ("top", "bottom"):
-            lines = _header_list(layer_name.upper())
-            # Copper pour / flood fill
-            _add_copper_pour(lines, design, apertures, layer_name)
-            lines.extend(_traces_list(traces, apertures, layer_name))
-            layer_pads = [p for p in pads if p[0] == layer_name]
-            lines.extend(_pads_list(layer_pads, apertures))
-            # Thermal reliefs for pads in the pour
-            for pour in design.copper_pours.values():
-                if pour.layer == layer_name and pour.thermal_reliefs:
-                    lines.extend(
-                        _thermal_relief_list(pour.thermal_reliefs, apertures),
-                    )
-            # Insert aperture definitions after header
-            header = apertures.header_lines()
-            _insert_after_lpc(lines, header)
-            lines.append(_EOF)
-        elif layer_name in ("top_mask", "bottom_mask"):
-            lines = _header_list(layer_name.upper())
-            copper_layer = layer_name.replace("_mask", "")
-            layer_pads = [p for p in pads if p[0] == copper_layer]
-            lines.extend(_pads_list(layer_pads, apertures))
-            header = apertures.header_lines()
-            _insert_after_lpc(lines, header)
-            lines.append(_EOF)
-        elif layer_name == "top_paste":
-            lines = _header_list("TOP_PASTE")
-            layer_pads = [p for p in pads if p[0] == "top"]
-            lines.extend(_pads_list(layer_pads, apertures))
-            header = apertures.header_lines()
-            _insert_after_lpc(lines, header)
-            lines.append(_EOF)
-        elif layer_name == "top_silk":
-            lines = _header_list("TOP_SILK")
-            lines.extend(_silk_list(design))
-            lines.append(_EOF)
-        else:
-            lines = _header_list(layer_name.upper())
-            lines.append(_EOF)
-
-        content = "".join(lines)
+        content = _render_gerber_layer(design, layer_name, pads, board.width, board.height)
         if use_files:
             filepath = out_dir / filename
             filepath.write_text(content, encoding="utf-8")
             result[layer_name] = str(filepath)
         else:
             result[layer_name] = content
-
     return result
 
 

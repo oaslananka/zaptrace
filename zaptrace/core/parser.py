@@ -116,12 +116,7 @@ def _validate_design_signature(raw: dict[str, Any], *, source: str, strict: bool
         raise ParseError(f"Strict design signature rejects unknown top-level keys in {source}: {', '.join(unknown)}")
 
 
-def _build_design(raw: dict[str, Any]) -> Design:
-    """Convert raw dict to Design, resolving pin-net references and all schema v1 fields."""
-    meta = DesignMeta(**raw.get("meta", {"name": "Untitled"}))
-    board = BoardConfig(**raw.get("board", {}))
-
-    # --- Components ---
+def _parse_components(raw: dict[str, Any]) -> dict[str, Component]:
     components: dict[str, Component] = {}
     for comp_id, comp_data in raw.get("components", {}).items():
         pins: dict[str, Pin] = {}
@@ -131,8 +126,10 @@ def _build_design(raw: dict[str, Any]) -> Design:
             pins[pin_name] = Pin.model_validate({**pin_data, "name": pin_name})
         filtered_comp = {k: v for k, v in comp_data.items() if k not in ("pins", "id")}
         components[comp_id] = Component(id=comp_id, pins=pins, **filtered_comp)
+    return components
 
-    # --- Nets ---
+
+def _parse_nets(raw: dict[str, Any]) -> dict[str, Net]:
     nets: dict[str, Net] = {}
     for net_id, net_data in raw.get("nets", {}).items():
         nodes: list[NetNode] = []
@@ -144,66 +141,51 @@ def _build_design(raw: dict[str, Any]) -> Design:
                 nodes.append(NetNode(**node))
         filtered_net = {k: v for k, v in net_data.items() if k not in ("nodes", "id")}
         nets[net_id] = Net(id=net_id, nodes=nodes, **filtered_net)
+    return nets
 
-    # --- Blocks ---
-    blocks = [Block(**b) for b in raw.get("blocks", [])]
 
-    # --- BoardDefinition (schema v1 extended board spec) ---
-    board_def: BoardDefinition | None = None
-    if "board_def" in raw:
-        bd = raw["board_def"]
-        if bd:
-            board_def = _parse_board_definition(bd)
+def _parse_placement(raw: dict[str, Any]) -> dict[str, tuple[float, float]] | None:
+    if "placement" not in raw:
+        return None
+    placement: dict[str, tuple[float, float]] = {}
+    for cid, pos in raw["placement"].items():
+        if isinstance(pos, (list, tuple)) and len(pos) == 2:
+            placement[cid] = (float(pos[0]), float(pos[1]))
+        elif isinstance(pos, dict) and "x" in pos and "y" in pos:
+            placement[cid] = (float(pos["x"]), float(pos["y"]))
+    return placement
 
-    # --- Placement ---
-    placement: dict[str, tuple[float, float]] | None = None
-    if "placement" in raw:
-        placement = {}
-        for cid, pos in raw["placement"].items():
-            if isinstance(pos, (list, tuple)) and len(pos) == 2:
-                placement[cid] = (float(pos[0]), float(pos[1]))
-            elif isinstance(pos, dict) and "x" in pos and "y" in pos:
-                placement[cid] = (float(pos["x"]), float(pos["y"]))
 
-    # --- Routing (RouteResult) ---
-    routing: RouteResult | None = None
-    if "routing" in raw:
-        routing = _parse_routing(raw["routing"])
+def _parse_net_classes(raw: dict[str, Any]) -> dict[str, NetClass] | None:
+    if "net_classes" not in raw:
+        return None
+    return {net_id: NetClass(nc_str) for net_id, nc_str in raw["net_classes"].items() if isinstance(nc_str, str)}
 
-    # --- Net Classes (net_id -> NetClass enum) ---
-    net_classes: dict[str, NetClass] | None = None
-    if "net_classes" in raw:
-        net_classes = {}
-        for net_id, nc_str in raw["net_classes"].items():
-            if isinstance(nc_str, str):
-                net_classes[net_id] = NetClass(nc_str)
 
-    # --- DRC Result ---
-    drc_result: DRCResult | None = None
-    if "drc_result" in raw:
-        drc_result = DRCResult.model_validate(raw["drc_result"])
+def _parse_copper_pours(raw: dict[str, Any]) -> dict[str, CopperPourArea]:
+    return {
+        pour_id: CopperPourArea.model_validate(pour_data) for pour_id, pour_data in raw.get("copper_pours", {}).items()
+    }
 
-    # --- Copper Pours ---
-    copper_pours: dict[str, CopperPourArea] = {}
-    if "copper_pours" in raw:
-        for pour_id, pour_data in raw["copper_pours"].items():
-            copper_pours[pour_id] = CopperPourArea.model_validate(pour_data)
 
-    constraints = ConstraintSet.model_validate(raw.get("constraints") or {})
-
+def _build_design(raw: dict[str, Any]) -> Design:
+    """Convert raw dict to Design, resolving pin-net references and all schema v1 fields."""
+    board_def = _parse_board_definition(raw["board_def"]) if raw.get("board_def") else None
+    routing = _parse_routing(raw["routing"]) if "routing" in raw else None
+    drc_result = DRCResult.model_validate(raw["drc_result"]) if "drc_result" in raw else None
     return Design(
-        meta=meta,
-        components=components,
-        nets=nets,
-        blocks=blocks,
-        board=board,
+        meta=DesignMeta(**raw.get("meta", {"name": "Untitled"})),
+        components=_parse_components(raw),
+        nets=_parse_nets(raw),
+        blocks=[Block(**block) for block in raw.get("blocks", [])],
+        board=BoardConfig(**raw.get("board", {})),
         board_def=board_def,
-        placement=placement,
+        placement=_parse_placement(raw),
         routing=routing,
-        net_classes=net_classes,
+        net_classes=_parse_net_classes(raw),
         drc_result=drc_result,
-        copper_pours=copper_pours,
-        constraints=constraints,
+        copper_pours=_parse_copper_pours(raw),
+        constraints=ConstraintSet.model_validate(raw.get("constraints") or {}),
     )
 
 

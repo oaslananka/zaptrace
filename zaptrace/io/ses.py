@@ -43,146 +43,147 @@ def _to_float(node: SexpNode) -> float:
     raise ValueError(f"Expected atom, got list: {node!r}")
 
 
-def parse_ses(filepath: str | Path) -> RouteResult:
-    """Parse a Specctra SES session file and return a RouteResult.
-
-    Args:
-        filepath: Path to the .ses file.
-
-    Returns:
-        RouteResult with parsed traces and vias.
-
-    Raises:
-        ValueError: If the file is malformed.
-    """
+def _read_ses(filepath: str | Path) -> SexpNode:
     try:
         content = Path(filepath).read_text(encoding="utf-8")
-    except OSError as e:
-        raise ValueError(f"Failed to read SES file: {e}") from e
-
+    except OSError as exc:
+        raise ValueError(f"Failed to read SES file: {exc}") from exc
     try:
-        sexp = _parse_sexp(content)
-    except SexpParseError as e:
-        raise ValueError(f"Malformed SES file (S-expression error): {e}") from e
-    except ValueError as e:
-        raise ValueError(f"Malformed SES file (S-expression error): {e}") from e
+        return _parse_sexp(content)
+    except (SexpParseError, ValueError) as exc:
+        raise ValueError(f"Malformed SES file (S-expression error): {exc}") from exc
 
-    scale_factor = 1.0
-    res_node = _find_node(sexp, "resolution")
-    if res_node and len(res_node) >= 3:
-        unit = str(res_node[1]).lower()
-        try:
-            val = _to_float(res_node[2])
-            if val != 0:
-                if unit == "um":
-                    scale_factor = 1.0 / (val * 1000.0)
-                elif unit == "mm":
-                    scale_factor = 1.0 / val
-                elif unit == "mil":
-                    scale_factor = 0.0254 / val
-                elif unit == "in":
-                    scale_factor = 25.4 / val
-        except ValueError:
-            pass
 
-    result = RouteResult()
+def _ses_scale_factor(sexp: SexpNode) -> float:
+    node = _find_node(sexp, "resolution")
+    if not node or len(node) < 3:
+        return 1.0
+    unit = str(node[1]).lower()
+    try:
+        value = _to_float(node[2])
+    except ValueError:
+        return 1.0
+    if value == 0:
+        return 1.0
+    factors = {"um": 1.0 / (value * 1000.0), "mm": 1.0 / value, "mil": 0.0254 / value, "in": 25.4 / value}
+    return factors.get(unit, 1.0)
 
-    via_defs: dict[str, tuple[float, float]] = {}
-    padstacks = _find_nodes(sexp, "padstack")
-    for ps in padstacks:
-        if len(ps) < 2:
+
+def _ses_via_defs(sexp: SexpNode) -> dict[str, tuple[float, float]]:
+    definitions: dict[str, tuple[float, float]] = {}
+    for padstack in _find_nodes(sexp, "padstack"):
+        if len(padstack) < 2:
             continue
-        name = str(ps[1])
-
-        diam, hole = 0.45, 0.2
-        m = re.search(r"_(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)", name)
-        if m:
-            val1, val2 = float(m.group(1)), float(m.group(2))
-            if val1 > 10.0:  # heuristic to assume um
-                diam = val1 / 1000.0
-                hole = val2 / 1000.0
+        name = str(padstack[1])
+        diameter, hole = 0.45, 0.2
+        match = re.search(r"_(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)", name)
+        if match:
+            first, second = float(match.group(1)), float(match.group(2))
+            if first > 10.0:
+                diameter, hole = first / 1000.0, second / 1000.0
             else:
-                diam = val1
-                hole = val2
+                diameter, hole = first, second
+        definitions[name] = (diameter, hole)
+    return definitions
 
-        via_defs[name] = (diam, hole)
 
-    nets = _find_nodes(sexp, "net")
-    layers_used: set[str] = set()
-    total_len = 0.0
-    routed_nets = 0
+def _ses_wire_segments(
+    item: list[SexpNode], net_id: str, scale_factor: float
+) -> tuple[list[TraceSegment], str | None, float]:
+    path = _find_node(item, "path")
+    if not path or len(path) < 4:
+        return [], None, 0.0
+    layer = str(path[1])
+    try:
+        width = _to_float(path[2]) * scale_factor
+        points = [_to_float(value) * scale_factor for value in path[3:]]
+    except ValueError:
+        return [], None, 0.0
+    segments: list[TraceSegment] = []
+    total = 0.0
+    for index in range(0, len(points) - 3, 2):
+        start = (points[index], points[index + 1])
+        end = (points[index + 2], points[index + 3])
+        segments.append(TraceSegment(layer=layer, start=start, end=end, width=width, net_id=net_id))
+        total += math.hypot(end[0] - start[0], end[1] - start[1])
+    return segments, layer, total
 
-    for net in nets:
-        if len(net) < 2:
+
+def _ses_via_segment(
+    item: list[SexpNode], net_id: str, scale_factor: float, via_defs: dict[str, tuple[float, float]]
+) -> tuple[tuple[float, float, float, float], TraceSegment] | None:
+    if len(item) < 4:
+        return None
+    try:
+        x = _to_float(item[2]) * scale_factor
+        y = _to_float(item[3]) * scale_factor
+    except ValueError:
+        return None
+    diameter, hole = via_defs.get(str(item[1]), (0.45, 0.2))
+    via = (x, y, diameter, hole)
+    segment = TraceSegment(
+        layer="",
+        start=(x, y),
+        end=(x, y),
+        width=diameter,
+        net_id=net_id,
+        via=True,
+        via_diameter=diameter,
+        via_hole=hole,
+    )
+    return via, segment
+
+
+def _append_ses_net(
+    net: list[SexpNode],
+    result: RouteResult,
+    scale_factor: float,
+    via_defs: dict[str, tuple[float, float]],
+    layers: set[str],
+) -> tuple[bool, float]:
+    if len(net) < 2:
+        return False, 0.0
+    net_id = str(net[1])
+    routed = False
+    total = 0.0
+    for item in net[2:]:
+        if not isinstance(item, list) or not item:
             continue
-        net_id = str(net[1])
-        net_has_routing = False
+        if item[0] == "wire":
+            segments, layer, length = _ses_wire_segments(item, net_id, scale_factor)
+            result.traces.extend(segments)
+            if layer is not None:
+                layers.add(layer)
+            routed = routed or bool(segments)
+            total += length
+        elif item[0] == "via":
+            parsed = _ses_via_segment(item, net_id, scale_factor, via_defs)
+            if parsed is not None:
+                via, segment = parsed
+                result.vias.append(via)
+                result.traces.append(segment)
+                routed = True
+    return routed, total
 
-        for item in net[2:]:
-            if not isinstance(item, list) or not item:
-                continue
 
-            if item[0] == "wire":
-                path = _find_node(item, "path")
-                if path and len(path) >= 4:
-                    layer = str(path[1])
-                    try:
-                        width = _to_float(path[2]) * scale_factor
-                        pts = [_to_float(x) * scale_factor for x in path[3:]]
-                    except ValueError:
-                        continue
-
-                    layers_used.add(layer)
-
-                    for i in range(0, len(pts) - 3, 2):
-                        x1, y1 = pts[i], pts[i + 1]
-                        x2, y2 = pts[i + 2], pts[i + 3]
-
-                        seg = TraceSegment(
-                            layer=layer,
-                            start=(x1, y1),
-                            end=(x2, y2),
-                            width=width,
-                            net_id=net_id,
-                        )
-                        result.traces.append(seg)
-
-                        total_len += math.hypot(x2 - x1, y2 - y1)
-                        net_has_routing = True
-
-            elif item[0] == "via" and len(item) >= 4:
-                via_name = str(item[1])
-                try:
-                    x = _to_float(item[2]) * scale_factor
-                    y = _to_float(item[3]) * scale_factor
-                except ValueError:
-                    continue
-
-                diam, hole = via_defs.get(via_name, (0.45, 0.2))
-                result.vias.append((x, y, diam, hole))
-
-                vseg = TraceSegment(
-                    layer="",
-                    start=(x, y),
-                    end=(x, y),
-                    width=diam,
-                    net_id=net_id,
-                    via=True,
-                    via_diameter=diam,
-                    via_hole=hole,
-                )
-                result.traces.append(vseg)
-
-                net_has_routing = True
-
-        if net_has_routing:
-            routed_nets += 1
-
-    result.layers_used = list(layers_used)
-    result.total_trace_length_mm = total_len
+def parse_ses(filepath: str | Path) -> RouteResult:
+    """Parse a Specctra SES session file and return a RouteResult."""
+    sexp = _read_ses(filepath)
+    scale_factor = _ses_scale_factor(sexp)
+    via_defs = _ses_via_defs(sexp)
+    nets = _find_nodes(sexp, "net")
+    result = RouteResult()
+    layers: set[str] = set()
+    routed_nets = 0
+    total_length = 0.0
+    for net in nets:
+        routed, length = _append_ses_net(net, result, scale_factor, via_defs, layers)
+        routed_nets += int(routed)
+        total_length += length
+    result.layers_used = list(layers)
+    result.total_trace_length_mm = total_length
     result.net_count = len(nets)
     result.routed_net_count = routed_nets
-
     return result
 
 
