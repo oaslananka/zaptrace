@@ -175,6 +175,36 @@ _BGA_ROW_LETTERS: list[str] = [
     "AF",
 ]
 
+
+def _grid_pads(
+    *,
+    rows: int,
+    cols: int,
+    pitch: float,
+    diameter: float,
+    layer: LayerSet,
+) -> tuple[list[Pad], float, float]:
+    """Build a JEDEC-style grid of circular pads and return its spans."""
+    pads: list[Pad] = []
+    x_span = (cols - 1) * pitch
+    y_span = (rows - 1) * pitch
+    for row_index in range(rows):
+        row_letter = _BGA_ROW_LETTERS[row_index] if row_index < len(_BGA_ROW_LETTERS) else f"R{row_index + 1}"
+        y = y_span / 2 - row_index * pitch
+        for column_index in range(cols):
+            x = -x_span / 2 + column_index * pitch
+            pads.append(
+                Pad(
+                    id=f"{row_letter}{column_index + 1}",
+                    layer=layer,
+                    shape=PadShape.CIRCLE,
+                    position=(x, y),
+                    size=(diameter, diameter),
+                )
+            )
+    return pads, x_span, y_span
+
+
 # Package alias map (user-friendly → canonical)
 _PACKAGE_ALIASES: dict[str, str] = {
     # Resistor / capacitor packages
@@ -634,26 +664,13 @@ def footprint_bga(
     p_val = pitch or 0.8
     b_diam = ball_diameter or 0.4
 
-    pads: list[Pad] = []
-    x_span = (c_count - 1) * p_val
-    y_span = (r_count - 1) * p_val
-
-    for r_idx in range(r_count):
-        row_letter = _BGA_ROW_LETTERS[r_idx] if r_idx < len(_BGA_ROW_LETTERS) else f"R{r_idx + 1}"
-        y = y_span / 2 - r_idx * p_val
-        for c_idx in range(c_count):
-            col_num = c_idx + 1
-            x = -x_span / 2 + c_idx * p_val
-            pad_id = f"{row_letter}{col_num}"
-            pads.append(
-                Pad(
-                    id=pad_id,
-                    layer=layer,
-                    shape=PadShape.CIRCLE,
-                    position=(x, y),
-                    size=(b_diam, b_diam),
-                )
-            )
+    pads, x_span, y_span = _grid_pads(
+        rows=r_count,
+        cols=c_count,
+        pitch=p_val,
+        diameter=b_diam,
+        layer=layer,
+    )
 
     body_w = x_span + 2.0
     body_h = y_span + 2.0
@@ -694,26 +711,13 @@ def footprint_wlcsp(
     p_val = pitch or 0.4
     p_diam = pad_diameter or 0.22
 
-    pads: list[Pad] = []
-    x_span = (c_count - 1) * p_val
-    y_span = (r_count - 1) * p_val
-
-    for r_idx in range(r_count):
-        row_letter = _BGA_ROW_LETTERS[r_idx] if r_idx < len(_BGA_ROW_LETTERS) else f"R{r_idx + 1}"
-        y = y_span / 2 - r_idx * p_val
-        for c_idx in range(c_count):
-            col_num = c_idx + 1
-            x = -x_span / 2 + c_idx * p_val
-            pad_id = f"{row_letter}{col_num}"
-            pads.append(
-                Pad(
-                    id=pad_id,
-                    layer=layer,
-                    shape=PadShape.CIRCLE,
-                    position=(x, y),
-                    size=(p_diam, p_diam),
-                )
-            )
+    pads, x_span, y_span = _grid_pads(
+        rows=r_count,
+        cols=c_count,
+        pitch=p_val,
+        diameter=p_diam,
+        layer=layer,
+    )
 
     body_w = x_span + 0.6
     body_h = y_span + 0.6
