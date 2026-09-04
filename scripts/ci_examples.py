@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import yaml
 
@@ -107,9 +109,7 @@ def _route_design(design: Design, positions: dict[str, tuple[float, float]]) -> 
         print(f"  Route:  skipped (import failed: {exc})")
 
 
-def _invoke_export(fn_name: str, fn: object, design: Design, output_dir: Path) -> object:
-    if not callable(fn):
-        raise TypeError(f"{fn_name} is not callable")
+def _invoke_export(fn_name: str, fn: Callable[..., object], design: Design, output_dir: Path) -> object:
     if fn_name in {"generate_bom_csv", "generate_bom_json", "generate_report", "render_schematic_svg"}:
         return fn(design)
     if fn_name == "generate_manufacturing_bundle":
@@ -117,20 +117,24 @@ def _invoke_export(fn_name: str, fn: object, design: Design, output_dir: Path) -
     return fn(design, output_dir=output_dir)
 
 
+def _print_export_mapping(label: str, result: dict[object, object]) -> None:
+    printed = False
+    for key, value in result.items():
+        if not isinstance(value, (str, Path)):
+            continue
+        path = Path(value)
+        if path.exists() and path.stat().st_size > 0:
+            print(f"  {label}:  {key} ({path.stat().st_size} bytes)")
+            printed = True
+    if not printed:
+        print(f"  {label}:  OK")
+
+
 def _print_export_result(label: str, result: object) -> None:
     if not result:
         return
     if isinstance(result, dict):
-        printed = False
-        for key, value in result.items():
-            if not isinstance(value, (str, Path)):
-                continue
-            path = Path(value)
-            if path.exists() and path.stat().st_size > 0:
-                print(f"  {label}:  {key} ({path.stat().st_size} bytes)")
-                printed = True
-        if not printed:
-            print(f"  {label}:  OK")
+        _print_export_mapping(label, result)
         return
     if isinstance(result, list):
         print(f"  {label}:  {len(result)} file(s)")
@@ -138,6 +142,32 @@ def _print_export_result(label: str, result: object) -> None:
         print(f"  {label}:  {result.name} ({result.stat().st_size} bytes)")
     else:
         print(f"  {label}:  OK")
+
+
+def _report_export_error(label: str, detail: object, allow_missing: bool) -> bool:
+    if allow_missing:
+        print(f"  {label}:  skipped ({detail})")
+        return True
+    print(f"  {label}:  FAILED - {detail}")
+    return False
+
+
+def _run_export_function(
+    label: str,
+    fn_name: str,
+    fn: object,
+    allow_missing: bool,
+    design: Design,
+    output_dir: Path,
+) -> bool:
+    if not callable(fn):
+        return _report_export_error(label, f"{fn_name} is not callable", allow_missing)
+    try:
+        callable_fn = cast(Callable[..., object], fn)
+        _print_export_result(label, _invoke_export(fn_name, callable_fn, design, output_dir))
+        return True
+    except Exception as exc:
+        return _report_export_error(label, exc, allow_missing)
 
 
 def _run_export_module(
@@ -150,35 +180,21 @@ def _run_export_module(
 ) -> bool:
     try:
         mod = __import__(mod_path, fromlist=funcs)
-        export_ok = True
-        for fn_name in funcs:
-            fn = getattr(mod, fn_name, None)
-            if fn is None:
-                if allow_missing:
-                    print(f"  {label}:  skipped ({fn_name} not available)")
-                    continue
-                raise AttributeError(f"{fn_name} not found in {mod_path}")
-            try:
-                _print_export_result(label, _invoke_export(fn_name, fn, design, output_dir))
-            except Exception as exc:
-                if allow_missing:
-                    print(f"  {label}:  skipped ({exc})")
-                else:
-                    print(f"  {label}:  FAILED - {exc}")
-                    export_ok = False
-        return export_ok
     except ImportError:
-        if allow_missing:
-            print(f"  {label}:  skipped (module not available)")
-            return True
-        print(f"  {label}:  FAILED - module not found")
-        return False
-    except Exception as exc:
-        if allow_missing:
-            print(f"  {label}:  skipped ({exc})")
-            return True
-        print(f"  {label}:  FAILED - {exc}")
-        return False
+        return _report_export_error(label, "module not found", allow_missing)
+
+    export_ok = True
+    for fn_name in funcs:
+        fn = getattr(mod, fn_name, None)
+        if fn is None:
+            if allow_missing:
+                print(f"  {label}:  skipped ({fn_name} not available)")
+                continue
+            print(f"  {label}:  FAILED - {fn_name} not found in {mod_path}")
+            export_ok = False
+            continue
+        export_ok = _run_export_function(label, fn_name, fn, allow_missing, design, output_dir) and export_ok
+    return export_ok
 
 
 def _run_exports(design: Design, output_dir: Path) -> bool:

@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from zaptrace.core.models import Design, RouteResult, TraceSegment
-from zaptrace.io.sexp import SexpNode, SexpParseError
+from zaptrace.io.sexp import SexpNode
 from zaptrace.io.sexp import parse as _parse_sexp
 
 
@@ -50,7 +50,7 @@ def _read_ses(filepath: str | Path) -> SexpNode:
         raise ValueError(f"Failed to read SES file: {exc}") from exc
     try:
         return _parse_sexp(content)
-    except (SexpParseError, ValueError) as exc:
+    except ValueError as exc:
         raise ValueError(f"Malformed SES file (S-expression error): {exc}") from exc
 
 
