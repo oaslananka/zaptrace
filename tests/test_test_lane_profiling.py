@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import subprocess
 import sys
@@ -66,9 +67,11 @@ def test_profile_summary_omits_untrusted_detail_strings() -> None:
     assert "Errors: 1 detail(s) retained in the JSON report." in summary
 
 
-def test_terminal_summary_renders_only_explicit_aggregate_values() -> None:
-    synthetic_token = "AKIA" + "1234567890123456"
+def test_terminal_summary_signature_stays_within_sonar_parameter_budget() -> None:
+    assert len(inspect.signature(format_terminal_summary).parameters) <= 13
 
+
+def test_terminal_summary_renders_only_explicit_aggregate_values() -> None:
     summary = format_terminal_summary(
         passed=False,
         total_modules=1,
@@ -83,10 +86,8 @@ def test_terminal_summary_renders_only_explicit_aggregate_values() -> None:
         notable_drift_count=1,
         warnings_count=1,
         errors_count=1,
-        untrusted_detail=synthetic_token,
     )
 
-    assert synthetic_token not in summary
     assert "Test Lane Duration Profile Summary [FAIL FAILED]" in summary
     assert "Critical module drifts: 1 detail(s) retained in the JSON report." in summary
 
