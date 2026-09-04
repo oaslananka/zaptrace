@@ -4,6 +4,14 @@
 
 The current HTTP runtime supports secure loopback operation, a controlled static-bearer profile, and the versioned supported `oauth-jwt` resource-server profile. Slices 2-5 provide the FastMCP JWT provider/discovery app, stable bearer challenges, fixed validated scope mapping, redacted `(iss, sub)` principals, per-request transport scope enforcement, object authorization/audit integration, real asymmetric-JWT negative coverage, and packaged Compose evidence. The complete design and verification contract are defined in [MCP HTTP authorization contract](security/mcp-http-authorization-contract.md).
 
+## MCP protocol compatibility
+
+The current HTTP protocol path is MCP `2026-07-28`. Its stateless protocol core does not use `Mcp-Session-Id` and does not require the legacy `initialize` / `initialized` handshake. Modern requests carry protocol and client metadata per request, may use `server/discover`, and expose method/tool routing through the standard MCP headers.
+
+Existing legacy handshake-era clients remain supported by the same FastMCP deployment through the SDK compatibility path. ZapTrace keeps that compatibility intentionally, but new integrations should use the current protocol line. A legacy transport session is compatibility state only; it is not an authorization cache.
+
+ZapTrace design persistence is independent of either protocol era. An application-level `session_id` returned by `session_create` is an explicit ZapTrace object handle that callers pass to tools when they need isolated design state. Authorization and object access are still evaluated on each HTTP request.
+
 ## Secure defaults
 
 `zaptrace-mcp-http` binds to `127.0.0.1:8090` by default. The supported environment variables are:
@@ -84,7 +92,7 @@ cp .env.example .env
 docker compose up --build --wait
 ```
 
-The MCP health check is profile-aware. The controlled static-bearer profile performs an authenticated JSON-RPC `initialize` request and closes the temporary protocol session; `oauth-jwt` validates the public RFC 9728 protected-resource metadata without requiring or persisting a bearer token or signing material in the container health check. Logs remain available through `docker compose logs zaptrace-mcp-http`.
+The MCP health check is profile-aware. The controlled static-bearer profile performs an authenticated MCP `2026-07-28` `server/discover` request and verifies that the modern response is stateless (no `Mcp-Session-Id`); `oauth-jwt` validates the public RFC 9728 protected-resource metadata without requiring or persisting a bearer token or signing material in the container health check. Logs remain available through `docker compose logs zaptrace-mcp-http`.
 
 CI runs both packaged profiles in `scripts/ci_compose_smoke.py`: first the existing static-bearer MCP flow, then a recreated `oauth-jwt` container whose discovery metadata and missing-bearer `401` challenge are checked. The redacted machine-readable result is written to `artifacts/compose-smoke/summary.json` and uploaded by the Quality workflow as the `compose-runtime-smoke` artifact. It records public provider/configuration identity and exercised denial cases only; bearer tokens and signing material are excluded. Real signed-token validation is covered separately by `tests/test_mcp_oauth_jwt_e2e.py`, which creates ephemeral asymmetric RSA keys and JWTs in memory.
 

@@ -90,7 +90,7 @@ Each distribution report records:
 - SDK import and minimal public-model construction;
 - required, optional, or absent native-extension state;
 - loopback REST health/authentication checks;
-- loopback MCP HTTP authentication, initialize identity, and session cleanup;
+- loopback MCP HTTP authentication, `2026-07-28` `server/discover` identity, and stateless transport evidence;
 - deterministic evidence digest and explicit non-claims.
 
 The JSON/Markdown evidence is downloaded into the release aggregation job before the release SBOM and `SHA256SUMS` are generated. Missing evidence blocks release creation.

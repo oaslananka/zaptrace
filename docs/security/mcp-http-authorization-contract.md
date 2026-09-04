@@ -23,15 +23,18 @@ Alternatives considered:
 
 ## Standards baseline
 
-The implementation must follow the MCP authorization specification dated `2025-11-25` and its referenced OAuth standards:
+The implementation must follow the MCP authorization specification dated `2026-07-28` as the current baseline and preserve compatibility for 2025-11-25 and earlier handshake-era clients through the upstream SDK compatibility path. The resource-server contract continues to rely on:
 
-- OAuth 2.1 resource-server behavior for bearer requests;
+- OAuth 2.1 resource-server behavior for bearer tokens;
 - RFC 8707 resource indicators and audience/resource binding;
 - RFC 9728 protected-resource metadata;
-- RFC 6750 bearer challenges and `insufficient_scope` handling;
+- RFC 6750 bearer-token and `insufficient_scope` handling;
+- exact issuer and audience validation for accepted JWT access tokens;
 - OAuth or OpenID Connect authorization-server discovery supplied by the external provider.
 
-Authorization applies only to HTTP transports. Stdio continues to use local process/environment trust and must not expose OAuth routes.
+The 2026-07-28 specification also hardens OAuth client and authorization-server flows, including RFC 9207 issuer-response validation and a migration toward Client ID Metadata Documents. ZapTrace's `oauth-jwt` profile is a resource server and does not claim to implement those client registration or authorization-code responsibilities.
+
+Authorization applies only to HTTP transports. Stdio continues to use local process/environment trust and must not expose OAuth routes. For modern MCP requests, authorization is re-evaluated per HTTP request and the protocol-level session is not an authorization cache; the same rule applies to requests made through the legacy compatibility path.
 
 ## Deployment profiles
 
@@ -167,7 +170,7 @@ The initial `401` challenge advertises only `zaptrace:read`. Slice 2 implements 
 | Audience confusion | Require `aud` to contain the canonical resource URI. | Token for another API receives `401 AUTH_INVALID_TOKEN`. |
 | Scope escalation | Fixed server-owned scope mapping; unknown scopes and client headers grant nothing. | Unknown/insufficient scope tests and capability audit evidence. |
 | Client mix-up | One configured authorization server, exact `iss`, resource-bound tokens, and optional audited `client_id`. | Wrong-issuer/client-context tests. |
-| Bearer replay | Revalidate every request, require HTTPS externally, issue short-lived tokens, never cache authorization in an MCP session, and never accept tokens from URLs/cookies. | Expiry, missing-header-on-follow-up, and no-session-carryover tests. |
+| Bearer replay | Revalidate every request, require HTTPS externally, issue short-lived tokens, never treat protocol or application state as an authorization cache, and never accept tokens from URLs/cookies. | Expiry, missing-header-on-follow-up, and no-session-carryover tests. |
 | Cross-session object access | Derive a stable principal from `(iss, sub)` and keep central owner/delegate ACL checks after token validation. | Principal A cannot read, mutate, list, or destroy principal B's session. |
 
 A bearer token remains replayable by anyone who steals it while it is valid. V1 does not claim proof-of-possession, DPoP, mTLS-bound tokens, online revocation, or one-time access tokens. Short lifetime, TLS, secret-safe logging, audience binding, and object authorization reduce but do not eliminate that residual risk.
@@ -198,7 +201,7 @@ Implementation issue #524 must include deterministic tests for:
 - wrong audience/resource;
 - unknown scope and insufficient scope;
 - untrusted client capability/session-grant headers;
-- authorization header omitted on a later request in the same MCP session;
+- authorization header omitted on a later HTTP request, including the legacy compatibility path;
 - token for principal A attempting to access principal B's session;
 - audit/log output containing no raw token or signing material.
 
@@ -229,7 +232,8 @@ This contract does not operate an authorization server, store user credentials, 
 
 ## References
 
-- [MCP authorization specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
+- [MCP specification 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28)
+- [MCP authorization specification 2025-11-25 — legacy compatibility](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
 - [MCP security best practices](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices)
 - [FastMCP authentication providers](https://gofastmcp.com/servers/auth/authentication)
 - [FastMCP remote OAuth](https://gofastmcp.com/servers/auth/remote-oauth)

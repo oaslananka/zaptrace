@@ -76,7 +76,7 @@ The `zaptrace` entry may move from `planned_plugins` to `plugins` in `oaslananka
 1. `.claude-plugin/plugin.json` passes JSON and Claude Code plugin validation.
 2. `.mcp.json` contains no private path or secret and starts `zaptrace-mcp` from a clean source checkout.
 3. `uv lock --check` and `uv sync --locked --all-extras --all-groups` succeed in the clean checkout.
-4. MCP initialize and tool-list smoke tests confirm server identity `zaptrace` and 96 exposed tools: 93 design tools plus 3 session-administration tools.
+4. MCP `2026-07-28` discovery and tool-list smoke tests confirm server identity `zaptrace` and 96 exposed tools: 93 design tools plus 3 session-administration tools.
 5. All listed skill paths exist, their front matter is valid, and every referenced MCP tool exists in the registry contract.
 6. The three first-phase workflows are exercised with committed, non-secret fixtures and retain machine-readable evidence.
 7. Documentation, security, Quality, distribution smoke, and repository policy checks pass on the exact revision.
