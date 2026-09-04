@@ -22,7 +22,8 @@ _SESSION_TOOLS = {"session_create", "session_destroy", "session_list"}
 
 
 def test_supported_surfaces_are_explicit_and_expert_preserves_full_registry() -> None:
-    assert ("expert", *_REDUCED_SURFACES) == SUPPORTED_TOOL_SURFACES
+    expected_surfaces = ("expert", *_REDUCED_SURFACES)
+    assert list(SUPPORTED_TOOL_SURFACES) == list(expected_surfaces)
     assert surface_tool_names("expert") == tuple(TOOL_REGISTRY)
 
 
