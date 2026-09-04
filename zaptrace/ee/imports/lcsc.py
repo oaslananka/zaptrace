@@ -96,140 +96,127 @@ def fetch_lcsc_component(lcsc_id: str) -> tuple[dict, dict] | None:
     return symbol_data or {}, footprint_data or {}
 
 
+def _easyeda_pad(parts: list[str], base_x: float, base_y: float, unit_to_mm: float) -> Pad | None:
+    if len(parts) < 8:
+        return None
+    try:
+        px = (float(parts[2]) - base_x) * unit_to_mm
+        py = (float(parts[3]) - base_y) * unit_to_mm * -1.0
+        width = float(parts[4]) * unit_to_mm
+        height = float(parts[5]) * unit_to_mm
+        shape_val = parts[1]
+        shape = PadShape.RECT
+        if shape_val in ("ELLIPSE", "CIRCLE", "OVAL"):
+            shape = PadShape.OVAL if width != height else PadShape.CIRCLE
+        pad_id = parts[7] or (parts[13] if len(parts) > 13 else "")
+        layer = {"2": LayerSet.BOTTOM, "11": LayerSet.ALL}.get(parts[6], LayerSet.TOP)
+        drill = float(parts[8]) * unit_to_mm if layer == LayerSet.ALL and len(parts) >= 10 else None
+        return Pad(
+            id=pad_id or "0",
+            layer=layer,
+            shape=shape,
+            position=(px, py),
+            size=(width, height),
+            drill=drill,
+            plated=drill is not None,
+        )
+    except ValueError:
+        return None
+
+
+def _easyeda_track(parts: list[str], base_x: float, base_y: float, unit_to_mm: float) -> list[DrawCommand]:
+    if len(parts) < 5:
+        return []
+    try:
+        width = float(parts[1]) * unit_to_mm
+        path_str = parts[4].split()
+        if len(path_str) < 4:
+            return []
+        points = [
+            (
+                (float(path_str[index]) - base_x) * unit_to_mm,
+                (float(path_str[index + 1]) - base_y) * unit_to_mm * -1.0,
+            )
+            for index in range(0, len(path_str), 2)
+        ]
+    except (ValueError, IndexError):
+        return []
+    return [
+        DrawCommand(
+            type="line",
+            params={
+                "x1": first[0],
+                "y1": first[1],
+                "x2": second[0],
+                "y2": second[1],
+                "width": width,
+            },
+        )
+        for first, second in zip(points, points[1:], strict=False)
+    ]
+
+
+def _easyeda_circle(parts: list[str], base_x: float, base_y: float, unit_to_mm: float) -> DrawCommand | None:
+    if len(parts) < 5:
+        return None
+    try:
+        cx = (float(parts[1]) - base_x) * unit_to_mm
+        cy = (float(parts[2]) - base_y) * unit_to_mm * -1.0
+        radius = float(parts[3]) * unit_to_mm
+    except ValueError:
+        return None
+    return DrawCommand(type="circle", params={"x": cx, "y": cy, "r": radius})
+
+
+def _easyeda_courtyard(pads: list[Pad]) -> tuple[float, float]:
+    if not pads:
+        return 0.0, 0.0
+    max_x = max(abs(pad.position[0]) + pad.size[0] / 2 for pad in pads)
+    max_y = max(abs(pad.position[1]) + pad.size[1] / 2 for pad in pads)
+    return (max_x + 0.5) * 2, (max_y + 0.5) * 2
+
+
 def parse_easyeda_footprint(data: dict) -> FootprintDef:
     """Parse EasyEDA footprint JSON into a FootprintDef."""
     data_str = data.get("dataStr", {})
     head = data_str.get("head", {})
-    shapes = data_str.get("shape", [])
-
+    base_x = float(head.get("x", 0))
+    base_y = float(head.get("y", 0))
+    unit_to_mm = 0.254
     pads: list[Pad] = []
     outline: list[DrawCommand] = []
 
-    # Base offset (EasyEDA coordinates)
-    base_x = float(head.get("x", 0))
-    base_y = float(head.get("y", 0))
-
-    # 1 unit = 10 mils = 0.254 mm
-    unit_to_mm = 0.254
-
-    for shape_str in shapes:
+    for shape_str in data_str.get("shape", []):
         parts = shape_str.split("~")
         if not parts:
             continue
-
-        stype = parts[0]
-
-        if stype == "PAD":
-            # format e.g. PAD~RECT~x~y~w~h~layer~id~...
-            if len(parts) >= 8:
-                shape_val = parts[1]
-                try:
-                    px = (float(parts[2]) - base_x) * unit_to_mm
-                    # EasyEDA Y is inverted (down is positive)
-                    py = (float(parts[3]) - base_y) * unit_to_mm * -1.0
-                    w = float(parts[4]) * unit_to_mm
-                    h = float(parts[5]) * unit_to_mm
-
-                    # Pad shapes mapping
-                    pshape = PadShape.RECT
-                    if shape_val in ("ELLIPSE", "CIRCLE", "OVAL"):
-                        pshape = PadShape.OVAL if w != h else PadShape.CIRCLE
-
-                    pad_id = parts[7]
-                    if not pad_id and len(parts) > 13:
-                        pad_id = parts[13]  # sometime it's empty in id but present later
-
-                    layer = LayerSet.TOP
-                    if parts[6] == "2":
-                        layer = LayerSet.BOTTOM
-                    elif parts[6] == "11":
-                        layer = LayerSet.ALL
-
-                    drill = None
-                    if layer == LayerSet.ALL and len(parts) >= 10:
-                        drill = float(parts[8]) * unit_to_mm
-
-                    pads.append(
-                        Pad(
-                            id=pad_id or "0",
-                            layer=layer,
-                            shape=pshape,
-                            position=(px, py),
-                            size=(w, h),
-                            drill=drill,
-                            plated=(drill is not None),
-                        )
-                    )
-                except ValueError:
-                    continue
-
-        elif stype == "TRACK":
-            # format TRACK~width~layer~net~path...
-            if len(parts) >= 5:
-                try:
-                    width = float(parts[1]) * unit_to_mm
-                    path_str = parts[4].split()
-                    if len(path_str) >= 4:
-                        pts = []
-                        for i in range(0, len(path_str), 2):
-                            x = (float(path_str[i]) - base_x) * unit_to_mm
-                            y = (float(path_str[i + 1]) - base_y) * unit_to_mm * -1.0
-                            pts.append((x, y))
-
-                        for i in range(len(pts) - 1):
-                            outline.append(
-                                DrawCommand(
-                                    type="line",
-                                    params={
-                                        "x1": pts[i][0],
-                                        "y1": pts[i][1],
-                                        "x2": pts[i + 1][0],
-                                        "y2": pts[i + 1][1],
-                                        "width": width,
-                                    },
-                                )
-                            )
-                except ValueError:
-                    continue
-
-        elif stype == "CIRCLE" and len(parts) >= 5:
-            # format CIRCLE~cx~cy~r~layer~id...
-            try:
-                cx = (float(parts[1]) - base_x) * unit_to_mm
-                cy = (float(parts[2]) - base_y) * unit_to_mm * -1.0
-                r = float(parts[3]) * unit_to_mm
-                outline.append(DrawCommand(type="circle", params={"x": cx, "y": cy, "r": r}))
-            except ValueError:
-                continue
-
-    courtyard_w = 0.0
-    courtyard_h = 0.0
-    if pads:
-        max_x = max(abs(p.position[0]) + p.size[0] / 2 for p in pads)
-        max_y = max(abs(p.position[1]) + p.size[1] / 2 for p in pads)
-        courtyard_w = (max_x + 0.5) * 2
-        courtyard_h = (max_y + 0.5) * 2
+        if parts[0] == "PAD":
+            pad = _easyeda_pad(parts, base_x, base_y, unit_to_mm)
+            if pad is not None:
+                pads.append(pad)
+        elif parts[0] == "TRACK":
+            outline.extend(_easyeda_track(parts, base_x, base_y, unit_to_mm))
+        elif parts[0] == "CIRCLE":
+            circle = _easyeda_circle(parts, base_x, base_y, unit_to_mm)
+            if circle is not None:
+                outline.append(circle)
 
     return FootprintDef(
         pads=pads,
         outline=outline,
-        courtyard=(courtyard_w, courtyard_h),
+        courtyard=_easyeda_courtyard(pads),
         source="easyeda",
         description=head.get("c_para", {}).get("package", ""),
     )
 
 
 def _parse_easyeda_pin_shape(parts: list[str]) -> SymbolPin | None:
-    # format P~type~x~y...  type is usually something like show~0~1~x~y~rot
-    # P~show~0~1~-20~0~180~...
     if len(parts) < 7:
         return None
     try:
-        # In schematic, units are roughly pixels or 10mils. Just need
-        # relative coords. Usually 1 unit = 0.1 inch = 2.54mm visually.
         scale = 1.0
         px = float(parts[4]) * scale
-        py = float(parts[5]) * scale * -1.0  # Invert Y
+        py = float(parts[5]) * scale * -1.0
         pin_id = parts[3]
     except ValueError:
         return None
@@ -238,13 +225,12 @@ def _parse_easyeda_pin_shape(parts: list[str]) -> SymbolPin | None:
         name=pin_id,
         position=(px, py),
         length=5.0,
-        orientation="left",  # Simplified
+        orientation="left",
         electrical_type="passive",
     )
 
 
 def _parse_easyeda_polyline_shape(parts: list[str]) -> list[DrawCommand]:
-    # PL~path~color...  path is e.g. -5 8 -5 -8
     if len(parts) < 2:
         return []
     path_str = parts[1].split()
@@ -259,7 +245,7 @@ def _parse_easyeda_polyline_shape(parts: list[str]) -> list[DrawCommand]:
             y2 = float(path_str[i + 3]) * -1.0
             commands.append(DrawCommand(type="line", params={"x1": x1, "y1": y1, "x2": x2, "y2": y2}))
     except ValueError:
-        pass  # keep whatever segments parsed before the malformed one
+        pass
     return commands
 
 

@@ -117,6 +117,57 @@ def _validate_degradations(case: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _validate_case_scores(case: dict[str, Any], case_id: object) -> list[str]:
+    errors: list[str] = []
+    scores = _as_mapping(case.get("scores", {}), field=f"case {case_id}.scores")
+    missing_scores = sorted(REQUIRED_CATEGORIES - set(scores))
+    if missing_scores:
+        errors.append(f"{case_id}: missing score categories {missing_scores}")
+    for category, value in scores.items():
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            errors.append(f"{case_id}: score {category} is not numeric")
+            continue
+        if numeric < 0.0 or numeric > 1.0:
+            errors.append(f"{case_id}: score {category} must be between 0 and 1")
+    return errors
+
+
+def _validate_case_paths(case: dict[str, Any], case_id: object, root: Path) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    diff_artifact = case.get("expected_diff_artifact")
+    if not diff_artifact or not (root / str(diff_artifact)).exists():
+        errors.append(f"{case_id}: expected diff artifact is missing")
+    for path_key in ["source_project", "source_schematic", "source_pcb"]:
+        raw_path = case.get(path_key)
+        if raw_path is None:
+            warnings.append(f"{case_id}: {path_key} is intentionally absent")
+        elif not (root / str(raw_path)).exists():
+            errors.append(f"{case_id}: {path_key} does not exist: {raw_path}")
+    return errors, warnings
+
+
+def _validate_case_degradation_contract(case: dict[str, Any], case_id: object) -> list[str]:
+    errors = [f"{case_id}: {item}" for item in _validate_degradations(case)]
+    has_absent_source = any(
+        case.get(path_key) is None for path_key in ["source_project", "source_schematic", "source_pcb"]
+    )
+    if has_absent_source and not case.get("unsupported_features", []):
+        errors.append(f"{case_id}: absent source artifacts require explicit unsupported_features degradation")
+    return errors
+
+
+def _validate_case(case: dict[str, Any], root: Path) -> tuple[list[str], list[str]]:
+    case_id = case.get("id", "<missing-id>")
+    errors = _validate_case_scores(case, case_id)
+    path_errors, warnings = _validate_case_paths(case, case_id, root)
+    errors.extend(path_errors)
+    errors.extend(_validate_case_degradation_contract(case, case_id))
+    return errors, warnings
+
+
 def _check_cases(corpus: dict[str, Any], *, root: Path) -> ScorecardCheck:
     cases = _as_sequence(corpus.get("cases", []), field="cases")
     if not cases:
@@ -128,39 +179,9 @@ def _check_cases(corpus: dict[str, Any], *, root: Path) -> ScorecardCheck:
         if not isinstance(case, dict):
             errors.append("case entry must be a mapping")
             continue
-        case_id = case.get("id", "<missing-id>")
-        scores = _as_mapping(case.get("scores", {}), field=f"case {case_id}.scores")
-        missing_scores = sorted(REQUIRED_CATEGORIES - set(scores))
-        if missing_scores:
-            errors.append(f"{case_id}: missing score categories {missing_scores}")
-        for category, value in scores.items():
-            try:
-                numeric = float(value)
-            except (TypeError, ValueError):
-                errors.append(f"{case_id}: score {category} is not numeric")
-                continue
-            if numeric < 0.0 or numeric > 1.0:
-                errors.append(f"{case_id}: score {category} must be between 0 and 1")
-
-        diff_artifact = case.get("expected_diff_artifact")
-        if not diff_artifact or not (root / str(diff_artifact)).exists():
-            errors.append(f"{case_id}: expected diff artifact is missing")
-
-        for path_key in ["source_project", "source_schematic", "source_pcb"]:
-            raw_path = case.get(path_key)
-            if raw_path is None:
-                warnings.append(f"{case_id}: {path_key} is intentionally absent")
-                continue
-            if not (root / str(raw_path)).exists():
-                errors.append(f"{case_id}: {path_key} does not exist: {raw_path}")
-
-        degradation_errors = _validate_degradations(case)
-        if degradation_errors:
-            errors.extend(f"{case_id}: {item}" for item in degradation_errors)
-        if any(case.get(path_key) is None for path_key in ["source_project", "source_schematic", "source_pcb"]):
-            degradations = case.get("unsupported_features", [])
-            if not degradations:
-                errors.append(f"{case_id}: absent source artifacts require explicit unsupported_features degradation")
+        case_errors, case_warnings = _validate_case(case, root)
+        errors.extend(case_errors)
+        warnings.extend(case_warnings)
 
     if errors:
         return ScorecardCheck(

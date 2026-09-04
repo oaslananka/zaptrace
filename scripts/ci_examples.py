@@ -13,10 +13,13 @@ from __future__ import annotations
 import argparse
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import yaml
 
+from zaptrace.core.models import Design
 from zaptrace.core.parser import parse_file
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,36 +48,23 @@ for ex_dir in sorted(EXAMPLES.iterdir()):
         EXAMPLE_DESIGNS[ex_dir.name] = design_yaml
 
 
-def validate_example(name: str, entry: Path) -> None:
-    """Run the full pipeline on one example and verify outputs."""
-    print(f"\n{'=' * 60}")
-    print(f"  Example: {name}")
-    print(f"  Entry:   {entry.relative_to(ROOT)}")
-    print(f"{'=' * 60}")
+def _resolve_design_entry(entry: Path) -> Path:
+    if entry.name != "proof.yaml":
+        return entry
+    proof_data = yaml.safe_load(entry.read_text(encoding="utf-8"))
+    design_path = entry.parent / proof_data.get("design_path", "design.yaml")
+    if design_path.exists():
+        return design_path
+    missing = design_path.name
+    rel = entry.relative_to(ROOT)
+    raise FileNotFoundError(f"proof pack {rel} references missing design_path {missing!r}")
 
-    if entry.name == "proof.yaml":
-        # Load design from proof pack
-        proof_data = yaml.safe_load(entry.read_text(encoding="utf-8"))
-        design_path = entry.parent / proof_data.get("design_path", "design.yaml")
-        if not design_path.exists():
-            missing = design_path.name
-            rel = entry.relative_to(ROOT)
-            raise FileNotFoundError(f"proof pack {rel} references missing design_path {missing!r}")
-        entry = design_path
 
-    # Parse design
-    design = parse_file(entry)
-    if design is None:
-        print(f"  FAILED: Failed to parse {entry}")
-        raise RuntimeError(f"Failed to parse {entry}")
-    print(f"  Parsed: {design.meta.name} ({len(design.components)} components)")
-
-    # Run ERC
+def _run_erc(design: Design) -> None:
     try:
         from zaptrace.erc.runner import ERCRunner
 
-        runner = ERCRunner()
-        erc_result = runner.run(design)
+        erc_result = ERCRunner().run(design)
         print(
             f"  ERC:    passed={erc_result.passed} "
             f"errors={erc_result.total_errors} warnings={erc_result.total_warnings} info={erc_result.total_info}"
@@ -85,7 +75,8 @@ def validate_example(name: str, entry: Path) -> None:
     except ImportError as exc:
         print(f"  ERC:    skipped (import failed: {exc})")
 
-    # Classify nets
+
+def _classify_nets(design: Design) -> None:
     try:
         from zaptrace.ee.classifier import classify_design
 
@@ -94,17 +85,20 @@ def validate_example(name: str, entry: Path) -> None:
     except ImportError as exc:
         print(f"  EE:     skipped (import failed: {exc})")
 
-    # Place
+
+def _place_design(design: Design) -> dict[str, tuple[float, float]]:
     try:
         from zaptrace.algo.placer import place_components
 
         positions = place_components(design)
         print(f"  Place:  {len(positions)} components placed")
+        return positions
     except ImportError as exc:
         print(f"  Place:  skipped (import failed: {exc})")
-        positions = {}
+        return {}
 
-    # Route
+
+def _route_design(design: Design, positions: dict[str, tuple[float, float]]) -> None:
     try:
         from zaptrace.algo.router import route_design_smart
 
@@ -114,84 +108,133 @@ def validate_example(name: str, entry: Path) -> None:
     except ImportError as exc:
         print(f"  Route:  skipped (import failed: {exc})")
 
-    # Export all formats
+
+def _invoke_export(fn_name: str, fn: Callable[..., object], design: Design, output_dir: Path) -> object:
+    if fn_name in {"generate_bom_csv", "generate_bom_json", "generate_report", "render_schematic_svg"}:
+        return fn(design)
+    if fn_name == "generate_manufacturing_bundle":
+        return fn(design, output_dir)
+    return fn(design, output_dir=output_dir)
+
+
+def _print_export_mapping(label: str, result: dict[object, object]) -> None:
+    printed = False
+    for key, value in result.items():
+        if not isinstance(value, (str, Path)):
+            continue
+        path = Path(value)
+        if path.exists() and path.stat().st_size > 0:
+            print(f"  {label}:  {key} ({path.stat().st_size} bytes)")
+            printed = True
+    if not printed:
+        print(f"  {label}:  OK")
+
+
+def _print_export_result(label: str, result: object) -> None:
+    if not result:
+        return
+    if isinstance(result, dict):
+        _print_export_mapping(label, result)
+        return
+    if isinstance(result, list):
+        print(f"  {label}:  {len(result)} file(s)")
+    elif isinstance(result, Path):
+        print(f"  {label}:  {result.name} ({result.stat().st_size} bytes)")
+    else:
+        print(f"  {label}:  OK")
+
+
+def _report_export_error(label: str, detail: object, allow_missing: bool) -> bool:
+    if allow_missing:
+        print(f"  {label}:  skipped ({detail})")
+        return True
+    print(f"  {label}:  FAILED - {detail}")
+    return False
+
+
+def _run_export_function(
+    label: str,
+    fn_name: str,
+    fn: object,
+    allow_missing: bool,
+    design: Design,
+    output_dir: Path,
+) -> bool:
+    if not callable(fn):
+        return _report_export_error(label, f"{fn_name} is not callable", allow_missing)
+    try:
+        callable_fn = cast(Callable[..., object], fn)
+        _print_export_result(label, _invoke_export(fn_name, callable_fn, design, output_dir))
+        return True
+    except Exception as exc:
+        return _report_export_error(label, exc, allow_missing)
+
+
+def _run_export_module(
+    label: str,
+    mod_path: str,
+    funcs: list[str],
+    allow_missing: bool,
+    design: Design,
+    output_dir: Path,
+) -> bool:
+    try:
+        mod = __import__(mod_path, fromlist=funcs)
+    except ImportError:
+        return _report_export_error(label, "module not found", allow_missing)
+
+    export_ok = True
+    for fn_name in funcs:
+        fn = getattr(mod, fn_name, None)
+        if fn is None:
+            if allow_missing:
+                print(f"  {label}:  skipped ({fn_name} not available)")
+                continue
+            print(f"  {label}:  FAILED - {fn_name} not found in {mod_path}")
+            export_ok = False
+            continue
+        export_ok = _run_export_function(label, fn_name, fn, allow_missing, design, output_dir) and export_ok
+    return export_ok
+
+
+def _run_exports(design: Design, output_dir: Path) -> bool:
+    export_modules = [
+        ("BOM", "zaptrace.export.bom", ["generate_bom_csv", "generate_bom_json"], False),
+        ("Pick&Place", "zaptrace.export.pick_and_place", ["generate_pick_and_place"], True),
+        ("Report", "zaptrace.export.report", ["generate_report"], False),
+        ("SVG", "zaptrace.export.svg", ["render_schematic_svg"], False),
+        ("Gerber", "zaptrace.export.gerber", ["generate_gerber"], False),
+        ("Excellon", "zaptrace.export.excellon", ["generate_excellon"], False),
+        ("KiCad", "zaptrace.export.kicad", ["export_kicad_schematic", "export_kicad_pcb"], True),
+        ("Bundle", "zaptrace.export.manufacturing", ["generate_manufacturing_bundle"], False),
+    ]
+    return all(
+        _run_export_module(label, mod_path, funcs, allow_missing, design, output_dir)
+        for label, mod_path, funcs, allow_missing in export_modules
+    )
+
+
+def validate_example(name: str, entry: Path) -> None:
+    """Run the full pipeline on one example and verify outputs."""
+    print(f"\n{'=' * 60}")
+    print(f"  Example: {name}")
+    print(f"  Entry:   {entry.relative_to(ROOT)}")
+    print(f"{'=' * 60}")
+
+    entry = _resolve_design_entry(entry)
+    design = parse_file(entry)
+    if design is None:
+        print(f"  FAILED: Failed to parse {entry}")
+        raise RuntimeError(f"Failed to parse {entry}")
+    print(f"  Parsed: {design.meta.name} ({len(design.components)} components)")
+
+    _run_erc(design)
+    _classify_nets(design)
+    positions = _place_design(design)
+    _route_design(design, positions)
+
     with tempfile.TemporaryDirectory(prefix=f"zaptrace-example-{name}-") as tmpdir:
-        output_dir = Path(tmpdir)
-        export_ok = True
-
-        export_modules = [
-            ("BOM", "zaptrace.export.bom", ["generate_bom_csv", "generate_bom_json"]),
-            ("Pick&Place", "zaptrace.export.pick_and_place", ["generate_pick_and_place"], True),
-            ("Report", "zaptrace.export.report", ["generate_report"]),
-            ("SVG", "zaptrace.export.svg", ["render_schematic_svg"]),
-            ("Gerber", "zaptrace.export.gerber", ["generate_gerber"]),
-            ("Excellon", "zaptrace.export.excellon", ["generate_excellon"]),
-            ("KiCad", "zaptrace.export.kicad", ["export_kicad_schematic", "export_kicad_pcb"], True),
-            ("Bundle", "zaptrace.export.manufacturing", ["generate_manufacturing_bundle"]),
-        ]
-
-        for label, mod_path, funcs, *flags in export_modules:
-            allow_missing = flags[0] if flags else False
-            try:
-                mod = __import__(mod_path, fromlist=funcs)
-                for fn_name in funcs:
-                    fn = getattr(mod, fn_name, None)
-                    if fn is None:
-                        if allow_missing:
-                            print(f"  {label}:  skipped ({fn_name} not available)")
-                            continue
-                        raise AttributeError(f"{fn_name} not found in {mod_path}")
-                    try:
-                        if fn_name in {
-                            "generate_bom_csv",
-                            "generate_bom_json",
-                            "generate_report",
-                            "render_schematic_svg",
-                        }:
-                            result = fn(design)
-                        elif fn_name == "generate_manufacturing_bundle":
-                            result = fn(design, output_dir)
-                        else:
-                            result = fn(design, output_dir=output_dir)
-                        if result:
-                            if isinstance(result, dict):
-                                printed = False
-                                for k, v in result.items():
-                                    if not isinstance(v, (str, Path)):
-                                        continue
-                                    p = Path(v)
-                                    if p.exists() and p.stat().st_size > 0:
-                                        print(f"  {label}:  {k} ({p.stat().st_size} bytes)")
-                                        printed = True
-                                if not printed:
-                                    print(f"  {label}:  OK")
-                            elif isinstance(result, list):
-                                print(f"  {label}:  {len(result)} file(s)")
-                            elif isinstance(result, Path):
-                                print(f"  {label}:  {result.name} ({result.stat().st_size} bytes)")
-                            else:
-                                print(f"  {label}:  OK")
-                    except Exception as exc:
-                        if allow_missing:
-                            print(f"  {label}:  skipped ({exc})")
-                        else:
-                            print(f"  {label}:  FAILED - {exc}")
-                            export_ok = False
-            except ImportError:
-                if allow_missing:
-                    print(f"  {label}:  skipped (module not available)")
-                else:
-                    print(f"  {label}:  FAILED - module not found")
-                    export_ok = False
-            except Exception as exc:
-                if allow_missing:
-                    print(f"  {label}:  skipped ({exc})")
-                else:
-                    print(f"  {label}:  FAILED - {exc}")
-                    export_ok = False
-
-        # Verify at least some exports succeeded
-        if not export_ok:
+        if not _run_exports(design, Path(tmpdir)):
             raise RuntimeError(f"Export pipeline failed for {name}")
 
 

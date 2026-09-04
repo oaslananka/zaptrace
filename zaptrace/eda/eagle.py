@@ -227,15 +227,7 @@ def _bool_attr(val: str | None) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _parse_root(root: _Element) -> EagleImportResult:
-    """Parse an already-loaded Eagle XML root element."""
-    if root.tag != "eagle":
-        raise ValueError(f"Not an Eagle file: root tag is '{root.tag}', expected 'eagle'")
-
-    version = root.get("version", "")
-    result = EagleImportResult(schema_version=version)
-
-    # --- Layers ---
+def _parse_eagle_layers(root: _Element, result: EagleImportResult) -> None:
     for layer_el in root.iter("layer"):
         result.layers.append(
             EagleLayer(
@@ -246,38 +238,38 @@ def _parse_root(root: _Element) -> EagleImportResult:
             )
         )
 
-    # --- Library packages (geometry) ---
+
+def _parse_eagle_packages(root: _Element, result: EagleImportResult) -> None:
     for lib_el in root.iter("library"):
         for pkg_el in lib_el.findall(".//package"):
             pkg_name = pkg_el.get("name", "")
             if not pkg_name:
                 continue
-            pads: list[EaglePad] = []
-            for smd in pkg_el.findall("smd"):
-                pads.append(
-                    EaglePad(
-                        name=smd.get("name", ""),
-                        x_mm=_float(smd.get("x")),
-                        y_mm=_float(smd.get("y")),
-                        dx_mm=_float(smd.get("dx"), 0.5),
-                        dy_mm=_float(smd.get("dy"), 0.5),
-                        layer=_int(smd.get("layer"), 1),
-                        kind="smd",
-                    )
+            pads = [
+                EaglePad(
+                    name=smd.get("name", ""),
+                    x_mm=_float(smd.get("x")),
+                    y_mm=_float(smd.get("y")),
+                    dx_mm=_float(smd.get("dx"), 0.5),
+                    dy_mm=_float(smd.get("dy"), 0.5),
+                    layer=_int(smd.get("layer"), 1),
+                    kind="smd",
                 )
-            for pad in pkg_el.findall("pad"):
-                pads.append(
-                    EaglePad(
-                        name=pad.get("name", ""),
-                        x_mm=_float(pad.get("x")),
-                        y_mm=_float(pad.get("y")),
-                        dx_mm=_float(pad.get("diameter"), 1.8),
-                        dy_mm=_float(pad.get("diameter"), 1.8),
-                        layer=17,
-                        kind="thru-hole",
-                        drill_mm=_float(pad.get("drill"), 0.9),
-                    )
+                for smd in pkg_el.findall("smd")
+            ]
+            pads.extend(
+                EaglePad(
+                    name=pad.get("name", ""),
+                    x_mm=_float(pad.get("x")),
+                    y_mm=_float(pad.get("y")),
+                    dx_mm=_float(pad.get("diameter"), 1.8),
+                    dy_mm=_float(pad.get("diameter"), 1.8),
+                    layer=17,
+                    kind="thru-hole",
+                    drill_mm=_float(pad.get("drill"), 0.9),
                 )
+                for pad in pkg_el.findall("pad")
+            )
             result.packages[pkg_name] = pads
         result.unsupported.append(
             EagleUnsupportedRecord(
@@ -287,63 +279,63 @@ def _parse_root(root: _Element) -> EagleImportResult:
                 xpath="/eagle/drawing/board/libraries/library",
             )
         )
-        break  # flag once
+        break
 
-    # --- BOM components ---
+
+def _parse_eagle_components(root: _Element, result: EagleImportResult) -> None:
     for comp in root.iter("component"):
         ref = comp.get("name", "")
-        if not ref:
-            continue
-        result.components[ref] = {
-            "type": comp.get("deviceset", ""),
-            "value": comp.get("value", ""),
-        }
+        if ref:
+            result.components[ref] = {"type": comp.get("deviceset", ""), "value": comp.get("value", "")}
 
-    # --- Placed elements ---
+
+def _absolute_package_pads(elem: _Element, package_pads: list[EaglePad]) -> list[EaglePad]:
+    ex = _float(elem.get("x"))
+    ey = _float(elem.get("y"))
+    return [
+        EaglePad(
+            name=pad.name,
+            x_mm=ex + pad.x_mm,
+            y_mm=ey + pad.y_mm,
+            dx_mm=pad.dx_mm,
+            dy_mm=pad.dy_mm,
+            layer=pad.layer,
+            kind=pad.kind,
+            drill_mm=pad.drill_mm,
+        )
+        for pad in package_pads
+    ]
+
+
+def _parse_eagle_elements(root: _Element, result: EagleImportResult) -> None:
     for elem in root.iter("element"):
         ref = elem.get("name", "")
         if not ref:
             continue
         existing = result.components.setdefault(ref, {})
-        existing["x_mm"] = elem.get("x", "0")
-        existing["y_mm"] = elem.get("y", "0")
-        existing["layer"] = elem.get("layer", "")
-        existing["package"] = elem.get("package", "")
+        existing.update(
+            {
+                "x_mm": elem.get("x", "0"),
+                "y_mm": elem.get("y", "0"),
+                "layer": elem.get("layer", ""),
+                "package": elem.get("package", ""),
+            }
+        )
         if not existing.get("type"):
             existing["type"] = existing["package"]
         if not existing.get("value"):
             existing["value"] = elem.get("value", "")
-        # Resolve pads from package geometry
-        pkg_name = existing.get("package", "")
-        if pkg_name and pkg_name in result.packages:
-            ex = _float(elem.get("x"))
-            ey = _float(elem.get("y"))
-            result.pads[ref] = [
-                EaglePad(
-                    name=p.name,
-                    x_mm=ex + p.x_mm,
-                    y_mm=ey + p.y_mm,
-                    dx_mm=p.dx_mm,
-                    dy_mm=p.dy_mm,
-                    layer=p.layer,
-                    kind=p.kind,
-                    drill_mm=p.drill_mm,
-                )
-                for p in result.packages[pkg_name]
-            ]
+        package = existing.get("package", "")
+        if package and package in result.packages:
+            result.pads[ref] = _absolute_package_pads(elem, result.packages[package])
 
-    # --- Nets / signals ---
+
+def _parse_eagle_signals(root: _Element, result: EagleImportResult) -> None:
     for signal in root.iter("signal"):
         net_name = signal.get("name", "")
         if not net_name:
             continue
-        refs: list[str] = []
-        for cr in signal.findall("contactref"):
-            element = cr.get("element", "")
-            if element:
-                refs.append(element)
-        result.nets[net_name] = refs
-        # Tracks within signal
+        result.nets[net_name] = [cr.get("element", "") for cr in signal.findall("contactref") if cr.get("element", "")]
         for wire in signal.findall("wire"):
             result.tracks.append(
                 EagleTrack(
@@ -357,15 +349,15 @@ def _parse_root(root: _Element) -> EagleImportResult:
                 )
             )
 
-    # Schematic-style <net> elements
+
+def _parse_eagle_schematic_nets(root: _Element, result: EagleImportResult) -> None:
     for net in root.iter("net"):
         net_name = net.get("name", "")
-        if not net_name or net_name in result.nets:
-            continue
-        refs = [pin.get("part", "") for pin in net.findall("pinref") if pin.get("part")]
-        result.nets[net_name] = refs
+        if net_name and net_name not in result.nets:
+            result.nets[net_name] = [pin.get("part", "") for pin in net.findall("pinref") if pin.get("part")]
 
-    # --- Vias ---
+
+def _parse_eagle_vias(root: _Element, result: EagleImportResult) -> None:
     for via in root.iter("via"):
         result.vias.append(
             EagleVia(
@@ -376,83 +368,59 @@ def _parse_root(root: _Element) -> EagleImportResult:
             )
         )
 
-    # --- Board outline (dimension layer = 20) ---
+
+def _parse_eagle_outline(root: _Element, result: EagleImportResult) -> None:
     for wire in root.iter("wire"):
-        if wire.get("layer") == "20":
-            result.board_outline.append(
-                EagleTrack(
-                    x1=_float(wire.get("x1")),
-                    y1=_float(wire.get("y1")),
-                    x2=_float(wire.get("x2")),
-                    y2=_float(wire.get("y2")),
-                    width=_float(wire.get("width"), 0.127),
-                    layer=20,
-                )
-            )
-
-    # --- Unsupported constructs ---
-    for _polygon in root.iter("polygon"):
-        result.unsupported.append(
-            EagleUnsupportedRecord(
-                "polygon",
-                "Polygon fill not imported",
-                "info",
-                xpath="/eagle/drawing/board//polygon",
+        if wire.get("layer") != "20":
+            continue
+        result.board_outline.append(
+            EagleTrack(
+                x1=_float(wire.get("x1")),
+                y1=_float(wire.get("y1")),
+                x2=_float(wire.get("x2")),
+                y2=_float(wire.get("y2")),
+                width=_float(wire.get("width"), 0.127),
+                layer=20,
             )
         )
-        break
 
-    for _dr in root.iter("designrules"):
-        result.unsupported.append(
-            EagleUnsupportedRecord(
-                "designrules",
-                "Eagle design rules not imported",
-                "info",
-                xpath="/eagle/drawing/board/designrules",
-            )
-        )
-        break
 
-    for _attr_el in root.iter("attribute"):
-        result.unsupported.append(
-            EagleUnsupportedRecord(
-                "attribute",
-                "Component-level attributes not imported",
-                "info",
-                xpath="/eagle/drawing/board/elements/element/attribute",
-            )
-        )
-        break
+def _record_eagle_unsupported(root: _Element, result: EagleImportResult) -> None:
+    unsupported_specs = (
+        ("polygon", "Polygon fill not imported", "/eagle/drawing/board//polygon"),
+        ("designrules", "Eagle design rules not imported", "/eagle/drawing/board/designrules"),
+        ("attribute", "Component-level attributes not imported", "/eagle/drawing/board/elements/element/attribute"),
+    )
+    for tag, message, xpath in unsupported_specs:
+        if next(root.iter(tag), None) is not None:
+            result.unsupported.append(EagleUnsupportedRecord(tag, message, "info", xpath=xpath))
 
+
+def _parse_root(root: _Element) -> EagleImportResult:
+    """Parse an already-loaded Eagle XML root element."""
+    if root.tag != "eagle":
+        raise ValueError(f"Not an Eagle file: root tag is '{root.tag}', expected 'eagle'")
+    result = EagleImportResult(schema_version=root.get("version", ""))
+    _parse_eagle_layers(root, result)
+    _parse_eagle_packages(root, result)
+    _parse_eagle_components(root, result)
+    _parse_eagle_elements(root, result)
+    _parse_eagle_signals(root, result)
+    _parse_eagle_schematic_nets(root, result)
+    _parse_eagle_vias(root, result)
+    _parse_eagle_outline(root, result)
+    _record_eagle_unsupported(root, result)
     return result
 
 
-# ---------------------------------------------------------------------------
-# Public import API
-# ---------------------------------------------------------------------------
-
-
 def import_eagle_xml(path: str | Path) -> EagleImportResult:
-    """Parse an Eagle .brd or .sch XML file into a structured import result.
-
-    Args:
-        path: Path to the Eagle XML file (.brd or .sch).
-
-    Returns:
-        An :class:`EagleImportResult` with the extracted data.
-
-    Raises:
-        ValueError: If the file is not valid Eagle XML or exceeds the size cap.
-        FileNotFoundError: If the file does not exist.
-    """
+    """Parse an Eagle .brd or .sch XML file into a structured import result."""
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Eagle file not found: {path}")
-
     raw = path.read_bytes()
     if len(raw) > MAX_INPUT_BYTES:
         raise ValueError(f"Eagle file too large: {len(raw)} bytes > {MAX_INPUT_BYTES} limit")
-
     result = import_eagle_xml_bytes(raw)
     result.source_path = path
     return result

@@ -154,79 +154,87 @@ class ValidationError(Exception):
     """Raised when a proof pack fails validation."""
 
 
+def _validate_proof_header(manifest: ProofManifest) -> list[str]:
+    errors: list[str] = []
+    supported_versions = {"1.0"}
+    if manifest.version not in supported_versions:
+        errors.append(f"Unsupported schema version: {manifest.version} (supported: {supported_versions})")
+    if not manifest.name:
+        errors.append("Manifest name is required")
+    if not manifest.design_path:
+        errors.append("design_path is required")
+    return errors
+
+
+def _validate_artifact_record(record: ArtifactRecord, base_path: Path) -> list[str]:
+    errors: list[str] = []
+    relative = Path(record.path)
+    if relative.is_absolute() or ".." in relative.parts:
+        return [f"Artifact path must be relative and contained: {record.path}"]
+    if record.sha256 and _SHA256_RE.fullmatch(record.sha256.lower()) is None:
+        errors.append(f"Artifact sha256 must be 64 lowercase hex characters: {record.path}")
+    artifact_path = base_path / relative
+    if not artifact_path.exists():
+        errors.append(f"Artifact missing: {record.path}")
+        return errors
+    if not record.sha256:
+        return errors
+    try:
+        actual_hash = hash_file(artifact_path)
+    except OSError as exc:
+        errors.append(f"Cannot hash artifact {record.path}: {exc}")
+        return errors
+    if actual_hash != record.sha256:
+        errors.append(
+            f"Artifact hash mismatch for {record.path}: recorded={record.sha256[:16]}... actual={actual_hash[:16]}..."
+        )
+    return errors
+
+
+def _validate_runtime_results(manifest: ProofManifest, results: list[CheckResult] | None) -> list[str]:
+    if results is None:
+        return []
+    declared_checks = {check.name for check in manifest.checks}
+    return [
+        f"Unexpected runtime check result: {result.check.name}"
+        for result in results
+        if result.check.name not in declared_checks
+    ]
+
+
+def _validate_check_records(manifest: ProofManifest) -> list[str]:
+    errors: list[str] = []
+    valid_statuses = {"pass", "warning", "fail", "skipped"}
+    for record in manifest.check_records:
+        if record.status not in valid_statuses:
+            errors.append(f"Invalid check status '{record.status}' for check '{record.name}'")
+        if record.status == "skipped" and not (record.summary or record.details_path):
+            errors.append(f"Skipped check '{record.name}' must include a skip reason or details_path")
+    return errors
+
+
+def _validate_kicad_oracles(manifest: ProofManifest) -> list[str]:
+    return [
+        f"Skipped KiCad oracle '{oracle.check}' must include skip_reason"
+        for oracle in manifest.kicad_oracle
+        if oracle.status == "skipped" and not oracle.skip_reason
+    ]
+
+
 def validate_proof_pack(
     manifest: ProofManifest,
     base_path: Path,
     results: list[CheckResult] | None = None,
 ) -> list[str]:
-    """Validate a proof pack manifest and its artifacts.
-
-    Checks:
-      - Schema version is supported
-      - Required fields are present
-      - Referenced artifact files exist
-      - Artifact SHA-256 hashes match (if recorded)
-      - Check status values are valid
-      - Limitations contain the human-review warning
-
-    Returns a list of error messages (empty = valid).
-    Raises ValidationError for structural issues.
-    """
-    errors: list[str] = []
-
-    supported_versions = {"1.0"}
-    if manifest.version not in supported_versions:
-        errors.append(f"Unsupported schema version: {manifest.version} (supported: {supported_versions})")
-
-    if not manifest.name:
-        errors.append("Manifest name is required")
-
-    if not manifest.design_path:
-        errors.append("design_path is required")
-
-    for art in manifest.artifacts:
-        rel = Path(art.path)
-        if rel.is_absolute() or ".." in rel.parts:
-            errors.append(f"Artifact path must be relative and contained: {art.path}")
-            continue
-        if art.sha256 and _SHA256_RE.fullmatch(art.sha256.lower()) is None:
-            errors.append(f"Artifact sha256 must be 64 lowercase hex characters: {art.path}")
-        art_path = base_path / rel
-        if not art_path.exists():
-            errors.append(f"Artifact missing: {art.path}")
-            continue
-        if art.sha256:
-            try:
-                actual_hash = hash_file(art_path)
-                if actual_hash != art.sha256:
-                    errors.append(
-                        f"Artifact hash mismatch for {art.path}: "
-                        f"recorded={art.sha256[:16]}... actual={actual_hash[:16]}..."
-                    )
-            except OSError as e:
-                errors.append(f"Cannot hash artifact {art.path}: {e}")
-
-    if results is not None:
-        declared_checks = {check.name for check in manifest.checks}
-        for result in results:
-            if result.check.name not in declared_checks:
-                errors.append(f"Unexpected runtime check result: {result.check.name}")
-
-    valid_statuses = {"pass", "warning", "fail", "skipped"}
-    for cr in manifest.check_records:
-        if cr.status not in valid_statuses:
-            errors.append(f"Invalid check status '{cr.status}' for check '{cr.name}'")
-        if cr.status == "skipped" and not (cr.summary or cr.details_path):
-            errors.append(f"Skipped check '{cr.name}' must include a skip reason or details_path")
-
-    for oracle in manifest.kicad_oracle:
-        if oracle.status == "skipped" and not oracle.skip_reason:
-            errors.append(f"Skipped KiCad oracle '{oracle.check}' must include skip_reason")
-
-    has_review_warning = any("human engineer review" in lim.lower() for lim in manifest.limitations)
-    if not has_review_warning:
+    """Validate a proof pack manifest and its artifacts."""
+    errors = _validate_proof_header(manifest)
+    for artifact in manifest.artifacts:
+        errors.extend(_validate_artifact_record(artifact, base_path))
+    errors.extend(_validate_runtime_results(manifest, results))
+    errors.extend(_validate_check_records(manifest))
+    errors.extend(_validate_kicad_oracles(manifest))
+    if not any("human engineer review" in limitation.lower() for limitation in manifest.limitations):
         errors.append("Limitations must include a human-engineer-review warning")
-
     return errors
 
 

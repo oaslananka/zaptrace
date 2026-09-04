@@ -201,298 +201,232 @@ def _node_key(x_mil: float, y_mil: float) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 
 
-def read_altium_ascii_sch(source: str | bytes) -> AltiumImportResult:
-    """Parse an Altium ASCII schematic into a :class:`AltiumImportResult`.
+class _UnionFind:
+    def __init__(self) -> None:
+        self.parent: dict[tuple[int, int], tuple[int, int]] = {}
 
-    Parameters
-    ----------
-    source:
-        Either a ``str`` containing the ASCII schematic text, or ``bytes``
-        that will be decoded as UTF-8 (with ``errors="replace"``).
+    def find(self, node: tuple[int, int]) -> tuple[int, int]:
+        self.parent.setdefault(node, node)
+        while self.parent[node] != node:
+            self.parent[node] = self.parent[self.parent[node]]
+            node = self.parent[node]
+        return node
 
-    Returns
-    -------
-    AltiumImportResult
-        Always returns a result.  Failures populate :attr:`_errors`.
+    def union(self, first: tuple[int, int], second: tuple[int, int]) -> None:
+        first_root = self.find(first)
+        second_root = self.find(second)
+        if first_root != second_root:
+            self.parent[first_root] = second_root
 
-    Raises
-    ------
-    ValueError
-        If the input is oversized or begins with OLE binary magic bytes.
-    """
-    errors: list[str] = []
-    warnings: list[str] = []
 
-    # ------------------------------------------------------------------
-    # Input validation
-    # ------------------------------------------------------------------
+def _validate_altium_source(source: str | bytes) -> str:
     raw_bytes = source if isinstance(source, bytes) else source.encode("utf-8", errors="replace")
-
     if len(raw_bytes) > MAX_INPUT_BYTES:
         raise ValueError(
             f"Input exceeds maximum allowed size of {MAX_INPUT_BYTES} bytes ({len(raw_bytes)} bytes received)."
         )
-
     if raw_bytes[:8] == _OLE_MAGIC:
         raise ValueError(
             "Input appears to be a binary OLE Compound Document (.SchDoc / .PcbDoc). "
             "Please export the file as ASCII from within Altium Designer before importing."
         )
+    return raw_bytes.decode("utf-8", errors="replace") if isinstance(source, bytes) else source
 
-    text: str = raw_bytes.decode("utf-8", errors="replace") if isinstance(source, bytes) else source
 
-    # ------------------------------------------------------------------
-    # Pass 1: tokenise all records
-    # ------------------------------------------------------------------
-    # Intermediate storage keyed by record type
-    _supported = {1, 2, 4, 28, 37, 209}
-
+def _tokenize_altium_records(
+    text: str,
+) -> tuple[
+    list[AltiumRecord],
+    set[int],
+    list[AltiumRecord],
+    dict[int, list[dict[str, str]]],
+]:
+    supported = {1, 2, 4, 28, 37, 209}
     all_records: list[AltiumRecord] = []
     supported_types: set[int] = set()
     unsupported: list[AltiumRecord] = []
-
-    # Typed record buckets
-    sheets: list[dict[str, str]] = []
-    components_raw: list[dict[str, str]] = []
-    pins_raw: list[dict[str, str]] = []
-    labels_raw: list[dict[str, str]] = []
-    wires_raw: list[dict[str, str]] = []
-    ports_raw: list[dict[str, str]] = []
-
+    buckets = {record_type: [] for record_type in supported}
     for line in text.splitlines():
         parsed = _parse_record_line(line)
         if parsed is None:
             continue
-        rtype, rfields = parsed
-        rec = AltiumRecord(record_type=rtype, fields=rfields)
-        all_records.append(rec)
-
-        if rtype in _supported:
-            supported_types.add(rtype)
-            if rtype == 1:
-                sheets.append(rfields)
-            elif rtype == 28:
-                components_raw.append(rfields)
-            elif rtype == 2:
-                pins_raw.append(rfields)
-            elif rtype == 4:
-                labels_raw.append(rfields)
-            elif rtype == 37:
-                wires_raw.append(rfields)
-            elif rtype == 209:
-                ports_raw.append(rfields)
+        record_type, fields = parsed
+        record = AltiumRecord(record_type=record_type, fields=fields)
+        all_records.append(record)
+        if record_type in supported:
+            supported_types.add(record_type)
+            buckets[record_type].append(fields)
         else:
-            rec.severity = "info"
-            unsupported.append(rec)
+            record.severity = "info"
+            unsupported.append(record)
+    return all_records, supported_types, unsupported, buckets
 
-    # ------------------------------------------------------------------
-    # Pass 2: build components (RECORD=28)
-    # ------------------------------------------------------------------
+
+def _build_altium_components(
+    components_raw: list[dict[str, str]],
+) -> tuple[dict[str, Component], dict[int, str]]:
     components: dict[str, Component] = {}
-    comp_index_map: dict[int, str] = {}  # raw line-index → component id
-
-    for idx, cf in enumerate(components_raw):
-        lib_ref = cf.get("LIBREFERENCE", cf.get("DESIGNITEMID", f"COMP{idx}"))
-        unique_id = cf.get("UNIQUEID", f"UID{idx}")
-        description = cf.get("DESCRIPTION", "")
-
-        # Build reference designator heuristically from lib ref + index
-        ref = _guess_ref(lib_ref, components)
-
-        x_mil = float(cf.get("LOCATION.X", "0") or "0")
-        y_mil = float(cf.get("LOCATION.Y", "0") or "0")
-
-        comp = Component(
+    comp_index_map: dict[int, str] = {}
+    for index, fields in enumerate(components_raw):
+        lib_ref = fields.get("LIBREFERENCE", fields.get("DESIGNITEMID", f"COMP{index}"))
+        unique_id = fields.get("UNIQUEID", f"UID{index}")
+        x_mil = float(fields.get("LOCATION.X", "0") or "0")
+        y_mil = float(fields.get("LOCATION.Y", "0") or "0")
+        components[unique_id] = Component(
             id=unique_id,
-            ref=ref,
+            ref=_guess_ref(lib_ref, components),
             type=_lib_ref_to_type(lib_ref),
-            value=cf.get("VALUE", cf.get("DESIGNITEMID", lib_ref)),
+            value=fields.get("VALUE", fields.get("DESIGNITEMID", lib_ref)),
             properties={
                 "libreference": lib_ref,
-                "description": description,
-                "partcount": cf.get("PARTCOUNT", "1"),
+                "description": fields.get("DESCRIPTION", ""),
+                "partcount": fields.get("PARTCOUNT", "1"),
             },
             position=(_mil(str(x_mil)), _mil(str(y_mil))),
         )
-        components[unique_id] = comp
-        comp_index_map[idx] = unique_id
+        comp_index_map[index] = unique_id
+    return components, comp_index_map
 
-    # ------------------------------------------------------------------
-    # Pass 3: attach pins to components (RECORD=2)
-    # ------------------------------------------------------------------
-    # Pins reference their owner by OWNER field (1-based record index in
-    # the original file, but Altium uses OWNERINDEX which is the 0-based
-    # index of the owning RECORD=28 in the component list).
-    # We use OWNER to find the parent component via comp_index_map.
+
+def _attach_altium_pins(
+    pins_raw: list[dict[str, str]],
+    components_raw: list[dict[str, str]],
+    components: dict[str, Component],
+    comp_index_map: dict[int, str],
+    warnings: list[str],
+) -> list[tuple[float, float, str, str]]:
     pin_coords: list[tuple[float, float, str, str]] = []
-    # (x_mil, y_mil, comp_id, pin_name)
-
-    for pf in pins_raw:
-        owner_str = pf.get("OWNER", "0")
-        # Map owner record index to component index
-        owner_index = _owner_to_comp_index(owner_str, comp_index_map, components_raw)
+    for fields in pins_raw:
+        owner = fields.get("OWNER", "0")
+        owner_index = _owner_to_comp_index(owner, comp_index_map, components_raw)
         if owner_index is None:
-            warnings.append(f"Pin with OWNER={owner_str} could not be resolved to a component; skipping.")
+            warnings.append(f"Pin with OWNER={owner} could not be resolved to a component; skipping.")
             continue
-
         comp_id = comp_index_map.get(owner_index)
         if comp_id is None:
             continue
-        comp = components.get(comp_id)
-        if comp is None:
+        component = components.get(comp_id)
+        if component is None:
             continue
-
-        pin_name = pf.get("NAME", pf.get("NUMBER", "?"))
-        pin_num = pf.get("NUMBER", "?")
-        x_mil = float(pf.get("X", "0") or "0")
-        y_mil = float(pf.get("Y", "0") or "0")
-        pin_length = float(pf.get("PINLENGTH", "100") or "100")
-        orientation = int(pf.get("ORIENTATION", "0") or "0")
-
-        # Compute tip coordinate (where the wire connects)
+        pin_name = fields.get("NAME", fields.get("NUMBER", "?"))
+        pin_num = fields.get("NUMBER", "?")
+        x_mil = float(fields.get("X", "0") or "0")
+        y_mil = float(fields.get("Y", "0") or "0")
+        pin_length = float(fields.get("PINLENGTH", "100") or "100")
+        orientation = int(fields.get("ORIENTATION", "0") or "0")
         tip_x, tip_y = _pin_tip(x_mil, y_mil, pin_length, orientation)
-
-        pin_obj = Pin(
+        component.pins[pin_num] = Pin(
             name=pin_name,
-            type=_infer_pin_type(pf),
+            type=_infer_pin_type(fields),
             position=(_mil(str(x_mil)), _mil(str(y_mil))),
         )
-        comp.pins[pin_num] = pin_obj
         pin_coords.append((tip_x, tip_y, comp_id, pin_num))
+    return pin_coords
 
-    # ------------------------------------------------------------------
-    # Pass 4: build connectivity graph (wires + labels + ports)
-    # ------------------------------------------------------------------
-    # Collect all nodes that need naming
-    node_names: dict[tuple[int, int], str] = {}  # snapped key → net name
 
-    for lf in labels_raw:
-        text_val = lf.get("TEXT", "").strip()
-        if not text_val:
+def _altium_node_names(labels_raw: list[dict[str, str]], ports_raw: list[dict[str, str]]) -> dict[tuple[int, int], str]:
+    node_names: dict[tuple[int, int], str] = {}
+    for fields in [*labels_raw, *ports_raw]:
+        text = fields.get("TEXT", "").strip()
+        if not text:
             continue
-        x_mil = float(lf.get("X", "0") or "0")
-        y_mil = float(lf.get("Y", "0") or "0")
-        key = _node_key(x_mil, y_mil)
-        node_names.setdefault(key, text_val)
+        key = _node_key(float(fields.get("X", "0") or "0"), float(fields.get("Y", "0") or "0"))
+        node_names.setdefault(key, text)
+    return node_names
 
-    for pf in ports_raw:
-        text_val = pf.get("TEXT", "").strip()
-        if not text_val:
-            continue
-        x_mil = float(pf.get("X", "0") or "0")
-        y_mil = float(pf.get("Y", "0") or "0")
-        key = _node_key(x_mil, y_mil)
-        node_names.setdefault(key, text_val)
 
-    # Build adjacency for wires (Union-Find style)
-    wire_endpoints: list[tuple[tuple[int, int], tuple[int, int]]] = []
-    for wf in wires_raw:
-        x1 = float(wf.get("X1", "0") or "0")
-        y1 = float(wf.get("Y1", "0") or "0")
-        x2 = float(wf.get("X2", "0") or "0")
-        y2 = float(wf.get("Y2", "0") or "0")
-        k1 = _node_key(x1, y1)
-        k2 = _node_key(x2, y2)
-        wire_endpoints.append((k1, k2))
-
-    # Simple union-find
-    parent: dict[tuple[int, int], tuple[int, int]] = {}
-
-    def find(n: tuple[int, int]) -> tuple[int, int]:
-        parent.setdefault(n, n)
-        while parent[n] != n:
-            parent[n] = parent[parent[n]]
-            n = parent[n]
-        return n
-
-    def union(a: tuple[int, int], b: tuple[int, int]) -> None:
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[ra] = rb
-
-    for k1, k2 in wire_endpoints:
-        union(k1, k2)
-
-    # Also union label positions with any adjacent wire endpoint
+def _altium_wire_graph(wires_raw: list[dict[str, str]], node_names: dict[tuple[int, int], str]) -> _UnionFind:
+    graph = _UnionFind()
+    endpoints: list[tuple[tuple[int, int], tuple[int, int]]] = []
+    for fields in wires_raw:
+        first = _node_key(float(fields.get("X1", "0") or "0"), float(fields.get("Y1", "0") or "0"))
+        second = _node_key(float(fields.get("X2", "0") or "0"), float(fields.get("Y2", "0") or "0"))
+        endpoints.append((first, second))
+        graph.union(first, second)
     for key in node_names:
-        for k1, k2 in wire_endpoints:
-            if key in (k1, k2):
-                union(key, k1)
+        for first, second in endpoints:
+            if key in (first, second):
+                graph.union(key, first)
+    return graph
 
-    # Group pin tips into nets
+
+def _altium_net_name(
+    root: tuple[int, int],
+    node_names: dict[tuple[int, int], str],
+    graph: _UnionFind,
+    counter: list[int],
+) -> str:
+    if root in node_names:
+        return node_names[root]
+    for candidate, label in node_names.items():
+        if graph.find(candidate) == root:
+            return label
+    counter[0] += 1
+    return f"Net{counter[0]:04d}"
+
+
+def _unique_altium_net_id(name: str, nets: dict[str, Net]) -> str:
+    base_id = _sanitize_net_id(name)
+    net_id = base_id
+    suffix = 0
+    while net_id in nets:
+        suffix += 1
+        net_id = f"{base_id}_{suffix}"
+    return net_id
+
+
+def _build_altium_nets(
+    pin_coords: list[tuple[float, float, str, str]],
+    node_names: dict[tuple[int, int], str],
+    graph: _UnionFind,
+    components: dict[str, Component],
+) -> dict[str, Net]:
     net_nodes: dict[tuple[int, int], list[tuple[str, str]]] = {}
     for tip_x, tip_y, comp_id, pin_num in pin_coords:
-        key = find(_node_key(tip_x, tip_y))
-        net_nodes.setdefault(key, []).append((comp_id, pin_num))
+        root = graph.find(_node_key(tip_x, tip_y))
+        net_nodes.setdefault(root, []).append((comp_id, pin_num))
 
-    # Name each net group
     nets: dict[str, Net] = {}
-    _net_counter = [0]
-
-    def next_net_name() -> str:
-        _net_counter[0] += 1
-        return f"Net{_net_counter[0]:04d}"
-
-    root_to_net: dict[tuple[int, int], str] = {}
-
+    counter = [0]
     for root, pin_list in net_nodes.items():
-        # Find a label for this root
-        net_name: str | None = None
-        # Check if root itself has a name
-        if root in node_names:
-            net_name = node_names[root]
-        else:
-            # Search all nodes with same root
-            for candidate_key, label in node_names.items():
-                if find(candidate_key) == root:
-                    net_name = label
-                    break
-        if net_name is None:
-            net_name = next_net_name()
-
-        net_id = _sanitize_net_id(net_name)
-        # Handle duplicate net IDs
-        base_id = net_id
-        suffix = 0
-        while net_id in nets:
-            suffix += 1
-            net_id = f"{base_id}_{suffix}"
-
-        net_type = _classify_net(net_name)
-        net_obj = Net(
+        net_name = _altium_net_name(root, node_names, graph, counter)
+        net_id = _unique_altium_net_id(net_name, nets)
+        nets[net_id] = Net(
             id=net_id,
             name=net_name,
-            type=net_type,
+            type=_classify_net(net_name),
             nodes=[NetNode(component_ref=comp_id, pin_name=pin_num) for comp_id, pin_num in pin_list],
         )
-        nets[net_id] = net_obj
-        root_to_net[root] = net_id
-
-        # Back-annotate pin net connections
         for comp_id, pin_num in pin_list:
-            comp = components.get(comp_id)
-            if comp and pin_num in comp.pins:
-                comp.pins[pin_num] = comp.pins[pin_num].model_copy(update={"net": net_id})
+            component = components.get(comp_id)
+            if component and pin_num in component.pins:
+                component.pins[pin_num] = component.pins[pin_num].model_copy(update={"net": net_id})
+    return nets
 
-    # ------------------------------------------------------------------
-    # Pass 5: net_score
-    # ------------------------------------------------------------------
-    total_pins = sum(len(c.pins) for c in components.values())
-    connected_pins = sum(len(n.nodes) for n in nets.values())
+
+def read_altium_ascii_sch(source: str | bytes) -> AltiumImportResult:
+    """Parse an Altium ASCII schematic into a :class:`AltiumImportResult`."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    text = _validate_altium_source(source)
+    all_records, supported_types, unsupported, buckets = _tokenize_altium_records(text)
+    sheets = buckets[1]
+    components_raw = buckets[28]
+    components, comp_index_map = _build_altium_components(components_raw)
+    pin_coords = _attach_altium_pins(buckets[2], components_raw, components, comp_index_map, warnings)
+    node_names = _altium_node_names(buckets[4], buckets[209])
+    graph = _altium_wire_graph(buckets[37], node_names)
+    nets = _build_altium_nets(pin_coords, node_names, graph, components)
+    total_pins = sum(len(component.pins) for component in components.values())
+    connected_pins = sum(len(net.nodes) for net in nets.values())
     net_score = min(1.0, connected_pins / total_pins) if total_pins > 0 else 0.0
-
-    # ------------------------------------------------------------------
-    # Assemble Design
-    # ------------------------------------------------------------------
     design_name = sheets[0].get("DESCRIPTION", "Untitled") if sheets else "Untitled"
-    design = Design(
-        meta=DesignMeta(name=design_name, author="Altium importer"),
-        components=components,
-        nets=nets,
-    )
-
     result = AltiumImportResult(
-        design=design,
+        design=Design(
+            meta=DesignMeta(name=design_name, author="Altium importer"),
+            components=components,
+            nets=nets,
+        ),
         unsupported_records=unsupported,
         supported_record_types=supported_types,
         total_record_count=len(all_records),

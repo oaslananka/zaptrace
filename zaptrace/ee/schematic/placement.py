@@ -11,7 +11,7 @@ import math
 import random
 from collections import defaultdict
 
-from zaptrace.core.models import Design
+from zaptrace.core.models import Component, Design
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -35,140 +35,149 @@ COOL_DOWN = 0.97
 # ---------------------------------------------------------------------------
 
 
+def _net_connections(design: Design) -> dict[str, set[str]]:
+    connections: dict[str, set[str]] = defaultdict(set)
+    for net in design.nets.values():
+        refs = [node.component_ref for node in net.nodes]
+        for ref in refs:
+            connections[ref].update(refs)
+    return connections
+
+
+def _initial_force_state(
+    comps: list[Component], width: float, height: float
+) -> tuple[dict[str, tuple[float, float]], dict[str, tuple[float, float]]]:
+    positions: dict[str, tuple[float, float]] = {}
+    velocities: dict[str, tuple[float, float]] = {}
+    count = len(comps)
+    cols = max(1, int(math.ceil(math.sqrt(count * width / height))))
+    cell_w = (width - 2 * MARGIN) / cols
+    cell_h = max(MIN_GAP, (height - 2 * MARGIN) / max(1, int(math.ceil(count / cols))))
+    for index, comp in enumerate(comps):
+        col, row = index % cols, index // cols
+        positions[comp.id] = (
+            MARGIN + col * cell_w + cell_w / 2 + random.uniform(-5, 5),
+            MARGIN + row * cell_h + cell_h / 2 + random.uniform(-5, 5),
+        )
+        velocities[comp.id] = (0.0, 0.0)
+    return positions, velocities
+
+
+def _repulsion_force(
+    comp: Component, comps: list[Component], positions: dict[str, tuple[float, float]]
+) -> tuple[float, float]:
+    cx, cy = positions[comp.id]
+    force_x = force_y = 0.0
+    for other in comps:
+        if other.id == comp.id:
+            continue
+        ox, oy = positions[other.id]
+        dx, dy = cx - ox, cy - oy
+        distance = math.hypot(dx, dy) + 1.0
+        force_x += (dx / distance) * REPULSION / (distance * distance)
+        force_y += (dy / distance) * REPULSION / (distance * distance)
+    return force_x, force_y
+
+
+def _attraction_force(
+    comp: Component,
+    positions: dict[str, tuple[float, float]],
+    connections: dict[str, set[str]],
+    ref_to_id: dict[str, str],
+) -> tuple[float, float]:
+    cx, cy = positions[comp.id]
+    force_x = force_y = 0.0
+    for ref in connections.get(comp.ref, set()):
+        other_id = ref_to_id.get(ref)
+        if other_id is None or other_id == comp.id or other_id not in positions:
+            continue
+        ox, oy = positions[other_id]
+        force_x += (ox - cx) * ATTRACTION
+        force_y += (oy - cy) * ATTRACTION
+    return force_x, force_y
+
+
+def _boundary_force(x: float, y: float, width: float, height: float) -> tuple[float, float]:
+    center_x, center_y = width / 2.0, height / 2.0
+    force_x = (center_x - x) * CENTER_FORCE
+    force_y = (center_y - y) * CENTER_FORCE
+    inner_margin = MARGIN + 20.0
+    wall = 3.0
+    if x < inner_margin:
+        force_x += wall * (inner_margin - x)
+    if x > width - inner_margin:
+        force_x -= wall * (x - (width - inner_margin))
+    if y < inner_margin:
+        force_y += wall * (inner_margin - y)
+    if y > height - inner_margin:
+        force_y -= wall * (y - (height - inner_margin))
+    return force_x, force_y
+
+
+def _step_component(
+    comp: Component,
+    comps: list[Component],
+    positions: dict[str, tuple[float, float]],
+    velocities: dict[str, tuple[float, float]],
+    connections: dict[str, set[str]],
+    ref_to_id: dict[str, str],
+    width: float,
+    height: float,
+    temperature: float,
+) -> float:
+    cx, cy = positions[comp.id]
+    rep_x, rep_y = _repulsion_force(comp, comps, positions)
+    att_x, att_y = _attraction_force(comp, positions, connections, ref_to_id)
+    bound_x, bound_y = _boundary_force(cx, cy, width, height)
+    vx, vy = velocities[comp.id]
+    vx = (vx + rep_x + att_x + bound_x) * DAMPING
+    vy = (vy + rep_y + att_y + bound_y) * DAMPING
+    velocity = math.hypot(vx, vy)
+    if velocity > temperature:
+        vx, vy = vx / velocity * temperature, vy / velocity * temperature
+    velocities[comp.id] = (vx, vy)
+    positions[comp.id] = (
+        max(MARGIN, min(width - MARGIN, cx + vx)),
+        max(MARGIN, min(height - MARGIN, cy + vy)),
+    )
+    return abs(vx) + abs(vy)
+
+
+def _run_force_iterations(
+    comps: list[Component],
+    positions: dict[str, tuple[float, float]],
+    velocities: dict[str, tuple[float, float]],
+    connections: dict[str, set[str]],
+    width: float,
+    height: float,
+) -> None:
+    ref_to_id = {comp.ref: comp.id for comp in comps}
+    temperature = max(width, height) / 3.0
+    for _ in range(MAX_ITERATIONS):
+        movement = sum(
+            _step_component(comp, comps, positions, velocities, connections, ref_to_id, width, height, temperature)
+            for comp in comps
+        )
+        temperature *= COOL_DOWN
+        if movement < MIN_VELOCITY * len(comps):
+            break
+
+
 def place_schematic(
     design: Design,
     block_list: list[list[str]] | None = None,
     width: float = CANVAS_W,
     height: float = CANVAS_H,
 ) -> dict[str, tuple[float, float]]:
-    """Place all components on a schematic canvas.
-
-    Returns a dict ``component_id -> (x, y)`` with positions in
-    schematic-coordinate space (pixels / arbitrary units).
-
-    Parameters
-    ----------
-    design:
-        The design whose components are to be placed.
-    block_list:
-        Optional grouping: each inner list holds component IDs that
-        should stay close together (sub-circuit grouping).
-    width, height:
-        Canvas dimensions.
-    """
+    """Place all components on a schematic canvas."""
     comps = list(design.components.values())
     if not comps:
         return {}
-
     if block_list:
         return _block_placement(comps, block_list, width)
-
-    # Build connectivity graph
-    net_connections: dict[str, set[str]] = defaultdict(set)
-    for net in design.nets.values():
-        refs = [n.component_ref for n in net.nodes]
-        for r in refs:
-            net_connections[r].update(refs)
-
-    # Grid-based initial positions with small jitter
-    positions: dict[str, tuple[float, float]] = {}
-    velocities: dict[str, tuple[float, float]] = {}
-    n = len(comps)
-    cols = max(1, int(math.ceil(math.sqrt(n * width / height))))
-    cell_w = (width - 2 * MARGIN) / cols
-    cell_h = max(MIN_GAP, (height - 2 * MARGIN) / max(1, int(math.ceil(n / cols))))
-
-    for i, comp in enumerate(comps):
-        col = i % cols
-        row = i // cols
-        px = MARGIN + col * cell_w + cell_w / 2 + random.uniform(-5, 5)
-        py = MARGIN + row * cell_h + cell_h / 2 + random.uniform(-5, 5)
-        positions[comp.id] = (px, py)
-        velocities[comp.id] = (0.0, 0.0)
-
-    ref_to_id = {c.ref: c.id for c in comps}
-    center_x = width / 2.0
-    center_y = height / 2.0
-    inner_margin = MARGIN + 20.0
-
-    # Force-directed iteration
-    temp = max(width, height) / 3.0
-
-    for _iteration in range(MAX_ITERATIONS):
-        total_movement = 0.0
-
-        for comp in comps:
-            cid = comp.id
-            fx, fy = 0.0, 0.0
-            cx, cy = positions[cid]
-
-            # Repulsion from all other components (inverse-square)
-            for other in comps:
-                if other.id == cid:
-                    continue
-                ox, oy = positions[other.id]
-                dx = cx - ox
-                dy = cy - oy
-                dist = math.hypot(dx, dy) + 1.0
-                fx += (dx / dist) * REPULSION / (dist * dist)
-                fy += (dy / dist) * REPULSION / (dist * dist)
-
-            # Attraction along nets (spring force proportional to distance)
-            connected_refs = net_connections.get(comp.ref, set())
-            for ref in connected_refs:
-                oid = ref_to_id.get(ref)
-                if oid is None or oid == cid or oid not in positions:
-                    continue
-                ox, oy = positions[oid]
-                dx = ox - cx
-                dy = oy - cy
-                fx += dx * ATTRACTION
-                fy += dy * ATTRACTION
-
-            # Gentle pull towards canvas center (prevents edge clustering)
-            fx += (center_x - cx) * CENTER_FORCE
-            fy += (center_y - cy) * CENTER_FORCE
-
-            # Bounding box push-back (soft wall)
-            wall = 3.0
-            if cx < inner_margin:
-                fx += wall * (inner_margin - cx)
-            if cx > width - inner_margin:
-                fx -= wall * (cx - (width - inner_margin))
-            if cy < inner_margin:
-                fy += wall * (inner_margin - cy)
-            if cy > height - inner_margin:
-                fy -= wall * (cy - (height - inner_margin))
-
-            # Update velocity with damping
-            vx, vy = velocities[cid]
-            vx = (vx + fx) * DAMPING
-            vy = (vy + fy) * DAMPING
-
-            # Temperature-based velocity clamping
-            v_len = math.hypot(vx, vy)
-            if v_len > temp:
-                vx = vx / v_len * temp
-                vy = vy / v_len * temp
-
-            velocities[cid] = (vx, vy)
-
-            # Apply movement
-            nx = cx + vx
-            ny = cy + vy
-            nx = max(MARGIN, min(width - MARGIN, nx))
-            ny = max(MARGIN, min(height - MARGIN, ny))
-            positions[cid] = (nx, ny)
-            total_movement += abs(vx) + abs(vy)
-
-        # Cool down
-        temp *= COOL_DOWN
-        if total_movement < MIN_VELOCITY * n:
-            break
-
-    # Ensure minimum gap between nearby components
+    positions, velocities = _initial_force_state(comps, width, height)
+    _run_force_iterations(comps, positions, velocities, _net_connections(design), width, height)
     _enforce_min_gap(positions, MIN_GAP)
-
     return positions
 
 
