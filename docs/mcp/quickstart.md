@@ -1,7 +1,7 @@
 # MCP Server Quickstart
 
 > **ZapTrace MCP** enables LLMs (Claude, Copilot, Codex, Gemini) to design PCBs through
-> the Model Context Protocol. 96 tools are exposed: 93 design tools plus 3 session-administration tools.
+> the Model Context Protocol. The default `expert` surface exposes 96 tools: 93 design tools plus 3 session-administration tools.
 
 ---
 
@@ -12,6 +12,24 @@ ZapTrace uses MCP protocol `2026-07-28` as the current protocol path. Modern cli
 ZapTrace can still maintain design state. `session_id` is a ZapTrace application-level handle returned by `session_create` and passed explicitly to tools that need isolated design state. It is not an MCP transport session and does not require sticky routing or a transport session header.
 
 Existing legacy MCP clients remain supported through the upstream SDK compatibility path. ZapTrace tests the same server surface in both `2026-07-28` and legacy client modes. Protocol compatibility is software interoperability evidence; it does not prove electrical correctness, fabrication readiness, or hardware safety.
+
+## Task-oriented tool surfaces
+
+ZapTrace defaults to the `expert` MCP tool surface, which preserves the complete registry. For common workflows, set `ZAPTRACE_MCP_TOOL_SURFACE` before server startup to reduce `tools/list` to a deterministic task-oriented view:
+
+- `inspect` — read-only design, library, rule/result, analysis, audit, and rendering tools.
+- `design` — parsing, synthesis, placement/routing, component, footprint, calculator, and transaction tools.
+- `verify` — ERC/DRC, simulation, engineering review, proof, and evidence-inspection tools.
+- `repair` — patching, bounded design mutation, re-verification, rollback, and transaction tools.
+- `release` — sign-off checks, proof, manufacturing/export, and release-evidence tools.
+
+For example:
+
+```bash
+ZAPTRACE_MCP_TOOL_SURFACE=verify uv run zaptrace-mcp
+```
+
+The profile changes discovery/visibility only. It does not grant new capabilities, bypass capability checks or OAuth scopes, bypass object authorization, weaken transaction approval, or move ZapTrace application state into MCP transport state. Session administration remains available in every surface. Use `expert` when a client genuinely needs the full low-level registry.
 
 ## 1. Starting the Server
 

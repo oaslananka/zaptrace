@@ -40,3 +40,14 @@ def test_authorization_contract_uses_current_spec_and_preserves_legacy_boundary(
     assert "authorization is re-evaluated per HTTP request" in text
     assert "protocol-level session is not an authorization cache" in text
     assert "specification/2026-07-28" in text
+
+
+def test_quickstart_documents_task_oriented_tool_surfaces() -> None:
+    text = _text(QUICKSTART)
+
+    assert "`ZAPTRACE_MCP_TOOL_SURFACE`" in text
+    assert "`expert`" in text
+    for surface in ("`inspect`", "`design`", "`verify`", "`repair`", "`release`"):
+        assert surface in text
+    assert "tools/list" in text
+    assert "capability" in text.lower()
