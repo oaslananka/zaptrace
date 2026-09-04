@@ -102,10 +102,8 @@ def format_terminal_summary(
     notable_drift_count: int,
     warnings_count: int,
     errors_count: int,
-    untrusted_detail: str | None = None,
 ) -> str:
     """Render a terminal-safe summary from explicitly selected aggregate values."""
-    del untrusted_detail
     status_marker = "OK" if passed else "FAIL"
     status = "PASSED" if passed else "FAILED"
     lines = [
