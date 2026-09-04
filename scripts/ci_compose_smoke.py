@@ -26,6 +26,7 @@ _OAUTH_RESOURCE_URI = "https://mcp.example.com/mcp"
 _OAUTH_AUTHORIZATION_SERVER = "https://auth.example.com/"
 _OAUTH_JWKS_URI = "https://auth.example.com/.well-known/jwks.json"
 _MCP_PROTOCOL_VERSION = "2026-07-28"
+_MCP_DISCOVER_FAILURE = "MCP response did not contain a successful server/discover result"
 
 
 def generate_token() -> str:
@@ -149,15 +150,15 @@ def parse_mcp_discover_response(payload: bytes) -> dict[str, str]:
     try:
         message = json.loads(payload)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("MCP response did not contain a successful server/discover result") from exc
+        raise RuntimeError(_MCP_DISCOVER_FAILURE) from exc
     result = message.get("result") if isinstance(message, dict) else None
     if not isinstance(result, dict):
-        raise RuntimeError("MCP response did not contain a successful server/discover result")
+        raise RuntimeError(_MCP_DISCOVER_FAILURE)
     supported = result.get("supportedVersions")
     metadata = result.get("_meta")
     server_info = metadata.get("io.modelcontextprotocol/serverInfo") if isinstance(metadata, dict) else None
     if not isinstance(supported, list) or _MCP_PROTOCOL_VERSION not in supported or not isinstance(server_info, dict):
-        raise RuntimeError("MCP response did not contain a successful server/discover result")
+        raise RuntimeError(_MCP_DISCOVER_FAILURE)
     return {
         "protocol_version": _MCP_PROTOCOL_VERSION,
         "server_name": str(server_info.get("name", "")),
