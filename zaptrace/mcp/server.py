@@ -727,7 +727,10 @@ server = FastMCP(
         "and export electronics designs.\n\n"
         "All tools return a structured envelope: { ok: bool, data?: ..., error?: { code, message, details } }.\n"
         "On success ok=true with data in 'data' field. On failure ok=false with error info in 'error' field.\n"
-        "Use session_create() first if you need an isolated session, otherwise a default session is used."
+        "Use session_create() first if you need an isolated session, otherwise a default session is used.\n"
+        "Protocol compatibility: MCP 2026-07-28 is the current protocol path and legacy clients remain supported. "
+        "ZapTrace session_id values are application-level handles, not MCP transport sessions; "
+        "modern requests do not use Mcp-Session-Id."
     ),
     version=SERVER_VERSION,
 )
