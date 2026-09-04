@@ -22,7 +22,7 @@ The generated docs-status report records the source revision, the selected capab
 
 ## Current repository facts
 
-- Python distribution identity: `zaptrace-eda` `0.3.5`, with import package and CLI identity `zaptrace`, Python 3.12+, in `release-preparation`; the published baseline is `v0.3.3` (legacy PyPI baseline without Git provenance). The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence and were not reused. The first fully traceable release will be `v0.3.5`.
+- Python distribution identity: `zaptrace-eda` `0.3.6.dev0`, with import package and CLI identity `zaptrace`, Python 3.12+, in `unreleased-development`. `v0.3.5` is published on PyPI, but the immutable tagged workflow failed its container-security gate before GitHub Release creation, so that tag remains partial-release evidence and will not be reused.
 - Verification rules: 29 ERC rules and 16 DRC rules, derived from the registered rule lists.
 - Agent surface: 93 design tools plus 3 session-administration tools, for 96 MCP-exposed tools total.
 - Component library baseline: **504 component records**, schema version 2.0, with trust tiers currently `{"heuristic": 504}` in `config/component-trust-baseline.json`.
@@ -31,7 +31,7 @@ The generated docs-status report records the source revision, the selected capab
 - EasyEDA Standard import/export and EasyEDA Pro import-oriented interoperability are implemented with explicit degradation evidence where supported.
 - Altium ASCII schematic **import** is supported. ZapTrace does not claim a native Altium binary writer or complete Altium project parity.
 - GitHub release automation builds source/wheel artifacts, generates an SBOM and checksum manifest, attests release artifacts, and creates a GitHub release through `.github/workflows/release.yml`.
-- `release.yml` carries tokenless OIDC Trusted Publishing contracts for `zaptrace-eda`: manual `main` staging is TestPyPI-only, while tagged releases require TestPyPI hash/clean-install verification before PyPI and require PyPI verification before GitHub Release creation. The `v0.3.3` tagged run completed this production path successfully, so PyPI is now a verified public distribution channel alongside GitHub Releases.
+- `release.yml` carries tokenless OIDC Trusted Publishing contracts for `zaptrace-eda`: manual `main` staging is TestPyPI-only. Future tagged publication is fail-closed on container security before TestPyPI/PyPI promotion, then requires registry hash/clean-install verification before GitHub Release creation. `v0.3.5` reached PyPI before this dependency was enforced and did not create a GitHub Release; that partial outcome is preserved rather than rewritten.
 - The active main-branch contract is represented by `config/github-main-ruleset.json` and validated by repository CI evidence.
 
 ## Verification and release posture

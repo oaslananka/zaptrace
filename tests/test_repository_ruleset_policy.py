@@ -259,3 +259,17 @@ def test_mergify_config_has_no_unsupported_dequeue_queue_action() -> None:
         queue_action = rule.get("actions", {}).get("queue")
         if isinstance(queue_action, dict):
             assert "method" not in queue_action
+
+
+def test_mergify_queue_is_solo_compatible_and_uses_in_place_checks() -> None:
+    config = yaml.safe_load((ROOT / ".mergify.yml").read_text(encoding="utf-8"))
+
+    assert config["merge_queue"]["mode"] == "serial"
+    assert config["merge_queue"]["max_parallel_checks"] == 1
+    queue = next(rule for rule in config["queue_rules"] if rule["name"] == "default")
+    assert queue["batch_size"] == 1
+
+    automatic = next(rule for rule in config["pull_request_rules"] if rule["name"] == "automatic merge on CI success")
+    string_conditions = [condition for condition in automatic["conditions"] if isinstance(condition, str)]
+    assert not any("approved-reviews-by" in condition for condition in string_conditions)
+    assert all(rule["name"] != "request review on new PR" for rule in config["pull_request_rules"])

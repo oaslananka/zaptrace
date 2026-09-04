@@ -30,7 +30,7 @@ Every plugin MUST carry a signed manifest (`zaptrace-plugin.json`) at its root:
   "name": "My Analyzer",
   "version": "0.1.0",
   "min_zaptrace_version": "0.2.0",
-  "max_zaptrace_version": "0.3.5",
+  "max_zaptrace_version": "0.3.6",
   "entry": {
     "type": "python_module",   // "python_module", "executable", "wasm"
     "path": "plugin/main.py"

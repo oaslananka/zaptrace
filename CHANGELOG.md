@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Advanced the development line to Python `0.3.6.dev0` / Cargo `0.3.6-dev.0` after the immutable `v0.3.5` tag and PyPI publication. The `v0.3.5` tag workflow is retained as partial-release evidence because its container-security gate failed before GitHub Release creation; the tag/version will not be reused.
+- Hardened the release DAG so TestPyPI/PyPI publication cannot proceed unless the tagged container-security gate succeeds.
+
 ## [0.3.5] - 2026-09-03
 
 ### Changed

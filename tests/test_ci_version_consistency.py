@@ -564,3 +564,10 @@ def test_version_audit_uses_distribution_name_declared_by_pyproject(tmp_path: Pa
 
     assert audit.passed is True
     assert audit.uv_lock_version == "1.2.4.dev0"
+
+
+def test_claude_plugin_manifest_tracks_cargo_semver_identity() -> None:
+    plugin = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    python_version = read_project_version(ROOT)
+
+    assert plugin["version"] == python_to_cargo_version(parse_python_version(python_version))

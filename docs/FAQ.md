@@ -9,7 +9,7 @@ ZapTrace is an AI-native, verification-first, open-source EDA (Electronic Design
 No. ZapTrace is a backend engine for programmatic electronics design. You can use it alongside KiCad — ZapTrace generates KiCad-compatible files, and you can open them in KiCad for further editing.
 
 ### Is ZapTrace ready for production?
-ZapTrace is in release preparation for `v0.3.5`; the latest published PyPI baseline is legacy `v0.3.3` without public Git provenance. The historical `v0.3.2` and `v0.3.4` tagged attempts remain failed-release evidence. The first fully traceable release will be `v0.3.5`. It works for simple to moderate designs, but **all outputs require human review before fabrication**. See [SAFETY.md](SAFETY.md).
+ZapTrace is pre-1.0 and active development is `0.3.6.dev0`. `v0.3.5` is published on PyPI, but its immutable tagged workflow failed the container-security gate before GitHub Release creation, so it is retained as partial-release evidence rather than represented as a fully completed release. It works for simple to moderate designs, but **all outputs require human review before fabrication**. See [SAFETY.md](SAFETY.md).
 
 ### Who is ZapTrace for?
 - **AI/Agent developers** building electronics design workflows
@@ -24,7 +24,7 @@ ZapTrace is in release preparation for `v0.3.5`; the latest published PyPI basel
 ZapTrace uses a YAML-based design format. See the [examples](https://github.com/oaslananka/zaptrace/tree/main/examples) for sample files.
 
 ### Can ZapTrace read KiCad files?
-Not yet. KiCad export is implemented, but import is planned for a future release.
+Yes, with bounded scope. ZapTrace implements KiCad PCB, schematic, and hierarchical project import alongside export; round-trip and external-oracle coverage do not imply complete KiCad feature parity.
 
 ### What file formats does ZapTrace export?
 - Gerber RS-274X (copper layers, solder mask, silkscreen, paste)

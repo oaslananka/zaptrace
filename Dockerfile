@@ -62,7 +62,10 @@ RUN pip install --no-cache-dir --require-hashes --only-binary=:all: \
     pip install --no-cache-dir --require-hashes --only-binary=:all: --no-index \
       --find-links=/app/dist -r /app/requirements/zaptrace-wheel.txt && \
     pip check && \
-    rm -rf /app/dist && \
+    rm -rf /app/dist /usr/local/lib/python3.13/site-packages/pip \
+      /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+      /usr/local/lib/python3.13/ensurepip && \
+    rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.13 && \
     mkdir -p /workspace && \
     addgroup -S -g 1001 appgroup && \
     adduser -S -D -H -u 1001 -G appgroup appuser && \

@@ -88,3 +88,13 @@ def test_docker_builder_manifest_digest_defaults_match_committed_file() -> None:
 
     assert dockerfile.count(f"ARG CONTAINER_BUILDER_LOCK_SHA256={digest}") == 2
     assert 'io.zaptrace.dependencies.builder-python.sha256="$CONTAINER_BUILDER_LOCK_SHA256"' in dockerfile
+
+
+def test_final_runtime_removes_packaging_toolchain_after_install() -> None:
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    marker = "# Both the runtime set and locally built wheel are exact, hash-verified requirements."
+    runtime = dockerfile.split(marker, 1)[1]
+
+    assert "rm -rf" in runtime
+    assert "/usr/local/lib/python3.13/site-packages/pip" in runtime
+    assert "/usr/local/lib/python3.13/ensurepip" in runtime
