@@ -1,4 +1,4 @@
-"""FastMCP server exposing all agent tools as MCP tools + resources.
+"""FastMCP server exposing the selected agent-tool surface plus resources.
 
 Hardening layer:
   - Session management: create / destroy / list sessions
@@ -35,6 +35,7 @@ from zaptrace.agent.execution import (
     mark_session_destroyed,
     session_execution_lock,
 )
+from zaptrace.agent.tool_surfaces import MCP_TOOL_SURFACE_ENV, resolve_tool_surface, surface_tool_names
 from zaptrace.mcp.auth_config import MCPHTTPAuthConfiguration, resolve_mcp_http_auth_configuration
 from zaptrace.mcp.oauth_provider import (
     MCP_HTTP_PATH,
@@ -75,6 +76,8 @@ _ALLOWED_EXPORT_ROOT = Path.cwd()  # sandbox base for file exports
 _HTTP_AUTH_ACTIVE = False
 _HTTP_AUTH_ACTOR = "mcp-client"
 _OBJECT_NOT_AUTHORIZED_MESSAGE = "Principal is not authorized for the target object"
+_SESSION_TOOL_NAMES = frozenset({"session_create", "session_destroy", "session_list"})
+ACTIVE_TOOL_SURFACE = resolve_tool_surface(os.environ.get(MCP_TOOL_SURFACE_ENV))
 
 
 def _tool_timeout_seconds(tool_name: str) -> float:
@@ -730,7 +733,10 @@ server = FastMCP(
         "Use session_create() first if you need an isolated session, otherwise a default session is used.\n"
         "Protocol compatibility: MCP 2026-07-28 is the current protocol path and legacy clients remain supported. "
         "ZapTrace session_id values are application-level handles, not MCP transport sessions; "
-        "modern requests do not use Mcp-Session-Id."
+        "modern requests do not use Mcp-Session-Id. "
+        f"Active tool surface: {ACTIVE_TOOL_SURFACE}. "
+        f"Set {MCP_TOOL_SURFACE_ENV}=expert|inspect|design|verify|repair|release before startup "
+        "to select a deterministic tool view."
     ),
     version=SERVER_VERSION,
 )
@@ -997,7 +1003,17 @@ def _register_tools() -> None:
         )(wrapped)
 
 
+def _apply_tool_surface_visibility() -> None:
+    """Apply a startup-time tool allowlist without changing resources or dispatch policy."""
+    if ACTIVE_TOOL_SURFACE == "expert":
+        return
+    allowed = set(surface_tool_names(ACTIVE_TOOL_SURFACE)) | set(_SESSION_TOOL_NAMES)
+    server.disable(components={"tool"})
+    server.enable(names=allowed, components={"tool"})
+
+
 _register_tools()
+_apply_tool_surface_visibility()
 
 # ---------------------------------------------------------------------------
 # Entry points

@@ -20,6 +20,7 @@ ZapTrace design persistence is independent of either protocol era. An applicatio
 |---|---|---|
 | `ZAPTRACE_MCP_HTTP_HOST` | HTTP bind host. | `127.0.0.1` |
 | `ZAPTRACE_MCP_HTTP_PORT` | HTTP bind port in `1..65535`. | `8090` |
+| `ZAPTRACE_MCP_TOOL_SURFACE` | Startup-time MCP tool visibility: `expert`, `inspect`, `design`, `verify`, `repair`, or `release`. | `expert` |
 | `ZAPTRACE_MCP_AUTH_CONFIG_VERSION` | Version for explicit profile selection. Must be `1`. | unset (legacy inference) |
 | `ZAPTRACE_MCP_AUTH_PROFILE` | Explicit `local`, `static-bearer`, or `oauth-jwt` profile. | unset (legacy inference) |
 | `ZAPTRACE_MCP_HTTP_TOKEN` | Static bearer token. Required by `static-bearer`. | unset |
@@ -29,6 +30,8 @@ ZapTrace design persistence is independent of either protocol era. An applicatio
 | `ZAPTRACE_MCP_AUTH_RESOURCE_URI` | Exact HTTPS protected resource URI `<public-base-url>/mcp` used as the JWT audience and RFC 9728 resource. | unset |
 | `ZAPTRACE_MCP_AUTHORIZATION_SERVER` | Exact canonical HTTPS authorization-server/issuer URL used by `JWTVerifier` and protected-resource metadata; a host-root issuer ends in `/`. | unset |
 | `ZAPTRACE_MCP_AUTH_JWKS_URI` | HTTPS asymmetric JWKS URL used by `JWTVerifier`. | unset |
+
+Tool-surface selection is independent of the HTTP authorization profile. `expert` preserves the full registry; a reduced surface narrows MCP `tools/list` using FastMCP visibility while leaving resources and the existing capability/OAuth/object-authorization pipeline unchanged. Unknown surface values fail startup rather than silently falling back to a broader tool set. Session administration remains visible in every surface.
 
 Start a native loopback server:
 

@@ -133,3 +133,13 @@ def test_compose_mcp_forwards_versioned_oauth_configuration() -> None:
     health_command = " ".join(_service("zaptrace-mcp-http")["healthcheck"]["test"])
     assert "oauth-jwt" in health_command
     assert "/.well-known/oauth-protected-resource/mcp" in health_command
+
+
+def test_compose_mcp_forwards_deterministic_tool_surface_selection() -> None:
+    expected = "${ZAPTRACE_MCP_TOOL_SURFACE:-expert}"
+    assert _service("zaptrace-mcp-http")["environment"]["ZAPTRACE_MCP_TOOL_SURFACE"] == expected
+    assert _service("zaptrace-mcp-loopback")["environment"]["ZAPTRACE_MCP_TOOL_SURFACE"] == expected
+
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "ZAPTRACE_MCP_TOOL_SURFACE=expert" in example
+    assert "inspect|design|verify|repair|release" in example

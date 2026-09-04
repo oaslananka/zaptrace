@@ -51,7 +51,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 
 - **A Python SDK** for programmatic electronics design — parse, validate, place, route, export.
 - **A CLI** (`zaptrace`) for quick design iteration from the terminal.
-- **An MCP server** (`zaptrace-mcp`) that exposes 93 design tools plus 3 session-administration tools to AI agents.
+- **An MCP server** (`zaptrace-mcp`) whose default `expert` surface exposes 93 design tools plus 3 session-administration tools, with smaller task-oriented `inspect`, `design`, `verify`, `repair`, and `release` surfaces for bounded workflows.
 - **A REST API** for web-based design workflows.
 - **A verification engine** — Electrical Rule Checking (ERC) + Design Rule Checking (DRC) baked in.
 - **A manufacturing export pipeline** — Gerber RS-274X, Excellon drill, BOM, pick-and-place, KiCad.
