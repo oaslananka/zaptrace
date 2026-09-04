@@ -55,7 +55,7 @@ def test_report_identifies_authoritative_release_role_and_dependency_identity() 
     assert report["authoritative_release_path"] == ".github/workflows/release.yml"
     assert report["scoped_validator_role"] == "diagnostic-only"
     assert len(report["lock_sha256"]) == 64
-    assert report["locked_dependencies"] == {"fastmcp": "3.4.2", "mcp": "1.28.1"}
+    assert report["locked_dependencies"] == {"fastmcp": "4.0.2", "mcp": "2.1.1"}
     assert len(report["policy_sha256"]) == 64
     assert report["evidence_identity"]["lock_sha256"] == report["lock_sha256"]
     assert "scripts/ci_validation_environment.py" in report["evidence_identity"]["source_inputs"]

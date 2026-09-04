@@ -17,8 +17,8 @@ from packaging.version import Version
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "dependency-evidence.json"
 SUPPORTED = {
-    "fastmcp": SpecifierSet(">=3.4,<4"),
-    "mcp": SpecifierSet(">=1.28,<2"),
+    "fastmcp": SpecifierSet(">=4.0.2,<5"),
+    "mcp": SpecifierSet(">=2,<3"),
 }
 
 
