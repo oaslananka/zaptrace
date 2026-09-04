@@ -9,8 +9,8 @@ from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED = {
-    "fastmcp": SpecifierSet(">=3.4,<4"),
-    "mcp": SpecifierSet(">=1.28,<2"),
+    "fastmcp": SpecifierSet(">=4.0.2,<5"),
+    "mcp": SpecifierSet(">=2,<3"),
 }
 
 
@@ -28,3 +28,6 @@ def test_locked_and_installed_mcp_versions_match_supported_line() -> None:
         assert locked[package] in supported
         assert installed in supported
         assert installed == locked[package]
+
+    assert locked["fastmcp"].major == 4
+    assert locked["mcp"].major == 2

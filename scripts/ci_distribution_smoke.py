@@ -36,6 +36,7 @@ from ci_distribution_support import (  # noqa: E402
 _MAX_LOG_CHARS = 4096
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _DISTRIBUTION_NAME = "zaptrace-eda"
+_MCP_PROTOCOL_VERSION = "2026-07-28"
 _NON_CLAIMS = [
     "This report covers only the named artifact, interpreter, runner, and bounded smoke checks.",
     "It does not establish universal platform support, formal verification, or production qualification.",
@@ -306,27 +307,56 @@ def probe_api(*, timeout_s: float = 15.0) -> dict[str, Any]:
     return result
 
 
-def _parse_mcp_initialize(payload: bytes) -> dict[str, str]:
-    for line in payload.decode("utf-8", errors="replace").splitlines():
-        if not line.startswith("data:"):
-            continue
-        message = json.loads(line.removeprefix("data:").strip())
-        result = message.get("result") if isinstance(message, dict) else None
-        if not isinstance(result, dict):
-            continue
-        server_info = result.get("serverInfo")
-        if not isinstance(server_info, dict):
-            continue
-        return {
-            "protocol_version": str(result.get("protocolVersion", "")),
-            "server_name": str(server_info.get("name", "")),
-            "server_version": str(server_info.get("version", "")),
-        }
-    raise DistributionSmokeError("MCP initialize response did not contain server identity")
+def _mcp_discover_payload() -> bytes:
+    return json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "server/discover",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": _MCP_PROTOCOL_VERSION,
+                    "io.modelcontextprotocol/clientInfo": {
+                        "name": "zaptrace-distribution-smoke",
+                        "version": "1",
+                    },
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+            },
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
+def _mcp_protocol_headers() -> dict[str, str]:
+    return {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "MCP-Protocol-Version": _MCP_PROTOCOL_VERSION,
+        "Mcp-Method": "server/discover",
+    }
+
+
+def _parse_mcp_discover(payload: bytes) -> dict[str, str]:
+    try:
+        message = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise DistributionSmokeError("MCP server/discover response did not contain server identity") from exc
+    result = message.get("result") if isinstance(message, dict) else None
+    metadata = result.get("_meta") if isinstance(result, dict) else None
+    server_info = metadata.get("io.modelcontextprotocol/serverInfo") if isinstance(metadata, dict) else None
+    supported = result.get("supportedVersions") if isinstance(result, dict) else None
+    if not isinstance(server_info, dict) or not isinstance(supported, list) or _MCP_PROTOCOL_VERSION not in supported:
+        raise DistributionSmokeError("MCP server/discover response did not contain server identity")
+    return {
+        "protocol_version": _MCP_PROTOCOL_VERSION,
+        "server_name": str(server_info.get("name", "")),
+        "server_version": str(server_info.get("version", "")),
+    }
 
 
 def probe_mcp_http(*, timeout_s: float = 15.0) -> dict[str, Any]:
-    """Start the installed MCP HTTP entry point and exercise initialize/auth behavior."""
+    """Start installed MCP HTTP and exercise modern discovery/auth behavior."""
     port = _free_port()
     token = secrets.token_urlsafe(24)
     env = _entrypoint_environment()
@@ -349,23 +379,8 @@ def probe_mcp_http(*, timeout_s: float = 15.0) -> dict[str, Any]:
     try:
         _wait_for_port(port, process, timeout_s)
         url = f"http://127.0.0.1:{port}/mcp"
-        payload = json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2025-06-18",
-                    "capabilities": {},
-                    "clientInfo": {"name": "zaptrace-distribution-smoke", "version": "1"},
-                },
-            },
-            separators=(",", ":"),
-        ).encode()
-        protocol_headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-        }
+        payload = _mcp_discover_payload()
+        protocol_headers = _mcp_protocol_headers()
         missing_status, _, _ = _http_request(url, method="POST", headers=protocol_headers, payload=payload)
         valid_status, valid_body, valid_headers = _http_request(
             url,
@@ -377,27 +392,15 @@ def probe_mcp_http(*, timeout_s: float = 15.0) -> dict[str, Any]:
             raise DistributionSmokeError(
                 f"MCP authorization returned unexpected statuses: missing={missing_status}, valid={valid_status}"
             )
-        identity = _parse_mcp_initialize(valid_body)
-        session_id = valid_headers.get("mcp-session-id", "")
-        close_status = 0
-        if session_id:
-            close_status, _, _ = _http_request(
-                url,
-                method="DELETE",
-                headers={
-                    **protocol_headers,
-                    "Authorization": f"Bearer {token}",
-                    "mcp-session-id": session_id,
-                },
-            )
-            if close_status not in {200, 202, 204}:
-                raise DistributionSmokeError(f"MCP session cleanup returned status {close_status}")
+        if "mcp-session-id" in valid_headers:
+            raise DistributionSmokeError("Modern MCP response unexpectedly returned a transport session header")
+        identity = _parse_mcp_discover(valid_body)
         result = {
             "passed": True,
             "bind": f"127.0.0.1:{port}",
             "missing_token_status": missing_status,
             "valid_token_status": valid_status,
-            "session_close_status": close_status,
+            "transport_session_header_present": False,
             **identity,
         }
     except Exception as exc:  # noqa: BLE001 - process boundary is converted to bounded evidence

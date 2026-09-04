@@ -45,28 +45,28 @@ def test_bounded_log_redacts_tokens_and_truncates() -> None:
     assert len(bounded.encode("utf-8")) <= 96
 
 
-def test_parse_mcp_initialize_sse_returns_server_identity() -> None:
+def test_parse_mcp_discover_response_returns_server_identity() -> None:
     module = _module()
     payload = (
-        b"event: message\r\n"
-        b'data: {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18",'
-        b'"serverInfo":{"name":"zaptrace","version":"0.3.0"}}}\r\n\r\n'
+        b'{"jsonrpc":"2.0","id":1,"result":{"supportedVersions":["2026-07-28"],'
+        b'"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"zaptrace","version":"0.3.0"}},'
+        b'"resultType":"complete"}}'
     )
 
-    result = module.parse_mcp_initialize_sse(payload)
+    result = module.parse_mcp_discover_response(payload)
 
     assert result == {
-        "protocol_version": "2025-06-18",
+        "protocol_version": "2026-07-28",
         "server_name": "zaptrace",
         "server_version": "0.3.0",
     }
 
 
-def test_parse_mcp_initialize_sse_rejects_error_payload() -> None:
+def test_parse_mcp_discover_response_rejects_error_payload() -> None:
     module = _module()
 
-    with pytest.raises(RuntimeError, match="successful initialize result"):
-        module.parse_mcp_initialize_sse(b'data: {"jsonrpc":"2.0","id":1,"error":{"code":-1}}\n\n')
+    with pytest.raises(RuntimeError, match="successful server/discover result"):
+        module.parse_mcp_discover_response(b'{"jsonrpc":"2.0","id":1,"error":{"code":-1}}')
 
 
 def test_execute_always_collects_logs_and_tears_down(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -25,6 +25,8 @@ _OAUTH_PUBLIC_BASE_URL = "https://mcp.example.com"
 _OAUTH_RESOURCE_URI = "https://mcp.example.com/mcp"
 _OAUTH_AUTHORIZATION_SERVER = "https://auth.example.com/"
 _OAUTH_JWKS_URI = "https://auth.example.com/.well-known/jwks.json"
+_MCP_PROTOCOL_VERSION = "2026-07-28"
+_MCP_DISCOVER_FAILURE = "MCP response did not contain a successful server/discover result"
 
 
 def generate_token() -> str:
@@ -114,24 +116,54 @@ def http_request(
         return exc.code, exc.read(1024 * 1024), response_headers
 
 
-def parse_mcp_initialize_sse(payload: bytes) -> dict[str, str]:
-    """Extract the MCP server identity from a streamable-HTTP SSE response."""
-    for line in payload.decode("utf-8", errors="replace").splitlines():
-        if not line.startswith("data:"):
-            continue
-        message = json.loads(line.removeprefix("data:").strip())
-        result = message.get("result") if isinstance(message, dict) else None
-        if not isinstance(result, dict):
-            continue
-        server_info = result.get("serverInfo")
-        if not isinstance(server_info, dict):
-            continue
-        return {
-            "protocol_version": str(result.get("protocolVersion", "")),
-            "server_name": str(server_info.get("name", "")),
-            "server_version": str(server_info.get("version", "")),
-        }
-    raise RuntimeError("MCP response did not contain a successful initialize result")
+def mcp_discover_payload(client_name: str) -> bytes:
+    """Return one modern MCP server/discover request body."""
+    return json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "server/discover",
+            "params": {
+                "_meta": {
+                    "io.modelcontextprotocol/protocolVersion": _MCP_PROTOCOL_VERSION,
+                    "io.modelcontextprotocol/clientInfo": {"name": client_name, "version": "1"},
+                    "io.modelcontextprotocol/clientCapabilities": {},
+                }
+            },
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
+def mcp_protocol_headers() -> dict[str, str]:
+    """Return headers required by the modern streamable-HTTP protocol path."""
+    return {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "MCP-Protocol-Version": _MCP_PROTOCOL_VERSION,
+        "Mcp-Method": "server/discover",
+    }
+
+
+def parse_mcp_discover_response(payload: bytes) -> dict[str, str]:
+    """Extract server identity from a modern server/discover response."""
+    try:
+        message = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(_MCP_DISCOVER_FAILURE) from exc
+    result = message.get("result") if isinstance(message, dict) else None
+    if not isinstance(result, dict):
+        raise RuntimeError(_MCP_DISCOVER_FAILURE)
+    supported = result.get("supportedVersions")
+    metadata = result.get("_meta")
+    server_info = metadata.get("io.modelcontextprotocol/serverInfo") if isinstance(metadata, dict) else None
+    if not isinstance(supported, list) or _MCP_PROTOCOL_VERSION not in supported or not isinstance(server_info, dict):
+        raise RuntimeError(_MCP_DISCOVER_FAILURE)
+    return {
+        "protocol_version": _MCP_PROTOCOL_VERSION,
+        "server_name": str(server_info.get("name", "")),
+        "server_version": str(server_info.get("version", "")),
+    }
 
 
 def _missing_token_probe(service: str, token_name: str, env: dict[str, str]) -> dict[str, Any]:
@@ -172,24 +204,12 @@ def mcp_oauth_profile_checks(port: int) -> dict[str, Any]:
     ):
         raise RuntimeError(f"MCP OAuth discovery returned unexpected response: {discovery_status} {metadata}")
 
-    initialize = json.dumps(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {"name": "zaptrace-oauth-compose-smoke", "version": "1"},
-            },
-        },
-        separators=(",", ":"),
-    ).encode()
+    discover = mcp_discover_payload("zaptrace-oauth-compose-smoke")
     missing_status, missing_body, missing_headers = http_request(
         f"{base}/mcp",
         method="POST",
-        headers={"Content-Type": "application/json", "Accept": "application/json, text/event-stream"},
-        payload=initialize,
+        headers=mcp_protocol_headers(),
+        payload=discover,
     )
     missing = json.loads(missing_body)
     challenge = missing_headers.get("www-authenticate", "")
@@ -254,28 +274,13 @@ def _api_checks(port: int, token: str) -> dict[str, Any]:
 
 def _mcp_checks(port: int, token: str) -> dict[str, Any]:
     url = f"http://127.0.0.1:{port}/mcp"
-    payload = json.dumps(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {"name": "zaptrace-compose-smoke", "version": "1"},
-            },
-        },
-        separators=(",", ":"),
-    ).encode()
-    protocol_headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/event-stream",
-    }
+    payload = mcp_discover_payload("zaptrace-compose-smoke")
+    protocol_headers = mcp_protocol_headers()
     missing_status, _, _ = http_request(url, method="POST", headers=protocol_headers, payload=payload)
     invalid_status, _, _ = http_request(
         url,
         method="POST",
-        headers={**protocol_headers, "Authorization": "Bearer invalid-token"},
+        headers={**protocol_headers, "Authorization": "Bearer invalid"},
         payload=payload,
     )
     valid_status, valid_body, valid_headers = http_request(
@@ -289,31 +294,18 @@ def _mcp_checks(port: int, token: str) -> dict[str, Any]:
             "MCP authorization smoke returned unexpected statuses: "
             f"missing={missing_status}, invalid={invalid_status}, valid={valid_status}"
         )
-    identity = parse_mcp_initialize_sse(valid_body)
+    if "mcp-session-id" in valid_headers:
+        raise RuntimeError("Modern MCP response unexpectedly returned a transport session header")
+    identity = parse_mcp_discover_response(valid_body)
     if identity["server_name"] != "zaptrace" or identity["server_version"] != package_version():
-        raise RuntimeError(f"MCP initialize returned unexpected server identity: {identity}")
-
-    session_id = valid_headers.get("mcp-session-id", "")
-    close_status = 0
-    if session_id:
-        close_status, _, _ = http_request(
-            url,
-            method="DELETE",
-            headers={
-                **protocol_headers,
-                "Authorization": f"Bearer {token}",
-                "mcp-session-id": session_id,
-            },
-        )
-        if close_status not in {200, 202, 204}:
-            raise RuntimeError(f"MCP session cleanup returned unexpected status: {close_status}")
+        raise RuntimeError(f"MCP server/discover returned unexpected server identity: {identity}")
 
     return {
         "passed": True,
         "missing_token_status": missing_status,
         "invalid_token_status": invalid_status,
         "valid_token_status": valid_status,
-        "session_close_status": close_status,
+        "transport_session_header_present": False,
         **identity,
     }
 

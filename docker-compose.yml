@@ -39,18 +39,20 @@ x-mcp-auth-healthcheck: &mcp-auth-healthcheck
               metadata = json.load(response)
               healthy = response.status == 200 and metadata.get("resource") == os.environ.get("ZAPTRACE_MCP_AUTH_RESOURCE_URI")
           raise SystemExit(0 if healthy else 1)
-      payload = json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"compose-health","version":"1"}}}).encode()
-      headers = {"Authorization":"Bearer " + os.environ["ZAPTRACE_MCP_HTTP_TOKEN"],"Content-Type":"application/json","Accept":"application/json, text/event-stream"}
+      meta = {"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"compose-health","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}
+      payload = json.dumps({"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":meta}}).encode()
+      headers = {"Content-Type":"application/json","Accept":"application/json, text/event-stream","MCP-Protocol-Version":"2026-07-28","Mcp-Method":"server/discover","Authorization":"Bearer " + os.environ["ZAPTRACE_MCP_HTTP_TOKEN"]}
       request = urllib.request.Request("http://127.0.0.1:8090/mcp", data=payload, headers=headers)
       with urllib.request.urlopen(request, timeout=5) as response:
-          body = response.read()
-          session_id = response.headers.get("mcp-session-id")
-          healthy = response.status == 200 and b'"serverInfo"' in body
-      if session_id:
-          close_headers = {**headers, "mcp-session-id": session_id}
-          close_request = urllib.request.Request("http://127.0.0.1:8090/mcp", headers=close_headers, method="DELETE")
-          with urllib.request.urlopen(close_request, timeout=5):
-              pass
+          body = json.load(response)
+          result = body.get("result", {})
+          server_info = result.get("_meta", {}).get("io.modelcontextprotocol/serverInfo", {})
+          healthy = (
+              response.status == 200
+              and "2026-07-28" in result.get("supportedVersions", [])
+              and server_info.get("name") == "zaptrace"
+              and not response.headers.get("mcp-session-id")
+          )
       raise SystemExit(0 if healthy else 1)
   interval: 30s
   timeout: 10s
@@ -64,18 +66,20 @@ x-mcp-loopback-healthcheck: &mcp-loopback-healthcheck
     - -c
     - |
       import json, urllib.request
-      payload = json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"compose-health","version":"1"}}}).encode()
-      headers = {"Content-Type":"application/json","Accept":"application/json, text/event-stream"}
+      meta = {"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"compose-health","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}
+      payload = json.dumps({"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":meta}}).encode()
+      headers = {"Content-Type":"application/json","Accept":"application/json, text/event-stream","MCP-Protocol-Version":"2026-07-28","Mcp-Method":"server/discover"}
       request = urllib.request.Request("http://127.0.0.1:8090/mcp", data=payload, headers=headers)
       with urllib.request.urlopen(request, timeout=5) as response:
-          body = response.read()
-          session_id = response.headers.get("mcp-session-id")
-          healthy = response.status == 200 and b'"serverInfo"' in body
-      if session_id:
-          close_headers = {**headers, "mcp-session-id": session_id}
-          close_request = urllib.request.Request("http://127.0.0.1:8090/mcp", headers=close_headers, method="DELETE")
-          with urllib.request.urlopen(close_request, timeout=5):
-              pass
+          body = json.load(response)
+          result = body.get("result", {})
+          server_info = result.get("_meta", {}).get("io.modelcontextprotocol/serverInfo", {})
+          healthy = (
+              response.status == 200
+              and "2026-07-28" in result.get("supportedVersions", [])
+              and server_info.get("name") == "zaptrace"
+              and not response.headers.get("mcp-session-id")
+          )
       raise SystemExit(0 if healthy else 1)
   interval: 30s
   timeout: 10s

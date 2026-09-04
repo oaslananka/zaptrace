@@ -5,6 +5,14 @@
 
 ---
 
+## Protocol compatibility
+
+ZapTrace uses MCP protocol `2026-07-28` as the current protocol path. Modern clients may call `server/discover` but do not perform the legacy `initialize` / `initialized` handshake, and modern HTTP requests do not use `Mcp-Session-Id`. The MCP protocol layer is stateless; client identity, capabilities, and protocol version travel with each modern request.
+
+ZapTrace can still maintain design state. `session_id` is a ZapTrace application-level handle returned by `session_create` and passed explicitly to tools that need isolated design state. It is not an MCP transport session and does not require sticky routing or a transport session header.
+
+Existing legacy MCP clients remain supported through the upstream SDK compatibility path. ZapTrace tests the same server surface in both `2026-07-28` and legacy client modes. Protocol compatibility is software interoperability evidence; it does not prove electrical correctness, fabrication readiness, or hardware safety.
+
 ## 1. Starting the Server
 
 ```bash

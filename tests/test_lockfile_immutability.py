@@ -56,8 +56,8 @@ def test_optional_mcp_dependencies_have_explicit_major_bounds() -> None:
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     optional = data["project"]["optional-dependencies"]
 
-    assert set(optional["mcp"]) == {"fastmcp>=3.4,<4", "mcp>=1.28,<2"}
-    assert {"fastmcp>=3.4,<4", "mcp>=1.28,<2"} <= set(optional["all"])
+    assert set(optional["mcp"]) == {"fastmcp>=4.0.2,<5", "mcp>=2,<3"}
+    assert {"fastmcp>=4.0.2,<5", "mcp>=2,<3"} <= set(optional["all"])
 
 
 def test_every_python_workflow_checks_and_uses_committed_lock() -> None:

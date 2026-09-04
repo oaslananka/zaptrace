@@ -191,3 +191,48 @@ def test_oauth_server_view_preserves_registered_tool_and_resource_surface() -> N
     assert oauth_tools == original_tools
     assert len(original_resources) == 7
     assert oauth_resources == original_resources
+
+
+def test_valid_oauth_token_reaches_modern_discover_without_transport_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = RemoteAuthProvider(
+        token_verifier=_AcceptingVerifier(),
+        authorization_servers=[AnyHttpUrl("https://auth.example.com/")],
+        base_url="https://mcp.example.com",
+        resource_base_url="https://mcp.example.com",
+        scopes_supported=list(OAUTH_SUPPORTED_SCOPES),
+        resource_name="ZapTrace MCP",
+    )
+    monkeypatch.setattr("zaptrace.mcp.server.build_mcp_oauth_provider", lambda _config: provider)
+    app = create_oauth_http_app(_configuration())
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "server/discover",
+        "params": {
+            "_meta": {
+                "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                "io.modelcontextprotocol/clientInfo": {"name": "oauth-modern-test", "version": "1"},
+                "io.modelcontextprotocol/clientCapabilities": {},
+            }
+        },
+    }
+    with TestClient(app) as client:
+        response = client.post(
+            "/mcp",
+            headers={
+                "Authorization": "Bearer [REDACTED]",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+                "MCP-Protocol-Version": "2026-07-28",
+                "Mcp-Method": "server/discover",
+            },
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert "mcp-session-id" not in response.headers
+    result = response.json()["result"]
+    assert result["supportedVersions"] == ["2026-07-28"]
+    assert result["_meta"]["io.modelcontextprotocol/serverInfo"]["name"] == "zaptrace"

@@ -151,11 +151,11 @@ def test_stop_process_kills_after_terminate_timeout() -> None:
     assert (stdout, stderr) == ("stdout", "stderr")
 
 
-def test_parse_mcp_initialize_ignores_irrelevant_messages_and_rejects_missing_identity() -> None:
+def test_parse_mcp_discover_rejects_missing_identity() -> None:
     module = _load_module()
-    payload = b'event: message\ndata: []\ndata: {"result":{}}\n'
+    payload = b'{"jsonrpc":"2.0","id":1,"result":{}}'
     with pytest.raises(module.DistributionSmokeError, match="did not contain server identity"):
-        module._parse_mcp_initialize(payload)
+        module._parse_mcp_discover(payload)
 
 
 def _fake_process() -> SimpleNamespace:
@@ -187,28 +187,33 @@ def test_api_probe_converts_invalid_responses_to_bounded_failure(
 
 
 def _mcp_body() -> bytes:
-    return b'data: {"result":{"protocolVersion":"2025-06-18","serverInfo":{"name":"zaptrace","version":"1"}}}\n'
+    return (
+        b'{"jsonrpc":"2.0","id":1,"result":{"supportedVersions":["2026-07-28"],'
+        b'"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"zaptrace","version":"1"}},'
+        b'"resultType":"complete"}}'
+    )
 
 
-@pytest.mark.parametrize("close_status", [0, 500])
-def test_mcp_probe_converts_auth_and_cleanup_failures(
+@pytest.mark.parametrize(
+    ("responses", "message"),
+    [
+        ([(200, b"", {}), (200, _mcp_body(), {})], "MCP authorization"),
+        ([(401, b"", {}), (200, _mcp_body(), {"mcp-session-id": "unexpected"})], "transport session header"),
+    ],
+)
+def test_mcp_probe_converts_auth_and_statelessness_failures(
     monkeypatch: pytest.MonkeyPatch,
-    close_status: int,
+    responses: list[tuple[int, bytes, dict[str, str]]],
+    message: str,
 ) -> None:
     module = _load_module()
     monkeypatch.setattr(module, "resolve_console_script", lambda _name: Path("/bin/true"))
     monkeypatch.setattr(module.subprocess, "Popen", lambda *_args, **_kwargs: _fake_process())
     monkeypatch.setattr(module, "_wait_for_port", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(module, "_stop_process", lambda _process: (True, "bounded-out", "bounded-err"))
-    if close_status == 0:
-        responses = iter([(200, b"", {}), (200, _mcp_body(), {})])
-        expected = "MCP authorization"
-    else:
-        responses = iter([(401, b"", {}), (200, _mcp_body(), {"mcp-session-id": "session"}), (close_status, b"", {})])
-        expected = "session cleanup"
-    monkeypatch.setattr(module, "_http_request", lambda *_args, **_kwargs: next(responses))
+    monkeypatch.setattr(module, "_http_request", lambda *_args, **_kwargs: responses.pop(0))
 
-    with pytest.raises(module.DistributionSmokeError, match=expected):
+    with pytest.raises(module.DistributionSmokeError, match=message):
         module.probe_mcp_http()
 
 
