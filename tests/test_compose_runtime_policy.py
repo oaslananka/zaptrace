@@ -68,7 +68,10 @@ def test_compose_health_checks_exercise_rest_and_mcp_protocols() -> None:
     assert "/health" in " ".join(api_health["test"])
     mcp_command = " ".join(mcp_health["test"])
     assert "/mcp" in mcp_command
-    assert "initialize" in mcp_command
+    assert "server/discover" in mcp_command
+    assert "2026-07-28" in mcp_command
+    assert "Mcp-Session-Id" not in mcp_command
+    assert "initialize" not in mcp_command
     assert "ZAPTRACE_MCP_HTTP_TOKEN" in mcp_command
 
 

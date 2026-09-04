@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 from fastmcp import Client
 from starlette.testclient import TestClient
