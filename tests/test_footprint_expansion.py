@@ -54,6 +54,7 @@ class TestBgaFootprint:
 
     def test_bga_custom_grid(self) -> None:
         fp = footprint_bga(rows=4, cols=4, pitch=0.5, ball_diameter=0.3)
+        assert fp is not None
         assert len(fp.pads) == 16
         pad_ids = {p.id for p in fp.pads}
         assert "A1" in pad_ids
@@ -63,6 +64,12 @@ class TestBgaFootprint:
         fp = generate_footprint("bga64")
         assert fp is not None
         assert len(fp.pads) == 64
+
+    def test_unknown_bga_requires_explicit_rows_for_custom_grid(self) -> None:
+        assert footprint_bga("BGA-UNKNOWN") is None
+        fp = footprint_bga("BGA-UNKNOWN", rows=2)
+        assert fp is not None
+        assert len(fp.pads) == 16
 
 
 class TestWlcspFootprint:
@@ -81,6 +88,12 @@ class TestWlcspFootprint:
         fp = generate_footprint("wlcsp4")
         assert fp is not None
         assert len(fp.pads) == 4
+
+    def test_unknown_wlcsp_requires_explicit_rows_for_custom_grid(self) -> None:
+        assert footprint_wlcsp("WLCSP-UNKNOWN") is None
+        fp = footprint_wlcsp("WLCSP-UNKNOWN", rows=2)
+        assert fp is not None
+        assert len(fp.pads) == 8
 
 
 class TestModuleFootprint:
