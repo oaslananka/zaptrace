@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from zaptrace.analysis.regulator_margin import RegulatorMarginStatus, build_regulator_margin_report
+from zaptrace.analysis.regulator_margin import RegulatorMarginStatus, _power_dissipation, build_regulator_margin_report
 from zaptrace.core.models import Component, Design, DesignMeta, Net, NetNode, NetType, Pin, PinType
 
 
@@ -90,3 +90,57 @@ def test_regulator_margin_missing_metadata_requires_human_review() -> None:
     assert entry.status == RegulatorMarginStatus.HUMAN_REVIEW_REQUIRED
     assert "dropout_v" in entry.missing_fields
     assert "theta_ja_c_per_w" in entry.missing_fields
+
+
+def test_switch_regulator_power_dissipation_requires_efficiency() -> None:
+    component = Component(id="reg", ref="U1", type="buck regulator", value="BUCK")
+    missing: list[str] = []
+
+    assert _power_dissipation(component, kind="switching", vin=5.0, vout=3.3, iout=0.5, missing=missing) is None
+    assert missing == ["efficiency"]
+
+
+def test_switch_regulator_power_dissipation_accepts_percent_efficiency() -> None:
+    component = Component(id="reg", ref="U1", type="buck regulator", value="BUCK", properties={"efficiency_pct": 90.0})
+    missing: list[str] = []
+
+    assert _power_dissipation(component, kind="switching", vin=5.0, vout=3.3, iout=0.5, missing=missing) == 0.183333
+    assert missing == []
+
+
+def test_switch_regulator_power_dissipation_rejects_nonpositive_efficiency() -> None:
+    component = Component(id="reg", ref="U1", type="buck regulator", value="BUCK", properties={"efficiency": 0.0})
+
+    assert _power_dissipation(component, kind="switching", vin=5.0, vout=3.3, iout=0.5, missing=[]) is None
+
+
+def test_regulator_margin_uses_switching_efficiency_for_power_loss() -> None:
+    reg = Component(
+        id="reg",
+        ref="U1",
+        type="buck regulator",
+        value="BUCK_5V",
+        properties={
+            "input_voltage_v": 12.0,
+            "output_voltage_v": 5.0,
+            "output_current_a": 0.5,
+            "efficiency_pct": 90.0,
+            "theta_ja_c_per_w": 20.0,
+            "ambient_c": 25.0,
+            "junction_max_c": 125.0,
+        },
+        pins={
+            "IN": Pin(name="IN", type=PinType.POWER, net="vin"),
+            "OUT": Pin(name="OUT", type=PinType.OUTPUT, net="vout"),
+        },
+    )
+    design = Design(meta=DesignMeta(name="buck-margin"), components={"reg": reg})
+
+    entry = build_regulator_margin_report(design).regulators[0]
+
+    assert entry.regulator_type == "buck"
+    assert entry.status == RegulatorMarginStatus.PASS
+    assert entry.power_dissipation_w == 0.277778
+    assert entry.junction_c == 30.55556
+    assert entry.thermal_margin_c == 94.44444
+    assert entry.missing_fields == []
