@@ -603,7 +603,7 @@ jobs:
 
   testpypi-publish:
     name: Publish tagged distributions to TestPyPI
-    needs: [python-distributions, rust-wheels]
+    needs: [python-distributions, rust-wheels, container-security]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: testpypi

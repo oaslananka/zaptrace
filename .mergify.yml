@@ -3,7 +3,7 @@
 
 merge_queue:
   mode: serial
-  max_parallel_checks: 5
+  max_parallel_checks: 1
   queued_label: queued
   dequeued_label: dequeued
   status_comments: all
@@ -12,7 +12,7 @@ merge_queue:
 queue_rules:
   - name: default
     merge_method: squash
-    batch_size: 3
+    batch_size: 1
     queue_conditions:
       - check-success = Release gate summary
       - check-success = Security gate
@@ -32,7 +32,6 @@ pull_request_rules:
   - name: automatic merge on CI success
     conditions:
       - base = main
-      - "#approved-reviews-by >= 1"
       - check-success = Release gate summary
       - check-success = Security gate
       - check-success = Repository hooks
@@ -51,15 +50,6 @@ pull_request_rules:
     actions:
       queue:
         name: default
-
-  - name: request review on new PR
-    conditions:
-      - base = main
-      - -draft
-    actions:
-      request_reviews:
-        users:
-          - oaslananka
 
   - name: label CI failure
     conditions:

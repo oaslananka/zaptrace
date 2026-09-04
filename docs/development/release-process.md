@@ -62,7 +62,7 @@ The Security workflow also publishes raw and normalized Cargo advisory evidence 
 
 ## Publishing policy
 
-The Python registry distribution is `zaptrace-eda`; the import package and CLI remain `zaptrace`. TestPyPI and PyPI publishing use GitHub OIDC Trusted Publishing from this workflow with the `testpypi` and `pypi` environments, so no long-lived registry token is stored. A manual dispatch on `main` is TestPyPI-only staging. Tagged releases must stage the exact built artifacts on TestPyPI, verify registry filenames/SHA-256 values and a clean install, publish the same artifacts to PyPI, repeat registry verification, and only then create the GitHub Release. GHCR publication remains disabled until its registry ownership and support policy are completed; see the [distribution support matrix](../installation/distribution-support.md).
+The Python registry distribution is `zaptrace-eda`; the import package and CLI remain `zaptrace`. TestPyPI and PyPI publishing use GitHub OIDC Trusted Publishing from this workflow with the `testpypi` and `pypi` environments, so no long-lived registry token is stored. A manual dispatch on `main` is TestPyPI-only staging. For tagged releases, the exact-image container-security gate must pass before registry promotion. Only then may the workflow stage the exact built artifacts on TestPyPI, verify registry filenames/SHA-256 values and a clean install, publish the same artifacts to PyPI, repeat registry verification, and create the GitHub Release. GHCR publication remains disabled until its registry ownership and support policy are completed; see the [distribution support matrix](../installation/distribution-support.md).
 
 ### Registry rollback and yanking
 
@@ -86,7 +86,7 @@ artifacts.
 
 ## Container security gate
 
-Before a GitHub Release is created, the release workflow builds the exact
+Before a tagged release may publish to TestPyPI or PyPI, the release workflow builds the exact
 Docker image for the tag and calls the reusable Container Security gate. The
 release is blocked by Critical findings immediately and by unexcepted High
 findings after the documented baseline date. The retained evidence includes the image digest, CycloneDX SBOM, Trivy

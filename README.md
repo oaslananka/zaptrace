@@ -120,11 +120,11 @@ This release still makes no fabrication-readiness claim. A pass means the config
 
 ## Quickstart
 
-ZapTrace is pre-1.0. The registry distribution identity is `zaptrace-eda` while the Python import package and CLI remain `zaptrace`. The legacy `v0.3.3` release is available on PyPI as an unverified baseline without Git provenance; the first fully public-repository-traceable release will be `v0.3.5` (the aborted `v0.3.4` candidate tag is preserved immutably as failed-release evidence). For a clean PyPI install of the legacy baseline:
+ZapTrace is pre-1.0. The registry distribution identity is `zaptrace-eda` while the Python import package and CLI remain `zaptrace`. `v0.3.5` is available on PyPI; its immutable tagged workflow failed the container-security gate before GitHub Release creation, so the tag is retained as partial-release evidence rather than rewritten. Active development has advanced to `0.3.6.dev0`. For a clean PyPI install of the latest published package:
 
 ```bash
 uv venv --python 3.13
-uv pip install "zaptrace-eda==0.3.3"
+uv pip install "zaptrace-eda==0.3.5"
 source .venv/bin/activate
 
 # Run diagnostics
@@ -442,7 +442,8 @@ Persistence is opt-in; unset deployments retain process-local behavior. Isolated
 |---------|-------|
 | **Legacy baseline (v0.3.3)** | PyPI-only release without public Git provenance; preserved as immutable historical evidence |
 | **Failed candidate (v0.3.4)** | Aborted release candidate at commit 76ecc97; workflow failed before publication and is preserved immutably as failed evidence |
-| **Active development (0.3.5)** | Release-preparation identity synchronizing all version surfaces for the first fully traceable `v0.3.5` release candidate; snapshot evidence only until the exact release candidate passes all release gates |
+| **Partial release (v0.3.5)** | PyPI artifacts published and verified; container-security gate failed before GitHub Release creation, so the immutable tag is retained as partial-release evidence |
+| **Active development (0.3.6.dev0)** | Post-release development line; future publication must pass container security before TestPyPI/PyPI promotion |
 | **Next (v0.4.0)** | Topology and layout depth, bounded evaluation coverage, review evidence, and controlled release-readiness hardening |
 | **Later** | Larger component library, live distributor integrations, deeper routing fidelity, solver-grade SI/PI/thermal integrations, multi-board workflows |
 

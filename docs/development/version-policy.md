@@ -4,17 +4,17 @@ ZapTrace uses one explicit release line across Python metadata, runtime reportin
 
 ## Active development identity
 
-The active `main` identity after publishing `v0.3.3` and preserving aborted `v0.3.4` candidate evidence is:
+The active `main` identity after the immutable `v0.3.5` tag published to PyPI but stopped before GitHub Release creation is:
 
 | Surface | Version |
 |---------|---------|
-| Python distribution, CLI, REST API, MCP server | `0.3.5` |
-| Rust crate and Cargo lock package | `0.3.5` |
+| Python distribution, CLI, REST API, MCP server | `0.3.6.dev0` |
+| Rust crate and Cargo lock package | `0.3.6-dev.0` |
 | Current source ref | `main` |
-| Latest published baseline | `v0.3.3` |
-| Distribution state | `release-preparation` |
+| Latest published baseline | `v0.3.5` (PyPI; GitHub Release absent) |
+| Distribution state | `unreleased-development` |
 
-The `v0.3.3` release is recorded as a legacy PyPI baseline without Git provenance. The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence and were not reused. The active `0.3.5` tree is release-preparation evidence (`mode=release-preparation`, `published=false`) until a future release-preparation branch and exact annotated tag pass the release gates.
+The `v0.3.3` release remains the legacy PyPI baseline without public Git provenance. The immutable `v0.3.2` and `v0.3.4` tags remain failed-release evidence. `v0.3.5` published verified Python artifacts to PyPI, but its tagged workflow failed the container-security gate before GitHub Release creation; it is retained immutably as partial-release evidence and must not be reused. The active `0.3.6.dev0` tree is unreleased snapshot evidence (`mode=snapshot`, `published=false`).
 
 ## Lifecycle transitions
 
@@ -25,7 +25,7 @@ ZapTrace distinguishes development, release preparation, and tagged publication:
 3. **Release candidate:** Python `0.3.5rc1`; Cargo `0.3.5-rc.1`; annotated tag `v0.3.5rc1`. The report state is `tagged-release-candidate`.
 4. **Final release:** Python and Cargo `0.3.5`; annotated tag `v0.3.5`. The report state is `tagged-final-release`.
 
-Immediately after a final release is cut, `main` receives a post-release bump to the next patch's `.dev0` line. After `v0.3.3` and aborted `v0.3.4`, development advances to Python `0.3.5.dev0` and Cargo `0.3.5-dev.0` before unrelated changes are merged.
+Immediately after a final release attempt publishes immutable registry artifacts, `main` receives a post-release bump to the next patch's `.dev0` line. After `v0.3.5`, development advances to Python `0.3.6.dev0` and Cargo `0.3.6-dev.0` before unrelated changes are merged.
 
 ## Synchronization rules
 

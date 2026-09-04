@@ -336,3 +336,10 @@ def test_registry_publish_jobs_stage_only_distribution_files() -> None:
         assert "cp registry-source/*.tar.gz registry-publish/" in section
         assert "cp registry-wheels/*.whl registry-publish/" in section
         assert "packages-dir: registry-publish/" in section
+
+
+def test_release_blocks_registry_publication_until_container_security_passes() -> None:
+    workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    testpypi_publish = _workflow_job(workflow, "testpypi-publish")
+
+    assert "needs: [python-distributions, rust-wheels, container-security]" in testpypi_publish
