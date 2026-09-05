@@ -77,6 +77,19 @@
       "title": "AgentEvaluationBenchmarkLink",
       "type": "object"
     },
+    "AgentEvaluationCallDisposition": {
+      "description": "Why one surface-aware agent call executed, stopped, or was denied.",
+      "enum": [
+        "executed",
+        "invalid-surface-call",
+        "expected-policy-denial",
+        "unexpected-policy-denial",
+        "authorization-expectation-mismatch",
+        "runtime-failure"
+      ],
+      "title": "AgentEvaluationCallDisposition",
+      "type": "string"
+    },
     "AgentEvaluationExecutor": {
       "description": "Execution surface for one scenario step.",
       "enum": [
@@ -203,6 +216,23 @@
           "title": "Replay Digest",
           "type": "string"
         },
+        "replay_equivalent": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replay Equivalent"
+        },
+        "replay_trace_sha256": {
+          "default": "",
+          "title": "Replay Trace Sha256",
+          "type": "string"
+        },
         "risk_class": {
           "$ref": "#/$defs/AgentEvaluationRiskClass"
         },
@@ -274,6 +304,140 @@
       "title": "AgentEvaluationStepStatus",
       "type": "string"
     },
+    "AgentEvaluationSurfaceMetrics": {
+      "description": "Aggregate deterministic call and task evidence for one reduced MCP surface.",
+      "properties": {
+        "authorization_denial_count": {
+          "minimum": 0,
+          "title": "Authorization Denial Count",
+          "type": "integer"
+        },
+        "authorization_denial_rate": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Authorization Denial Rate",
+          "type": "number"
+        },
+        "authorization_expectation_mismatch_count": {
+          "minimum": 0,
+          "title": "Authorization Expectation Mismatch Count",
+          "type": "integer"
+        },
+        "expected_policy_denial_count": {
+          "minimum": 0,
+          "title": "Expected Policy Denial Count",
+          "type": "integer"
+        },
+        "invalid_call_count": {
+          "minimum": 0,
+          "title": "Invalid Call Count",
+          "type": "integer"
+        },
+        "invalid_call_rate": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Invalid Call Rate",
+          "type": "number"
+        },
+        "planned_call_count": {
+          "minimum": 0,
+          "title": "Planned Call Count",
+          "type": "integer"
+        },
+        "replay_check_count": {
+          "minimum": 0,
+          "title": "Replay Check Count",
+          "type": "integer"
+        },
+        "replay_equivalence_rate": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Replay Equivalence Rate",
+          "type": "number"
+        },
+        "replay_equivalent_count": {
+          "minimum": 0,
+          "title": "Replay Equivalent Count",
+          "type": "integer"
+        },
+        "replay_mismatch_count": {
+          "minimum": 0,
+          "title": "Replay Mismatch Count",
+          "type": "integer"
+        },
+        "runtime_failure_count": {
+          "minimum": 0,
+          "title": "Runtime Failure Count",
+          "type": "integer"
+        },
+        "surface": {
+          "title": "Surface",
+          "type": "string"
+        },
+        "task_completion_count": {
+          "minimum": 0,
+          "title": "Task Completion Count",
+          "type": "integer"
+        },
+        "task_completion_rate": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Task Completion Rate",
+          "type": "number"
+        },
+        "task_count": {
+          "minimum": 0,
+          "title": "Task Count",
+          "type": "integer"
+        },
+        "task_outcome_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Task Outcome Counts",
+          "type": "object"
+        },
+        "tool_contract_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Tool Contract Sha256",
+          "type": "string"
+        },
+        "unexpected_policy_denial_count": {
+          "minimum": 0,
+          "title": "Unexpected Policy Denial Count",
+          "type": "integer"
+        },
+        "visible_tool_count": {
+          "minimum": 0,
+          "title": "Visible Tool Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "surface",
+        "visible_tool_count",
+        "tool_contract_sha256",
+        "planned_call_count",
+        "invalid_call_count",
+        "invalid_call_rate",
+        "authorization_denial_count",
+        "authorization_denial_rate",
+        "expected_policy_denial_count",
+        "unexpected_policy_denial_count",
+        "authorization_expectation_mismatch_count",
+        "runtime_failure_count",
+        "task_count",
+        "task_completion_count",
+        "task_completion_rate",
+        "task_outcome_counts",
+        "replay_check_count",
+        "replay_equivalent_count",
+        "replay_mismatch_count",
+        "replay_equivalence_rate"
+      ],
+      "title": "AgentEvaluationSurfaceMetrics",
+      "type": "object"
+    },
     "AgentEvaluationTraceEntry": {
       "description": "Normalized audit record for one harness step.",
       "properties": {
@@ -284,10 +448,19 @@
           "title": "Artifact Paths",
           "type": "array"
         },
+        "authorization_reason": {
+          "default": "",
+          "title": "Authorization Reason",
+          "type": "string"
+        },
         "call_number": {
           "minimum": 1,
           "title": "Call Number",
           "type": "integer"
+        },
+        "disposition": {
+          "$ref": "#/$defs/AgentEvaluationCallDisposition",
+          "default": "executed"
         },
         "duration_ms": {
           "default": 0.0,
@@ -317,6 +490,11 @@
           "title": "Params Sha256",
           "type": "string"
         },
+        "required_capability": {
+          "default": "",
+          "title": "Required Capability",
+          "type": "string"
+        },
         "result_sha256": {
           "pattern": "^[0-9a-f]{64}$",
           "title": "Result Sha256",
@@ -332,6 +510,11 @@
         },
         "step_id": {
           "title": "Step Id",
+          "type": "string"
+        },
+        "surface": {
+          "default": "",
+          "title": "Surface",
           "type": "string"
         },
         "timestamp": {
@@ -405,6 +588,11 @@
       "title": "Passed",
       "type": "boolean"
     },
+    "protocol_version": {
+      "default": "2026-07-28",
+      "title": "Protocol Version",
+      "type": "string"
+    },
     "report_sha256": {
       "default": "",
       "title": "Report Sha256",
@@ -426,11 +614,30 @@
       "default": "1.0",
       "title": "Schema Version",
       "type": "string"
+    },
+    "surface_contract_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Surface Contract Sha256",
+      "type": "string"
+    },
+    "surface_metrics": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AgentEvaluationSurfaceMetrics"
+      },
+      "title": "Surface Metrics",
+      "type": "object"
+    },
+    "surface_regression_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Surface Regression Count",
+      "type": "integer"
     }
   },
   "required": [
     "corpus_version",
     "corpus_sha256",
+    "surface_contract_sha256",
     "mode",
     "generated_at",
     "passed",

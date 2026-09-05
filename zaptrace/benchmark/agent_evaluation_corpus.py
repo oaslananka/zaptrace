@@ -11,6 +11,7 @@ from zaptrace.benchmark.agent_evaluation_models import (
     AgentEvaluationExecutor,
     AgentEvaluationOutcome,
     AgentEvaluationScenario,
+    AgentEvaluationScenarioRole,
     AgentEvaluationStep,
 )
 
@@ -90,11 +91,46 @@ def _has_step_tag(corpus: AgentEvaluationCorpus, tag: str) -> bool:
     return any(tag in step.tags for scenario in corpus.scenarios for step in scenario.steps)
 
 
+def _validate_surface_evaluation_contract(corpus: AgentEvaluationCorpus) -> list[str]:
+    from zaptrace.agent.tool_surfaces import SUPPORTED_TOOL_SURFACES
+    from zaptrace.security.policy import CAPABILITY_LEVELS
+
+    errors: list[str] = []
+    reduced = set(SUPPORTED_TOOL_SURFACES) - {"expert"}
+    valid_capabilities = set(CAPABILITY_LEVELS)
+    task_surfaces: set[str] = set()
+    for scenario in corpus.scenarios:
+        unsupported_grants = sorted(set(scenario.granted_capabilities) - valid_capabilities)
+        if unsupported_grants:
+            errors.append(f"{scenario.scenario_id}: unsupported capability grant(s): {', '.join(unsupported_grants)}")
+        if scenario.evaluation_role == AgentEvaluationScenarioRole.LEGACY:
+            if scenario.surface:
+                errors.append(f"{scenario.scenario_id}: legacy scenario must not declare an MCP surface")
+            continue
+        if scenario.surface not in reduced:
+            errors.append(f"{scenario.scenario_id}: unsupported MCP surface: {scenario.surface!r}")
+            continue
+        if scenario.evaluation_role == AgentEvaluationScenarioRole.TASK:
+            task_surfaces.add(scenario.surface)
+        if scenario.evaluation_role == AgentEvaluationScenarioRole.AUTHORIZATION_PROBE and not any(
+            step.expect_authorization_denial for step in scenario.steps
+        ):
+            errors.append(f"{scenario.scenario_id}: authorization-probe must contain at least one expected denial step")
+    missing_task_surfaces = sorted(reduced - task_surfaces)
+    if missing_task_surfaces:
+        errors.append("missing representative task scenario(s) for MCP surface(s): " + ", ".join(missing_task_surfaces))
+    return errors
+
+
 def validate_agent_evaluation_corpus(corpus: AgentEvaluationCorpus) -> list[str]:
     """Return deterministic corpus contract violations."""
     from zaptrace.agent.tool_impls.registry import TOOL_REGISTRY
 
-    errors = [*_validate_corpus_header(corpus), *_validate_unique_contracts(corpus)]
+    errors = [
+        *_validate_corpus_header(corpus),
+        *_validate_unique_contracts(corpus),
+        *_validate_surface_evaluation_contract(corpus),
+    ]
     for scenario in corpus.scenarios:
         errors.extend(_validate_scenario(scenario, TOOL_REGISTRY))
     for tag, message in _REQUIRED_STEP_TAGS.items():

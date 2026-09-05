@@ -1,5 +1,5 @@
 {
-  "corpus_version": "2026.07",
+  "corpus_version": "2026.09",
   "non_claims": [
     "scenario pass measures deterministic agent-tool orchestration, not language-model quality",
     "evaluation evidence does not prove electrical correctness, fabrication readiness, or physical operation",
@@ -8,12 +8,14 @@
   "scenarios": [
     {
       "board_family_id": "esp32_usb_sensor",
+      "evaluation_role": "task",
       "expected_artifact_kinds": [
         "scenario-input",
         "tool-trace",
         "scenario-result"
       ],
       "expected_outcome": "success",
+      "granted_capabilities": [],
       "modes": [
         "ci",
         "nightly"
@@ -39,6 +41,7 @@
           ]
         }
       ],
+      "surface": "inspect",
       "title": "Parse an ESP32 sensor project brief"
     },
     {
@@ -79,12 +82,16 @@
     },
     {
       "board_family_id": "rp2040_can_node",
+      "evaluation_role": "task",
       "expected_artifact_kinds": [
         "scenario-input",
         "tool-trace",
         "scenario-result"
       ],
       "expected_outcome": "success",
+      "granted_capabilities": [
+        "preview-write"
+      ],
       "modes": [
         "ci",
         "nightly"
@@ -113,16 +120,21 @@
           ]
         }
       ],
+      "surface": "design",
       "title": "Synthesize an RP2040 CAN node"
     },
     {
       "board_family_id": "mcu_sd_datalogger",
+      "evaluation_role": "task",
       "expected_artifact_kinds": [
         "scenario-input",
         "tool-trace",
         "scenario-result"
       ],
       "expected_outcome": "success",
+      "granted_capabilities": [
+        "preview-write"
+      ],
       "modes": [
         "ci",
         "nightly"
@@ -152,6 +164,7 @@
           ]
         }
       ],
+      "surface": "repair",
       "title": "Run bounded repair on a datalogger"
     },
     {
@@ -546,6 +559,131 @@
         }
       ],
       "title": "Link the agent run to the synthesis engine scorecard"
+    },
+    {
+      "board_family_id": "",
+      "evaluation_role": "task",
+      "expected_artifact_kinds": [
+        "scenario-input",
+        "tool-trace",
+        "scenario-result"
+      ],
+      "expected_outcome": "success",
+      "granted_capabilities": [],
+      "modes": [
+        "ci",
+        "nightly"
+      ],
+      "non_claims": [],
+      "outcome_rules": [],
+      "prompt": "Review deterministic engineering requirements for interface, power, and verification constraints",
+      "risk_class": "moderate",
+      "scenario_id": "verify-requirements-contract",
+      "steps": [
+        {
+          "captures": {},
+          "executor": "agent-tool",
+          "expect_authorization_denial": false,
+          "expected_artifact_kinds": [],
+          "on_error_outcome": null,
+          "operation": "requirements_review",
+          "params": {
+            "intent": "${prompt}"
+          },
+          "step_id": "requirements-review",
+          "tags": [
+            "requirements",
+            "verification"
+          ]
+        }
+      ],
+      "surface": "verify",
+      "title": "Review requirements through the verify surface"
+    },
+    {
+      "board_family_id": "esp32_usb_sensor",
+      "evaluation_role": "authorization-probe",
+      "expected_artifact_kinds": [
+        "scenario-input",
+        "tool-trace",
+        "scenario-result"
+      ],
+      "expected_outcome": "blocked",
+      "granted_capabilities": [],
+      "modes": [
+        "ci",
+        "nightly"
+      ],
+      "non_claims": [
+        "expected deny-by-default policy behavior is not a runtime failure"
+      ],
+      "outcome_rules": [],
+      "prompt": "Attempt a design mutation without granting preview-write",
+      "risk_class": "moderate",
+      "scenario_id": "design-capability-denial",
+      "steps": [
+        {
+          "captures": {},
+          "executor": "agent-tool",
+          "expect_authorization_denial": true,
+          "expected_artifact_kinds": [],
+          "on_error_outcome": "blocked",
+          "operation": "synthesize_board",
+          "params": {
+            "intent": "${prompt}",
+            "session_id": "${session_id}"
+          },
+          "step_id": "denied-synthesis",
+          "tags": [
+            "authorization",
+            "deny-by-default"
+          ]
+        }
+      ],
+      "surface": "design",
+      "title": "Deny design mutation without preview-write"
+    },
+    {
+      "board_family_id": "",
+      "evaluation_role": "task",
+      "expected_artifact_kinds": [
+        "scenario-input",
+        "tool-trace",
+        "scenario-result"
+      ],
+      "expected_outcome": "success",
+      "granted_capabilities": [],
+      "modes": [
+        "ci",
+        "nightly"
+      ],
+      "non_claims": [
+        "release-surface task completion does not imply fabrication or manufacturer approval"
+      ],
+      "outcome_rules": [],
+      "prompt": "Prepare a USB-C 5V interface release checklist covering power, protection, verification, and compliance assumptions",
+      "risk_class": "high",
+      "scenario_id": "release-compliance-checklist",
+      "steps": [
+        {
+          "captures": {},
+          "executor": "agent-tool",
+          "expect_authorization_denial": false,
+          "expected_artifact_kinds": [],
+          "on_error_outcome": null,
+          "operation": "compliance_checklist",
+          "params": {
+            "intent": "${prompt}"
+          },
+          "step_id": "compliance",
+          "tags": [
+            "release",
+            "compliance"
+          ]
+        }
+      ],
+      "surface": "release",
+      "title": "Run a bounded release compliance checklist"
     }
   ],
   "schema_version": "1.0"

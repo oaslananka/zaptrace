@@ -19,11 +19,13 @@ from zaptrace.benchmark.agent_evaluation_corpus import (  # noqa: E402
 from zaptrace.benchmark.agent_evaluation_models import (  # noqa: E402
     AgentEvaluationCorpus,
     AgentEvaluationMode,
+    AgentEvaluationReport,
 )
 from zaptrace.benchmark.agent_evaluation_runner import run_agent_evaluation  # noqa: E402
 from zaptrace.evidence.identity import EvidenceMode, capture_evidence_identity  # noqa: E402
 
 DEFAULT_CORPUS = ROOT / "zaptrace/benchmark/manifests/agent-evaluation-v1.json"
+REPORT_SCHEMA = ROOT / "schemas/agent-evaluation-report-v1.schema.json"
 _ARTIFACT_MARKER = ".zaptrace-agent-evaluation-output"
 
 EVIDENCE_SOURCE_INPUTS = (
@@ -62,6 +64,14 @@ def _prepare_artifact_dir(path: Path) -> Path:
     return resolved
 
 
+def _validate_report_schema_contract() -> None:
+    """Fail closed when the committed machine-readable report schema drifts from the model."""
+    committed = json.loads(REPORT_SCHEMA.read_text(encoding="utf-8"))
+    expected = AgentEvaluationReport.model_json_schema()
+    if committed != expected:
+        raise ValueError("committed agent evaluation report schema does not match the runtime model")
+
+
 def _selected_corpus(corpus: AgentEvaluationCorpus, scenario_ids: list[str]) -> AgentEvaluationCorpus:
     if not scenario_ids:
         return corpus
@@ -86,6 +96,9 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"Scenarios: `{report['scenario_count']}`")
     lines.append(f"Mismatches: `{report['mismatch_count']}`")
     lines.append(f"Corpus SHA-256: `{report['corpus_sha256']}`")
+    lines.append(f"MCP protocol: `{report['protocol_version']}`")
+    lines.append(f"Surface contract SHA-256: `{report['surface_contract_sha256']}`")
+    lines.append(f"Surface regressions: `{report['surface_regression_count']}`")
     lines.append(f"Report SHA-256: `{report['report_sha256']}`")
     lines.append("")
     identity = report.get("evidence_identity", {})
@@ -100,6 +113,38 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "",
             ]
         )
+    lines.extend(
+        [
+            "## MCP surface metrics",
+            "",
+            (
+                "| Surface | Visible tools | Calls | Invalid-call rate | Authorization-denial rate | "
+                "Expected policy denials | Unexpected policy denials | Runtime failures | Tasks | "
+                "Task completion | Replay equivalent |"
+            ),
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for surface, metrics in report.get("surface_metrics", {}).items():
+        lines.append(
+            "| `{surface}` | {tools} | {calls} | {invalid:.2%} | {authorization_denial:.2%} | "
+            "{expected_denials} | {unexpected_denials} | {runtime_failures} | {tasks} | {completion:.2%} | "
+            "{replay:.2%} |".format(
+                surface=surface,
+                tools=metrics["visible_tool_count"],
+                calls=metrics["planned_call_count"],
+                invalid=metrics["invalid_call_rate"],
+                authorization_denial=metrics["authorization_denial_rate"],
+                expected_denials=metrics["expected_policy_denial_count"],
+                unexpected_denials=metrics["unexpected_policy_denial_count"],
+                runtime_failures=metrics["runtime_failure_count"],
+                tasks=metrics["task_count"],
+                completion=metrics["task_completion_rate"],
+                replay=metrics["replay_equivalence_rate"],
+            )
+        )
+    lines.append("")
+
     lines.extend(
         [
             "## Scenarios",
@@ -146,6 +191,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        _validate_report_schema_contract()
         corpus = _selected_corpus(load_agent_evaluation_corpus(args.corpus), args.scenario)
         artifact_dir = _prepare_artifact_dir(args.artifact_dir)
         identity = capture_evidence_identity(
