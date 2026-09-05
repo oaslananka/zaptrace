@@ -110,8 +110,10 @@ field_provenance:
     source_type: manufacturer_web
     source_locator: https://www.microchip.com/en-us/product/atecc608b
     source_identity: ATECC608B product page
-    source_version: accessed 2026-08-18
-    extraction_method: manufacturer-product-page-review
-    extracted_at: 2026-08-18
+    source_capture_path: data/library/evidence/web/atecc608b-2026-09-05.json
+    source_capture_sha256: 122550c3ac40b5135dfa5019c753edab8d1ee7b39b8af555ec6a7c151b03b6ae
+    source_version: captured-2026-09-05
+    extraction_method: bounded-web-claim-capture
+    extracted_at: 2026-09-05
     confidence: medium
   sourcing: *ordering_evidence

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any, Literal
@@ -28,6 +29,7 @@ from zaptrace.library.schema import (
     ReviewScope,
     StrictSchemaModel,
 )
+from zaptrace.library.source_capture import mutable_web_claim_value, validate_mutable_web_capture_binding
 
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
@@ -39,15 +41,35 @@ class ComponentEvidenceArtifact(StrictSchemaModel):
     source_type: ProvenanceSourceType
     source_locator: str = Field(min_length=1)
     source_identity: str = Field(min_length=1)
-    source_sha256: str = Field(pattern=_SHA256_PATTERN)
+    source_sha256: str = ""
+    source_capture_path: str = ""
+    source_capture_sha256: str = ""
     source_version: str = Field(min_length=1)
     captured_at: date
     valid_until: date | None = None
 
     @model_validator(mode="after")
-    def validate_validity_window(self) -> ComponentEvidenceArtifact:
+    def validate_artifact_contract(self) -> ComponentEvidenceArtifact:
         if self.valid_until is not None and self.valid_until < self.captured_at:
             raise ValueError("valid_until must not be earlier than captured_at")
+        if self.source_sha256 and not re.fullmatch(_SHA256_PATTERN, self.source_sha256):
+            raise ValueError("source_sha256 must be a lowercase SHA-256 digest")
+        capture_fields = bool(self.source_capture_path), bool(self.source_capture_sha256)
+        if any(capture_fields) and not all(capture_fields):
+            raise ValueError("source capture path and SHA-256 must be provided together")
+        if self.source_capture_sha256 and not re.fullmatch(_SHA256_PATTERN, self.source_capture_sha256):
+            raise ValueError("source_capture_sha256 must be a lowercase SHA-256 digest")
+        if self.source_sha256 and all(capture_fields):
+            raise ValueError("source capture identity must not be combined with raw source SHA-256")
+        if self.source_sha256:
+            return self
+        if self.source_type not in {
+            ProvenanceSourceType.MANUFACTURER_WEB,
+            ProvenanceSourceType.AUTHORIZED_DISTRIBUTOR,
+        }:
+            raise ValueError("non-web evidence requires exact source SHA-256 bytes")
+        if not all(capture_fields):
+            raise ValueError("mutable web evidence requires source SHA-256 or digest-bound source capture")
         return self
 
 
@@ -176,7 +198,11 @@ def _proof_path(proof_path: str, *, repository_root: Path) -> Path:
 
 
 def _field_source_violations(
-    component_id: str, spec: Any, entry: ComponentEvidenceEntry
+    component_id: str,
+    spec: Any,
+    entry: ComponentEvidenceEntry,
+    *,
+    repository_root: Path,
 ) -> list[ComponentEvidenceViolation]:
     findings: list[ComponentEvidenceViolation] = []
     provenance = getattr(spec, "field_provenance", {})
@@ -185,6 +211,8 @@ def _field_source_violations(
         ("source_locator", "field-source-locator-mismatch"),
         ("source_identity", "field-source-identity-mismatch"),
         ("source_sha256", "field-source-hash-mismatch"),
+        ("source_capture_path", "field-source-capture-path-mismatch"),
+        ("source_capture_sha256", "field-source-capture-hash-mismatch"),
         ("source_version", "field-source-version-mismatch"),
     )
     for field_name in ComponentField:
@@ -210,6 +238,29 @@ def _field_source_violations(
                         message=f"component field {attribute} does not match evidence artifact",
                     )
                 )
+        if not artifact.source_sha256 and not any(finding.field == field_name.value for finding in findings):
+            capture_violations = validate_mutable_web_capture_binding(
+                component_id=component_id,
+                field_name=field_name,
+                evidence_source_type=artifact.source_type,
+                source_locator=artifact.source_locator,
+                source_identity=artifact.source_identity,
+                source_version=artifact.source_version,
+                extracted_at=artifact.captured_at,
+                capture_path=artifact.source_capture_path,
+                capture_sha256=artifact.source_capture_sha256,
+                repository_root=repository_root,
+                expected_claim_value=mutable_web_claim_value(spec, field_name),
+            )
+            findings.extend(
+                ComponentEvidenceViolation(
+                    code=code,
+                    component_id=component_id,
+                    field=field_name.value,
+                    message=message,
+                )
+                for code, message in capture_violations
+            )
     return findings
 
 
@@ -442,7 +493,7 @@ def _entry_violations(
     violation = _record_binding_violation(component_id, spec, entry)
     if violation is not None:
         return [violation]
-    findings = _field_source_violations(component_id, spec, entry)
+    findings = _field_source_violations(component_id, spec, entry, repository_root=repository_root)
     findings.extend(_time_bound_evidence_violations(component_id, entry, as_of=as_of))
     if findings:
         return findings

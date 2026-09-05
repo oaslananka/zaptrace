@@ -25,6 +25,7 @@ from zaptrace.library.schema import (
     ProvenanceConfidence,
     ProvenanceSourceType,
     ReviewScope,
+    has_exact_provenance_identity,
 )
 
 
@@ -273,7 +274,7 @@ def _verified_evidence_gaps(evidence: FieldProvenance) -> list[str]:
     requirements = (
         (evidence.source_type in _VERIFIED_SOURCES, "authoritative manufacturer/distributor source"),
         (bool(evidence.source_identity), "source identity"),
-        (len(evidence.source_sha256) == 64, "source SHA-256"),
+        (has_exact_provenance_identity(evidence), "source SHA-256"),
         (bool(evidence.source_version), "source version"),
         (evidence.extracted_at is not None, "extraction date"),
         (bool(evidence.reviewed_by and evidence.reviewed_at), "field review metadata"),

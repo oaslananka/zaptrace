@@ -31,6 +31,7 @@ from zaptrace.library.schema import (
     ProvenanceSourceType,
     ReviewScope,
 )
+from zaptrace.library.source_capture import mutable_web_claim_value, validate_mutable_web_capture_binding
 
 COHORT_A_COMPONENT_IDS: tuple[str, ...] = (
     "esp32-c3-mini-1",
@@ -138,7 +139,14 @@ def _freshness_blocker(
 
 
 def _field_evidence_machine_blockers(
-    field_name: ComponentField, evidence: Any, *, as_of: date, freshness_days: int
+    field_name: ComponentField,
+    evidence: Any,
+    *,
+    component_id: str,
+    repository_root: Path,
+    as_of: date,
+    freshness_days: int,
+    expected_claim_value: str,
 ) -> list[QualificationBlocker]:
     field = field_name.value
     checks = (
@@ -149,11 +157,6 @@ def _field_evidence_machine_blockers(
         ),
         (bool(evidence.source_locator), "field-source-locator-missing", "authoritative source locator is missing"),
         (bool(evidence.source_identity), "field-source-identity-missing", "authoritative source identity is missing"),
-        (
-            bool(_SHA256_RE.fullmatch(evidence.source_sha256)),
-            "field-source-hash-missing",
-            "authoritative source is not bound to a SHA-256 digest",
-        ),
         (
             bool(evidence.source_version),
             "field-source-version-missing",
@@ -170,13 +173,38 @@ def _field_evidence_machine_blockers(
         for passed, code, message in checks
         if not passed
     ]
+    if not _SHA256_RE.fullmatch(evidence.source_sha256):
+        capture_violations = validate_mutable_web_capture_binding(
+            component_id=component_id,
+            field_name=field_name,
+            evidence_source_type=evidence.source_type,
+            source_locator=evidence.source_locator,
+            source_identity=evidence.source_identity,
+            source_version=evidence.source_version,
+            extracted_at=evidence.extracted_at,
+            capture_path=evidence.source_capture_path,
+            capture_sha256=evidence.source_capture_sha256,
+            repository_root=repository_root,
+            expected_claim_value=expected_claim_value,
+        )
+        blockers.extend(
+            _blocker(QualificationBlockerClass.MACHINE, code, message, field=field)
+            for code, message in capture_violations
+        )
     freshness = _freshness_blocker(field_name, evidence, as_of=as_of, freshness_days=freshness_days)
     if freshness is not None:
         blockers.append(freshness)
     return blockers
 
 
-def _field_machine_blockers(spec: Any, *, as_of: date, freshness_days: int) -> list[QualificationBlocker]:
+def _field_machine_blockers(
+    spec: Any,
+    *,
+    component_id: str,
+    repository_root: Path,
+    as_of: date,
+    freshness_days: int,
+) -> list[QualificationBlocker]:
     blockers: list[QualificationBlocker] = []
     provenance = getattr(spec, "field_provenance", {})
     for field_name in ComponentField:
@@ -192,7 +220,19 @@ def _field_machine_blockers(spec: Any, *, as_of: date, freshness_days: int) -> l
             )
             continue
         blockers.extend(
-            _field_evidence_machine_blockers(field_name, evidence, as_of=as_of, freshness_days=freshness_days)
+            _field_evidence_machine_blockers(
+                field_name,
+                evidence,
+                component_id=component_id,
+                repository_root=repository_root,
+                as_of=as_of,
+                freshness_days=freshness_days,
+                expected_claim_value=(
+                    mutable_web_claim_value(spec, field_name)
+                    if field_name in {ComponentField.LIFECYCLE, ComponentField.SOURCING}
+                    else ""
+                ),
+            )
         )
     return blockers
 
@@ -449,7 +489,13 @@ def _component_row(
     as_of: date,
     freshness_days: int,
 ) -> ComponentQualificationReadiness:
-    machine = _field_machine_blockers(spec, as_of=as_of, freshness_days=freshness_days)
+    machine = _field_machine_blockers(
+        spec,
+        component_id=component_id,
+        repository_root=repository_root,
+        as_of=as_of,
+        freshness_days=freshness_days,
+    )
     proof_blockers, proof_path, proof_sha256 = _proof_machine_blockers(
         spec,
         component_id=component_id,

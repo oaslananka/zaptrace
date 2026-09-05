@@ -8,6 +8,7 @@ from zaptrace.library.schema import ComponentField, ComponentTrustTier, Provenan
 
 _DATASHEET_SHA256 = "1b21d7b0d5c6265fcca2bbd28e88174e9d3a3d05c57be30712e8951c75503acc"
 _ORDERING_SHA256 = "9d790a0fe64acaf312070243862e22d027d0a82148c2f9a03fa73187a7b82f5a"
+_LIFECYCLE_CAPTURE_SHA256 = "122550c3ac40b5135dfa5019c753edab8d1ee7b39b8af555ec6a7c151b03b6ae"
 _FOOTPRINT_SHA256 = "074ecb2092b24fa4b4b9cdd7c926fc587b0d7d6d21e7341e57935fd42d36894f"
 _FOOTPRINT_NAME = "ATECC608B-SSHDA-T-SOIC8"
 _PACKAGE_MAP = {
@@ -71,13 +72,17 @@ def test_atecc608b_candidate_provenance_is_part_specific_but_unreviewed() -> Non
             assert evidence.source_type is ProvenanceSourceType.MANUFACTURER_WEB
             assert evidence.source_identity == "ATECC608B product page"
             assert evidence.source_sha256 == ""
-            assert evidence.source_version == "accessed 2026-08-18"
+            assert evidence.source_capture_path == "data/library/evidence/web/atecc608b-2026-09-05.json"
+            assert evidence.source_capture_sha256 == _LIFECYCLE_CAPTURE_SHA256
+            assert evidence.source_version == "captured-2026-09-05"
+            assert evidence.extraction_method == "bounded-web-claim-capture"
         else:
             assert evidence.source_type is ProvenanceSourceType.MANUFACTURER_DOCUMENT
             assert evidence.source_identity == "DS40002239B"
             assert evidence.source_sha256 == _DATASHEET_SHA256
             assert evidence.source_version == "DS40002239B"
-        assert evidence.extracted_at == date(2026, 8, 18)
+        expected_extracted_at = date(2026, 9, 5) if field is ComponentField.LIFECYCLE else date(2026, 8, 18)
+        assert evidence.extracted_at == expected_extracted_at
         assert evidence.reviewed_by == ""
         assert evidence.reviewed_at is None
         assert evidence.confidence is ProvenanceConfidence.MEDIUM

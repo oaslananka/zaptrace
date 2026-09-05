@@ -20,6 +20,7 @@ from zaptrace.library.schema import (
 )
 
 _DATASHEET_SHA256 = "ef8d376f2ec356e29172eb9e053819a0ebdcc576dba7fc9ab0505c568427920f"
+_MASTER_COFC_SHA256 = "271195a40411cb2ffd31566c7635a204070bb241a667f9450a41b00cbb7e3f15"
 _PACKAGE_DOC_SHA256 = "acb75d3d3d00fd80c33ab471832cc90a26746de7867aa98f9abb165676f9c66c"
 _FOOTPRINT_SHA256 = "2a5c9e030fb192cd2393b5f95872fe796deb29ae7570c83050e19f7b78ceea71"
 _FOOTPRINT_NAME = "AP2112K-3.3TRG1-SOT25"
@@ -93,11 +94,14 @@ def test_ap2112_candidate_provenance_is_authoritative_but_unreviewed() -> None:
 
     for field in (ComponentField.LIFECYCLE, ComponentField.SOURCING):
         evidence = spec.field_provenance[field]
-        assert evidence.source_type is ProvenanceSourceType.MANUFACTURER_WEB
-        assert evidence.source_identity == "diodes:ap2112-product-page"
-        assert evidence.source_sha256 == ""
-        assert evidence.source_version == "accessed-2026-08-10"
-        assert evidence.extracted_at == date(2026, 8, 10)
+        assert evidence.source_type is ProvenanceSourceType.MANUFACTURER_DOCUMENT
+        assert evidence.source_identity == "GL-106_R249_Master_CofC"
+        assert evidence.source_sha256 == _MASTER_COFC_SHA256
+        assert evidence.source_capture_path == ""
+        assert evidence.source_capture_sha256 == ""
+        assert evidence.source_version == "GL-106 Rev 249 (2026-09-01)"
+        assert evidence.extraction_method == "manufacturer-master-cofc-review"
+        assert evidence.extracted_at == date(2026, 9, 5)
         assert evidence.reviewed_by == ""
         assert evidence.confidence is ProvenanceConfidence.MEDIUM
 

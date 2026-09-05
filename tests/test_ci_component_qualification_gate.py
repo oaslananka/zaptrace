@@ -11,7 +11,7 @@ COHORT = REPOSITORY_ROOT / "data/qualification/verified-core-cohort-a.yaml"
 SCHEMA = REPOSITORY_ROOT / "schemas/component-qualification-report-v1.schema.json"
 
 
-def test_strict_gate_fails_closed_on_known_machine_blockers(tmp_path: Path) -> None:
+def test_strict_gate_passes_after_machine_evidence_is_bound(tmp_path: Path) -> None:
     output = tmp_path / "qualification.json"
     code, report = run_gate(
         cohort_path=COHORT,
@@ -19,15 +19,15 @@ def test_strict_gate_fails_closed_on_known_machine_blockers(tmp_path: Path) -> N
         output_path=output,
     )
 
-    assert code == 1
-    assert report.review_ready_count == 2
-    assert report.machine_blocked_count == 3
+    assert code == 0
+    assert report.review_ready_count == 5
+    assert report.machine_blocked_count == 0
     assert report.human_review_required_count == 5
     assert report.release_eligible_count == 0
     assert json.loads(output.read_text(encoding="utf-8"))["report_sha256"] == report.report_sha256
 
 
-def test_report_only_mode_does_not_relabel_blocked_components_as_ready(tmp_path: Path) -> None:
+def test_report_only_mode_preserves_machine_ready_and_human_blocked_state(tmp_path: Path) -> None:
     code, report = run_gate(
         cohort_path=COHORT,
         repository_root=REPOSITORY_ROOT,
@@ -36,11 +36,16 @@ def test_report_only_mode_does_not_relabel_blocked_components_as_ready(tmp_path:
     )
 
     assert code == 0
-    assert report.machine_blocked_count == 3
+    assert report.machine_blocked_count == 0
     assert {row.component_id for row in report.components if row.review_ready} == {
         "esp32-c3-mini-1",
+        "usb-c-16p",
+        "ap2112k-3.3",
         "bme280",
+        "atecc608b",
     }
+    assert report.human_review_required_count == 5
+    assert report.release_eligible_count == 0
 
 
 def test_committed_report_schema_matches_model() -> None:

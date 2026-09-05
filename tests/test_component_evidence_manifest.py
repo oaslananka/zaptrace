@@ -696,3 +696,134 @@ def test_manifest_enforces_existing_risky_package_footprint_policy(tmp_path: Pat
 
     assert report.passed is False
     assert [violation.code for violation in report.violations] == ["footprint-proof-risk-policy-blocked"]
+
+
+def test_manifest_accepts_and_verifies_mutable_web_capture_binding(tmp_path: Path) -> None:
+    capture_path = tmp_path / "evidence" / "web" / "acme-lifecycle.json"
+    capture_path.parent.mkdir(parents=True, exist_ok=True)
+    capture_payload = {
+        "schema_version": "1.0",
+        "component_id": "acme-ldo",
+        "source_type": "manufacturer_web",
+        "source_locator": "https://manufacturer.example/acme-rev4.pdf",
+        "source_identity": "ACME-LDO-1-LIFECYCLE",
+        "source_version": "2026-08-01",
+        "captured_at": "2026-08-01",
+        "claims": {"lifecycle": {"claim": "catalog_status", "value": "active"}},
+        "non_claims": ["human review required"],
+    }
+    capture_path.write_text(json.dumps(capture_payload, sort_keys=True) + "\n", encoding="utf-8")
+    capture_sha256 = hashlib.sha256(capture_path.read_bytes()).hexdigest()
+    proof = _write_proof(tmp_path)
+    proof_sha256 = hashlib.sha256(proof.read_bytes()).hexdigest()
+    entry = _entry(
+        footprint_proof={
+            "proof_path": "evidence/footprints/acme-ldo.json",
+            "proof_sha256": proof_sha256,
+            "artifact_id": "datasheet-rev4",
+        }
+    )
+    entry["artifacts"]["lifecycle-2026-08"] = _artifact(
+        "lifecycle-2026-08",
+        source_type="manufacturer_web",
+        source_locator="https://manufacturer.example/acme-rev4.pdf",
+        source_identity="ACME-LDO-1-LIFECYCLE",
+        source_sha256="",
+        source_capture_path="evidence/web/acme-lifecycle.json",
+        source_capture_sha256=capture_sha256,
+        source_version="2026-08-01",
+        captured_at="2026-08-01",
+        valid_until="2026-09-01",
+    )
+    spec = _verified_spec()
+    spec.field_provenance[ComponentField.LIFECYCLE] = FieldProvenance(
+        source_type="manufacturer_web",
+        source_locator="https://manufacturer.example/acme-rev4.pdf",
+        source_identity="ACME-LDO-1-LIFECYCLE",
+        source_sha256="",
+        source_capture_path="evidence/web/acme-lifecycle.json",
+        source_capture_sha256=capture_sha256,
+        source_version="2026-08-01",
+        extraction_method="bounded-web-claim-capture",
+        extracted_at=date(2026, 8, 1),
+        reviewed_by="engineer@example.com",
+        reviewed_at=date(2026, 8, 2),
+        confidence="high",
+    )
+    manifest = ComponentEvidenceManifest.model_validate({"schema_version": "1.0", "components": {"acme-ldo": entry}})
+
+    report = validate_component_evidence_manifest(
+        {"acme-ldo": spec},
+        manifest,
+        repository_root=tmp_path,
+        as_of=date(2026, 8, 9),
+    )
+
+    assert report.passed is True
+    assert report.violations == []
+
+
+def test_manifest_rejects_mutable_web_capture_claim_that_disagrees_with_component(tmp_path: Path) -> None:
+    capture_path = tmp_path / "evidence" / "web" / "acme-lifecycle.json"
+    capture_path.parent.mkdir(parents=True, exist_ok=True)
+    capture_payload = {
+        "schema_version": "1.0",
+        "component_id": "acme-ldo",
+        "source_type": "manufacturer_web",
+        "source_locator": "https://manufacturer.example/acme-rev4.pdf",
+        "source_identity": "ACME-LDO-1-LIFECYCLE",
+        "source_version": "2026-08-01",
+        "captured_at": "2026-08-01",
+        "claims": {"lifecycle": {"claim": "catalog_status", "value": "discontinued"}},
+        "non_claims": ["human review required"],
+    }
+    capture_path.write_text(json.dumps(capture_payload, sort_keys=True) + "\n", encoding="utf-8")
+    capture_sha256 = hashlib.sha256(capture_path.read_bytes()).hexdigest()
+    proof = _write_proof(tmp_path)
+    entry = _entry(
+        footprint_proof={
+            "proof_path": "evidence/footprints/acme-ldo.json",
+            "proof_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
+            "artifact_id": "datasheet-rev4",
+        }
+    )
+    entry["artifacts"]["lifecycle-2026-08"] = _artifact(
+        "lifecycle-2026-08",
+        source_type="manufacturer_web",
+        source_locator="https://manufacturer.example/acme-rev4.pdf",
+        source_identity="ACME-LDO-1-LIFECYCLE",
+        source_sha256="",
+        source_capture_path="evidence/web/acme-lifecycle.json",
+        source_capture_sha256=capture_sha256,
+        source_version="2026-08-01",
+        captured_at="2026-08-01",
+        valid_until="2026-09-01",
+    )
+    spec = _verified_spec()
+    spec.field_provenance[ComponentField.LIFECYCLE] = FieldProvenance(
+        source_type="manufacturer_web",
+        source_locator="https://manufacturer.example/acme-rev4.pdf",
+        source_identity="ACME-LDO-1-LIFECYCLE",
+        source_sha256="",
+        source_capture_path="evidence/web/acme-lifecycle.json",
+        source_capture_sha256=capture_sha256,
+        source_version="2026-08-01",
+        extraction_method="bounded-web-claim-capture",
+        extracted_at=date(2026, 8, 1),
+        reviewed_by="engineer@example.com",
+        reviewed_at=date(2026, 8, 2),
+        confidence="high",
+    )
+    manifest = ComponentEvidenceManifest.model_validate({"schema_version": "1.0", "components": {"acme-ldo": entry}})
+
+    report = validate_component_evidence_manifest(
+        {"acme-ldo": spec},
+        manifest,
+        repository_root=tmp_path,
+        as_of=date(2026, 8, 9),
+    )
+
+    assert report.passed is False
+    assert [(violation.code, violation.field) for violation in report.violations] == [
+        ("field-source-capture-claim-mismatch", "lifecycle")
+    ]

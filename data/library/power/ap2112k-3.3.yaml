@@ -108,11 +108,12 @@ field_provenance:
     confidence: medium
   electrical_limits: *datasheet_evidence
   lifecycle: &catalog_evidence
-    source_type: manufacturer_web
-    source_locator: https://www.diodes.com/part/view/AP2112
-    source_identity: diodes:ap2112-product-page
-    source_version: accessed-2026-08-10
-    extraction_method: manufacturer-product-page-review
-    extracted_at: 2026-08-10
+    source_type: manufacturer_document
+    source_locator: https://www.diodes.com/assets/Quality-Reliability-Docs/Master_CofC.pdf
+    source_identity: GL-106_R249_Master_CofC
+    source_sha256: 271195a40411cb2ffd31566c7635a204070bb241a667f9450a41b00cbb7e3f15
+    source_version: GL-106 Rev 249 (2026-09-01)
+    extraction_method: manufacturer-master-cofc-review
+    extracted_at: 2026-09-05
     confidence: medium
   sourcing: *catalog_evidence
