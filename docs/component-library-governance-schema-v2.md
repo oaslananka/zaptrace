@@ -71,13 +71,13 @@ Each critical-field record includes:
 
 - `source_type`: manufacturer document/web, authorized distributor, internal manifest, family template, or manual entry;
 - `source_locator` and `source_identity`;
-- `source_sha256` where verified evidence requires exact document identity;
+- `source_sha256` for exact immutable source bytes, or `source_capture_path` plus `source_capture_sha256` for bounded mutable lifecycle/sourcing web claims;
 - `source_version`;
 - extraction method and date;
 - reviewer and review date;
 - confidence (`high`, `medium`, or `low`).
 
-`verified` claims fail closed when any critical field lacks the required authoritative identity, SHA-256, extraction metadata, review metadata, or high confidence. `curated` claims likewise reject family-template/internal-manifest evidence and low-confidence fields.
+`verified` claims fail closed when any critical field lacks the required authoritative identity, exact evidence binding, extraction metadata, review metadata, or high confidence. Immutable manufacturer documents require `source_sha256`. Mutable `manufacturer_web` / `authorized_distributor` lifecycle and sourcing evidence may instead use a committed JSON claim capture whose path and SHA-256 are recorded in provenance. The capture is metadata- and claim-bound to the component; it is not a hash of arbitrary live HTML and does not weaken human-review requirements. `curated` claims likewise reject family-template/internal-manifest evidence and low-confidence fields.
 
 ## Part-level evidence manifest
 
@@ -86,9 +86,9 @@ A `verified` component must also be bound by `config/component-evidence-manifest
 For every manifest entry, Quality CI requires:
 
 - exact component ID, manufacturer, MPN, and `verified` tier agreement with the committed component record;
-- bindings for all eight critical fields, with matching source type, locator, identity, version, and SHA-256;
+- bindings for all eight critical fields, with matching source type, locator, identity, version, and exact raw-source or mutable-web capture identity;
 - review metadata identical to the component `human_review` approval;
-- lifecycle and sourcing evidence with a current `valid_until` horizon and no future-dated capture;
+- lifecycle and sourcing evidence with a current `valid_until` horizon and no future-dated capture; mutable-web artifacts additionally require an available digest-matching capture file whose component/source metadata and bounded claim value match the field provenance;
 - a non-empty physical `package_pin_map` whose values reference declared logical `pins`;
 - an available, digest-matching footprint-proof file whose signal `pin_map` keys plus `thermal_pads` cover the exact physical package pin IDs, satisfies the `FootprintProof` pin/pad validator, and passes the existing risky-package policy for scoped package families;
 - for vendored/imported footprint proofs, a repository-local `source_path` whose current file SHA-256 matches `FootprintProof.source.source_sha256`; and

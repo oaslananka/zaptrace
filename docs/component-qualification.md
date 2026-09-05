@@ -22,7 +22,7 @@ The gate checks every critical component field for:
 
 - authoritative manufacturer or authorized-distributor source type;
 - source locator and identity;
-- SHA-256 source binding;
+- exact source identity via raw `source_sha256`, or a digest-bound repository capture for mutable lifecycle/sourcing web claims;
 - source version/capture identity;
 - extraction method and date;
 - lifecycle/sourcing freshness;
@@ -32,7 +32,7 @@ The gate checks every critical component field for:
 
 Footprint proofs are committed under `data/library/evidence/footprints/` and bind the reviewed component footprint name to the exact vendored KiCad source file SHA-256.
 
-Machine blockers are separate from human blockers. A missing or unstable source digest cannot be hidden by a reviewer approval.
+Machine blockers are separate from human blockers. A missing or unstable source identity cannot be hidden by a reviewer approval. For mutable manufacturer/distributor pages, ZapTrace does **not** pretend that a CDN/anti-bot HTML response is a durable manufacturer document. Instead, lifecycle/sourcing evidence may bind to a committed JSON claim capture using `source_capture_path` plus `source_capture_sha256`. The capture must match component ID, source type, locator, identity, source version, capture date, critical field, and the committed component field value. This fallback is limited to lifecycle/sourcing; it does not replace raw document hashes for immutable manufacturer documents.
 
 ## Human review boundary
 
@@ -51,29 +51,30 @@ Those are explicit human actions. The gate does not set `trust_tier=verified`, d
 
 Current result:
 
-- review-ready: 2 / 5 (`esp32-c3-mini-1`, `bme280`);
-- machine-blocked: 3 / 5;
+- review-ready: 5 / 5;
+- machine-blocked: 0 / 5;
 - human-review-required: 5 / 5;
-- release-eligible: 0 / 5.
+- release-eligible: 0 / 5;
+- report SHA-256: `4db763b3fd1ce9fca5db69d78f3fb7578807afa39da6ae9a5152724ee963ada2`.
 
-The remaining machine blockers are intentionally fail-closed:
+The former machine blockers are now bound to reproducible authoritative evidence:
 
-- `usb-c-16p`: lifecycle and sourcing manufacturer-web evidence is not bound to a stable source SHA-256;
-- `ap2112k-3.3`: lifecycle and sourcing manufacturer-web evidence is not bound to a stable source SHA-256;
-- `atecc608b`: lifecycle manufacturer-web evidence is not bound to a stable source SHA-256.
+- `usb-c-16p`: a SHA-bound GCT USB4105 mutable-web capture for lifecycle and manufacturer-catalog sourcing claims;
+- `ap2112k-3.3`: raw Diodes `GL-106 Rev 249` Master CoC PDF bytes, SHA-bound to the current manufacturer document that lists the orderable SOT25 part as active;
+- `atecc608b`: a SHA-bound Microchip ATECC608B mutable-web capture for the lifecycle claim (`not-recommended-for-new-designs`).
 
-The authoritative datasheet/drawing sources and vendored footprint sources for the five parts are SHA-bound. The mutable product-page blockers above must be resolved with reproducible evidence before those records can become review-ready.
+These evidence bindings make the three records machine-review-ready; they do **not** promote trust, invent reviewer identity, approve procurement, or override the underlying manufacturer status. All five cohort records still require explicit engineering review before any verified/release/fabrication claim.
 
 ## Run the gate
 
-Strict mode fails when any machine blocker remains:
+Strict mode fails when any machine blocker remains; the current Cohort A snapshot passes this machine-only gate:
 
 ```bash
 uv run python scripts/ci_component_qualification_gate.py \
   --output component-qualification.json
 ```
 
-To reproduce the current evidence snapshot without converting known blockers into a passing strict gate:
+To write the same evidence snapshot without making strict-mode exit status part of the caller contract:
 
 ```bash
 uv run python scripts/ci_component_qualification_gate.py \

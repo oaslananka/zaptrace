@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-09-05",
+  "claims": {
+    "lifecycle": {
+      "claim": "manufacturer_product_status",
+      "value": "not-recommended-for-new-designs"
+    }
+  },
+  "component_id": "atecc608b",
+  "non_claims": [
+    "This lifecycle capture does not claim availability, stock, lead time, or suitability for a new design.",
+    "Sourcing identity remains independently bound to the Microchip product identification system.",
+    "Human review remains required before verified trust, release, fabrication, or procurement use."
+  ],
+  "schema_version": "1.0",
+  "source_identity": "ATECC608B product page",
+  "source_locator": "https://www.microchip.com/en-us/product/atecc608b",
+  "source_type": "manufacturer_web",
+  "source_version": "captured-2026-09-05"
+}

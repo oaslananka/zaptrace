@@ -312,3 +312,27 @@ def test_real_shipped_library_can_be_validated_against_schema_v1() -> None:
     assert report.error_count >= 0
     assert 0.0 <= report.mean_coverage_score <= 1.0
     assert len(report.validations) == report.component_count
+
+
+def test_verified_governance_accepts_digest_bound_mutable_web_capture_identity() -> None:
+    fields = {field: _verified_field() for field in ComponentField}
+    fields[ComponentField.LIFECYCLE] = FieldProvenance(
+        source_type=ProvenanceSourceType.MANUFACTURER_WEB,
+        source_locator="https://manufacturer.example/part",
+        source_identity="ACME product page",
+        source_sha256="",
+        source_capture_path="data/library/evidence/web/acme-lifecycle.json",
+        source_capture_sha256="b" * 64,
+        source_version="captured-2026-09-05",
+        extraction_method="bounded-web-claim-capture",
+        extracted_at=date(2026, 9, 5),
+        reviewed_by="engineer@example.com",
+        reviewed_at=date(2026, 9, 5),
+        confidence=ProvenanceConfidence.HIGH,
+    )
+
+    validation = validate_governed_component(_reviewed_spec(field_provenance=fields))
+
+    assert validation.valid is True
+    assert validation.release_eligible is True
+    assert not any(finding.field == "field_provenance.lifecycle" for finding in validation.findings)

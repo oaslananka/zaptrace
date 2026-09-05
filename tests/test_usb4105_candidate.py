@@ -21,6 +21,7 @@ from zaptrace.library.schema import (
 )
 
 _DRAWING_SHA256 = "fb331fbabee8392ed2937ed757c1610cb0f174b84625147c0b580a18eea8c0e5"
+_WEB_CAPTURE_SHA256 = "a2cc01914d95cd2577baf53c2dd01c3a736775886f5f03059250d35dae9120de"
 _FOOTPRINT_SHA256 = "db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c"
 _FOOTPRINT_NAME = "USB-C-16P-SMD"
 _EXPECTED_PACKAGE_MAP = {
@@ -105,8 +106,12 @@ def test_usb4105_candidate_provenance_is_authoritative_but_unreviewed() -> None:
         evidence = spec.field_provenance[field]
         assert evidence.source_type is ProvenanceSourceType.MANUFACTURER_WEB
         assert evidence.source_identity == "gct:usb4105-product-page"
-        assert evidence.source_version == "accessed-2026-08-10"
-        assert evidence.extracted_at == date(2026, 8, 10)
+        assert evidence.source_sha256 == ""
+        assert evidence.source_capture_path == "data/library/evidence/web/usb-c-16p-2026-09-05.json"
+        assert evidence.source_capture_sha256 == _WEB_CAPTURE_SHA256
+        assert evidence.source_version == "captured-2026-09-05"
+        assert evidence.extraction_method == "bounded-web-claim-capture"
+        assert evidence.extracted_at == date(2026, 9, 5)
         assert evidence.reviewed_by == ""
         assert evidence.reviewed_at is None
         assert evidence.confidence is ProvenanceConfidence.MEDIUM

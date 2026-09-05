@@ -135,12 +135,31 @@ class FieldProvenance(StrictSchemaModel):
     source_locator: str = Field(min_length=1)
     source_identity: str = ""
     source_sha256: str = ""
+    source_capture_path: str = ""
+    source_capture_sha256: str = ""
     source_version: str = ""
     extraction_method: str = Field(min_length=1)
     extracted_at: date | None = None
     reviewed_by: str = ""
     reviewed_at: date | None = None
     confidence: ProvenanceConfidence
+
+    @model_validator(mode="after")
+    def validate_capture_identity(self) -> FieldProvenance:
+        capture_fields = bool(self.source_capture_path), bool(self.source_capture_sha256)
+        if any(capture_fields) and not all(capture_fields):
+            raise ValueError("source capture path and SHA-256 must be provided together")
+        if self.source_capture_sha256 and not _SHA256_RE.fullmatch(self.source_capture_sha256):
+            raise ValueError("source capture SHA-256 must be a lowercase SHA-256 digest")
+        if all(capture_fields):
+            if self.source_type not in {
+                ProvenanceSourceType.MANUFACTURER_WEB,
+                ProvenanceSourceType.AUTHORIZED_DISTRIBUTOR,
+            }:
+                raise ValueError("source capture identity is only valid for mutable authoritative web evidence")
+            if self.source_sha256:
+                raise ValueError("source capture identity must not be combined with raw source SHA-256")
+        return self
 
 
 class HumanReviewApproval(StrictSchemaModel):
@@ -166,6 +185,18 @@ _VERIFIED_SOURCES = {
 }
 
 
+def has_exact_provenance_identity(evidence: FieldProvenance) -> bool:
+    """Return whether provenance is bound to exact source bytes or a mutable-web capture."""
+
+    if _SHA256_RE.fullmatch(evidence.source_sha256):
+        return True
+    return (
+        evidence.source_type in {ProvenanceSourceType.MANUFACTURER_WEB, ProvenanceSourceType.AUTHORIZED_DISTRIBUTOR}
+        and bool(evidence.source_capture_path)
+        and bool(_SHA256_RE.fullmatch(evidence.source_capture_sha256))
+    )
+
+
 def _failed_requirements(requirements: tuple[tuple[bool, str], ...]) -> list[str]:
     return [message for passed, message in requirements if not passed]
 
@@ -187,7 +218,7 @@ def _verified_field_failures(field_name: ComponentField, evidence: FieldProvenan
     requirements = (
         (evidence.source_type in _VERIFIED_SOURCES, f"{prefix}: non-authoritative source type"),
         (bool(evidence.source_identity), f"{prefix}: source identity"),
-        (bool(_SHA256_RE.fullmatch(evidence.source_sha256)), f"{prefix}: source SHA-256"),
+        (has_exact_provenance_identity(evidence), f"{prefix}: source SHA-256"),
         (bool(evidence.source_version), f"{prefix}: source version"),
         (bool(evidence.extraction_method and evidence.extracted_at), f"{prefix}: extraction metadata"),
         (bool(evidence.reviewed_by and evidence.reviewed_at), f"{prefix}: review metadata"),

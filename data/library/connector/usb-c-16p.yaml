@@ -121,8 +121,10 @@ field_provenance:
     source_type: manufacturer_web
     source_locator: https://gct.co/connector/usb4105
     source_identity: gct:usb4105-product-page
-    source_version: accessed-2026-08-10
-    extraction_method: manufacturer-product-page-capture
-    extracted_at: 2026-08-10
+    source_capture_path: data/library/evidence/web/usb-c-16p-2026-09-05.json
+    source_capture_sha256: a2cc01914d95cd2577baf53c2dd01c3a736775886f5f03059250d35dae9120de
+    source_version: captured-2026-09-05
+    extraction_method: bounded-web-claim-capture
+    extracted_at: 2026-09-05
     confidence: medium
   sourcing: *product_page_evidence

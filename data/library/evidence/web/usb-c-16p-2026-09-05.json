@@ -1,0 +1,23 @@
+{
+  "captured_at": "2026-09-05",
+  "claims": {
+    "lifecycle": {
+      "claim": "product_overview_status",
+      "value": "active"
+    },
+    "sourcing": {
+      "claim": "manufacturer_catalog_status",
+      "value": "manufacturer-catalog-active"
+    }
+  },
+  "component_id": "usb-c-16p",
+  "non_claims": [
+    "No distributor stock quantity, lead time, price, or procurement approval is claimed.",
+    "Human review remains required before verified trust, release, fabrication, or procurement use."
+  ],
+  "schema_version": "1.0",
+  "source_identity": "gct:usb4105-product-page",
+  "source_locator": "https://gct.co/connector/usb4105",
+  "source_type": "manufacturer_web",
+  "source_version": "captured-2026-09-05"
+}

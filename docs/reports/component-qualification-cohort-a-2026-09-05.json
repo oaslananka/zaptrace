@@ -114,7 +114,7 @@
         }
       ],
       "component_id": "esp32-c3-mini-1",
-      "evidence_sha256": "3a3df19d95eba95917d45bbef082e511fc17da1d6f8febf91314d9aba45feb02",
+      "evidence_sha256": "1e4f9842a022d2167fe59c7b5fe367bbe5105aaec85c90fff5fc416244e838e2",
       "footprint_proof_path": "data/library/evidence/footprints/esp32-c3-mini-1.json",
       "footprint_proof_sha256": "9a79b6c9b9e33ca0c815272a8618fef4df0b112ca362013eab1b6c77af03f889",
       "human_review_required": true,
@@ -124,18 +124,6 @@
     },
     {
       "blockers": [
-        {
-          "blocker_class": "machine",
-          "code": "field-source-hash-missing",
-          "field": "lifecycle",
-          "message": "authoritative source is not bound to a SHA-256 digest"
-        },
-        {
-          "blocker_class": "machine",
-          "code": "field-source-hash-missing",
-          "field": "sourcing",
-          "message": "authoritative source is not bound to a SHA-256 digest"
-        },
         {
           "blocker_class": "human",
           "code": "field-review-metadata-missing",
@@ -246,28 +234,16 @@
         }
       ],
       "component_id": "usb-c-16p",
-      "evidence_sha256": "b1602d2eb102d262353e47f81ad6b2f799687096e2f35d2fee8266ef221f4f87",
+      "evidence_sha256": "7034d69e6454983d40295d35266ec90b3a7d7c2dfecb91d055092d9f279ba9a1",
       "footprint_proof_path": "data/library/evidence/footprints/usb-c-16p.json",
       "footprint_proof_sha256": "a461ccea8f71c2d77c324c19fa90a368bf74d0b3eac26886b1b36f943fc870a4",
       "human_review_required": true,
       "release_eligible": false,
-      "review_ready": false,
+      "review_ready": true,
       "trust_tier": "heuristic"
     },
     {
       "blockers": [
-        {
-          "blocker_class": "machine",
-          "code": "field-source-hash-missing",
-          "field": "lifecycle",
-          "message": "authoritative source is not bound to a SHA-256 digest"
-        },
-        {
-          "blocker_class": "machine",
-          "code": "field-source-hash-missing",
-          "field": "sourcing",
-          "message": "authoritative source is not bound to a SHA-256 digest"
-        },
         {
           "blocker_class": "human",
           "code": "field-review-metadata-missing",
@@ -372,12 +348,12 @@
         }
       ],
       "component_id": "ap2112k-3.3",
-      "evidence_sha256": "f30cf441df880f174993ae5193dab89b431af745f63b9462dd81087037f62d00",
+      "evidence_sha256": "c066a77a42523a4f72d6f63232a937e8066e7c95f0c583917b82087f9a6dc105",
       "footprint_proof_path": "data/library/evidence/footprints/ap2112k-3.3.json",
       "footprint_proof_sha256": "c2d69f4390dfb3f6b6df83a23b44ff0ed475d34a57affaf4707332c6106a3833",
       "human_review_required": true,
       "release_eligible": false,
-      "review_ready": false,
+      "review_ready": true,
       "trust_tier": "heuristic"
     },
     {
@@ -492,7 +468,7 @@
         }
       ],
       "component_id": "bme280",
-      "evidence_sha256": "8638e85a273f22a03a6663855037a28c657cb65d1a8d1f19fe05ce53c921872e",
+      "evidence_sha256": "72c73702e15026f7083b272867cfd70bd2288101f13406f83bb28f974b99c421",
       "footprint_proof_path": "data/library/evidence/footprints/bme280.json",
       "footprint_proof_sha256": "f4c21fccdeeb8caee3b2b030f38a11d0ca76be323ca7ac49ff86560f9b483a30",
       "human_review_required": true,
@@ -502,12 +478,6 @@
     },
     {
       "blockers": [
-        {
-          "blocker_class": "machine",
-          "code": "field-source-hash-missing",
-          "field": "lifecycle",
-          "message": "authoritative source is not bound to a SHA-256 digest"
-        },
         {
           "blocker_class": "human",
           "code": "field-review-metadata-missing",
@@ -612,12 +582,12 @@
         }
       ],
       "component_id": "atecc608b",
-      "evidence_sha256": "358f25d997ceb5ff15eff7e9a16e0bb5e884927e0630ecb7b5e2b174441e0019",
+      "evidence_sha256": "cff0ca32f4a5aac1fb595b7fef9e09fd8472400486ef3d7521ddab15fa3e9a4c",
       "footprint_proof_path": "data/library/evidence/footprints/atecc608b.json",
       "footprint_proof_sha256": "bc222318452ac4ba5dc75103260a9662a0f66bdc7d6ae2b50e55c401173fb822",
       "human_review_required": true,
       "release_eligible": false,
-      "review_ready": false,
+      "review_ready": true,
       "trust_tier": "heuristic"
     }
   ],
@@ -625,13 +595,13 @@
   "freshness_days": 90,
   "historical_snapshot": true,
   "human_review_required_count": 5,
-  "machine_blocked_count": 3,
+  "machine_blocked_count": 0,
   "non_claims": [
     "Review readiness is not verified trust, release eligibility, fabrication approval, or physical hardware validation.",
     "No reviewer identity or approval scope is synthesized by this report."
   ],
   "release_eligible_count": 0,
-  "report_sha256": "4749a7aad95d700020519dc7ac468f7620aef61768d8f97567bb11dd0baafc90",
-  "review_ready_count": 2,
+  "report_sha256": "4db763b3fd1ce9fca5db69d78f3fb7578807afa39da6ae9a5152724ee963ada2",
+  "review_ready_count": 5,
   "schema_version": "1.0"
 }

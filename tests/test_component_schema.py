@@ -270,3 +270,59 @@ def test_curated_record_accepts_medium_confidence_reviewed_sources() -> None:
     )
 
     assert record.trust_tier is ComponentTrustTier.CURATED
+
+
+def test_verified_mutable_web_evidence_accepts_separate_capture_identity() -> None:
+    fields = {field.value: verified_field() for field in ComponentField}
+    fields[ComponentField.LIFECYCLE.value] = verified_field("manufacturer_web") | {
+        "source_locator": "https://manufacturer.example/part",
+        "source_identity": "ACME part page",
+        "source_sha256": "",
+        "source_version": "captured-2026-09-05",
+        "source_capture_path": "data/library/evidence/web/acme-lifecycle.json",
+        "source_capture_sha256": "b" * 64,
+    }
+
+    record = validate_component_record(verified_record(field_provenance=fields))
+
+    lifecycle = record.field_provenance[ComponentField.LIFECYCLE]
+    assert lifecycle.source_sha256 == ""
+    assert lifecycle.source_capture_path == "data/library/evidence/web/acme-lifecycle.json"
+    assert lifecycle.source_capture_sha256 == "b" * 64
+
+
+def test_verified_document_evidence_cannot_replace_source_hash_with_web_capture() -> None:
+    fields = {field.value: verified_field() for field in ComponentField}
+    fields[ComponentField.DATASHEET.value] = verified_field() | {
+        "source_sha256": "",
+        "source_capture_path": "data/library/evidence/web/not-a-document.json",
+        "source_capture_sha256": "c" * 64,
+    }
+
+    raw = verified_record(field_provenance=fields)
+
+    with pytest.raises(ValidationError, match="mutable authoritative web"):
+        validate_component_record(raw)
+
+
+def test_field_provenance_rejects_partial_mutable_web_capture_identity() -> None:
+    raw = verified_field("manufacturer_web")
+    raw.update(
+        source_sha256="",
+        source_capture_path="data/library/evidence/web/part.json",
+    )
+
+    with pytest.raises(ValidationError, match="source capture path and SHA-256"):
+        FieldProvenance.model_validate(raw)
+
+
+def test_field_provenance_rejects_capture_identity_for_immutable_document() -> None:
+    raw = verified_field("manufacturer_document")
+    raw.update(
+        source_sha256="",
+        source_capture_path="data/library/evidence/web/part.json",
+        source_capture_sha256="d" * 64,
+    )
+
+    with pytest.raises(ValidationError, match="mutable authoritative web"):
+        FieldProvenance.model_validate(raw)
