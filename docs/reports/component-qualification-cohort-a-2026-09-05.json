@@ -621,7 +621,9 @@
       "trust_tier": "heuristic"
     }
   ],
+  "evidence_status": "historical-governance-snapshot",
   "freshness_days": 90,
+  "historical_snapshot": true,
   "human_review_required_count": 5,
   "machine_blocked_count": 3,
   "non_claims": [

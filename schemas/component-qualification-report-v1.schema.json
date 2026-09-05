@@ -94,7 +94,7 @@
       "type": "string"
     }
   },
-  "description": "Deterministic cohort-level qualification-readiness report.",
+  "description": "Deterministic historical cohort qualification-readiness report.",
   "properties": {
     "as_of": {
       "format": "date",
@@ -113,10 +113,20 @@
       "title": "Components",
       "type": "array"
     },
+    "evidence_status": {
+      "default": "historical-governance-snapshot",
+      "title": "Evidence Status",
+      "type": "string"
+    },
     "freshness_days": {
       "minimum": 1,
       "title": "Freshness Days",
       "type": "integer"
+    },
+    "historical_snapshot": {
+      "default": true,
+      "title": "Historical Snapshot",
+      "type": "boolean"
     },
     "human_review_required_count": {
       "minimum": 0,

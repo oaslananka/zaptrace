@@ -82,9 +82,11 @@ class ComponentQualificationReadiness(BaseModel):
 
 
 class ComponentQualificationReport(BaseModel):
-    """Deterministic cohort-level qualification-readiness report."""
+    """Deterministic historical cohort qualification-readiness report."""
 
     schema_version: str = "1.0"
+    historical_snapshot: bool = True
+    evidence_status: str = "historical-governance-snapshot"
     as_of: date
     freshness_days: int = Field(ge=1)
     component_count: int = Field(ge=0)
