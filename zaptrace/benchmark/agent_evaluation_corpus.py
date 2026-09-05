@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import Any
 
@@ -91,6 +92,31 @@ def _has_step_tag(corpus: AgentEvaluationCorpus, tag: str) -> bool:
     return any(tag in step.tags for scenario in corpus.scenarios for step in scenario.steps)
 
 
+def _validate_surface_scenario(
+    scenario: AgentEvaluationScenario,
+    *,
+    reduced_surfaces: AbstractSet[str],
+    valid_capabilities: AbstractSet[str],
+) -> tuple[list[str], str | None]:
+    errors: list[str] = []
+    unsupported_grants = sorted(set(scenario.granted_capabilities) - valid_capabilities)
+    if unsupported_grants:
+        errors.append(f"{scenario.scenario_id}: unsupported capability grant(s): {', '.join(unsupported_grants)}")
+    if scenario.evaluation_role == AgentEvaluationScenarioRole.LEGACY:
+        if scenario.surface:
+            errors.append(f"{scenario.scenario_id}: legacy scenario must not declare an MCP surface")
+        return errors, None
+    if scenario.surface not in reduced_surfaces:
+        errors.append(f"{scenario.scenario_id}: unsupported MCP surface: {scenario.surface!r}")
+        return errors, None
+    if scenario.evaluation_role == AgentEvaluationScenarioRole.AUTHORIZATION_PROBE and not any(
+        step.expect_authorization_denial for step in scenario.steps
+    ):
+        errors.append(f"{scenario.scenario_id}: authorization-probe must contain at least one expected denial step")
+    task_surface = scenario.surface if scenario.evaluation_role == AgentEvaluationScenarioRole.TASK else None
+    return errors, task_surface
+
+
 def _validate_surface_evaluation_contract(corpus: AgentEvaluationCorpus) -> list[str]:
     from zaptrace.agent.tool_surfaces import SUPPORTED_TOOL_SURFACES
     from zaptrace.security.policy import CAPABILITY_LEVELS
@@ -100,22 +126,14 @@ def _validate_surface_evaluation_contract(corpus: AgentEvaluationCorpus) -> list
     valid_capabilities = set(CAPABILITY_LEVELS)
     task_surfaces: set[str] = set()
     for scenario in corpus.scenarios:
-        unsupported_grants = sorted(set(scenario.granted_capabilities) - valid_capabilities)
-        if unsupported_grants:
-            errors.append(f"{scenario.scenario_id}: unsupported capability grant(s): {', '.join(unsupported_grants)}")
-        if scenario.evaluation_role == AgentEvaluationScenarioRole.LEGACY:
-            if scenario.surface:
-                errors.append(f"{scenario.scenario_id}: legacy scenario must not declare an MCP surface")
-            continue
-        if scenario.surface not in reduced:
-            errors.append(f"{scenario.scenario_id}: unsupported MCP surface: {scenario.surface!r}")
-            continue
-        if scenario.evaluation_role == AgentEvaluationScenarioRole.TASK:
-            task_surfaces.add(scenario.surface)
-        if scenario.evaluation_role == AgentEvaluationScenarioRole.AUTHORIZATION_PROBE and not any(
-            step.expect_authorization_denial for step in scenario.steps
-        ):
-            errors.append(f"{scenario.scenario_id}: authorization-probe must contain at least one expected denial step")
+        scenario_errors, task_surface = _validate_surface_scenario(
+            scenario,
+            reduced_surfaces=reduced,
+            valid_capabilities=valid_capabilities,
+        )
+        errors.extend(scenario_errors)
+        if task_surface is not None:
+            task_surfaces.add(task_surface)
     missing_task_surfaces = sorted(reduced - task_surfaces)
     if missing_task_surfaces:
         errors.append("missing representative task scenario(s) for MCP surface(s): " + ", ".join(missing_task_surfaces))
