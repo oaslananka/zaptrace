@@ -27,7 +27,7 @@ def test_committed_corpus_has_ten_unique_secret_free_scenarios_and_all_outcomes(
     corpus = load_agent_evaluation_corpus(CORPUS_PATH)
 
     assert corpus.schema_version == "1.0"
-    assert corpus.corpus_version == "2026.07"
+    assert corpus.corpus_version == "2026.09"
     assert len(corpus.scenarios) >= 10
     assert len({scenario.scenario_id for scenario in corpus.scenarios}) == len(corpus.scenarios)
     assert len({scenario.prompt for scenario in corpus.scenarios}) == len(corpus.scenarios)
@@ -40,6 +40,27 @@ def test_committed_corpus_has_ten_unique_secret_free_scenarios_and_all_outcomes(
     assert "https://" not in serialized
     assert all(scenario.steps for scenario in corpus.scenarios)
     assert all(scenario.expected_artifact_kinds for scenario in corpus.scenarios)
+
+
+def test_committed_corpus_declares_representative_reduced_surface_tasks_and_policy_probe() -> None:
+    from zaptrace.agent.tool_surfaces import SUPPORTED_TOOL_SURFACES
+
+    corpus = load_agent_evaluation_corpus(CORPUS_PATH)
+    reduced = set(SUPPORTED_TOOL_SURFACES) - {"expert"}
+    task_surfaces = {scenario.surface for scenario in corpus.scenarios if scenario.evaluation_role == "task"}
+    probes = [scenario for scenario in corpus.scenarios if scenario.evaluation_role == "authorization-probe"]
+
+    assert task_surfaces == reduced
+    assert probes
+    assert any(
+        scenario.surface == "design" and any(step.expect_authorization_denial for step in scenario.steps)
+        for scenario in probes
+    )
+    assert all(
+        set(scenario.granted_capabilities)
+        <= {"read", "preview-write", "sandbox-write", "approved-commit", "release-export"}
+        for scenario in corpus.scenarios
+    )
 
 
 def test_builtin_and_committed_corpus_are_byte_for_byte_equivalent() -> None:
@@ -115,6 +136,65 @@ def test_runner_dispatches_tools_records_artifacts_and_cleans_session_state(tmp_
     assert result.session_id not in _sessions
     assert get_replay(result.session_id) is None
     assert sandbox_status(result.session_id)["call_count"] == 0
+
+
+def test_surface_metrics_treat_expected_policy_denial_as_evidence_not_runtime_failure(tmp_path: Path) -> None:
+    from zaptrace.benchmark.agent_evaluation_runner import run_agent_evaluation
+
+    report = run_agent_evaluation(
+        _subset("requirements-esp32-sensor", "design-capability-denial"),
+        mode=AgentEvaluationMode.CI,
+        output_dir=tmp_path,
+    )
+
+    assert report.protocol_version == "2026-07-28"
+    assert len(report.surface_contract_sha256) == 64
+    inspect = report.surface_metrics["inspect"]
+    design = report.surface_metrics["design"]
+    assert inspect.planned_call_count == 1
+    assert inspect.invalid_call_count == 0
+    assert inspect.authorization_denial_count == 0
+    assert inspect.task_count == 1
+    assert inspect.task_completion_count == 1
+    assert inspect.replay_equivalent_count == 1
+    assert design.planned_call_count == 1
+    assert design.authorization_denial_count == 1
+    assert design.expected_policy_denial_count == 1
+    assert design.unexpected_policy_denial_count == 0
+    assert design.runtime_failure_count == 0
+    denial = next(item for item in report.scenarios if item.scenario_id == "design-capability-denial")
+    assert denial.outcome == AgentEvaluationOutcome.BLOCKED
+    assert denial.matched_expectation is True
+    assert denial.replay_equivalent is True
+    assert denial.traces[0].disposition == "expected-policy-denial"
+    assert report.passed is True
+
+
+def test_surface_metrics_count_hidden_registry_tool_as_invalid_call_without_dispatch(tmp_path: Path) -> None:
+    from zaptrace.benchmark.agent_evaluation_models import AgentEvaluationCorpus
+    from zaptrace.benchmark.agent_evaluation_runner import run_agent_evaluation
+
+    scenario = next(
+        item for item in DEFAULT_AGENT_EVALUATION_CORPUS.scenarios if item.scenario_id == "requirements-esp32-sensor"
+    ).model_copy(deep=True)
+    scenario.steps[0].operation = "synthesize_board"
+    scenario.granted_capabilities = ["preview-write"]
+    report = run_agent_evaluation(
+        AgentEvaluationCorpus(corpus_version="surface-invalid-test", scenarios=[scenario]),
+        mode=AgentEvaluationMode.CI,
+        output_dir=tmp_path,
+    )
+
+    result = report.scenarios[0]
+    metrics = report.surface_metrics["inspect"]
+    assert result.outcome == AgentEvaluationOutcome.BLOCKED
+    assert result.traces[0].disposition == "invalid-surface-call"
+    assert result.traces[0].operation == "synthesize_board"
+    assert metrics.planned_call_count == 1
+    assert metrics.invalid_call_count == 1
+    assert metrics.invalid_call_rate == 1.0
+    assert metrics.runtime_failure_count == 0
+    assert report.passed is False
 
 
 def test_runner_classifies_all_four_outcomes_from_real_tool_contracts(tmp_path: Path) -> None:
@@ -208,6 +288,22 @@ def test_scenario_and_step_ids_reject_path_traversal() -> None:
             steps=[safe_step],
             expected_artifact_kinds=["scenario-input"],
         )
+
+
+def test_corpus_validation_rejects_unknown_surface_capability_and_malformed_policy_probe() -> None:
+    corpus = DEFAULT_AGENT_EVALUATION_CORPUS.model_copy(deep=True)
+    task = next(item for item in corpus.scenarios if item.evaluation_role == "task")
+    task.surface = "not-a-surface"
+    task.granted_capabilities = ["root"]
+    probe = next(item for item in corpus.scenarios if item.evaluation_role == "authorization-probe")
+    for step in probe.steps:
+        step.expect_authorization_denial = False
+
+    errors = validate_agent_evaluation_corpus(corpus)
+
+    assert any("unsupported MCP surface" in error for error in errors)
+    assert any("unsupported capability grant" in error for error in errors)
+    assert any("authorization-probe" in error and "expected denial" in error for error in errors)
 
 
 def test_corpus_validation_rejects_unknown_tools_and_external_output_paths() -> None:

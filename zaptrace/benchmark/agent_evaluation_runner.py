@@ -12,11 +12,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from zaptrace.agent.tool_impls.registry import call_tool
+from zaptrace.agent.tool_impls.registry import TOOL_REGISTRY, call_tool
 from zaptrace.agent.tool_impls.runtime import _sessions
+from zaptrace.agent.tool_surfaces import SUPPORTED_TOOL_SURFACES, surface_tool_names
 from zaptrace.benchmark.agent_evaluation_models import (
     AgentEvaluationArtifact,
     AgentEvaluationBenchmarkLink,
+    AgentEvaluationCallDisposition,
     AgentEvaluationCorpus,
     AgentEvaluationExecutor,
     AgentEvaluationMode,
@@ -26,11 +28,14 @@ from zaptrace.benchmark.agent_evaluation_models import (
     AgentEvaluationReport,
     AgentEvaluationScenario,
     AgentEvaluationScenarioResult,
+    AgentEvaluationScenarioRole,
     AgentEvaluationStep,
     AgentEvaluationStepStatus,
+    AgentEvaluationSurfaceMetrics,
     AgentEvaluationTraceEntry,
     normalized_trace_sha256,
 )
+from zaptrace.security.policy import authorize_capability
 from zaptrace.security.replay import get_replay, remove_replay
 from zaptrace.security.sandbox import remove_sandbox
 
@@ -287,7 +292,89 @@ def _benchmark_links(
     return links
 
 
+def _surface_call_preflight(
+    scenario: AgentEvaluationScenario,
+    step: AgentEvaluationStep,
+) -> tuple[AgentEvaluationCallDisposition | None, str, str]:
+    """Classify one explicit MCP-surface call before shared-dispatch execution."""
+    if step.executor != AgentEvaluationExecutor.AGENT_TOOL or not scenario.surface:
+        return None, "", ""
+    if step.operation not in surface_tool_names(scenario.surface):
+        return (
+            AgentEvaluationCallDisposition.INVALID_SURFACE_CALL,
+            "",
+            f"tool {step.operation!r} is not visible on MCP surface {scenario.surface!r}",
+        )
+    required = str(TOOL_REGISTRY[step.operation]["capability"])
+    allowed, reason = authorize_capability(required, set(scenario.granted_capabilities))
+    if not allowed:
+        disposition = (
+            AgentEvaluationCallDisposition.EXPECTED_POLICY_DENIAL
+            if step.expect_authorization_denial
+            else AgentEvaluationCallDisposition.UNEXPECTED_POLICY_DENIAL
+        )
+        return disposition, required, reason
+    if step.expect_authorization_denial:
+        return (
+            AgentEvaluationCallDisposition.AUTHORIZATION_EXPECTATION_MISMATCH,
+            required,
+            f"expected deny-by-default decision but authorization allowed: {reason}",
+        )
+    return None, required, reason
+
+
+def _preflight_failure(
+    step: AgentEvaluationStep,
+    *,
+    surface: str,
+    disposition: AgentEvaluationCallDisposition,
+    required_capability: str,
+    reason: str,
+    workspace: Path,
+    session_id: str,
+    call_number: int,
+    params: dict[str, Any],
+    step_state: dict[str, Any],
+) -> tuple[AgentEvaluationTraceEntry, AgentEvaluationOutcome, str]:
+    """Return stable evidence for a call rejected before runtime dispatch."""
+    if disposition == AgentEvaluationCallDisposition.INVALID_SURFACE_CALL:
+        error_type = "InvalidSurfaceToolCall"
+    elif disposition == AgentEvaluationCallDisposition.AUTHORIZATION_EXPECTATION_MISMATCH:
+        error_type = "AuthorizationExpectationMismatch"
+    else:
+        error_type = "OperationNotAuthorized"
+    normalized_result = {
+        "error_type": error_type,
+        "error": _replace_sensitive_paths(reason, workspace=workspace, session_id=session_id),
+    }
+    step_state[step.step_id] = {"error": normalized_result, "status": "failed"}
+    outcome = step.on_error_outcome or AgentEvaluationOutcome.BLOCKED
+    status = (
+        AgentEvaluationStepStatus.STOPPED
+        if outcome == AgentEvaluationOutcome.STOP_CONDITION
+        else AgentEvaluationStepStatus.FAILED
+    )
+    trace = AgentEvaluationTraceEntry(
+        call_number=call_number,
+        step_id=step.step_id,
+        executor=step.executor,
+        operation=step.operation,
+        status=status,
+        surface=surface,
+        disposition=disposition,
+        required_capability=required_capability,
+        authorization_reason=reason,
+        risk="safe",
+        params_sha256=_stable_sha256(_replace_sensitive_paths(params, workspace=workspace, session_id=session_id)),
+        result_sha256=_stable_sha256(normalized_result),
+        error_type=error_type,
+        error_message=str(normalized_result["error"]),
+    )
+    return trace, outcome, str(normalized_result["error"])
+
+
 def _execute_scenario_step(
+    scenario: AgentEvaluationScenario,
     step: AgentEvaluationStep,
     *,
     call_number: int,
@@ -299,6 +386,21 @@ def _execute_scenario_step(
 ) -> tuple[AgentEvaluationTraceEntry, AgentEvaluationOutcome | None, str]:
     """Execute one bounded step and return its trace plus any stop outcome."""
     params = _resolve_templates(step.params, context)
+    disposition, required_capability, authorization_reason = _surface_call_preflight(scenario, step)
+    if disposition is not None:
+        trace, outcome, stop_reason = _preflight_failure(
+            step,
+            surface=scenario.surface,
+            disposition=disposition,
+            required_capability=required_capability,
+            reason=authorization_reason,
+            workspace=workspace,
+            session_id=session_id,
+            call_number=call_number,
+            params=params,
+            step_state=step_state,
+        )
+        return trace, outcome, stop_reason
     before = _workspace_files(workspace)
     step_started = time.perf_counter()
     timestamp = time.time()
@@ -313,6 +415,7 @@ def _execute_scenario_step(
         status = AgentEvaluationStepStatus.PASSED
         error_type = ""
         error_message = ""
+        call_disposition = AgentEvaluationCallDisposition.EXECUTED
     except Exception as exc:  # scenario evidence must record tool failures
         normalized_result = {
             "error_type": type(exc).__name__,
@@ -328,6 +431,7 @@ def _execute_scenario_step(
         )
         error_type = type(exc).__name__
         error_message = stop_reason
+        call_disposition = AgentEvaluationCallDisposition.RUNTIME_FAILURE
     new_files = sorted(path.relative_to(workspace).as_posix() for path in _workspace_files(workspace) - before)
     for relative in new_files:
         produced_by[relative] = step.step_id
@@ -339,6 +443,10 @@ def _execute_scenario_step(
         executor=step.executor,
         operation=step.operation,
         status=status,
+        surface=scenario.surface,
+        disposition=call_disposition,
+        required_capability=required_capability,
+        authorization_reason=authorization_reason,
         risk=risk,
         params_sha256=_stable_sha256(_replace_sensitive_paths(params, workspace=workspace, session_id=session_id)),
         result_sha256=_stable_sha256(normalized_result),
@@ -363,6 +471,7 @@ def _run_scenario_steps(
     traces: list[AgentEvaluationTraceEntry] = []
     for call_number, step in enumerate(scenario.steps, start=1):
         trace, outcome, stop_reason = _execute_scenario_step(
+            scenario,
             step,
             call_number=call_number,
             workspace=workspace,
@@ -510,6 +619,112 @@ def _report_sha256(report: AgentEvaluationReport) -> str:
     return _stable_sha256(payload)
 
 
+def _rate(numerator: int, denominator: int) -> float:
+    return round(numerator / denominator, 6) if denominator else 0.0
+
+
+def _surface_contract() -> tuple[str, dict[str, tuple[str, ...]]]:
+    surfaces = {surface: surface_tool_names(surface) for surface in SUPPORTED_TOOL_SURFACES if surface != "expert"}
+    payload = {
+        surface: [{"name": name, "capability": TOOL_REGISTRY[name]["capability"]} for name in names]
+        for surface, names in surfaces.items()
+    }
+    return _stable_sha256(payload), surfaces
+
+
+def _surface_metrics(
+    scenarios: list[AgentEvaluationScenario],
+    results: list[AgentEvaluationScenarioResult],
+) -> tuple[dict[str, AgentEvaluationSurfaceMetrics], int]:
+    _, surface_contracts = _surface_contract()
+    scenario_by_id = {scenario.scenario_id: scenario for scenario in scenarios}
+    metrics: dict[str, AgentEvaluationSurfaceMetrics] = {}
+    regressions = 0
+    for surface, names in surface_contracts.items():
+        surface_scenarios = [scenario for scenario in scenarios if scenario.surface == surface]
+        surface_results = [result for result in results if scenario_by_id[result.scenario_id].surface == surface]
+        traces = [
+            trace
+            for result in surface_results
+            for trace in result.traces
+            if trace.executor == AgentEvaluationExecutor.AGENT_TOOL
+        ]
+        planned = sum(
+            1
+            for scenario in surface_scenarios
+            for step in scenario.steps
+            if step.executor == AgentEvaluationExecutor.AGENT_TOOL
+        )
+        invalid = sum(trace.disposition == AgentEvaluationCallDisposition.INVALID_SURFACE_CALL for trace in traces)
+        expected_denials = sum(
+            trace.disposition == AgentEvaluationCallDisposition.EXPECTED_POLICY_DENIAL for trace in traces
+        )
+        unexpected_denials = sum(
+            trace.disposition == AgentEvaluationCallDisposition.UNEXPECTED_POLICY_DENIAL for trace in traces
+        )
+        expectation_mismatches = sum(
+            trace.disposition == AgentEvaluationCallDisposition.AUTHORIZATION_EXPECTATION_MISMATCH for trace in traces
+        )
+        denials = expected_denials + unexpected_denials
+        runtime_failures = sum(trace.disposition == AgentEvaluationCallDisposition.RUNTIME_FAILURE for trace in traces)
+        task_results = [
+            result
+            for result in surface_results
+            if scenario_by_id[result.scenario_id].evaluation_role == AgentEvaluationScenarioRole.TASK
+        ]
+        task_outcomes = {outcome.value: 0 for outcome in AgentEvaluationOutcome}
+        for result in task_results:
+            task_outcomes[result.outcome.value] += 1
+        task_completed = sum(result.matched_expectation for result in task_results)
+        replay_results = [result for result in surface_results if result.replay_equivalent is not None]
+        replay_equivalent = sum(result.replay_equivalent is True for result in replay_results)
+        replay_mismatches = len(replay_results) - replay_equivalent
+        regressions += invalid + unexpected_denials + expectation_mismatches + runtime_failures + replay_mismatches
+        metrics[surface] = AgentEvaluationSurfaceMetrics(
+            surface=surface,
+            visible_tool_count=len(names),
+            tool_contract_sha256=_stable_sha256(
+                [{"name": name, "capability": TOOL_REGISTRY[name]["capability"]} for name in names]
+            ),
+            planned_call_count=planned,
+            invalid_call_count=invalid,
+            invalid_call_rate=_rate(invalid, planned),
+            authorization_denial_count=denials,
+            authorization_denial_rate=_rate(denials, planned),
+            expected_policy_denial_count=expected_denials,
+            unexpected_policy_denial_count=unexpected_denials,
+            authorization_expectation_mismatch_count=expectation_mismatches,
+            runtime_failure_count=runtime_failures,
+            task_count=len(task_results),
+            task_completion_count=task_completed,
+            task_completion_rate=_rate(task_completed, len(task_results)),
+            task_outcome_counts=task_outcomes,
+            replay_check_count=len(replay_results),
+            replay_equivalent_count=replay_equivalent,
+            replay_mismatch_count=replay_mismatches,
+            replay_equivalence_rate=_rate(replay_equivalent, len(replay_results)),
+        )
+    return metrics, regressions
+
+
+def _run_scenario_with_replay_check(
+    scenario: AgentEvaluationScenario,
+    *,
+    output_dir: Path,
+) -> AgentEvaluationScenarioResult:
+    result = _run_scenario(scenario, output_dir=output_dir)
+    if not scenario.surface:
+        return result
+    replay_root = output_dir / ".replay-check" / scenario.scenario_id
+    try:
+        replay = _run_scenario(scenario, output_dir=replay_root)
+        result.replay_trace_sha256 = replay.trace_sha256
+        result.replay_equivalent = result.trace_sha256 == replay.trace_sha256 and result.outcome == replay.outcome
+        return result
+    finally:
+        shutil.rmtree(replay_root, ignore_errors=True)
+
+
 def run_agent_evaluation(
     corpus: AgentEvaluationCorpus,
     *,
@@ -521,20 +736,26 @@ def run_agent_evaluation(
     resolved_mode = AgentEvaluationMode(mode)
     root = _prepare_output_root(output_dir)
     selected = [scenario for scenario in corpus.scenarios if resolved_mode in scenario.modes]
-    results = [_run_scenario(scenario, output_dir=root) for scenario in selected]
+    results = [_run_scenario_with_replay_check(scenario, output_dir=root) for scenario in selected]
     outcome_counts = {outcome.value: 0 for outcome in AgentEvaluationOutcome}
     for result in results:
         outcome_counts[result.outcome.value] += 1
     mismatch_count = sum(1 for result in results if not result.matched_expectation)
+    surface_contract_sha256, _ = _surface_contract()
+    surface_metrics, surface_regression_count = _surface_metrics(selected, results)
     report = AgentEvaluationReport(
         corpus_version=corpus.corpus_version,
         corpus_sha256=_corpus_sha256(corpus),
+        protocol_version="2026-07-28",
+        surface_contract_sha256=surface_contract_sha256,
         mode=resolved_mode,
         generated_at=datetime.now(UTC).isoformat(),
-        passed=mismatch_count == 0,
+        passed=mismatch_count == 0 and surface_regression_count == 0,
         scenario_count=len(results),
         mismatch_count=mismatch_count,
         outcome_counts=outcome_counts,
+        surface_regression_count=surface_regression_count,
+        surface_metrics=surface_metrics,
         scenarios=results,
         evidence_identity=evidence_identity or {},
         non_claims=[*corpus.non_claims],

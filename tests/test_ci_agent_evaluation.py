@@ -40,10 +40,19 @@ def test_ci_script_writes_identity_bound_json_and_markdown(tmp_path: Path) -> No
     assert report["scenario_count"] == 1
     assert report["mode"] == "ci"
     assert report["evidence_identity"]["identity_sha256"]
+    assert report["protocol_version"] == "2026-07-28"
+    assert len(report["surface_contract_sha256"]) == 64
+    assert report["surface_metrics"]["inspect"]["task_count"] == 1
+    assert report["surface_metrics"]["inspect"]["replay_equivalent_count"] == 1
     assert len(report["report_sha256"]) == 64
     text = markdown.read_text(encoding="utf-8")
     assert "# Agent Evaluation Harness" in text
     assert "requirements-esp32-sensor" in text
+    assert "## MCP surface metrics" in text
+    assert "Invalid-call rate" in text
+    assert "Authorization-denial rate" in text
+    assert "Expected policy denials" in text
+    assert "Replay equivalent" in text
     assert "not language-model quality" in text
 
 
@@ -106,3 +115,41 @@ def test_ci_script_refuses_to_delete_an_unowned_existing_artifact_directory(tmp_
 
     assert code == 2
     assert sentinel.read_text(encoding="utf-8") == "do not delete"
+
+
+def test_ci_script_fails_closed_when_committed_report_schema_drifts(tmp_path: Path, monkeypatch) -> None:
+    import scripts.ci_agent_evaluation as module
+
+    bad_schema = tmp_path / "agent-evaluation.schema.json"
+    bad_schema.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(module, "REPORT_SCHEMA", bad_schema)
+
+    code = module.main(
+        [
+            "--scenario",
+            "requirements-esp32-sensor",
+            "--artifact-dir",
+            str(tmp_path / "artifacts"),
+            "--output",
+            str(tmp_path / "report.json"),
+            "--markdown",
+            str(tmp_path / "report.md"),
+        ]
+    )
+
+    assert code == 2
+
+
+def test_agent_evaluation_docs_define_surface_metric_semantics_and_non_claims() -> None:
+    text = Path("docs/benchmarks/agent-evaluation-harness.md").read_text(encoding="utf-8")
+
+    assert "Invalid-call rate" in text
+    assert "Authorization-denial rate" in text
+    assert "Expected policy denial" in text
+    assert "Runtime failure" in text
+    assert "Task completion" in text
+    assert "Replay equivalence" in text
+    assert "2026-07-28" in text
+    assert "surface contract SHA-256" in text
+    assert "source commit" in text
+    assert "does not prove hardware correctness" in text

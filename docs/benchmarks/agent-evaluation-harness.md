@@ -62,6 +62,24 @@ The report schema is committed at:
 schemas/agent-evaluation-report-v1.schema.json
 ```
 
+## MCP surface metrics
+
+Surface-aware scenarios are evaluated against the committed `inspect`, `design`, `verify`, `repair`, and `release` profiles while the legacy corpus continues to exercise the shared dispatcher independently. The report binds these measurements to MCP protocol `2026-07-28`, a surface contract SHA-256 derived from visible tool names plus capability requirements, and the evidence identity source commit captured by the CI runner.
+
+The machine-readable `surface_metrics` object uses these semantics:
+
+| Metric | Meaning |
+|---|---|
+| **Invalid-call rate** | Planned agent-tool calls whose tool exists in the registry but is not visible on the selected reduced surface, divided by planned calls for that surface. Invalid surface calls are rejected before dispatch and count as regressions. |
+| **Authorization-denial rate** | Capability-policy denials divided by planned agent-tool calls for that surface. Expected and unexpected denials are reported separately so correct deny-by-default behavior is not conflated with runtime failure. |
+| **Expected policy denial** | A deny-by-default capability decision that the fixture explicitly expects. It is recorded as authorization evidence and does not count as a runtime failure or product regression. |
+| **Unexpected policy denial** | A capability denial that the fixture did not expect. It counts as a surface regression. |
+| **Runtime failure** | An exception raised after a valid, authorized call reaches the shared dispatcher. Runtime failures are distinct from correct policy denials and count as surface regressions. |
+| **Task completion** | A task-role scenario reached its committed expected outcome. A correct blocked or human-review-required outcome can therefore be a completed contract; this is not the same as claiming engineering success. |
+| **Replay equivalence** | A second isolated execution produced the same normalized trace SHA-256 and outcome after volatile timing and workspace/session identities were excluded. Replay equivalence is deterministic software evidence, not physical-state proof. |
+
+`surface_regression_count` is the sum of invalid surface calls, unexpected policy denials, authorization-expectation mismatches, runtime failures, and replay mismatches. `--strict` fails when that count is non-zero or any scenario outcome mismatches its committed contract. The CI command also compares the committed JSON schema with the runtime Pydantic report model before execution, so schema drift fails closed.
+
 ## Run locally
 
 Run the complete CI profile:
@@ -92,4 +110,4 @@ The existing `Quality` workflow runs this harness in the benchmark-evidence job.
 
 ## Non-claims
 
-A passing report is regression evidence for deterministic orchestration. It does not establish language-model quality, electrical correctness, manufacturer approval, fabrication readiness, independent reproduction, EMC compliance, solver-grade SI/PI or thermal sign-off, or physical board operation.
+A passing report is regression evidence for deterministic orchestration. It does not prove hardware correctness and does not establish language-model quality, electrical correctness, manufacturer approval, fabrication readiness, independent reproduction, EMC compliance, solver-grade SI/PI or thermal sign-off, or physical board operation.
