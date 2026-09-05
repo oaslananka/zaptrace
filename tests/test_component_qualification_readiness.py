@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -69,24 +70,23 @@ def test_cohort_a_machine_blockers_are_exact_and_separate_from_human_review() ->
         )
 
 
+def _evaluate_invalid_ids(specs: dict[str, Any], component_ids: list[str]):
+    return evaluate_component_qualification_readiness(
+        specs,
+        component_ids,
+        repository_root=REPOSITORY_ROOT,
+        as_of=date(2026, 9, 5),
+    )
+
+
 def test_unknown_or_duplicate_cohort_ids_fail_closed() -> None:
     specs = LibraryLoader().load_all()
 
     with pytest.raises(ValueError, match="duplicate component id"):
-        evaluate_component_qualification_readiness(
-            specs,
-            ["bme280", "bme280"],
-            repository_root=REPOSITORY_ROOT,
-            as_of=date(2026, 9, 5),
-        )
+        _evaluate_invalid_ids(specs, ["bme280", "bme280"])
 
     with pytest.raises(ValueError, match="unsafe component id"):
-        evaluate_component_qualification_readiness(
-            specs,
-            ["../escape"],
-            repository_root=REPOSITORY_ROOT,
-            as_of=date(2026, 9, 5),
-        )
+        _evaluate_invalid_ids(specs, ["../escape"])
 
     report = evaluate_component_qualification_readiness(
         specs,
