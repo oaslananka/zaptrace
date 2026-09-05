@@ -114,96 +114,86 @@ def _blocker(
     )
 
 
+def _freshness_blocker(
+    field_name: ComponentField, evidence: Any, *, as_of: date, freshness_days: int
+) -> QualificationBlocker | None:
+    if field_name not in _TIME_BOUND_FIELDS or evidence.extracted_at is None:
+        return None
+    age_days = (as_of - evidence.extracted_at).days
+    if age_days < 0:
+        return _blocker(
+            QualificationBlockerClass.MACHINE,
+            "time-bound-source-captured-in-future",
+            "time-bound evidence capture date is after the qualification as-of date",
+            field=field_name.value,
+        )
+    if age_days > freshness_days:
+        return _blocker(
+            QualificationBlockerClass.MACHINE,
+            "time-bound-source-stale",
+            f"time-bound evidence is {age_days} days old; policy limit is {freshness_days}",
+            field=field_name.value,
+        )
+    return None
+
+
+def _field_evidence_machine_blockers(
+    field_name: ComponentField, evidence: Any, *, as_of: date, freshness_days: int
+) -> list[QualificationBlocker]:
+    field = field_name.value
+    checks = (
+        (
+            evidence.source_type in _AUTHORITATIVE_SOURCES,
+            "field-source-not-authoritative",
+            "verified qualification requires manufacturer or authorized-distributor evidence",
+        ),
+        (bool(evidence.source_locator), "field-source-locator-missing", "authoritative source locator is missing"),
+        (bool(evidence.source_identity), "field-source-identity-missing", "authoritative source identity is missing"),
+        (
+            bool(_SHA256_RE.fullmatch(evidence.source_sha256)),
+            "field-source-hash-missing",
+            "authoritative source is not bound to a SHA-256 digest",
+        ),
+        (
+            bool(evidence.source_version),
+            "field-source-version-missing",
+            "authoritative source version/capture identity is missing",
+        ),
+        (
+            bool(evidence.extraction_method and evidence.extracted_at is not None),
+            "field-extraction-metadata-missing",
+            "evidence extraction method/date is incomplete",
+        ),
+    )
+    blockers = [
+        _blocker(QualificationBlockerClass.MACHINE, code, message, field=field)
+        for passed, code, message in checks
+        if not passed
+    ]
+    freshness = _freshness_blocker(field_name, evidence, as_of=as_of, freshness_days=freshness_days)
+    if freshness is not None:
+        blockers.append(freshness)
+    return blockers
+
+
 def _field_machine_blockers(spec: Any, *, as_of: date, freshness_days: int) -> list[QualificationBlocker]:
     blockers: list[QualificationBlocker] = []
     provenance = getattr(spec, "field_provenance", {})
     for field_name in ComponentField:
         evidence = provenance.get(field_name)
-        field = field_name.value
         if evidence is None:
             blockers.append(
                 _blocker(
                     QualificationBlockerClass.MACHINE,
                     "field-provenance-missing",
                     "critical component field has no provenance",
-                    field=field,
+                    field=field_name.value,
                 )
             )
             continue
-        if evidence.source_type not in _AUTHORITATIVE_SOURCES:
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "field-source-not-authoritative",
-                    "verified qualification requires manufacturer or authorized-distributor evidence",
-                    field=field,
-                )
-            )
-        if not evidence.source_locator:
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "field-source-locator-missing",
-                    "authoritative source locator is missing",
-                    field=field,
-                )
-            )
-        if not evidence.source_identity:
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "field-source-identity-missing",
-                    "authoritative source identity is missing",
-                    field=field,
-                )
-            )
-        if not _SHA256_RE.fullmatch(evidence.source_sha256):
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "field-source-hash-missing",
-                    "authoritative source is not bound to a SHA-256 digest",
-                    field=field,
-                )
-            )
-        if not evidence.source_version:
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "field-source-version-missing",
-                    "authoritative source version/capture identity is missing",
-                    field=field,
-                )
-            )
-        if not evidence.extraction_method or evidence.extracted_at is None:
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "field-extraction-metadata-missing",
-                    "evidence extraction method/date is incomplete",
-                    field=field,
-                )
-            )
-        elif field_name in _TIME_BOUND_FIELDS:
-            age_days = (as_of - evidence.extracted_at).days
-            if age_days < 0:
-                blockers.append(
-                    _blocker(
-                        QualificationBlockerClass.MACHINE,
-                        "time-bound-source-captured-in-future",
-                        "time-bound evidence capture date is after the qualification as-of date",
-                        field=field,
-                    )
-                )
-            elif age_days > freshness_days:
-                blockers.append(
-                    _blocker(
-                        QualificationBlockerClass.MACHINE,
-                        "time-bound-source-stale",
-                        f"time-bound evidence is {age_days} days old; policy limit is {freshness_days}",
-                        field=field,
-                    )
-                )
+        blockers.extend(
+            _field_evidence_machine_blockers(field_name, evidence, as_of=as_of, freshness_days=freshness_days)
+        )
     return blockers
 
 
@@ -247,6 +237,87 @@ def _safe_repository_file(repository_root: Path, relative_path: str) -> Path:
     return resolved
 
 
+def _proof_identity_blockers(spec: Any, proof: FootprintProof) -> list[QualificationBlocker]:
+    if proof.package_id == getattr(spec, "package", "") and proof.footprint_name == getattr(spec, "footprint", ""):
+        return []
+    return [
+        _blocker(
+            QualificationBlockerClass.MACHINE,
+            "footprint-proof-identity-mismatch",
+            "footprint proof package/name does not match the component record",
+            field="footprint",
+        )
+    ]
+
+
+def _proof_source_blockers(proof: FootprintProof, *, repository_root: Path) -> list[QualificationBlocker]:
+    if proof.source.source_type not in {FootprintSourceType.VENDORED, FootprintSourceType.IMPORTED}:
+        return [
+            _blocker(
+                QualificationBlockerClass.MACHINE,
+                "footprint-proof-source-not-reviewable",
+                "qualification cohort requires a committed vendored/imported footprint source",
+                field="footprint",
+            )
+        ]
+    if not proof.source.source_path or not _SHA256_RE.fullmatch(proof.source.source_sha256):
+        return [
+            _blocker(
+                QualificationBlockerClass.MACHINE,
+                "footprint-proof-source-identity-missing",
+                "footprint proof source path/hash is incomplete",
+                field="footprint",
+            )
+        ]
+    try:
+        source_path = _safe_repository_file(repository_root, proof.source.source_path)
+    except (OSError, ValueError) as exc:
+        return [
+            _blocker(
+                QualificationBlockerClass.MACHINE,
+                "footprint-proof-source-unavailable",
+                str(exc),
+                field="footprint",
+            )
+        ]
+    observed = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    if observed == proof.source.source_sha256:
+        return []
+    return [
+        _blocker(
+            QualificationBlockerClass.MACHINE,
+            "footprint-proof-source-hash-mismatch",
+            "footprint source digest does not match the committed source file",
+            field="footprint",
+        )
+    ]
+
+
+def _proof_pin_contract_blockers(spec: Any, proof: FootprintProof) -> list[QualificationBlocker]:
+    physical_pins = set(getattr(spec, "package_pin_map", {}))
+    if not physical_pins:
+        return [
+            _blocker(
+                QualificationBlockerClass.MACHINE,
+                "package-pin-map-missing",
+                "qualification requires an exact physical package pin map",
+                field="package_pin_map",
+            )
+        ]
+    validation = validate_footprint_proof(proof, expected_physical_pins=physical_pins)
+    if not validation.blocked:
+        return []
+    codes = ", ".join(sorted({item.code for item in validation.diagnostics if item.severity.value == "error"}))
+    return [
+        _blocker(
+            QualificationBlockerClass.MACHINE,
+            "footprint-proof-blocked",
+            f"footprint proof validation failed: {codes}",
+            field="footprint",
+        )
+    ]
+
+
 def _proof_machine_blockers(
     spec: Any,
     *,
@@ -269,9 +340,10 @@ def _proof_machine_blockers(
             "",
         )
 
-    proof_digest = hashlib.sha256(proof_path.read_bytes()).hexdigest()
+    proof_bytes = proof_path.read_bytes()
+    proof_digest = hashlib.sha256(proof_bytes).hexdigest()
     try:
-        proof = FootprintProof.model_validate_json(proof_path.read_bytes())
+        proof = FootprintProof.model_validate_json(proof_bytes)
     except ValueError as exc:
         return (
             [
@@ -286,81 +358,9 @@ def _proof_machine_blockers(
             proof_digest,
         )
 
-    blockers: list[QualificationBlocker] = []
-    if proof.package_id != getattr(spec, "package", "") or proof.footprint_name != getattr(spec, "footprint", ""):
-        blockers.append(
-            _blocker(
-                QualificationBlockerClass.MACHINE,
-                "footprint-proof-identity-mismatch",
-                "footprint proof package/name does not match the component record",
-                field="footprint",
-            )
-        )
-
-    if proof.source.source_type not in {FootprintSourceType.VENDORED, FootprintSourceType.IMPORTED}:
-        blockers.append(
-            _blocker(
-                QualificationBlockerClass.MACHINE,
-                "footprint-proof-source-not-reviewable",
-                "qualification cohort requires a committed vendored/imported footprint source",
-                field="footprint",
-            )
-        )
-    elif not proof.source.source_path or not _SHA256_RE.fullmatch(proof.source.source_sha256):
-        blockers.append(
-            _blocker(
-                QualificationBlockerClass.MACHINE,
-                "footprint-proof-source-identity-missing",
-                "footprint proof source path/hash is incomplete",
-                field="footprint",
-            )
-        )
-    else:
-        try:
-            source_path = _safe_repository_file(repository_root, proof.source.source_path)
-        except (OSError, ValueError) as exc:
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "footprint-proof-source-unavailable",
-                    str(exc),
-                    field="footprint",
-                )
-            )
-        else:
-            observed = hashlib.sha256(source_path.read_bytes()).hexdigest()
-            if observed != proof.source.source_sha256:
-                blockers.append(
-                    _blocker(
-                        QualificationBlockerClass.MACHINE,
-                        "footprint-proof-source-hash-mismatch",
-                        "footprint source digest does not match the committed source file",
-                        field="footprint",
-                    )
-                )
-
-    physical_pins = set(getattr(spec, "package_pin_map", {}))
-    if not physical_pins:
-        blockers.append(
-            _blocker(
-                QualificationBlockerClass.MACHINE,
-                "package-pin-map-missing",
-                "qualification requires an exact physical package pin map",
-                field="package_pin_map",
-            )
-        )
-    else:
-        validation = validate_footprint_proof(proof, expected_physical_pins=physical_pins)
-        if validation.blocked:
-            codes = ", ".join(sorted({item.code for item in validation.diagnostics if item.severity.value == "error"}))
-            blockers.append(
-                _blocker(
-                    QualificationBlockerClass.MACHINE,
-                    "footprint-proof-blocked",
-                    f"footprint proof validation failed: {codes}",
-                    field="footprint",
-                )
-            )
+    blockers = _proof_identity_blockers(spec, proof)
+    blockers.extend(_proof_source_blockers(proof, repository_root=repository_root))
+    blockers.extend(_proof_pin_contract_blockers(spec, proof))
     return blockers, relative_path, proof_digest
 
 
