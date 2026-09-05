@@ -139,6 +139,7 @@ nav:
       - Dependency Policy: supply-chain/dependency-policy.md
       - Component Library Governance Schema: component-library-governance-schema-v2.md
       - Datasheet-backed Component Selection: component-selection.md
+      - Verified Component Qualification: component-qualification.md
       - Datasheet Fact Provenance: datasheet/fact-provenance-model.md
       - Footprint Proof Schema: footprints/footprint-proof-schema.md
       - IPC-7351 Skeleton: footprints/ipc7351-skeleton.md

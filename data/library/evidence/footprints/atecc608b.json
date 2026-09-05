@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0",
+  "package_id": "SOIC-8",
+  "footprint_name": "ATECC608B-SSHDA-T-SOIC8",
+  "source": {
+    "source_type": "vendored",
+    "source_name": "ZapTrace vendored KiCad land pattern: SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+    "source_path": "data/footprints/vendor/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+    "source_sha256": "074ecb2092b24fa4b4b9cdd7c926fc587b0d7d6d21e7341e57935fd42d36894f",
+    "generator": "",
+    "generator_version": "",
+    "attribution": "See data/footprints/vendor/ATTRIBUTION.md"
+  },
+  "pad_count": 8,
+  "pin_count": 8,
+  "pin_map": {
+    "1": "1",
+    "2": "2",
+    "3": "3",
+    "4": "4",
+    "5": "5",
+    "6": "6",
+    "7": "7",
+    "8": "8"
+  },
+  "pads": [
+    {
+      "pad_id": "1",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -2.475,
+        -1.905
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "2",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -2.475,
+        -0.635
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "3",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -2.475,
+        0.635
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "4",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -2.475,
+        1.905
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "5",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        2.475,
+        1.905
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "6",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        2.475,
+        0.635
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "7",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        2.475,
+        -0.635
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "8",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        2.475,
+        -1.905
+      ],
+      "size_mm": [
+        1.95,
+        0.6
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    }
+  ],
+  "courtyard_mm": [
+    7.4,
+    5.4
+  ],
+  "paste_enabled_pad_count": 8,
+  "paste_disabled_pad_count": 0,
+  "solder_mask_policy": "mask opening assumed for all pads unless explicitly modeled",
+  "thermal_pads": [],
+  "pin1": {
+    "present": true,
+    "pad_id": "1",
+    "method": "explicit-pad-id",
+    "message": "Pin-1 evidence found via pad id 1"
+  },
+  "notes": []
+}

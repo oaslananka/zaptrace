@@ -4,6 +4,8 @@ ZapTrace selects component candidates before PCB layout by combining declared de
 
 A schema-valid component can be selected for exploration while still requiring human review. A heuristic record is never silently promoted to manufacturer-verified or fabrication-safe status.
 
+Verified-trust qualification is a separate bounded workflow documented in [Verified component qualification](component-qualification.md).
+
 ## Public API
 
 ```python
