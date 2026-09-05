@@ -121,7 +121,7 @@ def validate_mutable_web_capture_binding(
         return [("field-source-hash-missing", "authoritative source has neither a raw SHA-256 nor a capture binding")]
     try:
         capture, observed_digest = load_mutable_web_evidence_capture(capture_path, repository_root=repository_root)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         return [("field-source-capture-invalid", str(exc))]
     if observed_digest != capture_sha256:
         return [

@@ -299,8 +299,10 @@ def test_verified_document_evidence_cannot_replace_source_hash_with_web_capture(
         "source_capture_sha256": "c" * 64,
     }
 
+    raw = verified_record(field_provenance=fields)
+
     with pytest.raises(ValidationError, match="mutable authoritative web"):
-        validate_component_record(verified_record(field_provenance=fields))
+        validate_component_record(raw)
 
 
 def test_field_provenance_rejects_partial_mutable_web_capture_identity() -> None:
