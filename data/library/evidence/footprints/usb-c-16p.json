@@ -1,0 +1,392 @@
+{
+  "schema_version": "1.0",
+  "package_id": "SMD-16P",
+  "footprint_name": "USB-C-16P-SMD",
+  "source": {
+    "source_type": "vendored",
+    "source_name": "ZapTrace vendored KiCad land pattern: USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal.kicad_mod",
+    "source_path": "data/footprints/vendor/USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal.kicad_mod",
+    "source_sha256": "db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c",
+    "generator": "",
+    "generator_version": "",
+    "attribution": "See data/footprints/vendor/ATTRIBUTION.md"
+  },
+  "pad_count": 20,
+  "pin_count": 17,
+  "pin_map": {
+    "A1": "A1",
+    "A4": "A4",
+    "A5": "A5",
+    "A6": "A6",
+    "A7": "A7",
+    "A8": "A8",
+    "A9": "A9",
+    "A12": "A12",
+    "B1": "B1",
+    "B4": "B4",
+    "B5": "B5",
+    "B6": "B6",
+    "B7": "B7",
+    "B8": "B8",
+    "B9": "B9",
+    "B12": "B12",
+    "S1": "S1"
+  },
+  "pads": [
+    {
+      "pad_id": "A1",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -3.2,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A4",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -2.4,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A5",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -1.25,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A6",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -0.25,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A7",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        0.25,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A8",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        1.25,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A9",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        2.4,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "A12",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        3.2,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B1",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        3.2,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B4",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        2.4,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B5",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        1.75,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B6",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        0.75,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B7",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -0.75,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B8",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -1.75,
+        -3.68
+      ],
+      "size_mm": [
+        0.3,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B9",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -2.4,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "B12",
+      "layer": "top",
+      "shape": "custom",
+      "position_mm": [
+        -3.2,
+        -3.68
+      ],
+      "size_mm": [
+        0.6,
+        1.15
+      ],
+      "drill_mm": null,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "S1",
+      "layer": "all",
+      "shape": "oval",
+      "position_mm": [
+        -4.32,
+        -3.105
+      ],
+      "size_mm": [
+        1.0,
+        2.1
+      ],
+      "drill_mm": 0.0,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "S1",
+      "layer": "all",
+      "shape": "oval",
+      "position_mm": [
+        -4.32,
+        1.075
+      ],
+      "size_mm": [
+        1.0,
+        1.8
+      ],
+      "drill_mm": 0.0,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "S1",
+      "layer": "all",
+      "shape": "oval",
+      "position_mm": [
+        4.32,
+        -3.105
+      ],
+      "size_mm": [
+        1.0,
+        2.1
+      ],
+      "drill_mm": 0.0,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    },
+    {
+      "pad_id": "S1",
+      "layer": "all",
+      "shape": "oval",
+      "position_mm": [
+        4.32,
+        1.075
+      ],
+      "size_mm": [
+        1.0,
+        1.8
+      ],
+      "drill_mm": 0.0,
+      "plated": true,
+      "solder_paste": true,
+      "solder_mask": true
+    }
+  ],
+  "courtyard_mm": [
+    10.64,
+    8.94
+  ],
+  "paste_enabled_pad_count": 20,
+  "paste_disabled_pad_count": 0,
+  "solder_mask_policy": "mask opening assumed for all pads unless explicitly modeled",
+  "thermal_pads": [],
+  "pin1": {
+    "present": true,
+    "pad_id": "A1",
+    "method": "explicit-pad-id",
+    "message": "Pin-1 evidence found via pad id A1"
+  },
+  "notes": []
+}

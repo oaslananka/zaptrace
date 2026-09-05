@@ -1,0 +1,10 @@
+schema_version: "1.0"
+cohort_id: verified-core-cohort-a
+as_of: 2026-09-05
+freshness_days: 90
+component_ids:
+  - esp32-c3-mini-1
+  - usb-c-16p
+  - ap2112k-3.3
+  - bme280
+  - atecc608b

@@ -1,0 +1,172 @@
+{
+  "$defs": {
+    "ComponentQualificationReadiness": {
+      "description": "Review-readiness result for one component without trust promotion.",
+      "properties": {
+        "blockers": {
+          "items": {
+            "$ref": "#/$defs/QualificationBlocker"
+          },
+          "title": "Blockers",
+          "type": "array"
+        },
+        "component_id": {
+          "title": "Component Id",
+          "type": "string"
+        },
+        "evidence_sha256": {
+          "title": "Evidence Sha256",
+          "type": "string"
+        },
+        "footprint_proof_path": {
+          "default": "",
+          "title": "Footprint Proof Path",
+          "type": "string"
+        },
+        "footprint_proof_sha256": {
+          "default": "",
+          "title": "Footprint Proof Sha256",
+          "type": "string"
+        },
+        "human_review_required": {
+          "title": "Human Review Required",
+          "type": "boolean"
+        },
+        "release_eligible": {
+          "title": "Release Eligible",
+          "type": "boolean"
+        },
+        "review_ready": {
+          "title": "Review Ready",
+          "type": "boolean"
+        },
+        "trust_tier": {
+          "title": "Trust Tier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component_id",
+        "trust_tier",
+        "release_eligible",
+        "review_ready",
+        "human_review_required",
+        "evidence_sha256"
+      ],
+      "title": "ComponentQualificationReadiness",
+      "type": "object"
+    },
+    "QualificationBlocker": {
+      "description": "One exact blocker preventing review readiness or human completion.",
+      "properties": {
+        "blocker_class": {
+          "$ref": "#/$defs/QualificationBlockerClass"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "field": {
+          "default": "",
+          "title": "Field",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blocker_class",
+        "code",
+        "message"
+      ],
+      "title": "QualificationBlocker",
+      "type": "object"
+    },
+    "QualificationBlockerClass": {
+      "description": "Whether a readiness blocker requires machine evidence or human review.",
+      "enum": [
+        "machine",
+        "human"
+      ],
+      "title": "QualificationBlockerClass",
+      "type": "string"
+    }
+  },
+  "description": "Deterministic cohort-level qualification-readiness report.",
+  "properties": {
+    "as_of": {
+      "format": "date",
+      "title": "As Of",
+      "type": "string"
+    },
+    "component_count": {
+      "minimum": 0,
+      "title": "Component Count",
+      "type": "integer"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/ComponentQualificationReadiness"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "freshness_days": {
+      "minimum": 1,
+      "title": "Freshness Days",
+      "type": "integer"
+    },
+    "human_review_required_count": {
+      "minimum": 0,
+      "title": "Human Review Required Count",
+      "type": "integer"
+    },
+    "machine_blocked_count": {
+      "minimum": 0,
+      "title": "Machine Blocked Count",
+      "type": "integer"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Non Claims",
+      "type": "array"
+    },
+    "release_eligible_count": {
+      "minimum": 0,
+      "title": "Release Eligible Count",
+      "type": "integer"
+    },
+    "report_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Report Sha256",
+      "type": "string"
+    },
+    "review_ready_count": {
+      "minimum": 0,
+      "title": "Review Ready Count",
+      "type": "integer"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "as_of",
+    "freshness_days",
+    "component_count",
+    "review_ready_count",
+    "machine_blocked_count",
+    "human_review_required_count",
+    "release_eligible_count",
+    "report_sha256",
+    "components"
+  ],
+  "title": "ComponentQualificationReport",
+  "type": "object"
+}
