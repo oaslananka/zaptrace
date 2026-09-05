@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+import zaptrace.agent.tool_surfaces as tool_surfaces
+import zaptrace.mcp.server as mcp_server
 from zaptrace.agent.tool_impls.registry import TOOL_REGISTRY
 from zaptrace.agent.tool_surfaces import (
     MCP_TOOL_SURFACE_ENV,
@@ -36,6 +38,41 @@ def test_reduced_surface_membership_is_deterministic_bounded_and_registry_backed
     assert len(names) == len(set(names))
     assert set(names) <= set(TOOL_REGISTRY)
     assert names == tuple(name for name in TOOL_REGISTRY if name in set(names))
+
+
+@pytest.mark.parametrize(
+    ("members", "message"),
+    [
+        (frozenset(), "has no members"),
+        (frozenset({"not_a_registered_tool"}), "references unknown tools"),
+        (frozenset(TOOL_REGISTRY), "is not reduced"),
+    ],
+)
+def test_surface_membership_validation_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    members: frozenset[str],
+    message: str,
+) -> None:
+    configured = dict(tool_surfaces._SURFACE_MEMBERS)
+    configured["inspect"] = members
+    monkeypatch.setattr(tool_surfaces, "_SURFACE_MEMBERS", configured)
+
+    with pytest.raises(RuntimeError, match=message):
+        tool_surfaces._validate_surface_membership()
+
+
+def test_server_applies_reduced_surface_as_tool_only_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    disabled: list[dict[str, object]] = []
+    enabled: list[dict[str, object]] = []
+    monkeypatch.setattr(mcp_server, "ACTIVE_TOOL_SURFACE", "verify")
+    monkeypatch.setattr(mcp_server.server, "disable", lambda **kwargs: disabled.append(kwargs))
+    monkeypatch.setattr(mcp_server.server, "enable", lambda **kwargs: enabled.append(kwargs))
+
+    mcp_server._apply_tool_surface_visibility()
+
+    expected_names = set(surface_tool_names("verify")) | _SESSION_TOOLS
+    assert disabled == [{"components": {"tool"}}]
+    assert enabled == [{"names": expected_names, "components": {"tool"}}]
 
 
 def test_inspect_surface_is_read_only() -> None:
