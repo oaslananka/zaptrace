@@ -78,7 +78,7 @@ See [SAFETY.md](SAFETY.md) for the full disclaimers.
 See [CONTRIBUTING.md](https://github.com/oaslananka/zaptrace/blob/main/CONTRIBUTING.md).
 
 ### What's the license?
-Current project-authored source uses PolyForm Noncommercial 1.0.0. Noncommercial use is permitted under that license; commercial use requires a separate written commercial license. Earlier MIT-licensed releases remain under their original MIT terms. See [LICENSING.md](../LICENSING.md).
+Current project-authored source uses PolyForm Noncommercial 1.0.0. Noncommercial use is permitted under that license; commercial use requires a separate written commercial license. Earlier MIT-licensed releases remain under their original MIT terms. See [LICENSING.md](https://github.com/oaslananka/zaptrace/blob/main/LICENSING.md).
 
 ### How can I report a bug?
 Open a [GitHub Issue](https://github.com/oaslananka/zaptrace/issues/new?template=bug_report.yml).
