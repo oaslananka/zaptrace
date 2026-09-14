@@ -4,9 +4,10 @@
 
 ## Recommended target
 
-- Immediate: OpenSSF Passing readiness and Baseline Level 1.
-- Professional target: OpenSSF Silver readiness and Baseline Level 2.
-- Do not claim Gold or foundation-grade maturity until independent maintainers, regular non-author review, and stronger legal/continuity evidence exist.
+- Current: preserve OpenSSF/OSPS engineering evidence without claiming current FLOSS-license eligibility.
+- Historical: the MIT-licensed period can retain its Passing/Silver readiness evidence as a dated record.
+- Engineering target: continue Baseline-style security, release, dependency, and governance controls where they remain useful.
+- Do not claim current OpenSSF Best Practices status, Gold, or foundation-grade maturity while the project uses PolyForm Noncommercial 1.0.0 and remains solo-maintainer.
 
 ## Passing and Baseline status
 

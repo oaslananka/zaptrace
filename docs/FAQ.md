@@ -3,7 +3,7 @@
 ## General
 
 ### What is ZapTrace?
-ZapTrace is an AI-native, verification-first, open-source EDA (Electronic Design Automation) kernel. It takes design intent (as YAML or natural language) and produces validated design outputs including Gerber files, BOM, and pick-and-place data. **All outputs require human engineering review before fabrication.**
+ZapTrace is an AI-native, verification-first, source-available EDA (Electronic Design Automation) kernel. It takes design intent (as YAML or natural language) and produces validated design outputs including Gerber files, BOM, and pick-and-place data. **All outputs require human engineering review before fabrication.**
 
 ### Is ZapTrace a KiCad replacement?
 No. ZapTrace is a backend engine for programmatic electronics design. You can use it alongside KiCad — ZapTrace generates KiCad-compatible files, and you can open them in KiCad for further editing.
@@ -78,7 +78,7 @@ See [SAFETY.md](SAFETY.md) for the full disclaimers.
 See [CONTRIBUTING.md](https://github.com/oaslananka/zaptrace/blob/main/CONTRIBUTING.md).
 
 ### What's the license?
-MIT — free for commercial and personal use.
+Current project-authored source uses PolyForm Noncommercial 1.0.0. Noncommercial use is permitted under that license; commercial use requires a separate written commercial license. Earlier MIT-licensed releases remain under their original MIT terms. See [LICENSING.md](../LICENSING.md).
 
 ### How can I report a bug?
 Open a [GitHub Issue](https://github.com/oaslananka/zaptrace/issues/new?template=bug_report.yml).

@@ -1,6 +1,6 @@
 # OpenSSF BadgeApp Proposal Links
 
-OpenSSF BadgeApp supports proposal links that pre-fill criterion status and justification fields. Use these links only after verifying the evidence in the repository.
+OpenSSF BadgeApp supports proposal links that pre-fill criterion status and justification fields. These links are retained as historical engineering evidence from the MIT-licensed period; do not use them to claim current FLOSS license eligibility while project-authored ZapTrace code is under PolyForm Noncommercial 1.0.0.
 
 ## Project
 
@@ -28,7 +28,7 @@ https://www.bestpractices.dev/en/projects/13403/choose/edit?CRITERION_ID_status=
 |-----------|--------------------|
 | Project description | `README.md` describes ZapTrace, quickstart, status, limitations, and non-claims. |
 | Contribution process | `CONTRIBUTING.md` and `.github/PULL_REQUEST_TEMPLATE.md`. |
-| License | `LICENSE`, MIT. |
+| License | Historical MIT-period evidence only. Current project-authored source uses PolyForm Noncommercial 1.0.0; see `LICENSING.md`. |
 | Documentation basics | `README.md`, docs site, `docs/tutorials/getting-started.md`. |
 | Governance | `GOVERNANCE.md`. |
 | Roles | `MAINTAINERS.md`. |
