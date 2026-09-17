@@ -16,7 +16,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from zaptrace.ee.footprint_proof import (
     FootprintProof,
@@ -594,4 +594,54 @@ def evaluate_component_qualification_readiness(
             ),
             "No reviewer identity or approval scope is synthesized by this report.",
         ],
+    )
+
+
+class HumanReviewPacket(BaseModel):
+    """Structured review packet prepared for human engineering sign-off."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    component_id: str = Field(..., description="Target component identifier")
+    as_of: str = Field(..., description="ISO-8601 evaluation date")
+    machine_review_ready: bool = Field(..., description="Indicates machine-side checks pass")
+    human_review_required: bool = Field(..., description="Indicates human review is required")
+    open_human_blockers: list[str] = Field(default_factory=list, description="Human review items required")
+    checklist: list[str] = Field(
+        default_factory=lambda: [
+            "Verify MPN and manufacturer identity against official datasheet.",
+            "Verify pinout and electrical pin mapping against footprint symbol.",
+            "Verify physical footprint courtyard and landing pad geometry.",
+            "Verify lifecycle state and authorized distributor sourcing evidence.",
+            "Sign off with reviewer identity and ISO-8601 timestamp.",
+        ]
+    )
+
+
+def build_human_review_packet(
+    component_id: str,
+    specs: dict[str, Any],
+    *,
+    repository_root: str | Path,
+    as_of: date,
+    freshness_days: int = 90,
+) -> HumanReviewPacket:
+    """Build a human review packet for a component without setting fake approvals."""
+    report = evaluate_component_qualification_readiness(
+        specs,
+        [component_id],
+        repository_root=repository_root,
+        as_of=as_of,
+        freshness_days=freshness_days,
+    )
+    row = report.components[0]
+    human_blockers = [
+        blocker.message for blocker in row.blockers if blocker.blocker_class is QualificationBlockerClass.HUMAN
+    ]
+    return HumanReviewPacket(
+        component_id=component_id,
+        as_of=as_of.isoformat(),
+        machine_review_ready=row.review_ready,
+        human_review_required=row.human_review_required,
+        open_human_blockers=human_blockers,
     )

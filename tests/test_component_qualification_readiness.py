@@ -107,3 +107,21 @@ def test_mutable_web_capture_can_satisfy_machine_identity_without_raw_page_hash(
     machine = [blocker for blocker in row.blockers if blocker.blocker_class is QualificationBlockerClass.MACHINE]
 
     assert {(blocker.code, blocker.field) for blocker in machine} == {("field-source-hash-missing", "sourcing")}
+
+
+def test_build_human_review_packet_for_cohort_a_component() -> None:
+    from zaptrace.library.qualification import build_human_review_packet
+
+    specs = LibraryLoader().load_all()
+    packet = build_human_review_packet(
+        "esp32-c3-mini-1",
+        specs,
+        repository_root=REPOSITORY_ROOT,
+        as_of=date(2026, 9, 5),
+    )
+
+    assert packet.component_id == "esp32-c3-mini-1"
+    assert packet.machine_review_ready is True
+    assert packet.human_review_required is True
+    assert len(packet.checklist) == 5
+    assert len(packet.open_human_blockers) > 0

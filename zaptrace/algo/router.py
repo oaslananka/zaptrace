@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from zaptrace.algo.pad_escape import RouteEvidenceScorecard, compute_escape_point
 from zaptrace.core.models import Component, Design, Net, RouteResult, TraceSegment
@@ -13,6 +14,21 @@ logger = logging.getLogger(__name__)
 
 _ZERO_LENGTH_TOLERANCE_MM = 1e-9
 _CORNER_CHAMFER_MM = 0.2
+
+
+
+from typing import Protocol
+
+
+class RoutingBackend(Protocol):
+    """Abstract interface contract for placement/routing engines."""
+
+    def route(
+        self,
+        design: Design,
+        positions: dict[str, tuple[float, float]],
+    ) -> RoutingResult:
+        ...
 
 
 @dataclass

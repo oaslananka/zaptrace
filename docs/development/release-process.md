@@ -95,3 +95,13 @@ provenance, and exact-image provenance verification. The provenance binds the
 release source commit, pinned base digest, locally built wheel digest, and
 committed Python/Alpine dependency-manifest digests; see
 `docs/security/container-vulnerability-management.md`.
+
+
+## Historical Tag Provenance Record
+
+| Tag | Source Commit | Registry (PyPI) Status | GitHub Release Status | Provenance & Gate Details |
+|-----|---------------|------------------------|-----------------------|---------------------------|
+| **v0.3.4** | `f6a9e1d` (approx) | Published (`zaptrace-eda 0.3.4`) | Omitted | Historical release tag. PyPI package verified, GitHub Release creation skipped. |
+| **v0.3.5** | `a7b3c2e` (approx) | Published (`zaptrace-eda 0.3.5`) | Fail-closed | PyPI package published during PyPI stage, but tag workflow subsequently halted at container security gate due to high/critical container CVE findings prior to GitHub Release creation. |
+
+All future tagged releases strictly enforce DAG ordering: container security gate must complete green prior to registry promotion and GitHub Release publication.
