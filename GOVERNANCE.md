@@ -8,7 +8,7 @@ The project owner and lead maintainer makes final decisions about scope, release
 
 ## Current maturity claim
 
-ZapTrace targets professional source-available engineering practices. Earlier OpenSSF/FLOSS evidence describes the historical MIT-licensed period; the current PolyForm Noncommercial license is not an OSI-approved open-source license. The project also does not claim foundation-grade governance or regular independent human review while it remains solo-maintainer.
+ZapTrace targets **Professional OSS / Mature OSS** practices. It does not claim OpenSSF Gold, foundation-grade governance, or regular independent human review until the project has multiple active maintainers and independent contributors.
 
 ## Roles
 

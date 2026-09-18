@@ -1,6 +1,6 @@
 # OpenSSF Evidence
 
-This file preserves repository engineering evidence against OpenSSF Best Practices and Baseline-style criteria. It is not a current FLOSS-license self-certification: ZapTrace project-authored code now uses PolyForm Noncommercial 1.0.0, so licensing-related Best Practices evidence is historical to the MIT-licensed period.
+This file maps repository artifacts to OpenSSF Best Practices and Baseline-style evidence. It is evidence support, not a self-certification result.
 
 ## Project metadata
 
@@ -8,11 +8,11 @@ This file preserves repository engineering evidence against OpenSSF Best Practic
 |-------|----------|
 | Project name | ZapTrace |
 | Repository | `https://github.com/oaslananka/zaptrace` |
-| License | `LICENSE`, PolyForm Noncommercial 1.0.0 for current project-authored code; historical MIT releases retain prior terms |
+| License | `LICENSE`, MIT |
 | Languages | Python, Rust, Dockerfile |
-| Status | Pre-1.0, human-review-required source-available EDA kernel |
+| Status | Pre-1.0, human-review-required EDA kernel |
 
-## Historical Passing-era engineering evidence
+## Passing readiness evidence
 
 | Criterion family | Status | Evidence |
 |------------------|--------|----------|
@@ -21,7 +21,7 @@ This file preserves repository engineering evidence against OpenSSF Best Practic
 | Provide feedback | Passed | GitHub issue templates and support policy. |
 | Contribute | Passed | `CONTRIBUTING.md`, PR template, issue templates. |
 | Contribution requirements | Passed | Coding standards, test policy, DCO-style assertion, CI requirements. |
-| FLOSS license | Historical only | Earlier MIT-licensed revisions satisfied this criterion; current project-authored code uses PolyForm Noncommercial 1.0.0 and is source-available rather than FLOSS. |
+| FLOSS license | Passed | MIT license in top-level `LICENSE`. |
 | Basic documentation | Passed | README, docs site, getting started, CLI/SDK/MCP docs. |
 | Interface documentation | Passed | CLI examples, REST/API docs, MCP tools reference, and docs site navigation provide external interface documentation. |
 | HTTPS project sites | Passed | GitHub and docs URLs use HTTPS. |

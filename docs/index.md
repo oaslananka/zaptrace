@@ -60,4 +60,4 @@ ZapTrace is a Python-first EDA engine designed to be driven by AI agents through
 
 ## License
 
-Current project-authored source is licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate written license. Earlier MIT-licensed releases retain their original terms; see the repository [licensing guide](https://github.com/oaslananka/zaptrace/blob/main/LICENSING.md).
+MIT License — see [GitHub](https://github.com/oaslananka/zaptrace) for full text.

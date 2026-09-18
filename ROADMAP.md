@@ -1,10 +1,10 @@
 # Roadmap
 
-The detailed technical roadmap lives in [`docs/ROADMAP.md`](docs/ROADMAP.md). This top-level file summarizes repository maturity and professional source-available goals.
+The detailed technical roadmap lives in [`docs/ROADMAP.md`](docs/ROADMAP.md). This top-level file summarizes repository maturity and professional open-source goals.
 
 ## Current target
 
-ZapTrace targets **professional source-available engineering maturity** while remaining honest about pre-1.0 hardware-generation limitations. Earlier OpenSSF/FLOSS evidence applies to the historical MIT-licensed period rather than the current license.
+ZapTrace targets **Professional OSS / Mature OSS** maturity while remaining honest about pre-1.0 hardware-generation limitations.
 
 ## Next 12 months
 
