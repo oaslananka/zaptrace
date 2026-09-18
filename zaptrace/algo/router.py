@@ -16,10 +16,6 @@ _ZERO_LENGTH_TOLERANCE_MM = 1e-9
 _CORNER_CHAMFER_MM = 0.2
 
 
-
-from typing import Protocol
-
-
 class RoutingBackend(Protocol):
     """Abstract interface contract for placement/routing engines."""
 
@@ -27,8 +23,7 @@ class RoutingBackend(Protocol):
         self,
         design: Design,
         positions: dict[str, tuple[float, float]],
-    ) -> RoutingResult:
-        ...
+    ) -> RoutingResult: ...
 
 
 @dataclass

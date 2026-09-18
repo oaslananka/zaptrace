@@ -4,9 +4,17 @@ from zaptrace.kicad.capability import discover_kicad_capabilities
 from zaptrace.kicad.oracle import KiCadOracle
 
 
+class MockKiCadOracle(KiCadOracle):
+    def __init__(self, version: str, available: bool = True) -> None:
+        self._cli_path = "/usr/bin/kicad-cli" if available else None
+        self._version = version
+
+    def _detect(self) -> None:
+        pass
+
+
 def test_discover_kicad_capabilities_when_unavailable() -> None:
-    cli = KiCadOracle(cli_path=None)
-    cli._version = ""
+    cli = MockKiCadOracle(version="", available=False)
     caps = discover_kicad_capabilities(cli)
 
     assert caps.available is False
@@ -15,8 +23,7 @@ def test_discover_kicad_capabilities_when_unavailable() -> None:
 
 
 def test_discover_kicad_capabilities_for_kicad_8() -> None:
-    cli = KiCadOracle(cli_path="/usr/bin/kicad-cli")
-    cli._version = "KiCad 8.0.2"
+    cli = MockKiCadOracle(version="KiCad 8.0.2", available=True)
     caps = discover_kicad_capabilities(cli)
 
     assert caps.available is True
@@ -29,8 +36,7 @@ def test_discover_kicad_capabilities_for_kicad_8() -> None:
 
 
 def test_discover_kicad_capabilities_for_kicad_10() -> None:
-    cli = KiCadOracle(cli_path="/usr/bin/kicad-cli")
-    cli._version = "KiCad 10.0.0-dev"
+    cli = MockKiCadOracle(version="KiCad 10.0.0-dev", available=True)
     caps = discover_kicad_capabilities(cli)
 
     assert caps.available is True

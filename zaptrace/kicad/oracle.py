@@ -407,8 +407,7 @@ class KiCadOracle:
     def __init__(self, cli_path: str | None = None) -> None:
         self._cli_path: str | None = cli_path
         self._version: str = ""
-        if cli_path is None:
-            self._detect()
+        self._detect()
 
     # ------------------------------------------------------------------
     # Public properties
