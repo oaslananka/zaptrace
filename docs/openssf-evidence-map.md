@@ -1,6 +1,6 @@
 # OpenSSF Evidence Map
 
-This page maps high-value OpenSSF Best Practices and OSPS Baseline criteria to ZapTrace repository evidence.
+This page preserves high-value OpenSSF Best Practices and OSPS Baseline engineering evidence. Licensing-related Best Practices evidence is historical to the MIT-licensed period because current project-authored ZapTrace code uses PolyForm Noncommercial 1.0.0.
 
 ## Passing badge evidence
 
@@ -11,7 +11,7 @@ This page maps high-value OpenSSF Best Practices and OSPS Baseline criteria to Z
 | Feedback and bugs | GitHub Issues, `CONTRIBUTING.md`, `SECURITY.md` |
 | Contribution process | `CONTRIBUTING.md`, pull request template, CI checks |
 | Contribution requirements | `CONTRIBUTING.md`, `docs/development/coding-standards.md`, `docs/development/testing-policy.md` |
-| License | `LICENSE`, SPDX expression `MIT` |
+| License | Historical Passing-era evidence: MIT. Current project-authored code uses PolyForm Noncommercial 1.0.0; see `LICENSING.md`. |
 | Interface docs | README CLI examples, REST docs, MCP tools reference |
 | Maintained | Recent commits, issues, release workflows, roadmap |
 | Release notes | `CHANGELOG.md` |

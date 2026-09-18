@@ -17,7 +17,7 @@ New dependencies should be:
 
 - necessary for a clear feature, security, or maintainability goal;
 - actively maintained;
-- compatible with the MIT license and distribution model;
+- compatible with the current PolyForm Noncommercial distribution model and any separately licensed third-party content;
 - available from standard package indexes or trusted upstreams;
 - pinned or locked where practical;
 - reviewed with extra caution when they affect parsing, export, MCP/API, plugin execution, CI, or release workflows.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2026 Osman Aslan <info@oaslananka.dev>
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 set -euo pipefail
 

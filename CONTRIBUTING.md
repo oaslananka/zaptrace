@@ -155,7 +155,7 @@ tests. Open issues are labelled
 and [`help wanted`](https://github.com/oaslananka/zaptrace/labels/help%20wanted).
 
 <!-- professional-oss-contribution-policy -->
-## Professional OSS Contribution Policy
+## Professional Source-Available Contribution Policy
 
 ZapTrace accepts contributions through GitHub pull requests. The project currently operates with a solo-maintainer governance model, so contributor expectations are intentionally explicit and evidence-oriented.
 
@@ -175,13 +175,15 @@ Required before requesting review:
 
 Use the conventional commit format documented in [commit conventions](docs/development/commit-conventions.md). Common prefixes are `feat:`, `fix:`, `docs:`, `test:`, `ci:`, `refactor:`, `chore:`, and `security:`.
 
-### DCO
+### DCO and contributor licensing
 
-ZapTrace uses a Developer Certificate of Origin style assertion for non-trivial code contributions. By contributing, you certify that you have the right to submit the work under the project license. Add a sign-off line to non-trivial commits:
+ZapTrace uses a Developer Certificate of Origin style assertion for non-trivial code contributions. By contributing, you certify that you have the right to submit the work. Add a sign-off line to non-trivial commits:
 
 ```text
 Signed-off-by: Your Name <you@example.com>
 ```
+
+Current project-authored code is source-available under PolyForm Noncommercial 1.0.0 and may also be offered under separate commercial licenses. Before a non-trivial external code contribution is merged, the maintainer must have a reviewed CLA on record as described in [CONTRIBUTOR-LICENSING.md](CONTRIBUTOR-LICENSING.md). DCO sign-off does not replace the CLA requirement. The draft agreement template is in [CLA.md](CLA.md).
 
 ### Code review expectations
 

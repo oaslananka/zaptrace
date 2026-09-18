@@ -3,37 +3,37 @@ SPDX-PackageName = "ZapTrace"
 SPDX-PackageSupplier = "oaslananka <oaslananka@users.noreply.github.com>"
 SPDX-PackageDownloadLocation = "https://github.com/oaslananka/zaptrace"
 
-# Project-authored and generated tracked files use the repository MIT license.
+# Project-authored and generated tracked files use PolyForm Noncommercial 1.0.0.
 # More specific third-party overrides must appear after this annotation.
 [[annotations]]
 path = "**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "MIT"
+SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
 
 [[annotations]]
 path = "data/library/**/*.yaml"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "MIT"
+SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
 SPDX-FileComment = "Generated library part entries. Manufacturer names, part numbers, and datasheet URLs are factual data."
 
 [[annotations]]
 path = "tests/fixtures/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "MIT"
+SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
 SPDX-FileComment = "Synthetic test fixtures created for the ZapTrace test suite."
 
 [[annotations]]
 path = ["uv.lock", "Cargo.lock", "**/*.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "MIT"
+SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
 SPDX-FileComment = "Automatically generated dependency or tool lock file."
 
 # These land patterns are vendored verbatim from the KiCad and Espressif
-# libraries. The override prevents the repository-wide MIT annotation from
+# libraries. The override prevents the repository-wide project annotation from
 # being applied to third-party footprint content.
 [[annotations]]
 path = "data/footprints/vendor/*.kicad_mod"
@@ -44,7 +44,7 @@ SPDX-FileComment = "Vendored upstream land patterns under CC-BY-SA-4.0 with the 
 
 # External benchmark fixtures are vendored verbatim from pinned upstream
 # hardware repositories. These narrow overrides prevent the repository-wide
-# MIT annotation from being applied to third-party source files.
+# project annotation from being applied to third-party source files.
 [[annotations]]
 path = "benchmarks/external/sparkfun-qwiic-navigation/source/*"
 precedence = "override"
