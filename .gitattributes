@@ -14,7 +14,7 @@
 *.csv text eol=lf
 *.kicad_pcb text eol=lf
 *.kicad_sch text eol=lf
-*.kicad_mod text eol=lf
+*.kicad_mod -text
 *.kicad_pro text eol=lf
 *.SchDoc text eol=lf
 *.epro text eol=lf
