@@ -202,3 +202,18 @@ def test_best_practices_manifest_has_current_passing_proposals() -> None:
     assert manifest["osps_le_01_01_status"] == "Met"
     assert manifest["access_continuity_status"] == "Unmet"
     assert manifest["bus_factor_status"] == "Unmet"
+
+
+def test_current_license_policy_is_source_available_and_commercially_controlled() -> None:
+    root = Path(__file__).resolve().parents[1]
+    manifest = json.loads((root / ".bestpractices.json").read_text(encoding="utf-8"))
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    contributing = (root / "CONTRIBUTING.md").read_text(encoding="utf-8")
+
+    assert manifest["license"] == "PolyForm-Noncommercial-1.0.0"
+    assert 'license = {text = "PolyForm-Noncommercial-1.0.0"}' in pyproject
+    assert "License :: OSI Approved :: MIT License" not in pyproject
+    assert "Commercial use requires a separate written license" in readme
+    assert "CONTRIBUTOR-LICENSING.md" in contributing
+    assert "DCO sign-off does not replace" in contributing

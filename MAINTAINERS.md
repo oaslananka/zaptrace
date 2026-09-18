@@ -10,7 +10,7 @@
 
 Sensitive access includes repository administration, branch/ruleset changes, repository configuration, release creation, private vulnerability reports, and package publishing credentials.
 
-At the time of this document, ZapTrace should be treated as a solo-maintainer project. This is acceptable for Professional OSS maturity when documented, but it is not sufficient for OpenSSF Gold or foundation-grade claims.
+At the time of this document, ZapTrace should be treated as a solo-maintainer project. The project now targets professional source-available engineering maturity rather than current FLOSS/OSS certification; solo maintenance also remains insufficient for foundation-grade governance claims.
 
 ## Access review policy
 

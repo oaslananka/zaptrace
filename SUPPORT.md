@@ -1,6 +1,6 @@
 # Support Policy
 
-ZapTrace is a pre-1.0 open-source project maintained on a best-effort basis.
+ZapTrace is a pre-1.0 source-available project maintained on a best-effort basis.
 
 ## Supported versions
 
