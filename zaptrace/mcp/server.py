@@ -118,24 +118,16 @@ def _resolve_safe_path(path: str) -> tuple[Path | None, str]:
         return None, "Path is empty"
     if len(path) > _MAX_PATH_LENGTH:
         return None, f"Path exceeds max length ({_MAX_PATH_LENGTH})"
-    root = _allowed_path_root().resolve()
     normalized_path = path.replace("\\", "/")
     candidate = Path(normalized_path)
+    root = _allowed_path_root()
     try:
-        if candidate.is_absolute():
-            resolved = candidate.resolve()
-        else:
-            clean_rel = normalized_path.lstrip("/")
-            resolved = (root / clean_rel).resolve()
+        resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
     except (OSError, RuntimeError):
         return None, f"Cannot resolve path: {path}"
     try:
-        norm_root = os.path.normcase(os.path.abspath(root))
-        norm_resolved = os.path.normcase(os.path.abspath(resolved))
-        common = os.path.normcase(os.path.commonpath([norm_root, norm_resolved]))
-        if common != norm_root:
-            return None, f"Path escapes allowed sandbox: {resolved}"
-    except (ValueError, OSError):
+        resolved.relative_to(root)
+    except ValueError:
         return None, f"Path escapes allowed sandbox: {resolved}"
     return resolved, ""
 

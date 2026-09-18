@@ -187,8 +187,6 @@ nav:
       - Proof Pack Specification: strategy/proof-pack-spec.md
       - Transaction Runtime: strategy/transaction-runtime.md
       - Triage Policy: strategy/triage-policy.md
-      - "PR #47 Legal Review Checklist": strategy/pr-47-legal-review-checklist.md
-      - Executable Sub-Issues: strategy/sub-issues.md
       - v0.2.3 Verification Gate: strategy/v0.2.3-verification-gate.md
       - Community Growth (Historical Plan): strategy/community-growth.md
 

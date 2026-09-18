@@ -6,15 +6,6 @@ ZapTrace 0.3.0 is the evidence-hardening baseline. The M0–M4 issue-backed road
 
 This does **not** mean ZapTrace is fabrication-ready or production-ready. A passing gate means the configured evidence did not block. Every generated schematic, PCB, export, and proof pack still requires qualified human engineering review before fabrication or use.
 
-
-## Active Release Milestones
-
-| Milestone | Focus | Key Deliverables |
-|-----------|-------|------------------|
-| **v0.4.0 — Trust & Physical Evidence** | Component qualification & physical proof program | Governed component qualification cohorts (Cohort A), physical unit test & measurement evidence capture schemas, hardware bring-up manifests |
-| **v0.5.0 — Live Verification Workbench** | KiCad IPC integration & Review Studio | Versioned Evidence Producer Protocol (v1), KiCad live capability discovery, Review Studio state diff & review bundle export |
-| **v1.0.0 — Stable Evidence Platform** | PCB-Bench v1, plugin sandbox, synthesis compiler | PCB-Bench v1 scoring contract, plugin deny-by-default capability sandboxing, requirements-to-architecture compiler IR |
-
 ## Completed roadmap tracks
 
 | Track | Status | Outcome |
