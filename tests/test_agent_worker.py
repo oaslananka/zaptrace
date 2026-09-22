@@ -357,3 +357,20 @@ def test_pickle_is_forbidden_in_worker_ipc() -> None:
     assert "pickle.loads" not in exec_src
     assert "pickle.load" not in worker_src
     assert "pickle.load" not in exec_src
+
+
+@requires_posix_worker
+def test_worker_validate_ipc_paths_error_branches(tmp_path: Path) -> None:
+    workspace, request_path, response_path = _ipc_paths(tmp_path)
+    wrong_req = workspace / "wrong.json"
+    wrong_req.touch(mode=0o600)
+    with pytest.raises(ValueError, match="worker IPC filenames"):
+        worker._lexical_ipc_paths(str(wrong_req), str(response_path))
+
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir(mode=0o700)
+    outside_req = outside_dir / "request.json"
+    outside_resp = outside_dir / "response.json"
+    outside_req.touch(mode=0o600)
+    with pytest.raises(ValueError, match="private .zaptrace-job-"):
+        worker._validated_job_directory(outside_req, outside_resp, workspace)

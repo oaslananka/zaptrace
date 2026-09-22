@@ -49,10 +49,10 @@ def _sha256_json(value: Any) -> str:
 
 def release_design_state_hash(design: Design | dict[str, Any]) -> str:
     """Hash release-relevant design state while excluding computed DRC output."""
-    if hasattr(design, "model_dump"):
-        structural = design.model_dump(mode="json", exclude={"drc_result"})
-    else:
+    if isinstance(design, dict):
         structural = {k: v for k, v in design.items() if k != "drc_result"}
+    else:
+        structural = design.model_dump(mode="json", exclude={"drc_result"})
     if structural.get("net_classes") is None:
         structural["net_classes"] = {}
     return _sha256_json(structural)
