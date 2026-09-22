@@ -346,3 +346,11 @@ def test_rust_extension_is_in_supported_security_scope() -> None:
 
     assert "The Rust extension (`zaptrace_core/`) - separate policy may apply" not in policy
     assert "Rust extension and PyO3 boundary" in policy
+
+
+def test_release_design_state_hash_dict_coverage() -> None:
+    from zaptrace.security.release import release_design_state_hash
+
+    d_dict = {"name": "dict_design", "components": {}, "nets": {}, "drc_result": None}
+    h = release_design_state_hash(d_dict)
+    assert len(h) == 64
