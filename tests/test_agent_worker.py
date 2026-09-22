@@ -374,3 +374,32 @@ def test_worker_validate_ipc_paths_error_branches(tmp_path: Path) -> None:
     outside_req.touch(mode=0o600)
     with pytest.raises(ValueError, match="private .zaptrace-job-"):
         worker._validated_job_directory(outside_req, outside_resp, workspace)
+
+
+@requires_posix_worker
+def test_worker_default_encoder_and_path_validation_coverage(tmp_path: Path) -> None:
+    from pydantic import BaseModel
+
+    class MockModel(BaseModel):
+        val: int = 42
+
+    obj1 = MockModel()
+    assert worker._default_encoder(obj1) == {"val": 42}
+    obj2 = {1, 2, 3}
+    assert sorted(worker._default_encoder(obj2)) == [1, 2, 3]
+
+    workspace = tmp_path / "ws"
+    workspace.mkdir(mode=0o700)
+    job_dir = workspace / ".zaptrace-job-test"
+    job_dir.mkdir(mode=0o700)
+
+    # test resolved != job_dir / _REQUEST_FILENAME line 114
+    alt_req = job_dir / "other.json"
+    alt_req.touch(mode=0o600)
+    with pytest.raises(ValueError, match="request must be the private request.json file"):
+        worker._validated_request_path(alt_req, job_dir)
+
+    # test resolved != job_dir / _RESPONSE_FILENAME line 127
+    alt_resp = job_dir / "other_resp.json"
+    with pytest.raises(ValueError, match="response must be the private response.json file"):
+        worker._validated_response_path(alt_resp, job_dir)
