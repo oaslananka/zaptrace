@@ -117,3 +117,41 @@ class TestHardenedPluginRuntime:
         assert not res.success
         assert res.status_code == -5
         assert "timeout" in (res.denial_reason or "").lower()
+
+
+class TestAdversarialPluginIsolation:
+    def test_path_traversal_entry_rejected(self, tmp_path: Path) -> None:
+        pdir = tmp_path / "traversal_plugin"
+        pdir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "api_version": "1.0",
+            "plugin_id": "test.traversal-plugin",
+            "name": "Traversal Plugin",
+            "version": "0.1.0",
+            "min_zaptrace_version": "0.3.0",
+            "max_zaptrace_version": "1.0.0",
+            "capabilities": ["design:read"],
+            "permissions": {
+                "filesystem": {"read": [], "write": []},
+                "network": {"allowed_domains": [], "allowed_schemes": []},
+                "subprocess": False,
+            },
+            "entry": {"type": "python_module", "path": "../../etc/passwd"},
+        }
+        (pdir / "zaptrace-plugin.json").write_text(json.dumps(manifest), encoding="utf-8")
+        runtime = HardenedPluginRuntime(PluginRuntimeConfig(allow_unverified_signatures=True))
+        res = runtime.run_plugin(pdir)
+        assert not res.success
+        assert res.status_code == -3
+        assert "path traversal" in (res.denial_reason or "").lower()
+
+    def test_environment_sanitization(self, valid_plugin_dir: Path, monkeypatch) -> None:
+        monkeypatch.setenv("HOST_SECRET", "super-secret-key")
+        code = """import os, json
+print(json.dumps({"has_secret": "HOST_SECRET" in os.environ}))
+"""
+        (valid_plugin_dir / "main.py").write_text(code, encoding="utf-8")
+        runtime = HardenedPluginRuntime(PluginRuntimeConfig(allow_unverified_signatures=True))
+        res = runtime.run_plugin(valid_plugin_dir)
+        assert res.success
+        assert res.output_data.get("has_secret") is False

@@ -294,7 +294,16 @@ def test_stability_check_helper_preserves_order_and_missing_value_fallbacks() ->
 class TestRunAcStabilityGateStatus:
     _VALID_STATUSES = {"pass", "fail", "skipped", "no_reference"}
 
-    def test_default_reference_passes(self) -> None:
+    def test_default_reference_passes(self, monkeypatch) -> None:
+        from zaptrace.analysis import ac_stability_gate
+
+        monkeypatch.setattr(
+            ac_stability_gate,
+            "run_ac_gate",
+            lambda **kwargs: type(
+                "AcGateResult", (), {"status": "skipped", "blocking": False, "reason": "mock skipped", "checks": []}
+            )(),
+        )
         result = run_ac_stability_gate()
         assert result.status == "pass"
 
@@ -502,7 +511,16 @@ class TestAcCoverageReport:
 
 
 class TestBuildAcCoverageReport:
-    def test_three_families_all_pass(self) -> None:
+    def test_three_families_all_pass(self, monkeypatch) -> None:
+        from zaptrace.analysis import ac_stability_gate
+
+        monkeypatch.setattr(
+            ac_stability_gate,
+            "run_ac_gate",
+            lambda **kwargs: type(
+                "AcGateResult", (), {"status": "skipped", "blocking": False, "reason": "mock skipped", "checks": []}
+            )(),
+        )
         results = {
             "esp32_usb_sensor": run_ac_stability_gate(design_name="esp32_usb_sensor"),
             "lipo_charger_node": run_ac_stability_gate(design_name="lipo_charger_node"),

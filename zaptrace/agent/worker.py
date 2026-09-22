@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import importlib
 import inspect
+import json  # noqa: S403 - trusted local IPC owned by the parent process
 import os
-import pickle  # noqa: S403 - trusted local IPC owned by the parent process
 import stat
 import sys
 import traceback
@@ -15,8 +15,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-_REQUEST_FILENAME = "request.pickle"
-_RESPONSE_FILENAME = "response.pickle"
+
+def _default_encoder(obj: Any) -> Any:
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    if isinstance(obj, (set, tuple)):
+        return list(obj)
+    return str(obj)
+
+
+_REQUEST_FILENAME = "request.json"
+_RESPONSE_FILENAME = "response.json"
 _JOB_PREFIX = ".zaptrace-job-"
 _PRIVATE_DIRECTORY_MODE = 0o700
 _PRIVATE_FILE_MODE = 0o600
@@ -55,7 +64,7 @@ def _lexical_ipc_paths(raw_request: str, raw_response: str) -> tuple[Path, Path]
     request_path = Path(os.path.abspath(raw_request))
     response_path = Path(os.path.abspath(raw_response))
     if request_path.name != _REQUEST_FILENAME or response_path.name != _RESPONSE_FILENAME:
-        raise ValueError("worker IPC filenames must be request.pickle and response.pickle")
+        raise ValueError("worker IPC filenames must be request.json and response.json")
     if request_path.parent != response_path.parent:
         raise ValueError("request and response must share the same private job directory")
     return request_path, response_path
@@ -102,7 +111,7 @@ def _validated_request_path(request_path: Path, job_dir: Path) -> Path:
         raise ValueError("request must be a regular non-symlink file")
     resolved = request_path.resolve(strict=True)
     if resolved != job_dir / _REQUEST_FILENAME:
-        raise ValueError("request must be the private request.pickle file inside the job directory")
+        raise ValueError("request must be the private request.json file inside the job directory")
     return resolved
 
 
@@ -115,7 +124,7 @@ def _validated_response_path(response_path: Path, job_dir: Path) -> Path:
         raise ValueError("temporary response path must not already exist")
     resolved = response_path.resolve(strict=False)
     if resolved != job_dir / _RESPONSE_FILENAME:
-        raise ValueError("response must be the private response.pickle file inside the job directory")
+        raise ValueError("response must be the private response.json file inside the job directory")
     return resolved
 
 
@@ -184,8 +193,8 @@ def _read_request(paths: _ValidatedIPCPaths) -> dict[str, Any]:
         ):
             os.close(request_fd)
             raise ValueError("request ownership or permissions changed")
-        with os.fdopen(request_fd, "rb") as handle:
-            payload = pickle.load(handle)  # nosec: B301
+        with os.fdopen(request_fd, "r") as handle:
+            payload = json.load(handle)  # nosec: B301
     finally:
         os.close(directory_fd)
     if not isinstance(payload, dict):
@@ -200,8 +209,8 @@ def _write_response(paths: _ValidatedIPCPaths, payload: dict[str, Any]) -> None:
     try:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         response_fd = os.open(temporary_name, flags, _PRIVATE_FILE_MODE, dir_fd=directory_fd)
-        with os.fdopen(response_fd, "wb") as handle:
-            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with os.fdopen(response_fd, "w") as handle:
+            json.dump(payload, handle, default=_default_encoder)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(
@@ -254,7 +263,7 @@ def run_worker(paths: _ValidatedIPCPaths) -> int:
 
     try:
         _write_response(paths, payload)
-    except (OSError, pickle.PickleError, TypeError, AttributeError):
+    except (OSError, json.JSONDecodeError, TypeError, AttributeError):
         traceback.print_exc()
         return 1
     return exit_code

@@ -458,7 +458,7 @@ class TestRunAcGatePass:
         assert result.status == "pass"
         assert result.blocking is False
         assert len(result.checks) == 1
-        assert result.checks[0].name == "min_gain"
+        assert result.checks[0].name == "min_gain_db"
         assert result.checks[0].passed is True
 
     def test_phase_margin_pass(self) -> None:
@@ -511,7 +511,7 @@ class TestRunAcGateFail:
             result = run_ac_gate(_SIMPLE_NETLIST, ref)
         assert result.status == "fail"
         assert result.blocking is True
-        assert result.checks[0].name == "min_gain"
+        assert result.checks[0].name == "min_gain_db"
         assert result.checks[0].passed is False
 
     def test_max_gain_fail(self) -> None:
@@ -547,7 +547,7 @@ class TestRunAcGateFail:
         ):
             result = run_ac_gate(_SIMPLE_NETLIST, ref)
         assert result.status == "fail"
-        assert any(c.name == "min_crossover" for c in result.checks)
+        assert any(c.name == "min_crossover_hz" for c in result.checks)
 
     def test_crossover_above_maximum_fails(self) -> None:
         # crossover at ~1e5; require <= 1e3 → fail
@@ -598,6 +598,6 @@ class TestRunAcGateMalformedOutput:
         ):
             result = run_ac_gate(_SIMPLE_NETLIST, ref)
         assert result.status == "fail"
-        pm_check = next(c for c in result.checks if c.name == "phase_margin")
+        pm_check = next(c for c in result.checks if c.name == "min_phase_margin_deg")
         assert pm_check.actual is None
         assert pm_check.passed is False

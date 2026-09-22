@@ -178,8 +178,9 @@ class SQLiteStateStore(StateRecordMixin):
 
     @staticmethod
     def _canonical_design_payload(design: Design) -> bytes:
+        dump = design.model_dump(mode="json") if hasattr(design, "model_dump") else design
         payload = json.dumps(
-            design.model_dump(mode="json"),
+            dump,
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,

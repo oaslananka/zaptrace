@@ -8,7 +8,6 @@ wire crossings and keep connected symbols close together.
 from __future__ import annotations
 
 import math
-import random
 from collections import defaultdict
 
 from zaptrace.core.models import Component, Design
@@ -56,8 +55,8 @@ def _initial_force_state(
     for index, comp in enumerate(comps):
         col, row = index % cols, index // cols
         positions[comp.id] = (
-            MARGIN + col * cell_w + cell_w / 2 + random.uniform(-5, 5),
-            MARGIN + row * cell_h + cell_h / 2 + random.uniform(-5, 5),
+            MARGIN + col * cell_w + cell_w / 2,
+            MARGIN + row * cell_h + cell_h / 2,
         )
         velocities[comp.id] = (0.0, 0.0)
     return positions, velocities
@@ -170,7 +169,7 @@ def place_schematic(
     height: float = CANVAS_H,
 ) -> dict[str, tuple[float, float]]:
     """Place all components on a schematic canvas."""
-    comps = list(design.components.values())
+    comps = sorted(design.components.values(), key=lambda c: c.id)
     if not comps:
         return {}
     if block_list:
