@@ -1069,7 +1069,7 @@ async def _execute_locked(
         )
     except asyncio.CancelledError:
         raise
-    except (OSError, ValueError, TypeError, KeyError, RuntimeError, EOFError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError, EOFError) as exc:
         return await _coordinator_error_outcome(
             error=exc,
             process=process,
