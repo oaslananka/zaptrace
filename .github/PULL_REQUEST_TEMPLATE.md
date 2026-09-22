@@ -58,7 +58,6 @@ Add screenshots, logs, generated artifacts, or design notes here.
 - [ ] Security-sensitive changes follow `SECURITY.md` and avoid public vulnerability disclosure.
 - [ ] Release, support, or compatibility impact is documented.
 - [ ] If this PR changes CI/release/security posture, the risk is explicitly described.
-- [ ] For non-trivial external code contributions, DCO sign-off is present and the maintainer has confirmed the contributor licensing/CLA requirement in `CONTRIBUTOR-LICENSING.md` is satisfied.
 
 ## Human review
 

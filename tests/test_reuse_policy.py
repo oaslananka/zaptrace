@@ -137,13 +137,3 @@ def test_public_maturity_evidence_marks_enforced_reuse_complete() -> None:
     assert "SPDX/REUSE | Passed" in gaps
     assert "github.com/oaslananka/zaptrace/issues/318" not in maturity
     assert "github.com/oaslananka/zaptrace/issues/318" not in gaps
-
-
-def test_project_authored_reuse_default_uses_polyform_noncommercial() -> None:
-    config = (ROOT / "REUSE.toml").read_text(encoding="utf-8")
-
-    assert 'SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"' in config
-    assert (ROOT / "LICENSES" / "PolyForm-Noncommercial-1.0.0.txt").is_file()
-    assert 'path = "data/footprints/vendor/*.kicad_mod"' in config
-    assert 'SPDX-License-Identifier = "CC-BY-SA-4.0"' in config
-    assert 'path = "benchmarks/external/mitayi-pico-d1/source/*"' in config

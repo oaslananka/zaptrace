@@ -5,9 +5,9 @@
 
 ## Executive summary
 
-ZapTrace is a mature pre-1.0 source-available engineering project with strong automated quality, security, release, and evidence controls. It has structured governance and contribution policies, pinned GitHub Actions, locked Python and Rust dependencies, deterministic release evidence, an external KiCad oracle, bounded fuzzing, exact-image vulnerability scanning, SBOMs, checksums, and artifact attestations.
+ZapTrace is a mature pre-1.0 open-source engineering project with strong automated quality, security, release, and evidence controls. It has structured governance and contribution policies, pinned GitHub Actions, locked Python and Rust dependencies, deterministic release evidence, an external KiCad oracle, bounded fuzzing, exact-image vulnerability scanning, SBOMs, checksums, and artifact attestations.
 
-The project targets **professional source-available engineering maturity**, not a current FLOSS/OSS certification or a fabrication-readiness claim. Earlier OpenSSF/FLOSS evidence describes the MIT-licensed period. The repository has one active maintainer, no regular independent non-author review, enforced REUSE/SPDX file coverage, and no general physical-validation claim. All generated hardware outputs require qualified human engineering review.
+The project remains a **Professional OSS candidate**, not a foundation-grade or fabrication-ready system. It has one active maintainer, no regular independent non-author review, enforced REUSE/SPDX file coverage, and no general physical-validation claim. All generated hardware outputs require qualified human engineering review.
 
 ## Current classification
 
@@ -28,7 +28,7 @@ The project targets **professional source-available engineering maturity**, not 
 | Criterion | Status | Evidence |
 |---|---|---|
 | README | Passed | Scope, quick start, interfaces, safety boundaries, roadmap, and limitations. |
-| LICENSE | Current source-available terms documented | Top-level PolyForm Noncommercial 1.0.0 license plus separate commercial and contributor licensing guidance; earlier MIT releases retain their original terms. |
+| LICENSE | Passed | Top-level MIT license. |
 | CONTRIBUTING | Passed | Setup, workflow, tests, DCO, review, and security-sensitive contribution rules. |
 | CODE_OF_CONDUCT | Passed | Contributor Covenant policy. |
 | SECURITY | Passed | Private-reporting instructions, supported versions, scope, and coordinated disclosure expectations. |
@@ -36,13 +36,10 @@ The project targets **professional source-available engineering maturity**, not 
 | Issue and PR templates | Passed | Structured issue forms and PR evidence checklist. |
 | Governance and maintainers | Passed as documentation | `GOVERNANCE.md`, `MAINTAINERS.md`, CODEOWNERS, and continuity documents. Actual continuity remains partial until another trusted maintainer exists. |
 
-## OpenSSF and Scorecard evidence
-
-The repository continues to retain useful OpenSSF/Scorecard engineering evidence, but the current PolyForm Noncommercial license is not a FLOSS license. Any Best Practices badge-era licensing evidence is historical to the MIT-licensed period.
+## OpenSSF and Scorecard readiness
 
 | Check area | Status | Evidence / gap |
 |---|---|---|
-| FLOSS license eligibility | Not current | Current project-authored code uses PolyForm Noncommercial 1.0.0; historical MIT releases remain MIT. |
 | Maintained | Passed | Active release, CI, dependency, roadmap, and issue activity. |
 | Branch protection | Passed | Active repository ruleset blocks deletion and non-fast-forward updates, requires PRs, linear history, resolved conversations, and six stable aggregate checks. |
 | Code review | Partial | PR workflow and CODEOWNERS exist; required independent approval remains unavailable in the solo-maintainer model. |
