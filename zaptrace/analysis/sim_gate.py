@@ -624,12 +624,12 @@ def _gain_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
     if reference.min_gain_db is not None:
         passed = (actual_gain is not None) and (actual_gain >= reference.min_gain_db)
         checks.append(
-            AcCheck(name="min_gain", passed=passed, actual=actual_gain, reference=reference.min_gain_db, unit="dB")
+            AcCheck(name="min_gain_db", passed=passed, actual=actual_gain, reference=reference.min_gain_db, unit="dB")
         )
     if reference.max_gain_db is not None:
         passed = (actual_gain is not None) and (actual_gain <= reference.max_gain_db)
         checks.append(
-            AcCheck(name="max_gain", passed=passed, actual=actual_gain, reference=reference.max_gain_db, unit="dB")
+            AcCheck(name="max_gain_db", passed=passed, actual=actual_gain, reference=reference.max_gain_db, unit="dB")
         )
     return checks
 
@@ -640,7 +640,9 @@ def _phase_margin_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
     pm = ac.phase_margin_deg()
     passed = (pm is not None) and (pm >= reference.min_phase_margin_deg)
     return [
-        AcCheck(name="phase_margin", passed=passed, actual=pm, reference=reference.min_phase_margin_deg, unit="deg")
+        AcCheck(
+            name="min_phase_margin_deg", passed=passed, actual=pm, reference=reference.min_phase_margin_deg, unit="deg"
+        )
     ]
 
 
@@ -652,12 +654,12 @@ def _crossover_checks(ac: Any, reference: AcReference) -> list[AcCheck]:
     if reference.min_crossover_hz is not None:
         passed = (fc is not None) and (fc >= reference.min_crossover_hz)
         checks.append(
-            AcCheck(name="min_crossover", passed=passed, actual=fc, reference=reference.min_crossover_hz, unit="Hz")
+            AcCheck(name="min_crossover_hz", passed=passed, actual=fc, reference=reference.min_crossover_hz, unit="Hz")
         )
     if reference.max_crossover_hz is not None:
         passed = (fc is not None) and (fc <= reference.max_crossover_hz)
         checks.append(
-            AcCheck(name="max_crossover", passed=passed, actual=fc, reference=reference.max_crossover_hz, unit="Hz")
+            AcCheck(name="max_crossover_hz", passed=passed, actual=fc, reference=reference.max_crossover_hz, unit="Hz")
         )
     return checks
 

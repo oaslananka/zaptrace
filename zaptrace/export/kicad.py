@@ -6,6 +6,7 @@ the official KiCad DRC before fabrication.
 
 from __future__ import annotations
 
+import hashlib as _hashlib
 import json
 import uuid as _uuid
 from collections import Counter
@@ -622,7 +623,7 @@ def _build_board_outline(lines: list[str], design: Design) -> None:
     width = board.width
     height = board.height
 
-    uid = _uuid4()
+    uid = _uuid4(f"{design.meta.name}-outline")
     lines.append("  (gr_rect")
     lines.append("    (start 0 0)")
     lines.append(f"    (end {width} {height})")
@@ -640,7 +641,7 @@ def _build_board_outline(lines: list[str], design: Design) -> None:
 
 def _build_mounting_hole(lines: list[str], mh: MountingHole) -> None:
     """Emit a mounting hole as a footprint with a single NPTH pad."""
-    uid = _uuid4()
+    uid = _uuid4(f"mounting-hole-{mh.position}")
     x, y = mh.position
     lines.append('  (footprint "MountingHole"')
     lines.append('    (layer "F.Cu")')
@@ -653,7 +654,7 @@ def _build_mounting_hole(lines: list[str], mh: MountingHole) -> None:
     lines.append(f"      (size {mh.diameter} {mh.diameter})")
     lines.append(f"      (drill {drill})")
     lines.append('      (layers "*.Cu" "*.Mask")')
-    lines.append(f'      (uuid "{_uuid4()}")')
+    lines.append(f'      (uuid "{_uuid4(f"mh-{mh.position}-pad")}")')
     lines.append(_INDENTED_CLOSE)
     lines.append("  )")
 
@@ -683,7 +684,7 @@ def _build_footprint(
     design: Design,
 ) -> None:
     """Emit a KiCad footprint for *comp* placed at *at*."""
-    uid = _uuid4()
+    uid = _uuid4(f"footprint-{comp.ref}")
     x, y = at
     fp = comp.footprint_def
     net_idx = _net_index(design)
@@ -701,7 +702,7 @@ def _build_footprint(
     lines.append(f'    (property "Reference" "{comp.ref}"')
     lines.append("      (at 0 -2 0)")
     lines.append('      (layer "F.SilkS")')
-    lines.append(f'      (uuid "{_uuid4()}")')
+    lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-ref-prop")}")')
     lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
     lines.append(_INDENTED_CLOSE)
 
@@ -710,7 +711,7 @@ def _build_footprint(
         lines.append(f'    (property "Value" "{comp.value}"')
         lines.append("      (at 0 3 0)")
         lines.append('      (layer "F.Fab")')
-        lines.append(f'      (uuid "{_uuid4()}")')
+        lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-val-prop")}")')
         lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
         lines.append(_INDENTED_CLOSE)
 
@@ -736,7 +737,7 @@ def _build_pad(
     design: Design | None = None,
 ) -> None:
     """Emit a KiCad pad S-expression."""
-    uid = _uuid4()
+    uid = _uuid4(f"pad-{pad.id}")
     pad_id = pad.id
     pad_type = "smd" if pad.drill is None else "thru_hole"
     pad_shape = _pad_shape_kicad(pad.shape)
@@ -816,7 +817,7 @@ def _build_segment(
     num_layers: int,
 ) -> None:
     """Emit a trace segment ``(segment ...)``."""
-    uid = _uuid4()
+    uid = _uuid4(f"seg-{seg.start}-{seg.end}-{seg.net_id}")
     kicad_layer = _kicad_layer_name(seg.layer, num_layers)
     net_num = net_idx.get(seg.net_id, 0)
     if net_num == 0:
@@ -844,7 +845,7 @@ def _build_via(
     - ``(x, y, diameter, hole)`` — backward-compat, net=0
     - ``(x, y, diameter, hole, net_id)`` — preferred, carries net info for DRC
     """
-    uid = _uuid4()
+    uid = _uuid4(f"via-{via}")
     x, y, diameter, hole, *rest = via
     via_net_id = rest[0] if rest else ""
 
@@ -879,7 +880,7 @@ def _build_zone(
     if len(area.polygon) < 3:
         return
 
-    uid = _uuid4()
+    uid = _uuid4(f"zone-{area.net_id}-{area.layer}")
     net_num = net_idx.get(area.net_id, 0)
     kicad_layer = area.layer  # already a KiCad-layer name (F.Cu / B.Cu)
 
@@ -907,6 +908,9 @@ def _build_zone(
 # ======================================================================
 
 
-def _uuid4() -> str:
-    """Return a fresh UUID4 string."""
+def _uuid4(seed: str | None = None) -> str:
+    """Return a deterministic UUID string derived from seed or fallback to MD5/SHA256."""
+    if seed is not None:
+        raw = _hashlib.sha256(seed.encode("utf-8")).digest()[:16]
+        return str(_uuid.UUID(bytes=raw, version=4))
     return str(_uuid.uuid4())

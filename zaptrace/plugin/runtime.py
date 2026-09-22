@@ -52,7 +52,7 @@ class PluginRuntimeConfig:
 
 
 class HardenedPluginRuntime:
-    """Deterministic, process-isolated plugin executor."""
+    """Process-isolated plugin executor (process-isolation boundary; not an OS sandbox)."""
 
     def __init__(self, config: PluginRuntimeConfig | None = None) -> None:
         self.config = config or PluginRuntimeConfig()

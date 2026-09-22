@@ -197,8 +197,17 @@ def test_surface_metrics_count_hidden_registry_tool_as_invalid_call_without_disp
     assert report.passed is False
 
 
-def test_runner_classifies_all_four_outcomes_from_real_tool_contracts(tmp_path: Path) -> None:
+def test_runner_classifies_all_four_outcomes_from_real_tool_contracts(tmp_path: Path, monkeypatch) -> None:
+    from zaptrace.analysis import spice_orchestrator
+    from zaptrace.analysis.spice_sim import SpiceResult
     from zaptrace.benchmark.agent_evaluation_runner import run_agent_evaluation
+
+    # Force simulation gate to return SKIPPED when ngspice skip behavior is tested
+    monkeypatch.setattr(
+        spice_orchestrator,
+        "run_operating_point",
+        lambda netlist, timeout_s=30.0: SpiceResult(status="skipped", raw_output="", reason="ngspice binary not found"),
+    )
 
     corpus = _subset(
         "requirements-esp32-sensor",

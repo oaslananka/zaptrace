@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
-import pickle
 import stat
 import sys
 from collections.abc import Iterator
@@ -32,10 +32,10 @@ def _ipc_paths(tmp_path: Path) -> tuple[Path, Path, Path]:
     workspace.mkdir(mode=0o700)
     job_dir = workspace / ".zaptrace-job-test"
     job_dir.mkdir(mode=0o700)
-    request_path = job_dir / "request.pickle"
+    request_path = job_dir / "request.json"
     request_path.write_bytes(b"request")
     request_path.chmod(0o600)
-    response_path = job_dir / "response.pickle"
+    response_path = job_dir / "response.json"
     return workspace, request_path, response_path
 
 
@@ -59,7 +59,7 @@ def _request_payload(
 
 def _validated_paths(tmp_path: Path, payload: Any | None = None) -> worker._ValidatedIPCPaths:
     workspace, request_path, response_path = _ipc_paths(tmp_path)
-    request_path.write_bytes(pickle.dumps(_request_payload() if payload is None else payload))
+    request_path.write_text(json.dumps(_request_payload() if payload is None else payload))
     request_path.chmod(0o600)
     return worker._validate_ipc_paths(
         raw_request=str(request_path),
@@ -93,7 +93,7 @@ def test_validate_ipc_paths_accepts_parent_owned_private_job_directory(tmp_path:
 
 def test_validate_ipc_paths_rejects_request_outside_workspace(tmp_path: Path) -> None:
     workspace, _request_path, response_path = _ipc_paths(tmp_path)
-    outside = tmp_path / "request.pickle"
+    outside = tmp_path / "request.json"
     outside.write_bytes(b"request")
     outside.chmod(0o600)
 
@@ -103,7 +103,7 @@ def test_validate_ipc_paths_rejects_request_outside_workspace(tmp_path: Path) ->
 
 def test_validate_ipc_paths_rejects_symlink_request(tmp_path: Path) -> None:
     workspace, request_path, response_path = _ipc_paths(tmp_path)
-    target = request_path.parent / "request-target.pickle"
+    target = request_path.parent / "request-target.json"
     request_path.rename(target)
     try:
         request_path.symlink_to(target)
@@ -116,10 +116,10 @@ def test_validate_ipc_paths_rejects_symlink_request(tmp_path: Path) -> None:
 
 def test_validate_ipc_paths_rejects_unexpected_filenames(tmp_path: Path) -> None:
     workspace, request_path, response_path = _ipc_paths(tmp_path)
-    wrong_request = request_path.with_name("other.pickle")
+    wrong_request = request_path.with_name("other.json")
     request_path.rename(wrong_request)
 
-    with pytest.raises(ValueError, match="request.pickle and response.pickle"):
+    with pytest.raises(ValueError, match="request.json and response.json"):
         _validate(wrong_request, response_path, workspace)
 
 
@@ -159,7 +159,7 @@ def test_validate_ipc_paths_rejects_unexpected_job_directory_name(tmp_path: Path
 
 def test_validate_ipc_paths_rejects_existing_response(tmp_path: Path) -> None:
     workspace, request_path, response_path = _ipc_paths(tmp_path)
-    response_path.write_bytes(b"existing")
+    response_path.write_text("existing")
 
     with pytest.raises(ValueError, match="response path must not already exist"):
         _validate(request_path, response_path, workspace)
@@ -167,7 +167,7 @@ def test_validate_ipc_paths_rejects_existing_response(tmp_path: Path) -> None:
 
 def test_validate_ipc_paths_rejects_existing_temporary_response(tmp_path: Path) -> None:
     workspace, request_path, response_path = _ipc_paths(tmp_path)
-    response_path.with_suffix(".pickle.tmp").write_bytes(b"existing")
+    response_path.with_suffix(".json.tmp").write_text("existing")
 
     with pytest.raises(ValueError, match="temporary response path must not already exist"):
         _validate(request_path, response_path, workspace)
@@ -244,9 +244,9 @@ def test_write_response_is_atomic_and_private(tmp_path: Path) -> None:
 
     worker._write_response(paths, payload)
 
-    with paths.response_path.open("rb") as handle:
-        assert pickle.load(handle) == payload
-    assert not paths.response_path.with_suffix(".pickle.tmp").exists()
+    with paths.response_path.open("r") as handle:
+        assert json.load(handle) == payload
+    assert not paths.response_path.with_suffix(".json.tmp").exists()
     if os.name == "posix":
         assert stat.S_IMODE(paths.response_path.stat().st_mode) == 0o600
 
@@ -267,8 +267,8 @@ def test_run_worker_writes_success_response(tmp_path: Path) -> None:
     paths = _validated_paths(tmp_path)
 
     assert worker.run_worker(paths) == 0
-    with paths.response_path.open("rb") as handle:
-        response = pickle.load(handle)
+    with paths.response_path.open("r") as handle:
+        response = json.load(handle)
     assert response["status"] == "completed"
     assert response["result"]["status"] == "authorized"
 
@@ -279,8 +279,8 @@ def test_run_worker_serializes_tool_failure(tmp_path: Path) -> None:
     paths = _validated_paths(tmp_path, payload)
 
     assert worker.run_worker(paths) == 1
-    with paths.response_path.open("rb") as handle:
-        response = pickle.load(handle)
+    with paths.response_path.open("r") as handle:
+        response = json.load(handle)
     assert response["status"] == "error"
     assert response["exception_type"] == "AttributeError"
     assert "missing_probe" in response["error"]
@@ -304,7 +304,7 @@ def test_run_worker_returns_error_when_response_cannot_be_written(
 
 def test_main_rejects_unsupported_platform(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     monkeypatch.setattr(worker, "_isolated_worker_supported", lambda: False)
-    monkeypatch.setattr(sys, "argv", ["worker", "request.pickle", "response.pickle"])
+    monkeypatch.setattr(sys, "argv", ["worker", "request.json", "response.json"])
 
     assert worker.main() == 2
     assert capsys.readouterr().err.strip() == "isolated agent worker requires a POSIX platform"
@@ -317,7 +317,7 @@ def test_main_rejects_invalid_argument_count(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_main_rejects_invalid_ipc_paths(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sys, "argv", ["worker", "request.pickle", "response.pickle"])
+    monkeypatch.setattr(sys, "argv", ["worker", "request.json", "response.json"])
     monkeypatch.delenv("ZAPTRACE_WORKSPACE", raising=False)
 
     assert worker.main() == 2
@@ -341,3 +341,65 @@ def test_main_delegates_validated_paths_to_worker(
 
     assert worker.main() == 7
     assert observed == [paths]
+
+
+def test_pickle_is_forbidden_in_worker_ipc() -> None:
+    """Ensure pickle deserialization cannot be accidentally re-introduced in worker IPC."""
+    import inspect
+
+    import zaptrace.agent.execution as execution
+    import zaptrace.agent.worker as worker
+
+    worker_src = inspect.getsource(worker)
+    exec_src = inspect.getsource(execution)
+
+    assert "pickle.loads" not in worker_src
+    assert "pickle.loads" not in exec_src
+    assert "pickle.load" not in worker_src
+    assert "pickle.load" not in exec_src
+
+
+@requires_posix_worker
+def test_worker_validate_ipc_paths_error_branches(tmp_path: Path) -> None:
+    workspace, request_path, response_path = _ipc_paths(tmp_path)
+    wrong_req = workspace / "wrong.json"
+    wrong_req.touch(mode=0o600)
+    with pytest.raises(ValueError, match="worker IPC filenames"):
+        worker._lexical_ipc_paths(str(wrong_req), str(response_path))
+
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir(mode=0o700)
+    outside_req = outside_dir / "request.json"
+    outside_resp = outside_dir / "response.json"
+    outside_req.touch(mode=0o600)
+    with pytest.raises(ValueError, match="private .zaptrace-job-"):
+        worker._validated_job_directory(outside_req, outside_resp, workspace)
+
+
+@requires_posix_worker
+def test_worker_default_encoder_and_path_validation_coverage(tmp_path: Path) -> None:
+    from pydantic import BaseModel
+
+    class MockModel(BaseModel):
+        val: int = 42
+
+    obj1 = MockModel()
+    assert worker._default_encoder(obj1) == {"val": 42}
+    obj2 = {1, 2, 3}
+    assert sorted(worker._default_encoder(obj2)) == [1, 2, 3]
+
+    workspace = tmp_path / "ws"
+    workspace.mkdir(mode=0o700)
+    job_dir = workspace / ".zaptrace-job-test"
+    job_dir.mkdir(mode=0o700)
+
+    # test resolved != job_dir / _REQUEST_FILENAME line 114
+    alt_req = job_dir / "other.json"
+    alt_req.touch(mode=0o600)
+    with pytest.raises(ValueError, match="request must be the private request.json file"):
+        worker._validated_request_path(alt_req, job_dir)
+
+    # test resolved != job_dir / _RESPONSE_FILENAME line 127
+    alt_resp = job_dir / "other_resp.json"
+    with pytest.raises(ValueError, match="response must be the private response.json file"):
+        worker._validated_response_path(alt_resp, job_dir)

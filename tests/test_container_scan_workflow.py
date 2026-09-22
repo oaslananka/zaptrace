@@ -228,3 +228,9 @@ def test_release_archives_container_reproducibility_evidence() -> None:
     assert "path: release-artifacts/container-security" in workflow
     assert "subject-path: release-artifacts/**/*" in workflow
     assert "files: release-artifacts/**/*" in workflow
+
+
+def test_container_workflow_includes_scheduled_scan_trigger() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "schedule:" in workflow
+    assert "- cron:" in workflow

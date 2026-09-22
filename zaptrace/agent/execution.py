@@ -11,7 +11,6 @@ import asyncio
 import copy
 import json
 import os
-import pickle  # trusted local IPC between parent and child
 import shutil
 import signal
 import subprocess
@@ -25,6 +24,15 @@ from pathlib import Path
 from secrets import token_urlsafe
 from typing import Any
 from weakref import WeakValueDictionary
+
+
+def _default_encoder(obj: Any) -> Any:
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    if isinstance(obj, (set, tuple)):
+        return list(obj)
+    return str(obj)
+
 
 ExecutionEventSink = Callable[[str, dict[str, Any]], None]
 
@@ -419,16 +427,16 @@ def _commit_session_state(session_id: str, incoming: dict[str, Any]) -> dict[str
 
 
 def _write_request(path: Path, payload: dict[str, Any]) -> None:
-    with path.open("wb") as handle:
-        pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with path.open("w") as handle:
+        json.dump(payload, handle, default=_default_encoder)
         handle.flush()
         os.fsync(handle.fileno())
     path.chmod(0o600)
 
 
 def _read_response(path: Path) -> dict[str, Any]:
-    with path.open("rb") as handle:
-        payload = pickle.load(handle)  # nosec: B301
+    with path.open("r") as handle:
+        payload = json.load(handle)  # nosec: B301
     if not isinstance(payload, dict):
         raise TypeError("isolated worker returned an invalid response")
     return payload
@@ -964,8 +972,8 @@ async def _execute_locked(
     workspace.mkdir(parents=True, exist_ok=True)
     staging_root = Path(tempfile.mkdtemp(prefix=".zaptrace-job-", dir=workspace))
     staging_root.chmod(0o700)
-    request_path = staging_root / "request.pickle"
-    response_path = staging_root / "response.pickle"
+    request_path = staging_root / "request.json"
+    response_path = staging_root / "response.json"
     process: subprocess.Popen[Any] | None = None
     acquired_output_locks: list[asyncio.Lock] = []
 
@@ -1061,7 +1069,7 @@ async def _execute_locked(
         )
     except asyncio.CancelledError:
         raise
-    except (OSError, ValueError, TypeError, KeyError, RuntimeError, EOFError, pickle.PickleError) as exc:
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError, EOFError) as exc:
         return await _coordinator_error_outcome(
             error=exc,
             process=process,

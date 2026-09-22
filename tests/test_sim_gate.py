@@ -72,14 +72,33 @@ class TestGateOnSynthesizedBoard:
         d, _, _ = build_architecture_design(parse_requirements("USB-C powered board, 3.3V rail, I2C sensor"))
         return d
 
-    def test_skip_is_non_blocking_by_default(self) -> None:
-        # ngspice is not installed in the test environment: expect a recorded skip.
+    def test_skip_is_non_blocking_by_default(self, monkeypatch) -> None:
+        from zaptrace.analysis import spice_orchestrator
+        from zaptrace.analysis.spice_sim import SpiceResult
+
+        monkeypatch.setattr(
+            spice_orchestrator,
+            "run_operating_point",
+            lambda netlist, timeout_s=30.0: SpiceResult(
+                status="skipped", raw_output="", reason="ngspice binary not found"
+            ),
+        )
         result = run_simulation_gate(self._design(), strict=False)
         assert result.status is GateStatus.SKIPPED
         assert result.satisfied is True
         assert result.status is not GateStatus.PASS
 
-    def test_skip_blocks_under_strict(self) -> None:
+    def test_skip_blocks_under_strict(self, monkeypatch) -> None:
+        from zaptrace.analysis import spice_orchestrator
+        from zaptrace.analysis.spice_sim import SpiceResult
+
+        monkeypatch.setattr(
+            spice_orchestrator,
+            "run_operating_point",
+            lambda netlist, timeout_s=30.0: SpiceResult(
+                status="skipped", raw_output="", reason="ngspice binary not found"
+            ),
+        )
         result = run_simulation_gate(self._design(), strict=True)
         assert result.status is GateStatus.SKIPPED
         assert result.blocking is True
