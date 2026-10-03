@@ -151,6 +151,8 @@ def _resolve_callable(module_name: str, qualname: str) -> Callable[..., Any]:
         parts = dotted.split(".")
         if not parts or not all(part.isidentifier() for part in parts):
             raise ValueError(f"isolated tool {label} is not a valid dotted path: {dotted!r}")
+        if any(part.startswith("__") for part in parts):
+            raise ValueError(f"isolated tool {label} must not use dunder attributes: {dotted!r}")
     target: Any = importlib.import_module(module_name)
     for part in qualname.split("."):
         target = getattr(target, part)

@@ -207,6 +207,17 @@ def test_resolve_callable_rejects_non_identifier_paths() -> None:
         worker._resolve_callable("os", "sys tem")
 
 
+def test_resolve_callable_rejects_dunder_attributes() -> None:
+    # Dunder attributes (e.g. object.__subclasses__) are callable and would
+    # pass the callable check, enabling sandbox-escape gadgets.
+    with pytest.raises(ValueError, match="must not use dunder"):
+        worker._resolve_callable("builtins", "object.__subclasses__")
+    with pytest.raises(ValueError, match="must not use dunder"):
+        worker._resolve_callable("os", "system.__globals__")
+    with pytest.raises(ValueError, match="must not use dunder"):
+        worker._resolve_callable("__main__", "probe")
+
+
 def test_await_result_returns_async_value() -> None:
     async def value() -> str:
         return "done"
