@@ -204,3 +204,55 @@ def test_manifest_rejects_footprint_proof_outside_repository(tmp_path: Path) -> 
 
     assert [item.code for item in report.violations] == ["footprint-proof-unavailable"]
     assert "outside repository root" in report.violations[0].message
+
+
+def test_manifest_fail_closed_on_unresolved_pin_map(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A degenerate (None, None) pin-map result must block, never pass silently."""
+    import zaptrace.library.evidence_manifest as evidence_manifest
+
+    proof = _write_proof(tmp_path)
+    entry = _entry(
+        footprint_proof={
+            "proof_path": "evidence/footprints/acme-ldo.json",
+            "proof_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
+            "artifact_id": "datasheet-rev4",
+        }
+    )
+    manifest = ComponentEvidenceManifest.model_validate({"schema_version": "1.0", "components": {"acme-ldo": entry}})
+    monkeypatch.setattr(evidence_manifest, "_physical_package_pin_ids", lambda *args, **kwargs: (None, None))
+
+    report = validate_component_evidence_manifest(
+        {"acme-ldo": _verified_spec()},
+        manifest,
+        repository_root=tmp_path,
+        as_of=date(2026, 8, 9),
+    )
+
+    assert report.passed is False
+    assert [item.code for item in report.violations] == ["package-pin-map-unresolved"]
+
+
+def test_manifest_fail_closed_on_unresolved_proof_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A degenerate (None, None) proof-file result must block, never pass silently."""
+    import zaptrace.library.evidence_manifest as evidence_manifest
+
+    proof = _write_proof(tmp_path)
+    entry = _entry(
+        footprint_proof={
+            "proof_path": "evidence/footprints/acme-ldo.json",
+            "proof_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
+            "artifact_id": "datasheet-rev4",
+        }
+    )
+    manifest = ComponentEvidenceManifest.model_validate({"schema_version": "1.0", "components": {"acme-ldo": entry}})
+    monkeypatch.setattr(evidence_manifest, "_proof_file_violation", lambda *args, **kwargs: (None, None))
+
+    report = validate_component_evidence_manifest(
+        {"acme-ldo": _verified_spec()},
+        manifest,
+        repository_root=tmp_path,
+        as_of=date(2026, 8, 9),
+    )
+
+    assert report.passed is False
+    assert [item.code for item in report.violations] == ["footprint-proof-unresolved"]

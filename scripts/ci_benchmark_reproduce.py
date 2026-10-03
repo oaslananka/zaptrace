@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -41,12 +42,41 @@ def _is_relative_to(path: Path, base: Path) -> bool:
 
 
 def _resolve_reference_cli_path(raw: Path) -> Path:
+    return _resolve_allowed_cli_path(raw, label="Reference path")
+
+
+def _resolve_output_cli_path(raw: Path | None, *, label: str) -> Path | None:
+    if raw is None:
+        return None
+    return _resolve_allowed_cli_path(raw, label=label)
+
+
+def _allowed_cli_roots() -> tuple[Path, ...]:
+    """Return repo root plus CI temp dirs (RUNNER_TEMP/TMPDIR/TEMP/TMP) that exist."""
+    roots: list[Path] = [_REPO_ROOT.resolve(strict=True)]
+    candidates = [tempfile.gettempdir()]
+    candidates.extend(os.environ.get(name, "") for name in ("RUNNER_TEMP", "TMPDIR", "TEMP", "TMP"))
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            resolved = Path(candidate).resolve(strict=True)
+        except OSError:
+            continue
+        if resolved not in roots:
+            roots.append(resolved)
+    return tuple(roots)
+
+
+def _resolve_allowed_cli_path(raw: Path, *, label: str) -> Path:
     candidate = raw if raw.is_absolute() else _REPO_ROOT / raw
     resolved = candidate.resolve(strict=False)
     parent = resolved.parent.resolve(strict=False)
-    allowed = (_REPO_ROOT.resolve(strict=True), Path(tempfile.gettempdir()).resolve(strict=True))
+    allowed = _allowed_cli_roots()
     if not any(_is_relative_to(parent, root) for root in allowed):
-        raise ValueError("Reference path is outside allowed roots")
+        raise ValueError(f"{label} is outside allowed roots")
+    if resolved.exists() and resolved.is_symlink():
+        raise ValueError(f"{label} must not be a symbolic link")
     return resolved
 
 
@@ -269,10 +299,14 @@ def render_markdown(report: dict[str, Any]) -> str:
 def _write_outputs(report: dict[str, Any], output: Path | None, markdown: Path | None) -> None:
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        output.write_text(  # NOSONAR -- output path is confined to allowed roots in main().
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     if markdown is not None:
         markdown.parent.mkdir(parents=True, exist_ok=True)
-        markdown.write_text(render_markdown(report), encoding="utf-8")
+        markdown.write_text(  # NOSONAR -- markdown path is confined to allowed roots in main().
+            render_markdown(report), encoding="utf-8"
+        )
 
 
 def _print_comparison(report: dict[str, Any]) -> None:
@@ -302,7 +336,13 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    reference_file = _resolve_reference_cli_path(args.reference_file)
+    try:
+        reference_file = _resolve_reference_cli_path(args.reference_file)
+        output_path = _resolve_output_cli_path(args.output, label="Output path")
+        markdown_path = _resolve_output_cli_path(args.markdown, label="Markdown path")
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
     print("Collecting benchmark run hashes...")
     current = _collect_hashes()
     print(f"  Collected {len(current)} hash(es)")
@@ -312,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = build_reproduction_report(reference_file, current=current)
     _print_comparison(report)
-    _write_outputs(report, args.output, args.markdown)
+    _write_outputs(report, output_path, markdown_path)
 
     if report["passed"]:
         print(f"\nOK: All {len(report['reference_hashes'])} reference hash(es) match")

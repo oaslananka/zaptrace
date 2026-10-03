@@ -325,3 +325,21 @@ def test_structured_reproduction_digest_is_stable_across_runs(tmp_path: Path) ->
     first_payload = json.loads(first.read_text(encoding="utf-8"))
     second_payload = json.loads(second.read_text(encoding="utf-8"))
     assert first_payload["evidence_digest"] == second_payload["evidence_digest"]
+
+
+def test_script_rejects_output_outside_allowed_roots(tmp_path: Path) -> None:
+    outside = Path(tmp_path.anchor) / "zaptrace-escape-probe.json"
+
+    proc = _run_script("--output", str(outside))
+    assert proc.returncode == 2
+    assert "outside allowed roots" in proc.stderr
+    assert not outside.exists()
+
+
+def test_script_rejects_markdown_outside_allowed_roots(tmp_path: Path) -> None:
+    outside = Path(tmp_path.anchor) / "zaptrace-escape-probe.md"
+
+    proc = _run_script("--markdown", str(outside))
+    assert proc.returncode == 2
+    assert "outside allowed roots" in proc.stderr
+    assert not outside.exists()

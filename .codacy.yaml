@@ -1,0 +1,11 @@
+---
+# Bandit B101 ("use of assert") fires on every pytest assertion under tests/.
+# pytest assertions are the idiomatic test oracle and only execute in CI;
+# they are not a production attack surface. Production code
+# (zaptrace/, scripts/, Dockerfile) remains fully scanned by Bandit.
+# See PR #53 assurance report: cluster C7, FALSE_POSITIVE_WITH_EVIDENCE
+# (secret scanning clean, no production asserts remain).
+engines:
+  bandit:
+    exclude_paths:
+      - "tests/**"
