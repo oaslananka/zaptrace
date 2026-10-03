@@ -79,17 +79,14 @@ def test_output_path_confined_to_workspace_or_temp(tmp_path: Path, monkeypatch: 
     monkeypatch.chdir(tmp_path)
 
     assert _resolve_output_cli_path(None, label="Output path") is None
-    assert _resolve_output_cli_path(tmp_path / "gate.json", label="Output path") == (
-        tmp_path / "gate.json"
-    ).resolve()
-    assert _resolve_output_cli_path(
-        Path("reports") / "gate.json", label="Output path"
-    ) == (tmp_path / "reports" / "gate.json").resolve()
+    assert _resolve_output_cli_path(tmp_path / "gate.json", label="Output path") == (tmp_path / "gate.json").resolve()
+    assert (
+        _resolve_output_cli_path(Path("reports") / "gate.json", label="Output path")
+        == (tmp_path / "reports" / "gate.json").resolve()
+    )
 
 
-def test_output_path_rejects_escape_from_allowed_roots(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_output_path_rejects_escape_from_allowed_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     outside = Path(tmp_path.anchor) / "zaptrace-escape-probe.json"
 
