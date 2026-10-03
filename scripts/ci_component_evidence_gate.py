@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from datetime import date
@@ -27,15 +28,32 @@ def _is_relative_to(path: Path, base: Path) -> bool:
     return True
 
 
+def _allowed_output_roots(workspace: Path) -> tuple[Path, ...]:
+    """Return workspace plus CI temp dirs (RUNNER_TEMP/TMPDIR/TEMP/TMP) that exist."""
+    roots: list[Path] = [workspace.resolve(strict=True)]
+    candidates = [tempfile.gettempdir()]
+    candidates.extend(os.environ.get(name, "") for name in ("RUNNER_TEMP", "TMPDIR", "TEMP", "TMP"))
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            resolved = Path(candidate).resolve(strict=True)
+        except OSError:
+            continue
+        if resolved not in roots:
+            roots.append(resolved)
+    return tuple(roots)
+
+
 def _resolve_output_cli_path(raw: Path | None, *, label: str) -> Path | None:
-    """Confine a CLI output path to the workspace or the system temp dir."""
+    """Confine a CLI output path to the workspace or a CI temp dir."""
     if raw is None:
         return None
     root = Path.cwd()
     candidate = raw if raw.is_absolute() else root / raw
     resolved = candidate.resolve(strict=False)
     parent = resolved.parent.resolve(strict=False)
-    allowed = (root.resolve(strict=True), Path(tempfile.gettempdir()).resolve(strict=True))
+    allowed = _allowed_output_roots(root)
     if not any(_is_relative_to(parent, allowed_root) for allowed_root in allowed):
         raise ValueError(f"{label} is outside allowed roots")
     if resolved.exists() and resolved.is_symlink():

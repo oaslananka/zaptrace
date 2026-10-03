@@ -93,3 +93,13 @@ def test_output_path_rejects_escape_from_allowed_roots(tmp_path: Path, monkeypat
     with pytest.raises(ValueError, match="outside allowed roots"):
         _resolve_output_cli_path(outside, label="Output path")
     assert not outside.exists()
+
+
+def test_output_path_accepts_runner_temp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    monkeypatch.setenv("RUNNER_TEMP", str(runner_temp))
+    target = runner_temp / "summaries" / "gate.md"
+
+    assert _resolve_output_cli_path(target, label="Markdown path") == target.resolve()

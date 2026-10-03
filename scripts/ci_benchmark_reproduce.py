@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -50,11 +51,28 @@ def _resolve_output_cli_path(raw: Path | None, *, label: str) -> Path | None:
     return _resolve_allowed_cli_path(raw, label=label)
 
 
+def _allowed_cli_roots() -> tuple[Path, ...]:
+    """Return repo root plus CI temp dirs (RUNNER_TEMP/TMPDIR/TEMP/TMP) that exist."""
+    roots: list[Path] = [_REPO_ROOT.resolve(strict=True)]
+    candidates = [tempfile.gettempdir()]
+    candidates.extend(os.environ.get(name, "") for name in ("RUNNER_TEMP", "TMPDIR", "TEMP", "TMP"))
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            resolved = Path(candidate).resolve(strict=True)
+        except OSError:
+            continue
+        if resolved not in roots:
+            roots.append(resolved)
+    return tuple(roots)
+
+
 def _resolve_allowed_cli_path(raw: Path, *, label: str) -> Path:
     candidate = raw if raw.is_absolute() else _REPO_ROOT / raw
     resolved = candidate.resolve(strict=False)
     parent = resolved.parent.resolve(strict=False)
-    allowed = (_REPO_ROOT.resolve(strict=True), Path(tempfile.gettempdir()).resolve(strict=True))
+    allowed = _allowed_cli_roots()
     if not any(_is_relative_to(parent, root) for root in allowed):
         raise ValueError(f"{label} is outside allowed roots")
     if resolved.exists() and resolved.is_symlink():
