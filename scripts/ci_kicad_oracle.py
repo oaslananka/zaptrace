@@ -115,7 +115,9 @@ def _write_summary(
         "commands": [check.get("command") for check in _CHECKS if check.get("command")],
         "skip_policy": "skips are explicit evidence; release validation should use --strict-skips",
     }
-    path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+    path.write_text(  # NOSONAR -- output confined to trusted_root via _resolve_oracle_output().
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def _run_subprocess(command: list[str], *, timeout: int = 15) -> subprocess.CompletedProcess[str]:

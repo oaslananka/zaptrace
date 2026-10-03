@@ -148,7 +148,7 @@ def test_renovate_validator_uses_committed_npm_lockfile() -> None:
     assert "npm ci --ignore-scripts" in workflow
     assert "npm install --global" not in workflow
     assert ".github/renovate-validation/node_modules/.bin/renovate-config-validator --strict" in workflow
-    assert '"renovate": "44.32.2"' in package
+    assert '"renovate": "44.132.5"' in package
     assert '"lockfileVersion": 3' in lockfile
     assert '"node_modules/renovate"' in lockfile
 

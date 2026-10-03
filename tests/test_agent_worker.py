@@ -196,6 +196,17 @@ def test_resolve_callable_rejects_local_and_non_callable_targets() -> None:
         worker._resolve_callable("tests.execution_probe_tools", "_RESULT_FILENAME")
 
 
+def test_resolve_callable_rejects_non_identifier_paths() -> None:
+    with pytest.raises(ValueError, match="not a valid dotted path"):
+        worker._resolve_callable("..os", "system")
+    with pytest.raises(ValueError, match="not a valid dotted path"):
+        worker._resolve_callable("os", "..system")
+    with pytest.raises(ValueError, match="not a valid dotted path"):
+        worker._resolve_callable("", "system")
+    with pytest.raises(ValueError, match="not a valid dotted path"):
+        worker._resolve_callable("os", "sys tem")
+
+
 def test_await_result_returns_async_value() -> None:
     async def value() -> str:
         return "done"

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.ci_component_evidence_gate import main
+from scripts.ci_component_evidence_gate import _resolve_output_cli_path, main
 
 
 def test_component_evidence_gate_passes_empty_verified_subset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -73,3 +73,26 @@ def test_quality_workflow_runs_component_evidence_gate() -> None:
     assert "--manifest config/component-evidence-manifest.json" in workflow
     assert "--strict" in workflow
     assert "--output component-evidence-gate.json" in workflow
+
+
+def test_output_path_confined_to_workspace_or_temp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert _resolve_output_cli_path(None, label="Output path") is None
+    assert _resolve_output_cli_path(tmp_path / "gate.json", label="Output path") == (
+        tmp_path / "gate.json"
+    ).resolve()
+    assert _resolve_output_cli_path(
+        Path("reports") / "gate.json", label="Output path"
+    ) == (tmp_path / "reports" / "gate.json").resolve()
+
+
+def test_output_path_rejects_escape_from_allowed_roots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    outside = Path(tmp_path.anchor) / "zaptrace-escape-probe.json"
+
+    with pytest.raises(ValueError, match="outside allowed roots"):
+        _resolve_output_cli_path(outside, label="Output path")
+    assert not outside.exists()

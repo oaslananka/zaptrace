@@ -147,6 +147,10 @@ def _resolve_callable(module_name: str, qualname: str) -> Callable[..., Any]:
     """Resolve a top-level callable identified by module and qualified name."""
     if "<locals>" in qualname:
         raise ValueError("isolated tool functions must be importable top-level callables")
+    for label, dotted in (("module", module_name), ("qualified name", qualname)):
+        parts = dotted.split(".")
+        if not parts or not all(part.isidentifier() for part in parts):
+            raise ValueError(f"isolated tool {label} is not a valid dotted path: {dotted!r}")
     target: Any = importlib.import_module(module_name)
     for part in qualname.split("."):
         target = getattr(target, part)

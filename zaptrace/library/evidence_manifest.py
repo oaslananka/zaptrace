@@ -462,7 +462,15 @@ def _proof_semantic_violations(
     physical_pin_ids, pin_map_violation = _physical_package_pin_ids(component_id, spec)
     if pin_map_violation is not None:
         return [pin_map_violation]
-    assert physical_pin_ids is not None
+    if physical_pin_ids is None:
+        return [
+            ComponentEvidenceViolation(
+                code="package-pin-map-unresolved",
+                component_id=component_id,
+                field="package_pin_map",
+                message="verified component pin map resolved to no physical pins",
+            )
+        ]
     validation = validate_footprint_proof(proof, expected_physical_pins=physical_pin_ids)
     findings: list[ComponentEvidenceViolation] = []
     if validation.blocked:
@@ -500,7 +508,15 @@ def _entry_violations(
     proof, violation = _proof_file_violation(component_id, entry, repository_root=repository_root)
     if violation is not None:
         return [violation]
-    assert proof is not None
+    if proof is None:
+        return [
+            ComponentEvidenceViolation(
+                code="footprint-proof-unresolved",
+                component_id=component_id,
+                field="footprint_proof",
+                message="footprint proof resolved to no file without a violation",
+            )
+        ]
     return _proof_semantic_violations(component_id, spec, entry, proof, repository_root=repository_root)
 
 

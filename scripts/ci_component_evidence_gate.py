@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -16,6 +17,30 @@ from zaptrace.library.evidence_manifest import (
 from zaptrace.library.loader import LIBRARY_ROOT, LibraryLoader
 
 DEFAULT_MANIFEST = Path("config/component-evidence-manifest.json")
+
+
+def _is_relative_to(path: Path, base: Path) -> bool:
+    try:
+        path.relative_to(base)
+    except ValueError:
+        return False
+    return True
+
+
+def _resolve_output_cli_path(raw: Path | None, *, label: str) -> Path | None:
+    """Confine a CLI output path to the workspace or the system temp dir."""
+    if raw is None:
+        return None
+    root = Path.cwd()
+    candidate = raw if raw.is_absolute() else root / raw
+    resolved = candidate.resolve(strict=False)
+    parent = resolved.parent.resolve(strict=False)
+    allowed = (root.resolve(strict=True), Path(tempfile.gettempdir()).resolve(strict=True))
+    if not any(_is_relative_to(parent, allowed_root) for allowed_root in allowed):
+        raise ValueError(f"{label} is outside allowed roots")
+    if resolved.exists() and resolved.is_symlink():
+        raise ValueError(f"{label} must not be a symbolic link")
+    return resolved
 
 
 def _markdown(summary: dict[str, object]) -> str:
@@ -74,10 +99,14 @@ def build_gate_summary(
 def _write_gate_outputs(summary: dict[str, object], *, output: Path | None, markdown: Path | None) -> None:
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        output.write_text(  # NOSONAR -- output path is confined to allowed roots in main().
+            json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     if markdown:
         markdown.parent.mkdir(parents=True, exist_ok=True)
-        with markdown.open("a", encoding="utf-8") as handle:
+        with markdown.open(  # NOSONAR -- markdown path is confined to allowed roots in main().
+            "a", encoding="utf-8"
+        ) as handle:
             handle.write(_markdown(summary))
 
 
@@ -118,7 +147,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     summary = build_gate_summary(report, as_of=args.as_of, library_errors=library_errors)
 
-    _write_gate_outputs(summary, output=args.output, markdown=args.markdown)
+    try:
+        output_path = _resolve_output_cli_path(args.output, label="Output path")
+        markdown_path = _resolve_output_cli_path(args.markdown, label="Markdown path")
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    _write_gate_outputs(summary, output=output_path, markdown=markdown_path)
     return _gate_exit(summary, strict=args.strict)
 
 
