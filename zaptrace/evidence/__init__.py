@@ -9,18 +9,18 @@ from zaptrace.evidence.identity import (
     verify_evidence_identity,
 )
 from zaptrace.evidence.producer import (
+    AssumptionsLimitations,
+    ConfigurationIdentity,
+    EvidenceAuthority,
     EvidenceProducerRecord,
     EvidenceProducerRecordBuilder,
-    EvidenceAuthority,
-    ProducerResultStatus,
-    ProducerIdentity,
     InputIdentity,
-    ConfigurationIdentity,
     OutputIdentity,
-    AssumptionsLimitations,
-    validate_evidence_producer_record,
-    enforce_authority_ceiling,
+    ProducerIdentity,
+    ProducerResultStatus,
     adapt_producer_record_to_proof_evidence,
+    enforce_authority_ceiling,
+    validate_evidence_producer_record,
 )
 
 __all__ = [

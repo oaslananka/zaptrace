@@ -19,21 +19,15 @@ from zaptrace.evidence.identity import (
     capture_evidence_identity,
 )
 from zaptrace.evidence.producer import (
+    EvidenceAuthority,
     EvidenceProducerRecord,
     EvidenceProducerRecordBuilder,
-    EvidenceAuthority,
-    ProducerResultStatus,
     ProducerIdentity,
-    InputIdentity,
-    ConfigurationIdentity,
-    OutputIdentity,
-    AssumptionsLimitations,
-    validate_evidence_producer_record,
-    enforce_authority_ceiling,
+    ProducerResultStatus,
     adapt_producer_record_to_proof_evidence,
+    enforce_authority_ceiling,
+    validate_evidence_producer_record,
 )
-from zaptrace.evidence.sonar_debt import SonarDebtReport, SonarDebtFinding
-from pydantic import ConfigDict
 
 
 class _TestEvidenceModel(BaseModel):
@@ -57,15 +51,13 @@ def _dummy_evidence_identity() -> EvidenceIdentity:
     # Create a valid EvidenceIdentity using the proper capture function
     import tempfile
     from pathlib import Path
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        (root / "pyproject.toml").write_text(
-            '[project]\nname = "zaptrace"\nversion = "1.2.3"\n', encoding="utf-8"
-        )
+        (root / "pyproject.toml").write_text('[project]\nname = "zaptrace"\nversion = "1.2.3"\n', encoding="utf-8")
         (root / "uv.lock").write_text("version = 1\n", encoding="utf-8")
         (root / "source.txt").write_text("alpha\n", encoding="utf-8")
-        
+
         return capture_evidence_identity(
             root=root,
             mode=EvidenceMode.SNAPSHOT,
