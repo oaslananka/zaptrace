@@ -150,9 +150,7 @@ class EvidenceProducerRecord(BaseModel):
     )
 
     # Timestamps
-    produced_at: str = Field(
-        default_factory=lambda: datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    )
+    produced_at: str = Field(default_factory=lambda: datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     # Optional: link to the shared EvidenceIdentity for the environment
     evidence_identity: EvidenceIdentity | None = Field(
@@ -420,9 +418,7 @@ def adapt_producer_record_to_proof_evidence(
     """
     record_dict = record.model_dump(mode="json")
 
-    payload_for_hash = {
-        k: v for k, v in record_dict.items() if k not in ("record_sha256", "produced_at")
-    }
+    payload_for_hash = {k: v for k, v in record_dict.items() if k not in ("record_sha256", "produced_at")}
     import hashlib as _hashlib
     import json as _json
 
