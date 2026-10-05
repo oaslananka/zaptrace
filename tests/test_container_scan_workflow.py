@@ -61,8 +61,12 @@ def test_container_workflow_limits_expensive_pr_runs_to_runtime_inputs() -> None
 
     assert "workflow_call:" in workflow
     assert "pull_request:" in workflow
-    assert "Dockerfile|pyproject.toml|uv.lock" in workflow
-    assert "data/*|zaptrace/*|zaptrace_core/*" in workflow
+    assert "Dockerfile|.dockerignore|pyproject.toml|uv.lock" in workflow
+    assert "requirements/container-runtime.txt" in workflow
+    assert "requirements/container-apk.txt" in workflow
+    assert "requirements/container-builder.txt" in workflow
+    assert "zaptrace_core/Cargo.toml|zaptrace_core/Cargo.lock" in workflow
+    assert "data/*|zaptrace/*|zaptrace_core/*" not in workflow
     assert "scripts/ci_container_scan_policy.py" in workflow
     assert ".github/workflows/container-security.yml" in workflow
     assert "scan_required=false" in workflow

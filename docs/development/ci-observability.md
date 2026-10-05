@@ -1,28 +1,28 @@
 # CI observability
 
-ZapTrace uses Codecov for coverage-specific pull-request feedback and SonarQube Cloud for broader maintainability, reliability, and security quality gates. The services have distinct responsibilities; SonarQube Cloud is not configured as a second required coverage gate.
+ZapTrace keeps merge-blocking test and coverage authority inside the repository and GitHub Actions. External analysis services may add maintainability, reliability, or security feedback, but they are not required to accept repository-owned coverage evidence.
 
 ## Coverage policy
 
-Python 3.12 lane jobs publish parallel coverage data that the `Combined Python coverage` job merges into `coverage.xml`. Codecov applies project and patch statuses with an automatic target and a 1% tolerance. This protects the current baseline and new code without introducing a repository-wide fixed percentage that can reward low-value tests or penalize generated and integration-heavy code.
+Python 3.12 lane jobs publish parallel Coverage.py data. The `Combined Python coverage` job merges those fragments, enforces the repository-wide `75%` Coverage.py threshold, emits `coverage.xml` and `coverage.json`, and then applies the committed critical-runtime module floors.
 
-Coverage uploads are explicit, use the committed XML report, and fail trusted CI when the uploader cannot process the report. Line annotations are enabled through GitHub Checks.
+The merged reports and the critical-runtime report are retained as GitHub Actions artifacts. Coverage enforcement therefore does not depend on a third-party upload service, token, dashboard, or API being available.
 
 ## Critical runtime coverage evidence
 
 The repository-owned critical-runtime gate enforces exact per-module floors for MCP, transaction-safe isolated execution, REST transport/authentication, object authorization, capability policy, release evidence, and REST release-export code. The combined Python 3.12 lane coverage job publishes the `critical-runtime-coverage` artifact; tagged releases publish `critical-runtime-coverage-release` after executing all approved lanes. Each report is bound to the producing revision through the shared evidence identity.
 
-This control is intentionally separate from Codecov and SonarQube Cloud. Codecov reports repository/patch trends and annotations. SonarQube Cloud reports new-code quality and security findings. The repository validator is the merge-blocking authority for the committed critical-module floors and reviewed exceptions. See [Critical Runtime Coverage](critical-runtime-coverage.md).
+The repository validator is the merge-blocking authority for committed global and critical-module coverage policy. SonarQube Cloud remains a separate new-code quality/security signal rather than a second coverage authority. See [Critical Runtime Coverage](critical-runtime-coverage.md).
 
-## Test Analytics
+## Test result evidence
 
 Every Python 3.12 lane or shard writes a unique JUnit XML file such as `junit-lane-unit-1.xml`, `junit-lane-benchmark-1.xml`, or `junit-lane-external-tool.xml`. Python 3.13 and 3.14 compatibility jobs emit separate uninstrumented unit and integration reports.
 
-Trusted branch and same-repository pull-request runs upload those reports with the pinned Codecov v7 uploader in test-results mode. Failed tests remain in the JUnit file because the upload step runs when the job has not been cancelled. Fork pull requests do not receive `CODECOV_TOKEN`, so their Test Analytics upload is skipped while their test result still controls the GitHub job conclusion. Lane JSON evidence separately records inventory, selected modules, shard identity, duration, runtime budget, pass/fail/skip counts, and whether required execution occurred.
+JUnit reports, lane JSON evidence, and per-lane coverage fragments are uploaded directly as GitHub Actions artifacts. Lane JSON evidence records inventory, selected modules, shard identity, duration, runtime budget, pass/fail/skip counts, and whether required execution occurred. A test job's conclusion is determined by the test and repository policy itself, not by an external analytics upload.
 
 ## JavaScript Bundle Analysis
 
-Codecov Bundle Analysis is not enabled. ZapTrace is a Python/Rust package and does not emit a Vite, Webpack, or Rollup JavaScript application bundle. If a future web application introduces a supported bundler, Bundle Analysis should be evaluated in that application-specific workflow rather than added to the Python package CI.
+External JavaScript bundle analysis is not enabled. ZapTrace is a Python/Rust package and does not emit a Vite, Webpack, or Rollup JavaScript application bundle. If a future web application introduces a supported bundler, bundle analysis should be evaluated in that application-specific workflow rather than added to the Python package CI.
 
 ## Workflow security
 

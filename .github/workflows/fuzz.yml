@@ -3,8 +3,24 @@ name: Fuzz
 on:
   push:
     branches: [main]
+    paths:
+      - "zaptrace/**/*.py"
+      - "scripts/ci_fuzz_campaign.py"
+      - "tests/test_fuzz_campaign.py"
+      - "tests/corpus/fuzz/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/fuzz.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "zaptrace/**/*.py"
+      - "scripts/ci_fuzz_campaign.py"
+      - "tests/test_fuzz_campaign.py"
+      - "tests/corpus/fuzz/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/fuzz.yml"
   schedule:
     - cron: "15 4 * * 0"  # Weekly deep campaign, Sunday 04:15 UTC
   workflow_dispatch:

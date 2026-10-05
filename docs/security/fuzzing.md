@@ -102,9 +102,11 @@ Issue #82 discovered and minimized three defects:
 
 `.github/workflows/fuzz.yml` runs:
 
-- the `ci` profile on pull requests and pushes to `main`;
-- the `deep` profile every Sunday at 04:15 UTC;
+- the `ci` profile on pull requests and pushes to `main` when Python source, fuzz corpus/driver, or dependency inputs relevant to the campaign change;
+- the `deep` profile every Sunday at 04:15 UTC regardless of repository path changes;
 - a selectable profile through `workflow_dispatch`.
+
+Documentation-only and agent-instruction-only changes do not launch the bounded campaign. The scheduled deep campaign remains the backstop for newly disclosed or environment-dependent issues.
 
 The workflow uploads `campaign.json` and any failure payloads for 30 days. The JSON report is the machine-readable release evidence; console output is only a summary.
 

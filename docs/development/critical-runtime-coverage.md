@@ -1,6 +1,6 @@
 # Critical Runtime Coverage
 
-ZapTrace protects security-critical Python runtime boundaries with a repository-owned, module-level coverage gate. The gate supplements the repository-wide `75%` pytest threshold and Codecov trend reporting; it does not replace security review, negative-path tests, CodeQL, Semgrep, or SonarQube Cloud.
+ZapTrace protects security-critical Python runtime boundaries with a repository-owned, module-level coverage gate. The gate supplements the repository-wide `75%` Coverage.py threshold and retained GitHub Actions coverage artifacts; it does not replace security review, negative-path tests, CodeQL, Semgrep, or SonarQube Cloud.
 
 ## Protected modules and approved baseline
 
@@ -75,10 +75,11 @@ An expired exception fails CI. Removing tests without a reviewed, time-bounded p
 
 An exact source exclusion uses the same review fields plus `line`. Broad file, directory, or regular-expression exclusions are not accepted for protected modules.
 
-## Responsibilities of external services
+## Responsibilities of coverage and external services
 
+- **Repository global coverage gate:** the repository-wide Coverage.py floor and merged XML/JSON reports.
 - **Repository critical-runtime gate:** exact protected-module floors, owners, exclusions, exceptions, and revision-bound evidence.
-- **Codecov:** repository and patch coverage trends, annotations, and test analytics.
+- **GitHub Actions artifacts:** retained JUnit, lane, global coverage, and critical-runtime evidence without an external coverage-service dependency.
 - **SonarQube Cloud:** new-code maintainability, reliability, security findings, and security hotspots.
 - **GitHub Actions jobs:** explicit Rust/native, KiCad, container, hardware, proof-pack, and external-tool results. Missing prerequisites must be reported as pass, fail, or approved skip; they must not disappear into Python line coverage.
 

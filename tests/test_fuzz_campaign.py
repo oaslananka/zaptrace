@@ -448,3 +448,15 @@ def test_fuzz_workflow_uses_locked_buildless_dependencies() -> None:
     assert 'PYTHONPATH: "."' in workflow
     assert ".venv/bin/python scripts/ci_fuzz_campaign.py" in workflow
     assert "uv run python scripts/ci_fuzz_campaign.py" not in workflow
+
+
+def test_fuzz_workflow_skips_non_code_pull_requests() -> None:
+    workflow = Path(".github/workflows/fuzz.yml").read_text(encoding="utf-8")
+    trigger = workflow.split("permissions:", 1)[0]
+
+    assert trigger.count("paths:") == 2
+    assert '"zaptrace/**/*.py"' in trigger
+    assert '"tests/corpus/fuzz/**"' in trigger
+    assert '".github/workflows/fuzz.yml"' in trigger
+    assert '"docs/**"' not in trigger
+    assert '"**/*.md"' not in trigger
