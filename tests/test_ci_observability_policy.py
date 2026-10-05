@@ -1,4 +1,4 @@
-"""Static contracts for Codecov observability and GitHub Actions security."""
+"""Static contracts for CI observability and GitHub Actions security."""
 
 from __future__ import annotations
 
