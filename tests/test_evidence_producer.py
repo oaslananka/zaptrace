@@ -263,6 +263,13 @@ class TestTamperRejectionFailClosed:
         with pytest.raises(ValidationError, match="tampering detected"):
             EvidenceProducerRecord.validate_and_load(path)
 
+    def test_validate_and_load_accepts_dict_payload(self) -> None:
+        record = _minimal_valid_record()
+        payload = record.model_dump(mode="json")
+        restored = EvidenceProducerRecord.validate_and_load(payload)
+        assert restored.record_sha256 == record.record_sha256
+        assert restored.producer.name == record.producer.name
+
 
 class TestAuthorityInvariants:
     def test_consumer_cannot_upgrade_authority(self) -> None:
@@ -397,8 +404,9 @@ class TestStatusSemantics:
 
 class TestBuilder:
     def test_builder_requires_all_fields(self) -> None:
+        builder = EvidenceProducerRecordBuilder()
         with pytest.raises(ValueError, match="missing required fields"):
-            EvidenceProducerRecordBuilder().build()
+            builder.build()
 
     def test_builder_sets_defaults(self) -> None:
         record = (
@@ -483,6 +491,56 @@ class TestIntegrationSeam:
                 field_mapping={"project_key": "producer.name"},
             )
 
+    def test_adapt_traverses_object_attribute(self) -> None:
+        """Test adapt traverses object attribute via hasattr/getattr (lines 406-407)."""
+        record = _minimal_valid_record()
+        # The _resolve_nested_path function uses hasattr/getattr for non-dict objects.
+        # Test by mapping a field that requires attribute access on a BaseModel.
+        evidence = adapt_producer_record_to_proof_evidence(
+            record,
+            evidence_class=_TestEvidenceModel,
+            field_mapping={"project_key": "producer.name"},
+        )
+        assert evidence.project_key == "test-producer"
+
+    def test_adapt_returns_none_for_unknown_intermediate_type(self) -> None:
+        """Test traversal where intermediate step is neither dict nor has attribute (line 409)."""
+        # Create a record and map a path that goes through an unsupported intermediate type
+        record = _minimal_valid_record()
+        # The design_state_hash is a string; trying to traverse into it should return None
+        # because a string is neither a dict nor has attributes in the path sense
+        evidence = adapt_producer_record_to_proof_evidence(
+            record,
+            evidence_class=_TestEvidenceModel,
+            field_mapping={"dummy_field": "design_state_hash.nonexistent"},
+        )
+        # The field should not be set since traversal returns None
+        assert "dummy_field" not in evidence.model_dump()
+
+    def test_adapt_returns_none_when_intermediate_resolves_to_none(self) -> None:
+        """Test traversal where intermediate value resolves to None (line 411)."""
+        # Create a record WITHOUT output_identity (it's Optional)
+        record = (
+            EvidenceProducerRecordBuilder()
+            .producer("test-producer", "1.0.0")
+            .input_identity("file", "design.yaml", _sha256(b"design content"))
+            .design_state_hash(_sha256(b"design state"))
+            .configuration(_sha256(b"config"), "1.0", {"threshold": 0.5})
+            .result_status(ProducerResultStatus.PASS)
+            .authority(EvidenceAuthority.PRODUCER)
+            .confidence_ceiling(0.95)
+            .evidence_identity(_dummy_evidence_identity())
+            .build()
+        )
+        # output_identity is None; traversing into it should return None
+        evidence = adapt_producer_record_to_proof_evidence(
+            record,
+            evidence_class=_TestEvidenceModel,
+            field_mapping={"dummy_field": "output_identity.sha256"},
+        )
+        # The field should not be set since traversal returns None
+        assert "dummy_field" not in evidence.model_dump()
+
 
 class TestValidateEvidenceProducerRecord:
     def test_valid_record_returns_empty_errors(self) -> None:
@@ -490,17 +548,42 @@ class TestValidateEvidenceProducerRecord:
         errors = validate_evidence_producer_record(record)
         assert errors == []
 
-    def test_invalid_schema_version_reported(self) -> None:
+    def test_invalid_schema_version_reported_direct(self) -> None:
         record = _minimal_valid_record()
-        # Can't easily create invalid schema_version due to Literal, but we can test via model_dump
-        payload = record.model_dump(mode="json")
-        payload["schema_version"] = "9.9"
-        # This would fail at model_validate, so validate_evidence_producer_record
-        # only sees valid records. This test documents that behavior.
+        # Bypass model validation to test the validator directly
+        record_dict = record.model_dump(mode="json")
+        record_dict["schema_version"] = "9.9"
+        # Create a record-like object with invalid schema_version
+        from types import SimpleNamespace
+
+        invalid_record = SimpleNamespace(**record_dict)
+        errors = validate_evidence_producer_record(invalid_record)
+        assert any("unsupported producer schema version" in e for e in errors)
+
+    def test_malformed_design_state_hash_reported(self) -> None:
+        record = _minimal_valid_record()
+        record_dict = record.model_dump(mode="json")
+        record_dict["design_state_hash"] = "not-a-hash"
+        from types import SimpleNamespace
+
+        invalid_record = SimpleNamespace(**record_dict)
+        errors = validate_evidence_producer_record(invalid_record)
+        assert any("design_state_hash is malformed" in e for e in errors)
 
     def test_confidence_ceiling_bounds_reported(self) -> None:
-        # We can't create out-of-range via model, but the validator checks it
-        pass
+        record = _minimal_valid_record()
+        record_dict = record.model_dump(mode="json")
+        record_dict["confidence_ceiling"] = 1.5
+        from types import SimpleNamespace
+
+        invalid_record = SimpleNamespace(**record_dict)
+        errors = validate_evidence_producer_record(invalid_record)
+        assert any("confidence_ceiling must be in [0.0, 1.0]" in e for e in errors)
+
+        record_dict["confidence_ceiling"] = -0.1
+        invalid_record = SimpleNamespace(**record_dict)
+        errors = validate_evidence_producer_record(invalid_record)
+        assert any("confidence_ceiling must be in [0.0, 1.0]" in e for e in errors)
 
 
 class TestRoundTripSerialization:

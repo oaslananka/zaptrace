@@ -31,7 +31,7 @@ class ProducerResultStatus(StrEnum):
     a producer's declared status to a higher-confidence value.
     """
 
-    PASS = "pass"
+    PASS = "pass"  # nosec B105 # noqa: S105
     FAIL = "fail"
     SKIPPED = "skipped"
     UNSUPPORTED = "unsupported"
@@ -368,6 +368,38 @@ class EvidenceProducerRecordBuilder:
         return record.finalize()
 
 
+def _resolve_nested_path(obj: Any, path: str) -> Any:
+    """Resolve a dot-notation path through nested objects, dicts, and BaseModels.
+
+    Supports traversal through:
+    - dict keys
+    - object attributes (via hasattr/getattr)
+    - pydantic BaseModel instances (converted to dict via model_dump)
+
+    Returns None if any intermediate step is missing or resolves to None.
+
+    Args:
+        obj: The root object to traverse.
+        path: Dot-separated path string (e.g., "producer.name" or "output_identity.sha256").
+
+    Returns:
+        The resolved value, or None if the path cannot be fully resolved.
+    """
+    current = obj
+    for part in path.split("."):
+        if isinstance(current, BaseModel):
+            current = current.model_dump(mode="json")
+        if isinstance(current, dict):
+            current = current.get(part)
+        elif hasattr(current, part):
+            current = getattr(current, part)
+        else:
+            return None
+        if current is None:
+            return None
+    return current
+
+
 # Integration seam: adapt a producer record into Proof Pack evidence metadata
 # without flattening source-specific fields.
 def adapt_producer_record_to_proof_evidence(
@@ -396,24 +428,9 @@ def adapt_producer_record_to_proof_evidence(
     if record.record_sha256 != record.compute_sha256():
         raise ValueError("producer record failed integrity check — cannot adapt tampered evidence")
 
-    def get_nested(obj: Any, path: str) -> Any:
-        current = obj
-        for part in path.split("."):
-            if isinstance(current, BaseModel):
-                current = current.model_dump(mode="json")
-            if isinstance(current, dict):
-                current = current.get(part)
-            elif hasattr(current, part):
-                current = getattr(current, part)
-            else:
-                return None
-            if current is None:
-                return None
-        return current
-
     evidence_data: dict[str, Any] = {}
     for target_field, source_path in field_mapping.items():
-        value = get_nested(record, source_path)
+        value = _resolve_nested_path(record, source_path)
         if value is not None:
             evidence_data[target_field] = value
 
