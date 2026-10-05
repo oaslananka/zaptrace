@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Removed Codecov from the merge-critical CI path; JUnit and merged coverage evidence now remain repository-owned GitHub Actions artifacts, with the global Coverage.py floor and critical-runtime module floors continuing to enforce coverage.
+- Made CI risk classification path-aware for documentation/agent instructions, container vulnerability scans, security analysis, and fuzz campaigns so non-code changes retain stable required gates without launching unrelated heavyweight validation.
 - Advanced the development line to Python `0.3.6.dev0` / Cargo `0.3.6-dev.0` after the immutable `v0.3.5` tag and PyPI publication. The `v0.3.5` tag workflow is retained as partial-release evidence because its container-security gate failed before GitHub Release creation; the tag/version will not be reused.
 - Hardened the release DAG so TestPyPI/PyPI publication cannot proceed unless the tagged container-security gate succeeds.
 

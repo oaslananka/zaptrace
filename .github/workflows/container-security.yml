@@ -68,7 +68,7 @@ jobs:
           scan_required=false
           while IFS= read -r path; do
             case "$path" in
-              Dockerfile|pyproject.toml|uv.lock|requirements/container-runtime.txt|requirements/container-apk.txt|requirements/container-builder.txt|data/*|zaptrace/*|zaptrace_core/*|scripts/ci_container_reproducibility.py|scripts/ci_container_scan_policy.py|security/container-scan-exceptions.json|.github/workflows/container-security.yml)
+              Dockerfile|.dockerignore|pyproject.toml|uv.lock|requirements/container-runtime.txt|requirements/container-apk.txt|requirements/container-builder.txt|zaptrace_core/Cargo.toml|zaptrace_core/Cargo.lock|scripts/ci_container_reproducibility.py|scripts/ci_container_scan_policy.py|security/container-scan-exceptions.json|.github/workflows/container-security.yml)
                 scan_required=true
                 break
                 ;;

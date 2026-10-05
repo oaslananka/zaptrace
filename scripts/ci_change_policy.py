@@ -106,11 +106,11 @@ def classify_paths(paths: Iterable[str], *, event_name: str) -> ChangePolicy:
     if event_name != "pull_request" or not normalized:
         return ChangePolicy("full-matrix", docs_only=False, full_ci=True, full_matrix=True, heavy_ci=True)
 
+    if all(_is_docs_path(path) for path in normalized) and not any(path in _HIGH_RISK_FILES for path in normalized):
+        return ChangePolicy("docs", docs_only=True, full_ci=False, full_matrix=False, heavy_ci=False)
+
     if any(path in _HIGH_RISK_FILES or path.startswith(_HIGH_RISK_PREFIXES) for path in normalized):
         return ChangePolicy("full-matrix", docs_only=False, full_ci=True, full_matrix=True, heavy_ci=True)
-
-    if all(_is_docs_path(path) for path in normalized):
-        return ChangePolicy("docs", docs_only=True, full_ci=False, full_matrix=False, heavy_ci=False)
 
     if any(path in _COVERAGE_GATE_FILES for path in normalized):
         return ChangePolicy("full-312", docs_only=False, full_ci=True, full_matrix=False, heavy_ci=True)

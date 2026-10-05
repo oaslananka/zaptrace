@@ -18,7 +18,85 @@ env:
   CARGO_AUDIT_VERSION: "0.22.2"
 
 jobs:
+  changes:
+    name: Security change classification
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      python_audit_required: ${{ steps.classify.outputs.python_audit_required }}
+      rust_audit_required: ${{ steps.classify.outputs.rust_audit_required }}
+      sast_required: ${{ steps.classify.outputs.sast_required }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - id: classify
+        name: Classify security-sensitive changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "schedule" || "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            {
+              echo "python_audit_required=true"
+              echo "rust_audit_required=true"
+              echo "sast_required=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA" > changed-files.txt
+          elif [[ -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+            {
+              echo "python_audit_required=true"
+              echo "rust_audit_required=true"
+              echo "sast_required=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            git diff --name-only "$PUSH_BEFORE_SHA" HEAD > changed-files.txt
+          fi
+
+          python_audit_required=false
+          rust_audit_required=false
+          sast_required=false
+
+          while IFS= read -r path; do
+            case "$path" in
+              pyproject.toml|uv.lock|requirements/*.txt|.github/workflows/security-scan.yml)
+                python_audit_required=true
+                ;;
+            esac
+            case "$path" in
+              zaptrace_core/Cargo.toml|zaptrace_core/Cargo.lock|scripts/ci_cargo_audit.py|.github/workflows/security-scan.yml)
+                rust_audit_required=true
+                ;;
+            esac
+            case "$path" in
+              zaptrace/*.py|zaptrace_core/src/*.rs|scripts/*.py|tests/*.py|.semgrep.yml|.github/workflows/security-scan.yml)
+                sast_required=true
+                ;;
+            esac
+          done < changed-files.txt
+
+          {
+            echo "python_audit_required=$python_audit_required"
+            echo "rust_audit_required=$rust_audit_required"
+            echo "sast_required=$sast_required"
+          } >> "$GITHUB_OUTPUT"
+
   audit:
+    needs: changes
+    if: needs.changes.outputs.python_audit_required == 'true'
     permissions:
       contents: read
     name: Dependency audit
@@ -43,6 +121,8 @@ jobs:
         run: uv audit
 
   cargo-audit:
+    needs: changes
+    if: needs.changes.outputs.rust_audit_required == 'true'
     permissions:
       contents: read
     name: Cargo advisory audit
@@ -89,6 +169,8 @@ jobs:
           if-no-files-found: error
 
   semgrep:
+    needs: changes
+    if: needs.changes.outputs.sast_required == 'true'
     name: Semgrep SAST
     runs-on: ubuntu-latest
     permissions:
@@ -115,13 +197,14 @@ jobs:
         if: always()
 
   codeql:
+    needs: changes
+    if: needs.changes.outputs.sast_required == 'true'
     name: CodeQL analysis
     runs-on: ubuntu-latest
     permissions:
       security-events: write
       actions: read
       contents: read
-
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -138,26 +221,48 @@ jobs:
   security-gate:
     permissions: {}
     name: Security gate
-    needs: [audit, cargo-audit, semgrep, codeql]
+    needs: [changes, audit, cargo-audit, semgrep, codeql]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce security job results
+      - name: Enforce applicable security job results
         shell: bash
         env:
+          CHANGE_RESULT: ${{ needs.changes.result }}
+          PYTHON_AUDIT_REQUIRED: ${{ needs.changes.outputs.python_audit_required }}
+          RUST_AUDIT_REQUIRED: ${{ needs.changes.outputs.rust_audit_required }}
+          SAST_REQUIRED: ${{ needs.changes.outputs.sast_required }}
           AUDIT_RESULT: ${{ needs.audit.result }}
           CARGO_AUDIT_RESULT: ${{ needs.cargo-audit.result }}
           SEMGREP_RESULT: ${{ needs.semgrep.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
           set -euo pipefail
+          if [[ "$CHANGE_RESULT" != "success" ]]; then
+            echo "Security change classification failed: $CHANGE_RESULT" >&2
+            exit 1
+          fi
+
           failures=()
-          [[ "$AUDIT_RESULT" == "success" ]] || failures+=("dependency-audit=$AUDIT_RESULT")
-          [[ "$CARGO_AUDIT_RESULT" == "success" ]] || failures+=("cargo-audit=$CARGO_AUDIT_RESULT")
-          [[ "$SEMGREP_RESULT" == "success" ]] || failures+=("semgrep=$SEMGREP_RESULT")
-          [[ "$CODEQL_RESULT" == "success" ]] || failures+=("codeql=$CODEQL_RESULT")
+          check_job() {
+            local required="$1"
+            local result="$2"
+            local label="$3"
+            if [[ "$required" == "true" ]]; then
+              [[ "$result" == "success" ]] || failures+=("$label=$result")
+            elif [[ "$result" != "skipped" && "$result" != "success" ]]; then
+              failures+=("$label=$result")
+            fi
+          }
+
+          check_job "$PYTHON_AUDIT_REQUIRED" "$AUDIT_RESULT" "dependency-audit"
+          check_job "$RUST_AUDIT_REQUIRED" "$CARGO_AUDIT_RESULT" "cargo-audit"
+          check_job "$SAST_REQUIRED" "$SEMGREP_RESULT" "semgrep"
+          check_job "$SAST_REQUIRED" "$CODEQL_RESULT" "codeql"
+
           if (( ${#failures[@]} > 0 )); then
             printf 'Security gate failures: %s\n' "${failures[*]}" >&2
             exit 1
           fi
-          echo "All required security jobs passed."
+
+          echo "Security gate passed (python_audit=$PYTHON_AUDIT_REQUIRED, rust_audit=$RUST_AUDIT_REQUIRED, sast=$SAST_REQUIRED)."

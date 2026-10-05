@@ -433,7 +433,7 @@ def build_report(
         "non_claims": [
             "line coverage is not proof of security or correctness",
             "the gate measures selected runtime modules and does not replace qualified review",
-            "Codecov remains the repository and patch trend reporter; SonarQube remains the new-code quality gate",
+            "repository-owned coverage artifacts remain the coverage authority; SonarQube remains the new-code quality gate",
         ],
     }
 

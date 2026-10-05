@@ -38,6 +38,8 @@ GitHub Actions dependencies are part of the supply chain.
 
 A red gate is evidence, not an obstacle to suppress.
 
+Required status checks should expose a stable aggregate gate. Prefer an internal change-classification job plus explicitly skipped non-applicable work over path-filtering an entire required workflow. External telemetry/analytics must not become a merge-blocking single point of failure when repository-owned validation is the authoritative control.
+
 Do not:
 
 - convert a required failing step to `continue-on-error` merely to make CI green;
