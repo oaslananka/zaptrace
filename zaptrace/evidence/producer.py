@@ -418,10 +418,24 @@ def adapt_producer_record_to_proof_evidence(
     Raises:
         ValueError: If required fields are missing or mapping fails.
     """
-    if record.record_sha256 != record.compute_sha256():
-        raise ValueError("producer record failed integrity check — cannot adapt tampered evidence")
-
     record_dict = record.model_dump(mode="json")
+
+    payload_for_hash = {
+        k: v for k, v in record_dict.items() if k not in ("record_sha256", "produced_at")
+    }
+    import hashlib as _hashlib
+    import json as _json
+
+    encoded = _json.dumps(
+        payload_for_hash,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        default=str,
+    ).encode()
+    computed_hash = _hashlib.sha256(encoded).hexdigest()
+    if record.record_sha256 != computed_hash:
+        raise ValueError("producer record failed integrity check — cannot adapt tampered evidence")
 
     evidence_data: dict[str, Any] = {}
     for target_field, source_path in field_mapping.items():
