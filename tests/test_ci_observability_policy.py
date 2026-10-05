@@ -1,18 +1,14 @@
-"""Static contracts for Codecov observability and GitHub Actions security."""
+"""Static contracts for CI observability and GitHub Actions security."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-import yaml
-
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 QUALITY = WORKFLOWS / "quality.yml"
 PRE_COMMIT_WORKFLOW = WORKFLOWS / "pre-commit.yml"
-
-CODECOV_ACTION = "codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f"
 
 
 def _workflow_text() -> str:
@@ -37,46 +33,32 @@ def _checkout_steps_without_credential_policy(path: Path) -> list[int]:
     return missing
 
 
-def test_codecov_status_policy_tracks_project_and_patch_regressions() -> None:
-    config = yaml.safe_load((ROOT / "codecov.yml").read_text(encoding="utf-8"))
-    statuses = config["coverage"]["status"]
-
-    for status_name in ("project", "patch"):
-        default = statuses[status_name]["default"]
-        assert default["target"] == "auto"
-        assert str(default["threshold"]) == "1%"
-    assert config["github_checks"]["annotations"] is True
-
-
-def test_quality_matrix_generates_and_uploads_junit_results() -> None:
+def test_quality_matrix_generates_and_retains_junit_results() -> None:
     workflow = QUALITY.read_text(encoding="utf-8")
 
     assert "JUNIT_PATH: junit-lane-${{ matrix.artifact }}.xml" in workflow
     assert '--junitxml "$JUNIT_PATH"' in workflow
     assert "junit-${lane}-${{ matrix.python-version }}.xml" in workflow
     assert workflow.count("-o junit_family=legacy") >= 2
-    assert workflow.count(CODECOV_ACTION) == 2
-    assert "codecov/test-results-action@" not in workflow
-    assert "report_type: test_results" in workflow
-    assert "token: ${{ secrets.CODECOV_TOKEN }}" in workflow
-    assert "files: ${{ env.JUNIT_PATH }}" in workflow
-    assert "flags: lane-${{ matrix.artifact }}" in workflow
-    assert "fail_ci_if_error: true" in workflow
-    assert "!cancelled()" in workflow
-    assert "github.event.pull_request.head.repo.full_name == github.repository" in workflow
+    assert "${{ env.JUNIT_PATH }}" in workflow
     assert "test-lane-report-${{ matrix.artifact }}.json" in workflow
+    assert "test-lane-results-${{ matrix.artifact }}" in workflow
+    assert "CODECOV_TOKEN" not in workflow
+    assert "codecov/codecov-action@" not in workflow
+    assert not (ROOT / "codecov.yml").exists()
 
 
-def test_coverage_upload_is_explicit_and_fails_on_uploader_errors() -> None:
+def test_coverage_is_repository_owned_and_retained_as_artifacts() -> None:
     workflow = QUALITY.read_text(encoding="utf-8")
 
-    assert CODECOV_ACTION in workflow
-    coverage_block = workflow[workflow.index("- name: Upload combined coverage") :]
-    coverage_block = coverage_block[: coverage_block.index("\n  rust:")]
-    assert "files: ./coverage.xml" in coverage_block
-    assert "disable_search: true" in coverage_block
-    assert "fail_ci_if_error: true" in coverage_block
-    assert "coverage combine test-lane-artifacts" in workflow
+    assert ".venv/bin/coverage combine test-lane-artifacts" in workflow
+    assert ".venv/bin/coverage report" in workflow
+    assert ".venv/bin/coverage xml -o coverage.xml" in workflow
+    assert ".venv/bin/coverage json -o coverage.json" in workflow
+    assert "name: critical-runtime-coverage" in workflow
+    assert "coverage.xml" in workflow
+    assert "coverage.json" in workflow
+    assert "codecov/codecov-action@" not in workflow
 
 
 def test_bundle_analysis_is_explicitly_out_of_scope() -> None:

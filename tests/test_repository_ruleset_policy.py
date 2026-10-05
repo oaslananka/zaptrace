@@ -45,12 +45,19 @@ def test_main_ruleset_policy_defines_stable_required_checks() -> None:
 def test_security_workflow_exposes_one_stable_aggregate_gate() -> None:
     workflow = (WORKFLOWS / "security-scan.yml").read_text(encoding="utf-8")
 
+    assert "  changes:" in workflow
+    assert "python_audit_required" in workflow
+    assert "rust_audit_required" in workflow
+    assert "sast_required" in workflow
+
     gate = workflow.split("  security-gate:", 1)[1]
     assert "name: Security gate" in gate
-    assert "needs: [audit, cargo-audit, semgrep, codeql]" in gate
+    assert "needs: [changes, audit, cargo-audit, semgrep, codeql]" in gate
     assert "if: always()" in gate
-    for result in ("audit", "cargo-audit", "semgrep", "codeql"):
+    for result in ("changes", "audit", "cargo-audit", "semgrep", "codeql"):
         assert f"${{{{ needs.{result}.result }}}}" in gate
+    assert "check_job" in gate
+    assert '"skipped"' in gate
 
 
 def test_container_workflow_always_emits_stable_gate_without_always_scanning() -> None:
