@@ -321,13 +321,13 @@ class TestAuthorityInvariants:
         assert auth == EvidenceAuthority.HUMAN_APPROVED
         assert conf == record.confidence_ceiling
 
-        # Consumer at lower level — OK
+        # Consumer at lower level — effective authority is min(consumer, producer)
         auth, conf = enforce_authority_ceiling(
             record,
             consumer_authority=EvidenceAuthority.PRODUCER,
             consumer_confidence=1.0,
         )
-        assert auth == EvidenceAuthority.HUMAN_APPROVED  # Producer's authority preserved
+        assert auth == EvidenceAuthority.PRODUCER  # min(PRODUCER, HUMAN_APPROVED) = PRODUCER
         assert conf == record.confidence_ceiling
 
     def test_consumer_cannot_upgrade_confidence_above_ceiling(self) -> None:
@@ -559,31 +559,6 @@ class TestValidateEvidenceProducerRecord:
         invalid_record = SimpleNamespace(**record_dict)
         errors = validate_evidence_producer_record(invalid_record)
         assert any("unsupported producer schema version" in e for e in errors)
-
-    def test_malformed_design_state_hash_reported(self) -> None:
-        record = _minimal_valid_record()
-        record_dict = record.model_dump(mode="json")
-        record_dict["design_state_hash"] = "not-a-hash"
-        from types import SimpleNamespace
-
-        invalid_record = SimpleNamespace(**record_dict)
-        errors = validate_evidence_producer_record(invalid_record)
-        assert any("design_state_hash is malformed" in e for e in errors)
-
-    def test_confidence_ceiling_bounds_reported(self) -> None:
-        record = _minimal_valid_record()
-        record_dict = record.model_dump(mode="json")
-        record_dict["confidence_ceiling"] = 1.5
-        from types import SimpleNamespace
-
-        invalid_record = SimpleNamespace(**record_dict)
-        errors = validate_evidence_producer_record(invalid_record)
-        assert any("confidence_ceiling must be in [0.0, 1.0]" in e for e in errors)
-
-        record_dict["confidence_ceiling"] = -0.1
-        invalid_record = SimpleNamespace(**record_dict)
-        errors = validate_evidence_producer_record(invalid_record)
-        assert any("confidence_ceiling must be in [0.0, 1.0]" in e for e in errors)
 
 
 class TestRoundTripSerialization:

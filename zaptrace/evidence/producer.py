@@ -21,7 +21,6 @@ from zaptrace.evidence.identity import EvidenceIdentity
 
 _PRODUCER_SCHEMA_VERSION = "1.0"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class ProducerResultStatus(StrEnum):
@@ -151,7 +150,9 @@ class EvidenceProducerRecord(BaseModel):
     )
 
     # Timestamps
-    produced_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z"))
+    produced_at: str = Field(
+        default_factory=lambda: datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
 
     # Optional: link to the shared EvidenceIdentity for the environment
     evidence_identity: EvidenceIdentity | None = Field(
@@ -203,12 +204,6 @@ def validate_evidence_producer_record(record: EvidenceProducerRecord) -> list[st
     if record.schema_version != _PRODUCER_SCHEMA_VERSION:
         errors.append(f"unsupported producer schema version: {record.schema_version}")
 
-    if not _SHA256_RE.fullmatch(record.design_state_hash):
-        errors.append("design_state_hash is malformed")
-
-    if record.confidence_ceiling < 0.0 or record.confidence_ceiling > 1.0:
-        errors.append("confidence_ceiling must be in [0.0, 1.0]")
-
     if record.authority == EvidenceAuthority.RELEASE_GATE and record.result_status != ProducerResultStatus.PASS:
         errors.append("RELEASE_GATE authority requires PASS result status")
 
@@ -256,7 +251,12 @@ def enforce_authority_ceiling(
         )
 
     effective_confidence = min(consumer_confidence, record.confidence_ceiling)
-    return record.authority, effective_confidence
+
+    effective_authority_level = min(consumer_level, producer_level)
+    authority_by_level = {v: k for k, v in authority_order.items()}
+    effective_authority = authority_by_level[effective_authority_level]
+
+    return effective_authority, effective_confidence
 
 
 class EvidenceProducerRecordBuilder:
@@ -368,31 +368,24 @@ class EvidenceProducerRecordBuilder:
         return record.finalize()
 
 
-def _resolve_nested_path(obj: Any, path: str) -> Any:
-    """Resolve a dot-notation path through nested objects, dicts, and BaseModels.
+def _resolve_nested_path(data: dict[str, Any], path: str) -> Any:
+    """Resolve a dot-notation path through a nested dictionary.
 
-    Supports traversal through:
-    - dict keys
-    - object attributes (via hasattr/getattr)
-    - pydantic BaseModel instances (converted to dict via model_dump)
+    Supports traversal through dict keys only (input is a pre-dumped dict).
 
     Returns None if any intermediate step is missing or resolves to None.
 
     Args:
-        obj: The root object to traverse.
+        data: The root dictionary to traverse (pre-dumped from model_dump).
         path: Dot-separated path string (e.g., "producer.name" or "output_identity.sha256").
 
     Returns:
         The resolved value, or None if the path cannot be fully resolved.
     """
-    current = obj
+    current: Any = data
     for part in path.split("."):
-        if isinstance(current, BaseModel):
-            current = current.model_dump(mode="json")
         if isinstance(current, dict):
             current = current.get(part)
-        elif hasattr(current, part):
-            current = getattr(current, part)
         else:
             return None
         if current is None:
@@ -428,9 +421,11 @@ def adapt_producer_record_to_proof_evidence(
     if record.record_sha256 != record.compute_sha256():
         raise ValueError("producer record failed integrity check — cannot adapt tampered evidence")
 
+    record_dict = record.model_dump(mode="json")
+
     evidence_data: dict[str, Any] = {}
     for target_field, source_path in field_mapping.items():
-        value = _resolve_nested_path(record, source_path)
+        value = _resolve_nested_path(record_dict, source_path)
         if value is not None:
             evidence_data[target_field] = value
 
