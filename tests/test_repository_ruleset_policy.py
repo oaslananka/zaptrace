@@ -59,6 +59,7 @@ def test_security_workflow_exposes_one_stable_aggregate_gate() -> None:
     assert "check_job" in gate
     assert '"skipped"' in gate
 
+
 def test_container_workflow_always_emits_stable_gate_without_always_scanning() -> None:
     workflow = (WORKFLOWS / "container-security.yml").read_text(encoding="utf-8")
     trigger = workflow.split("permissions:", 1)[0]

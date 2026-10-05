@@ -433,7 +433,10 @@ def build_report(
         "non_claims": [
             "line coverage is not proof of security or correctness",
             "the gate measures selected runtime modules and does not replace qualified review",
-            "repository-owned coverage artifacts remain the coverage authority; SonarQube remains the new-code quality gate",
+            (
+                "repository-owned coverage artifacts remain the coverage authority; "
+                "SonarQube remains the new-code quality gate"
+            ),
         ],
     }
 
