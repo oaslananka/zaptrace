@@ -47,6 +47,7 @@ def test_quality_matrix_generates_and_retains_junit_results() -> None:
     assert "codecov/codecov-action@" not in workflow
     assert not (ROOT / "codecov.yml").exists()
 
+
 def test_coverage_is_repository_owned_and_retained_as_artifacts() -> None:
     workflow = QUALITY.read_text(encoding="utf-8")
 
@@ -58,6 +59,7 @@ def test_coverage_is_repository_owned_and_retained_as_artifacts() -> None:
     assert "coverage.xml" in workflow
     assert "coverage.json" in workflow
     assert "codecov/codecov-action@" not in workflow
+
 
 def test_bundle_analysis_is_explicitly_out_of_scope() -> None:
     guide = (ROOT / "docs" / "development" / "ci-observability.md").read_text(encoding="utf-8")
