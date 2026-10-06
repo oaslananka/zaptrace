@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -492,10 +493,10 @@ class TestIntegrationSeam:
             )
 
     def test_adapt_traverses_object_attribute(self) -> None:
-        """Test adapt traverses object attribute via hasattr/getattr (lines 406-407)."""
+        """Test adapt traverses nested dict path via dict key lookup (producer.name)."""
         record = _minimal_valid_record()
-        # The _resolve_nested_path function uses hasattr/getattr for non-dict objects.
-        # Test by mapping a field that requires attribute access on a BaseModel.
+        # The _resolve_nested_path function uses dict key lookup for nested paths.
+        # The record is pre-dumped to a dict via model_dump, so producer is a dict.
         evidence = adapt_producer_record_to_proof_evidence(
             record,
             evidence_class=_TestEvidenceModel,
@@ -504,11 +505,11 @@ class TestIntegrationSeam:
         assert evidence.project_key == "test-producer"
 
     def test_adapt_returns_none_for_unknown_intermediate_type(self) -> None:
-        """Test traversal where intermediate step is neither dict nor has attribute (line 409)."""
+        """Test traversal where intermediate step is not a dict (e.g., string)."""
         # Create a record and map a path that goes through an unsupported intermediate type
         record = _minimal_valid_record()
         # The design_state_hash is a string; trying to traverse into it should return None
-        # because a string is neither a dict nor has attributes in the path sense
+        # because a string is not a dict and has no keys
         evidence = adapt_producer_record_to_proof_evidence(
             record,
             evidence_class=_TestEvidenceModel,
@@ -518,7 +519,7 @@ class TestIntegrationSeam:
         assert "dummy_field" not in evidence.model_dump()
 
     def test_adapt_returns_none_when_intermediate_resolves_to_none(self) -> None:
-        """Test traversal where intermediate value resolves to None (line 411)."""
+        """Test traversal where intermediate value resolves to None."""
         # Create a record WITHOUT output_identity (it's Optional)
         record = (
             EvidenceProducerRecordBuilder()
@@ -540,6 +541,57 @@ class TestIntegrationSeam:
         )
         # The field should not be set since traversal returns None
         assert "dummy_field" not in evidence.model_dump()
+
+    def test_adapt_traverses_nested_dict_path(self) -> None:
+        """Test adapt traverses nested dict path via dict key lookup."""
+        record = _minimal_valid_record()
+        # The _resolve_nested_path function uses dict key lookup for nested paths.
+        # Test by mapping a field that requires nested dict traversal.
+        evidence = adapt_producer_record_to_proof_evidence(
+            record,
+            evidence_class=_TestEvidenceModel,
+            field_mapping={"project_key": "producer.name"},
+        )
+        assert evidence.project_key == "test-producer"
+
+    def test_adapt_single_model_dump_call_across_multiple_fields(self) -> None:
+        """Regression test: adapt_producer_record_to_proof_evidence calls model_dump(mode='json') exactly once.
+
+        This ensures the optimization from PR #57 (Codacy finding) is preserved:
+        the record is serialized to a dict once, and all field lookups operate on
+        that single dictionary.
+        """
+        record = _minimal_valid_record()
+
+        with patch.object(EvidenceProducerRecord, "model_dump", wraps=record.model_dump) as mock_model_dump:
+            evidence = adapt_producer_record_to_proof_evidence(
+                record,
+                evidence_class=_TestEvidenceModel,
+                field_mapping={
+                    "project_key": "producer.name",
+                    "analysis_revision": "design_state_hash",
+                    "report_sha256": "record_sha256",
+                    "custom_field": "configuration.config_sha256",
+                },
+            )
+
+            # Verify model_dump(mode='json') was called exactly once
+            assert mock_model_dump.call_count == 1, (
+                f"Expected model_dump to be called once, got {mock_model_dump.call_count} calls"
+            )
+            args, kwargs = mock_model_dump.call_args
+            assert kwargs.get("mode") == "json", f"Expected model_dump(mode='json'), got mode={kwargs.get('mode')}"
+
+            # Verify the evidence was correctly populated
+            assert evidence.project_key == "test-producer"
+            assert evidence.analysis_revision == record.design_state_hash
+            assert evidence.report_sha256 == record.record_sha256
+            assert evidence.custom_field == record.configuration.config_sha256
+            # Verify auto-populated fields
+            assert evidence.producer_record_sha256 == record.record_sha256
+            assert evidence.producer_identity == "test-producer@1.0.0"
+            assert evidence.producer_result_status == "pass"
+            assert evidence.producer_authority == "producer"
 
 
 class TestValidateEvidenceProducerRecord:
