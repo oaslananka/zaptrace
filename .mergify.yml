@@ -13,6 +13,8 @@ queue_rules:
   - name: default
     merge_method: squash
     batch_size: 1
+    checks_timeout: 90 min
+    branch_protection_injection_mode: queue
     queue_conditions:
       - check-success = Release gate summary
       - check-success = Security gate
@@ -27,6 +29,151 @@ queue_rules:
       - check-success = Repository hygiene
       - check-success = Dependency review
       - check-success = Container security gate
+
+
+merge_protections_settings:
+  reporting_method: check-runs
+  post_comment: false
+  auto_merge_conditions:
+    - author = renovate[bot]
+    - base = main
+    - label = automerge:enabled
+    - -draft
+    - -closed
+    - -label = automerge:disabled
+    - -label = do-not-merge
+    - -label = hold
+    - -label = status/needs-review
+    - -label = risk:high
+    - -label = runtime-risk
+    - -label = security
+    - '-files ~= ^\\.github/'
+    - '-files ~= ^Dockerfile  - name: automatic merge on CI success
+    conditions:
+      - base = main
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+      - label = ready-to-merge
+    actions:
+      queue:
+        name: default
+
+  - name: add to queue when labeled
+    conditions:
+      - base = main
+      - label = queue-me
+    actions:
+      queue:
+        name: default
+
+  - name: label CI failure
+    conditions:
+      - or:
+          - check-failure = Release gate summary
+          - check-failure = Security gate
+          - check-failure = Repository hooks
+          - check-failure = Repository hygiene
+          - check-failure = Dependency review
+          - check-failure = Container security gate
+    actions:
+      label:
+        add:
+          - ci-failed
+
+    - '-files ~= (^|/)docker-compose(?:\\.[^.]+)?\\.ya?ml  - name: automatic merge on CI success
+    conditions:
+      - base = main
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+      - label = ready-to-merge
+    actions:
+      queue:
+        name: default
+
+  - name: add to queue when labeled
+    conditions:
+      - base = main
+      - label = queue-me
+    actions:
+      queue:
+        name: default
+
+  - name: label CI failure
+    conditions:
+      - or:
+          - check-failure = Release gate summary
+          - check-failure = Security gate
+          - check-failure = Repository hooks
+          - check-failure = Repository hygiene
+          - check-failure = Dependency review
+          - check-failure = Container security gate
+    actions:
+      label:
+        add:
+          - ci-failed
+
+    - '-files ~= ^\\.mergify\\.ya?ml  - name: automatic merge on CI success
+    conditions:
+      - base = main
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+      - label = ready-to-merge
+    actions:
+      queue:
+        name: default
+
+  - name: add to queue when labeled
+    conditions:
+      - base = main
+      - label = queue-me
+    actions:
+      queue:
+        name: default
+
+  - name: label CI failure
+    conditions:
+      - or:
+          - check-failure = Release gate summary
+          - check-failure = Security gate
+          - check-failure = Repository hooks
+          - check-failure = Repository hygiene
+          - check-failure = Dependency review
+          - check-failure = Container security gate
+    actions:
+      label:
+        add:
+          - ci-failed
+
+
+merge_protections:
+  - name: low-risk dependency safety
+    if:
+      - base = main
+      - author = renovate[bot]
+      - label = automerge:enabled
+    success_conditions:
+      - -draft
+      - -closed
+      - -conflict
+      - -label = automerge:disabled
+      - -label = do-not-merge
+      - -label = hold
+      - -label = status/needs-review
+      - -label = risk:high
+      - -label = runtime-risk
+      - -label = security
 
 pull_request_rules:
   - name: automatic merge on CI success
