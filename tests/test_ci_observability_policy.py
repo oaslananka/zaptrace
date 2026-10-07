@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -124,15 +125,17 @@ def test_release_workflow_disables_dependency_caches() -> None:
 
 def test_renovate_validator_uses_committed_npm_lockfile() -> None:
     workflow = (WORKFLOWS / "renovate-config.yml").read_text(encoding="utf-8")
-    package = (ROOT / ".github" / "renovate-validation" / "package.json").read_text(encoding="utf-8")
-    lockfile = (ROOT / ".github" / "renovate-validation" / "package-lock.json").read_text(encoding="utf-8")
+    package = json.loads((ROOT / ".github" / "renovate-validation" / "package.json").read_text(encoding="utf-8"))
+    lockfile = json.loads((ROOT / ".github" / "renovate-validation" / "package-lock.json").read_text(encoding="utf-8"))
 
     assert "npm ci --ignore-scripts" in workflow
     assert "npm install --global" not in workflow
     assert ".github/renovate-validation/node_modules/.bin/renovate-config-validator --strict" in workflow
-    assert '"renovate": "44.132.5"' in package
-    assert '"lockfileVersion": 3' in lockfile
-    assert '"node_modules/renovate"' in lockfile
+    assert package["devDependencies"]["renovate"]
+    assert lockfile["lockfileVersion"] == 3
+    resolved = lockfile["packages"]["node_modules/renovate"]["version"]
+    assert resolved.startswith("44.")
+    assert resolved == package["devDependencies"]["renovate"].lstrip("^~")
 
 
 def test_scorecard_can_read_pull_request_check_runs() -> None:
