@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def test_quality_rust_job_installs_and_requires_native_wheel() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
-    rust_job = workflow[workflow.index("  rust:") : workflow.index("\n  benchmark-001:")]
+    workflow = Path(".github/workflows/quality-native.yml").read_text(encoding="utf-8")
+    rust_job = workflow[workflow.index("  verify:") :]
 
     assert 'ZAPTRACE_REQUIRE_NATIVE: "1"' in rust_job
     assert "Install built Rust wheel" in rust_job
@@ -35,8 +35,8 @@ def test_security_workflow_emits_pinned_cargo_audit_evidence() -> None:
 
 
 def test_quality_native_evidence_records_explicit_target_and_all_target_clippy() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
-    rust_job = workflow[workflow.index("  rust:") : workflow.index("\n  benchmark-001:")]
+    workflow = Path(".github/workflows/quality-native.yml").read_text(encoding="utf-8")
+    rust_job = workflow[workflow.index("  verify:") :]
 
     assert "cargo clippy --manifest-path zaptrace_core/Cargo.toml --all-targets -- -D warnings" in rust_job
     assert "--target x86_64-unknown-linux-gnu" in rust_job
