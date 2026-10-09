@@ -419,17 +419,14 @@ def adapt_producer_record_to_proof_evidence(
     record_dict = record.model_dump(mode="json")
 
     payload_for_hash = {k: v for k, v in record_dict.items() if k not in ("record_sha256", "produced_at")}
-    import hashlib as _hashlib
-    import json as _json
-
-    encoded = _json.dumps(
+    encoded = json.dumps(
         payload_for_hash,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,
         default=str,
     ).encode()
-    computed_hash = _hashlib.sha256(encoded).hexdigest()
+    computed_hash = hashlib.sha256(encoded).hexdigest()
     if record.record_sha256 != computed_hash:
         raise ValueError("producer record failed integrity check — cannot adapt tampered evidence")
 
