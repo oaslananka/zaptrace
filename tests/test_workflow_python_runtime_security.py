@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 SAFE_SYNC = "uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build"
+SHARED_ACTION = Path(".github/actions/setup-locked-python/action.yml")
 TARGET_WORKFLOWS = (
     Path(".github/workflows/proof-pack.yml"),
     Path(".github/workflows/kicad-oracle.yml"),
@@ -35,9 +36,17 @@ def test_target_workflows_disable_builds_for_every_locked_sync() -> None:
 
 
 def test_target_install_steps_skip_project_installation_and_builds() -> None:
+    action = SHARED_ACTION.read_text(encoding="utf-8")
+    assert "uv lock --check" in action
+    assert "sync_args=(--locked --all-extras --all-groups --no-install-project --no-build)" in action
+    assert 'uv sync "${sync_args[@]}"' in action
     for path in TARGET_WORKFLOWS:
         workflow = path.read_text(encoding="utf-8")
-        assert SAFE_SYNC in workflow, str(path)
+        if "uses: ./.github/actions/setup-locked-python" in workflow:
+            # A local composite action performs the locked sync instead of the workflow.
+            assert "--no-install-project --no-build" in action, str(path)
+        else:
+            assert SAFE_SYNC in workflow, str(path)
 
 
 def test_proof_and_kicad_jobs_use_only_the_pre_synced_environment() -> None:
