@@ -1,0 +1,24 @@
+name: Setup locked Python validation environment
+description: Use pinned uv, install the configured Python version and locked validator dependencies.
+inputs:
+  uv-version:
+    description: Pinned uv version selected by the caller
+    required: true
+  python-version:
+    description: Python version selected by the caller
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      with:
+        version: ${{ inputs.uv-version }}
+    - name: Set up Python
+      shell: bash
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
+      run: uv python install "$PYTHON_VERSION"
+    - name: Install locked validation dependencies
+      shell: bash
+      run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build
