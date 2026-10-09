@@ -44,6 +44,19 @@ def _estimate_height(footprint: str) -> float:
     return 1.0  # Default 1.0mm
 
 
+def _obj_box_faces(vertex_start: int) -> list[str]:
+    """Emit the six ordered quad faces for an OBJ box of eight vertices."""
+    v_idx = vertex_start
+    return [
+        f"f {v_idx} {v_idx + 1} {v_idx + 2} {v_idx + 3}",
+        f"f {v_idx + 4} {v_idx + 7} {v_idx + 6} {v_idx + 5}",
+        f"f {v_idx} {v_idx + 4} {v_idx + 5} {v_idx + 1}",
+        f"f {v_idx + 1} {v_idx + 5} {v_idx + 6} {v_idx + 2}",
+        f"f {v_idx + 2} {v_idx + 6} {v_idx + 7} {v_idx + 3}",
+        f"f {v_idx + 3} {v_idx + 7} {v_idx + 4} {v_idx}",
+    ]
+
+
 def export_pcb_obj(design: Design, board_thickness_mm: float = 1.6) -> str:
     """Export PCB substrate and placed component bodies as Wavefront OBJ file."""
     bd = canonical_board_definition(design)
@@ -77,12 +90,7 @@ def export_pcb_obj(design: Design, board_thickness_mm: float = 1.6) -> str:
         lines.append(f"v {x:.4f} {y:.4f} {z:.4f}")
 
     # Substrate faces (6 quad faces -> each quad is two triangles or 4-index)
-    lines.append(f"f {v_idx} {v_idx + 1} {v_idx + 2} {v_idx + 3}")  # Bottom
-    lines.append(f"f {v_idx + 4} {v_idx + 7} {v_idx + 6} {v_idx + 5}")  # Top
-    lines.append(f"f {v_idx} {v_idx + 4} {v_idx + 5} {v_idx + 1}")  # Front
-    lines.append(f"f {v_idx + 1} {v_idx + 5} {v_idx + 6} {v_idx + 2}")  # Right
-    lines.append(f"f {v_idx + 2} {v_idx + 6} {v_idx + 7} {v_idx + 3}")  # Back
-    lines.append(f"f {v_idx + 3} {v_idx + 7} {v_idx + 4} {v_idx}")  # Left
+    lines.extend(_obj_box_faces(v_idx))
     v_idx += 8
 
     # 2. Components as 3D bounding boxes
@@ -98,8 +106,7 @@ def export_pcb_obj(design: Design, board_thickness_mm: float = 1.6) -> str:
         h = _estimate_height(comp.footprint)
         cw, ch = 3.0, 3.0  # default size
 
-        lines.append("")
-        lines.append(f"o Comp_{ref}_{comp.footprint}")
+        lines.extend(["", f"o Comp_{ref}_{comp.footprint}"])
         comp_vertices = [
             (ox - cw / 2, oy - ch / 2, 0.0),
             (ox + cw / 2, oy - ch / 2, 0.0),
@@ -113,12 +120,7 @@ def export_pcb_obj(design: Design, board_thickness_mm: float = 1.6) -> str:
         for x, y, z in comp_vertices:
             lines.append(f"v {x:.4f} {y:.4f} {z:.4f}")
 
-        lines.append(f"f {v_idx} {v_idx + 1} {v_idx + 2} {v_idx + 3}")
-        lines.append(f"f {v_idx + 4} {v_idx + 7} {v_idx + 6} {v_idx + 5}")
-        lines.append(f"f {v_idx} {v_idx + 4} {v_idx + 5} {v_idx + 1}")
-        lines.append(f"f {v_idx + 1} {v_idx + 5} {v_idx + 6} {v_idx + 2}")
-        lines.append(f"f {v_idx + 2} {v_idx + 6} {v_idx + 7} {v_idx + 3}")
-        lines.append(f"f {v_idx + 3} {v_idx + 7} {v_idx + 4} {v_idx}")
+        lines.extend(_obj_box_faces(v_idx))
         v_idx += 8
 
     return "\n".join(lines)
@@ -155,13 +157,17 @@ def export_pcb_stl(design: Design, board_thickness_mm: float = 1.6) -> str:
 
     lines = [f"solid {design.meta.name}"]
     for (nx, ny, nz), ((ax, ay, az), (bx, by, bz), (cx, cy, cz)) in triangles:
-        lines.append(f"  facet normal {nx} {ny} {nz}")
-        lines.append("    outer loop")
-        lines.append(f"      vertex {ax:.4f} {ay:.4f} {az:.4f}")
-        lines.append(f"      vertex {bx:.4f} {by:.4f} {bz:.4f}")
-        lines.append(f"      vertex {cx:.4f} {cy:.4f} {cz:.4f}")
-        lines.append("    endloop")
-        lines.append("  endfacet")
+        lines.extend(
+            [
+                f"  facet normal {nx} {ny} {nz}",
+                "    outer loop",
+                f"      vertex {ax:.4f} {ay:.4f} {az:.4f}",
+                f"      vertex {bx:.4f} {by:.4f} {bz:.4f}",
+                f"      vertex {cx:.4f} {cy:.4f} {cz:.4f}",
+                "    endloop",
+                "  endfacet",
+            ]
+        )
     lines.append(f"endsolid {design.meta.name}")
 
     return "\n".join(lines)

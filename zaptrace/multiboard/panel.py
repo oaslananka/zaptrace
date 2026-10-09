@@ -53,10 +53,14 @@ def _place_single_board_item(
             area += bw * bh
 
             if separation == PanelSeparationMethod.TAB_ROUTE:
-                tabs.append(RouteTab(x=bx + bw / 2, y=by, width_mm=4.0))
-                tabs.append(RouteTab(x=bx + bw / 2, y=by + bh, width_mm=4.0))
-                tabs.append(RouteTab(x=bx, y=by + bh / 2, width_mm=4.0))
-                tabs.append(RouteTab(x=bx + bw, y=by + bh / 2, width_mm=4.0))
+                tabs.extend(
+                    [
+                        RouteTab(x=bx + bw / 2, y=by, width_mm=4.0),
+                        RouteTab(x=bx + bw / 2, y=by + bh, width_mm=4.0),
+                        RouteTab(x=bx, y=by + bh / 2, width_mm=4.0),
+                        RouteTab(x=bx + bw, y=by + bh / 2, width_mm=4.0),
+                    ]
+                )
 
     return placed, tabs, area
 

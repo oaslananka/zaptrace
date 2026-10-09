@@ -91,16 +91,20 @@ def _selected_corpus(corpus: AgentEvaluationCorpus, scenario_ids: list[str]) -> 
 def render_markdown(report: dict[str, Any]) -> str:
     """Render a compact human-readable evaluation summary."""
     lines = ["# Agent Evaluation Harness", ""]
-    lines.append(f"Mode: `{report['mode']}`")
-    lines.append(f"Passed: `{str(report['passed']).lower()}`")
-    lines.append(f"Scenarios: `{report['scenario_count']}`")
-    lines.append(f"Mismatches: `{report['mismatch_count']}`")
-    lines.append(f"Corpus SHA-256: `{report['corpus_sha256']}`")
-    lines.append(f"MCP protocol: `{report['protocol_version']}`")
-    lines.append(f"Surface contract SHA-256: `{report['surface_contract_sha256']}`")
-    lines.append(f"Surface regressions: `{report['surface_regression_count']}`")
-    lines.append(f"Report SHA-256: `{report['report_sha256']}`")
-    lines.append("")
+    lines.extend(
+        [
+            f"Mode: `{report['mode']}`",
+            f"Passed: `{str(report['passed']).lower()}`",
+            f"Scenarios: `{report['scenario_count']}`",
+            f"Mismatches: `{report['mismatch_count']}`",
+            f"Corpus SHA-256: `{report['corpus_sha256']}`",
+            f"MCP protocol: `{report['protocol_version']}`",
+            f"Surface contract SHA-256: `{report['surface_contract_sha256']}`",
+            f"Surface regressions: `{report['surface_regression_count']}`",
+            f"Report SHA-256: `{report['report_sha256']}`",
+            "",
+        ]
+    )
     identity = report.get("evidence_identity", {})
     if identity:
         lines.extend(

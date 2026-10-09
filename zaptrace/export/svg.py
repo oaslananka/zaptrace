@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from html import escape
 
 from zaptrace.core.models import Design
 
@@ -39,7 +40,7 @@ def render_schematic_svg(
         ".net-line{stroke:#6699cc;stroke-width:1;opacity:0.6}",
         "</style></defs>",
         f'<rect width="{width_px}" height="{height_px}" fill="#fafafa"/>',
-        f'<text x="20" y="28" style="font:bold 16px sans-serif;fill:#334">{design.meta.name}</text>',
+        f'<text x="20" y="28" style="font:bold 16px sans-serif;fill:#334">{escape(design.meta.name)}</text>',
     ]
 
     for net in design.nets.values():
@@ -57,9 +58,13 @@ def render_schematic_svg(
         if comp.id not in positions:
             continue
         x, y = positions[comp.id]
-        lines.append(f'<rect class="comp-box" x="{x:.1f}" y="{y:.1f}" width="{COMP_W}" height="{COMP_H}" rx="4"/>')
-        lines.append(f'<text class="comp-ref" x="{x + 8:.1f}" y="{y + 18:.1f}">{comp.ref}</text>')
-        lines.append(f'<text class="comp-type" x="{x + 8:.1f}" y="{y + 33:.1f}">{comp.type[:18]}</text>')
+        lines.extend(
+            [
+                f'<rect class="comp-box" x="{x:.1f}" y="{y:.1f}" width="{COMP_W}" height="{COMP_H}" rx="4"/>',
+                f'<text class="comp-ref" x="{x + 8:.1f}" y="{y + 18:.1f}">{escape(comp.ref)}</text>',
+                f'<text class="comp-type" x="{x + 8:.1f}" y="{y + 33:.1f}">{escape(comp.type[:18])}</text>',
+            ]
+        )
 
     lines.append("</svg>")
     return "\n".join(lines)
