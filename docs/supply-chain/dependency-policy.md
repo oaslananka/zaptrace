@@ -32,6 +32,8 @@ New dependencies should be:
 - GitHub Dependabot alerts and dependency review remain enabled; routine Dependabot version-update PRs are not generated.
 - Low-risk Renovate updates labeled `automerge:enabled` join the protected Mergify queue only after all required checks succeed. Major, native, runtime-sensitive, security-labeled, CI and container changes require manual review.
 - Security scan workflows run dependency audit and static-analysis jobs.
+- The locked Renovate configuration validator under `.github/renovate-validation/` is a **development/CI-only** copy of the CLI, not the hosted Renovate bot. Its npm `global-agent` 4.x override replaces the legacy `global-agent` 3 -> `roarr` -> unpatched `sprintf-js` chain; the override must be revalidated when Renovate changes its proxy APIs. Renovate 44.148.4 also includes the patched Handlebars 4.7.10 release. The validator runs with `npm ci --ignore-scripts`, then `renovate-config-validator --strict` from the repository root.
+- Remaining upstream `braces` <=3.0.3 recursive-pattern DoS risk in Renovate's validation-only dependency graph has **no upstream patched release** as of 2026-10-09; do not treat a clean GitHub Dependabot alert list as a comprehensive npm audit. Do not force an unreviewed third-party fork or downgrade Renovate to evade the advisory.
 
 ## Review policy
 
