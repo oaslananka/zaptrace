@@ -142,12 +142,14 @@ def test_renovate_validator_uses_committed_npm_lockfile() -> None:
     packages = lockfile["packages"]
     assert package["overrides"]["global-agent"].startswith("4.")
     assert packages["node_modules/global-agent"]["version"].startswith("4.")
-    assert "node_modules/roarr" not in packages
-    assert "node_modules/sprintf-js" not in packages
+    assert not any(path.endswith("node_modules/roarr") for path in packages)
+    assert not any(path.endswith("node_modules/sprintf-js") for path in packages)
 
     # Renovate carries handlebars; older versions have critical JS injection
     # advisories, fixed upstream in 4.7.10.
-    handlebars_version = tuple(int(part) for part in packages["node_modules/handlebars"]["version"].split("."))
+    version = packages["node_modules/handlebars"]["version"]
+    assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), "require a stable patched Handlebars release"
+    handlebars_version = tuple(int(part) for part in version.split("."))
     assert handlebars_version >= (4, 7, 10)
 
 
