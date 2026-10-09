@@ -13,7 +13,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
 ]
 dependencies = [
-    "anyio>=4.14.2",
+    "anyio>=4.15.1",
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "click>=8.1",
