@@ -44,6 +44,7 @@ def test_rust_toolchain_file_declares_pinned_channel_and_components() -> None:
 def test_workflows_do_not_override_repo_rust_toolchain_contract() -> None:
     for workflow_path in (
         Path(".github/workflows/quality.yml"),
+        Path(".github/workflows/quality-native.yml"),
         Path(".github/workflows/release.yml"),
         Path(".github/workflows/security-scan.yml"),
     ):
@@ -66,9 +67,9 @@ def test_ci_validation_environment_requires_rust_toolchain_parity() -> None:
 
 
 def test_quality_rust_job_native_evidence_upload_only_runs_on_success() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
-    rust_job = workflow[workflow.index("  rust:") : workflow.index("\n  benchmark-001:")]
+    workflow = Path(".github/workflows/quality-native.yml").read_text(encoding="utf-8")
+    rust_job = workflow[workflow.index("  verify:") :]
     upload_block = rust_job[rust_job.index("- name: Upload native boundary evidence") :]
 
-    assert "if: needs.changes.outputs.heavy_ci == 'true'" in upload_block
+    assert "if: inputs.heavy_ci == 'true'" in upload_block
     assert "always()" not in upload_block

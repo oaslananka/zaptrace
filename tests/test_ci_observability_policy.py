@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 QUALITY = WORKFLOWS / "quality.yml"
 COVERAGE = WORKFLOWS / "quality-coverage.yml"
+NATIVE = WORKFLOWS / "quality-native.yml"
 PRE_COMMIT_WORKFLOW = WORKFLOWS / "pre-commit.yml"
 
 
@@ -115,6 +116,47 @@ def test_quality_coverage_reusable_boundary_preserves_gate_and_skip_contracts() 
             if step.get("name") == "Generate snapshot gate summary"
         )["run"]
     )
+
+
+
+def test_quality_native_reusable_boundary_preserves_heavy_gate_evidence_and_permissions() -> None:
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    native = yaml.safe_load(NATIVE.read_text(encoding="utf-8"))
+    caller = quality["jobs"]["rust"]
+    assert caller == {
+        "name": "Build Rust extension",
+        "needs": "changes",
+        "uses": "./.github/workflows/quality-native.yml",
+        "with": {"heavy_ci": "${{ needs.changes.outputs.heavy_ci }}"},
+    }
+    assert native["permissions"] == {"contents": "read"}
+    assert native[True]["workflow_call"]["inputs"]["heavy_ci"] == {
+        "description": "Heavy-CI eligibility from Quality change classification",
+        "type": "string",
+        "required": True,
+    }
+    job = native["jobs"]["verify"]
+    assert job["env"] == {key: quality["env"][key] for key in ("PYTHON_VERSION", "UV_VERSION", "PYTHONPATH")}
+    steps = job["steps"]
+    assert steps[0]["if"] == "inputs.heavy_ci != 'true'"
+    assert "skipping Rust extension build" in steps[0]["run"]
+    for step in steps[1:]:
+        assert step["if"] == "inputs.heavy_ci == 'true'", step.get("name", step.get("uses"))
+    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["persist-credentials"] is False
+    bootstrap = next(step for step in steps if step.get("uses") == "./.github/actions/setup-locked-python")
+    assert bootstrap["with"] == {"uv-version": "${{ env.UV_VERSION }}", "python-version": "${{ env.PYTHON_VERSION }}"}
+    evidence = next(step for step in steps if step.get("name") == "Upload native boundary evidence")
+    assert evidence["with"]["name"] == "native-boundary-evidence"
+    assert evidence["with"]["if-no-files-found"] == "error"
+    assert "always()" not in evidence["if"]
+    assert "rust" in quality["jobs"]["release-gate-summary"]["needs"]
+    summary = next(
+        step
+        for step in quality["jobs"]["release-gate-summary"]["steps"]
+        if step.get("name") == "Generate snapshot gate summary"
+    )
+    assert '--gate "rust=${{ needs.rust.result }}"' in summary["run"]
 
 
 def test_bundle_analysis_is_explicitly_out_of_scope() -> None:
@@ -333,7 +375,7 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
     assert sync_script.count('uv sync "${sync_args[@]}"') == 1
     assert all("permissions" not in step and "secrets" not in step for step in steps)
 
-    heavy_jobs = {"rust", "benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
+    heavy_jobs = {"benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
     full_jobs = {"lint", "mcp-compatibility"}
     unconditional_jobs = {"docs-stale", "release-gate-summary", "test-lane-policy"}
     for job_id in heavy_jobs | full_jobs | unconditional_jobs:

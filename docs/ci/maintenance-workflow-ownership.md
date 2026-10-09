@@ -26,6 +26,12 @@ The top-level `Quality` workflow retains logical job ID `coverage` and `needs: [
 
 **Check-label migration:** GitHub may display the non-required coverage check as `Combined Python coverage / Aggregate and enforce` instead of the previous `Combined Python coverage`. This is not one of the six branch-required contexts; the branch ruleset, `Release gate summary` identity, coverage thresholds, and artifact names are unchanged. If a separate downstream policy consumes the coverage display label, it must be updated explicitly rather than treating a missing check as successful.
 
+## Native Rust reusable boundary
+
+The top-level `Quality` workflow retains logical job ID `rust`, `needs: changes`, and the release gate dependency on `needs.rust.result`. It now calls [Quality Native Rust](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/quality-native.yml) with the single required `heavy_ci` input from the existing change classifier. The called workflow has read-only `contents` permission, receives no secrets, explicitly succeeds with a skip summary on non-heavy PRs, and runs the same locked Python setup, Rust formatting, all-target Clippy, Rust tests, wheel build, hash-verified clean wheel installation, and mandatory native-boundary verification on heavy CI. The unchanged `native-boundary-evidence` artifact retains strict `if-no-files-found: error` and upload-on-success behavior.
+
+**Check-label migration:** GitHub may show the non-required nested Rust job as `Build Rust extension / Build, test and verify native wheel` instead of `Build Rust extension`. The six required branch checks, `Release gate summary`, release dependency, evidence identity, gate conditions, and Rust toolchain contract remain unchanged. Consumers of the former non-required label must migrate explicitly.
+
 ## Maintenance ownership and failure response
 
 - **PR author / maintainer:** Fix source failures on the PR's exact head SHA, respond to review threads, and verify all six required checks plus relevant external reviews before a normal protected squash merge. Preserve package/artifact identities when moving jobs into reusable workflows.

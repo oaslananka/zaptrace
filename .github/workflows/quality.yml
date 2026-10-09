@@ -614,82 +614,9 @@ jobs:
   rust:
     name: Build Rust extension
     needs: changes
-    runs-on: ubuntu-latest
-    steps:
-      - name: Skip Rust build for non-heavy PR
-        if: needs.changes.outputs.heavy_ci != 'true'
-        run: |
-          echo "Non-heavy PR; skipping Rust extension build."
-          echo "Non-heavy PR; Rust extension build skipped." >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-        if: needs.changes.outputs.heavy_ci == 'true'
-
-      - name: Set up locked Python
-        if: needs.changes.outputs.heavy_ci == 'true'
-        uses: ./.github/actions/setup-locked-python
-        with:
-          uv-version: ${{ env.UV_VERSION }}
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Check Rust formatting
-        if: needs.changes.outputs.heavy_ci == 'true'
-        run: cargo fmt --manifest-path zaptrace_core/Cargo.toml --check
-
-      - name: Run Clippy
-        if: needs.changes.outputs.heavy_ci == 'true'
-        run: cargo clippy --manifest-path zaptrace_core/Cargo.toml --all-targets -- -D warnings
-
-      - name: Run Rust tests
-        if: needs.changes.outputs.heavy_ci == 'true'
-        run: cargo test --manifest-path zaptrace_core/Cargo.toml
-
-      - name: Build Rust extension
-        if: needs.changes.outputs.heavy_ci == 'true'
-        run: .venv/bin/maturin build --manifest-path zaptrace_core/Cargo.toml --out native-dist -i .venv/bin/python
-
-      - name: Install built Rust wheel
-        if: needs.changes.outputs.heavy_ci == 'true'
-        run: |
-          uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-native-smoke" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
-            --python "$PYTHON_VERSION"
-          wheel="$(realpath native-dist/*.whl)"
-          wheel_hash="$(sha256sum "$wheel" | awk '{print $1}')"
-          printf 'zaptrace-eda @ file://%s --hash=sha256:%s\n' "$wheel" "$wheel_hash" \
-            > "$RUNNER_TEMP/native-wheel.requirements.txt"
-          uv pip install \
-            --python "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
-            --no-deps \
-            --require-hashes \
-            -r "$RUNNER_TEMP/native-wheel.requirements.txt"
-
-      - name: Run mandatory native boundary verification
-        if: needs.changes.outputs.heavy_ci == 'true'
-        env:
-          ZAPTRACE_REQUIRE_NATIVE: "1"
-        run: |
-          cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/zaptrace-native-smoke/bin/python" \
-            "$GITHUB_WORKSPACE/scripts/ci_native_boundary.py" \
-            --wheel "$GITHUB_WORKSPACE"/native-dist/*.whl \
-            --source-root "$GITHUB_WORKSPACE" \
-            --target x86_64-unknown-linux-gnu \
-            --output "$GITHUB_WORKSPACE/native-boundary-evidence.json" \
-            --markdown "$GITHUB_WORKSPACE/native-boundary-evidence.md" \
-            --strict
-          cat "$GITHUB_WORKSPACE/native-boundary-evidence.md" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload native boundary evidence
-        if: needs.changes.outputs.heavy_ci == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: native-boundary-evidence
-          path: |
-            native-boundary-evidence.json
-            native-boundary-evidence.md
-          if-no-files-found: error
+    uses: ./.github/workflows/quality-native.yml
+    with:
+      heavy_ci: ${{ needs.changes.outputs.heavy_ci }}
 
   benchmark-001:
     name: Benchmark 001 acceptance
