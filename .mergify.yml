@@ -31,37 +31,15 @@ queue_rules:
       - check-success = Container security gate
 
 
-merge_protections_settings:
-  reporting_method: check-runs
-  post_comment: false
-  auto_merge_conditions:
-    - author = renovate[bot]
-    - base = main
-    - label = automerge:enabled
-    - -draft
-    - -closed
-    - -label = automerge:disabled
-    - -label = do-not-merge
-    - -label = hold
-    - -label = status/needs-review
-    - -label = risk:high
-    - -label = runtime-risk
-    - -label = security
-    - '-files ~= ^\\.github/'
-    - '-files ~= ^Dockerfile'
-    - '-files ~= (^|/)docker-compose(?:\\.[^.]+)?\\.ya?ml'
-    - '-files ~= ^\\.mergify\\.ya?ml'
-
-
-merge_protections:
-  - name: low-risk dependency safety
-    if:
+pull_request_rules:
+  # Workflow Automation remains the merge-admission path even when the
+  # separate Merge Protections product is not enabled for this repository.
+  - name: queue verified low-risk Renovate updates
+    conditions:
       - base = main
       - author = renovate[bot]
       - label = automerge:enabled
-    success_conditions:
       - -draft
-      - -closed
       - -conflict
       - -label = automerge:disabled
       - -label = do-not-merge
@@ -70,9 +48,21 @@ merge_protections:
       - -label = risk:high
       - -label = runtime-risk
       - -label = security
+      - -label = area/security
+      - '-files ~= ^\.github/'
+      - '-files ~= ^Dockerfile'
+      - '-files ~= (^|/)docker-compose(?:\.[^.]+)?\.ya?ml'
+      - '-files ~= ^\.mergify\.ya?ml'
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+    actions:
+      queue:
+        name: default
 
-
-pull_request_rules:
   - name: automatic merge on CI success
     conditions:
       - base = main
