@@ -55,8 +55,8 @@ A valid submission is a directory containing `submission.json`:
 from pcb_bench import load_task, score_submission
 from pcb_bench.schema import Submission
 
-task   = load_task("benchmarks/kicad-task-v1/task.yaml")
-sub    = Submission.from_file("output/submission.json")
+task = load_task("benchmarks/kicad-task-v1/task.yaml")
+sub = Submission.from_file("output/submission.json")
 report = score_submission(sub, task)
 print(report.to_dict())
 ```
@@ -89,7 +89,7 @@ from pcb_bench import load_task
 from pcb_bench.participant import run_zaptrace_submission
 
 task = load_task("benchmarks/kicad-task-v1/task.yaml")
-sub  = run_zaptrace_submission(task, input_path="tests/corpus/kicad/battery_charger/")
+sub = run_zaptrace_submission(task, input_path="tests/corpus/kicad/battery_charger/")
 print(sub.to_dict())
 ```
 

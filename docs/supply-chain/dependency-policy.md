@@ -28,8 +28,9 @@ New dependencies should be:
 - `requirements/container-runtime.txt` is a hash-complete export of the container runtime subset; CI rejects drift from `uv.lock`.
 - `requirements/container-apk.txt` records exact Alpine runtime package versions for the pinned base image.
 - `Cargo.lock` tracks resolved Rust dependencies.
-- Renovate handles normal dependency updates.
-- Dependabot remains enabled for GitHub-native security alerts and dependency review.
+- Renovate produces dependency update and vulnerability-remediation pull requests.
+- GitHub Dependabot alerts and dependency review remain enabled; routine Dependabot version-update PRs are not generated.
+- Low-risk Renovate updates labeled `automerge:enabled` join the protected Mergify queue only after all required checks succeed. Major, native, runtime-sensitive, security-labeled, CI and container changes require manual review.
 - Security scan workflows run dependency audit and static-analysis jobs.
 
 ## Review policy
