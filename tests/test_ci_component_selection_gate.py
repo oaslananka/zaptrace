@@ -127,7 +127,7 @@ def test_gate_report_is_deterministic(tmp_path: Path) -> None:
 
 
 def test_quality_workflow_runs_component_selection_coverage_gate() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality-lint.yml").read_text(encoding="utf-8")
 
     assert "scripts/ci_component_selection_gate.py" in workflow
     assert "--minimum-governed-parts 100" in workflow
