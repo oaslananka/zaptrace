@@ -109,6 +109,19 @@ def test_quality_workflow_clean_installs_and_smokes_sdist() -> None:
     assert "if-no-files-found: error" in body
 
 
+def test_required_release_summary_blocks_failed_distribution_validation() -> None:
+    from scripts import ci_release_gate
+
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    summary = quality["jobs"]["release-gate-summary"]
+    assert "distribution-clean-install" in summary["needs"]
+    assert summary["if"] == "always()"
+    script = next(step for step in summary["steps"] if step.get("name") == "Generate snapshot gate summary")["run"]
+    assert '--gate "distribution-clean-install=${{ needs.distribution-clean-install.result }}"' in script
+    assert ci_release_gate.build_records(["distribution-clean-install=failure"], [])[0].blocks_release
+    assert not ci_release_gate.build_records(["distribution-clean-install=success"], [])[0].blocks_release
+
+
 def test_release_python_distribution_is_sdist_only_and_clean_installed() -> None:
     job = _job(RELEASE, "  python-distributions:", "\n  rust-wheels:")
 
