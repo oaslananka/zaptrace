@@ -53,6 +53,7 @@ _COVERAGE_GATE_FILES = {
     "scripts/ci_critical_runtime_coverage.py",
 }
 _HIGH_RISK_PREFIXES = (
+    ".github/actions/",  # Shared CI actions can affect every gate that calls them.
     "zaptrace/agent/",
     "zaptrace/api/",
     "zaptrace/core/",

@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 QUALITY = WORKFLOWS / "quality.yml"
@@ -256,3 +258,35 @@ def test_quality_workflow_enforces_bounded_version_contexts() -> None:
     assert "version-consistency.json" in upload_block
     assert "version-consistency.md" in upload_block
     assert "if-no-files-found: error" in upload_block
+
+
+def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> None:
+    action = yaml.safe_load((ROOT / ".github" / "actions" / "setup-locked-python" / "action.yml").read_text())
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    steps = action["runs"]["steps"]
+    assert action["runs"]["using"] == "composite"
+    assert steps[0]["uses"] == "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
+    assert steps[1]["run"] == 'uv python install "$PYTHON_VERSION"'
+    assert steps[1]["env"]["PYTHON_VERSION"] == "${{ inputs.python-version }}"
+    assert steps[2]["run"] == (
+        "uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build"
+    )
+    assert all("permissions" not in step and "secrets" not in step for step in steps)
+
+    heavy_jobs = {"rust", "benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
+    full_jobs = {"lint"}
+    unconditional_jobs = {"docs-stale", "release-gate-summary"}
+    for job_id in heavy_jobs | full_jobs | unconditional_jobs:
+        job = quality["jobs"][job_id]
+        matches = [step for step in job["steps"] if step.get("uses") == "./.github/actions/setup-locked-python"]
+        assert len(matches) == 1, job_id
+        assert matches[0]["with"] == {
+            "uv-version": "${{ env.UV_VERSION }}",
+            "python-version": "${{ env.PYTHON_VERSION }}",
+        }
+        if job_id in heavy_jobs:
+            assert matches[0]["if"] == "needs.changes.outputs.heavy_ci == 'true'"
+        elif job_id in full_jobs:
+            assert matches[0]["if"] == "needs.changes.outputs.full_ci == 'true'"
+        else:
+            assert "if" not in matches[0]

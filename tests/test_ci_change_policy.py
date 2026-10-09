@@ -37,3 +37,11 @@ def test_native_source_change_still_selects_full_matrix() -> None:
     assert policy.full_ci is True
     assert policy.full_matrix is True
     assert policy.heavy_ci is True
+
+
+def test_repository_composite_action_change_requires_full_matrix() -> None:
+    policy = classify_paths([".github/actions/setup-locked-python/action.yml"], event_name="pull_request")
+    assert policy.test_mode == "full-matrix"
+    assert policy.full_ci is True
+    assert policy.full_matrix is True
+    assert policy.heavy_ci is True
