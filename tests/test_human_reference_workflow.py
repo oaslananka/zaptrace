@@ -5,14 +5,11 @@ from pathlib import Path
 from scripts.ci_change_policy import classify_paths
 
 ROOT = Path(__file__).resolve().parents[1]
-QUALITY = ROOT / ".github" / "workflows" / "quality.yml"
+BENCHMARK = ROOT / ".github" / "workflows" / "quality-benchmark.yml"
 
 
 def _benchmark_job_text() -> str:
-    workflow = QUALITY.read_text(encoding="utf-8")
-    start = workflow.index("  benchmark-001:")
-    end = workflow.index("\n  generated-board-release-gate:", start)
-    return workflow[start:end]
+    return BENCHMARK.read_text(encoding="utf-8")
 
 
 def test_human_reference_paths_select_heavy_ci() -> None:
@@ -44,4 +41,4 @@ def test_quality_benchmark_job_uploads_human_reference_evidence_with_finite_rete
         assert artifact in job
     assert "if-no-files-found: error" in job
     assert "retention-days: 30" in job
-    assert "if: always() && needs.changes.outputs.heavy_ci == 'true'" in job
+    assert "if: always() && inputs.heavy_ci == 'true'" in job

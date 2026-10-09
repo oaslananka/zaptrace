@@ -1,0 +1,141 @@
+name: Quality Benchmark Evidence
+
+on:
+  workflow_call:
+    inputs:
+      heavy_ci:
+        description: Heavy-CI eligibility from Quality change classification
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: Verify benchmark evidence
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: "3.13"
+      UV_VERSION: "0.11"
+      PYTHONPATH: "."
+    steps:
+      - name: Skip benchmark for non-heavy PR
+        if: inputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping benchmark 001 acceptance."
+          echo "Non-heavy PR; benchmark 001 acceptance skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+        if: inputs.heavy_ci == 'true'
+
+      - name: Set up locked Python
+        if: inputs.heavy_ci == 'true'
+        uses: ./.github/actions/setup-locked-python
+        with:
+          uv-version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run identity-bound benchmark evidence gates
+        if: inputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_benchmark_001.py \
+            --strict \
+            --output benchmark-001-report.json \
+            --markdown benchmark-001-report.md
+          .venv/bin/python scripts/ci_benchmark_fixture_coverage.py \
+            --strict \
+            --min-complete-families 12 \
+            --output benchmark-fixture-coverage.json \
+            --markdown benchmark-fixture-coverage.md
+          .venv/bin/python scripts/ci_benchmark_fixture_integrity.py \
+            --strict \
+            --output benchmark-fixture-integrity.json \
+            --markdown benchmark-fixture-integrity.md
+          .venv/bin/python scripts/ci_external_benchmark_corpus.py \
+            --root . \
+            --manifest benchmarks/external/manifest.json \
+            --strict \
+            --output external-benchmark-corpus.json \
+            --markdown external-benchmark-corpus.md
+          .venv/bin/python scripts/ci_benchmark_reproduce.py \
+            --strict \
+            --output benchmark-reproduction.json \
+            --markdown benchmark-reproduction.md
+          .venv/bin/python scripts/ci_human_reference_scorecard.py \
+            --strict \
+            --output human-reference-scorecard.json \
+            --markdown human-reference-scorecard.md
+          agent_evaluation_mode="ci"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            agent_evaluation_mode="nightly"
+          fi
+          .venv/bin/python scripts/ci_agent_evaluation.py \
+            --mode "$agent_evaluation_mode" \
+            --artifact-dir agent-evaluation-artifacts \
+            --output agent-evaluation-report.json \
+            --markdown agent-evaluation-report.md \
+            --strict
+          .venv/bin/python scripts/ci_release_verify_repair.py \
+            --artifact-dir release-verify-repair-artifacts \
+            --output release-convergence-report.json \
+            --markdown release-convergence-report.md \
+            --strict
+          cat \
+            benchmark-001-report.md \
+            benchmark-fixture-coverage.md \
+            benchmark-fixture-integrity.md \
+            external-benchmark-corpus.md \
+            benchmark-reproduction.md \
+            human-reference-scorecard.md \
+            agent-evaluation-report.md \
+            release-convergence-report.md \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install simulation runtime
+        if: inputs.heavy_ci == 'true'
+        run: |
+          bash scripts/ci_install_kicad.sh ngspice
+
+      - name: Run simulation-backed sign-off evidence gate
+        if: inputs.heavy_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_simulation_signoff.py \
+            --artifact-dir simulation-signoff-artifacts \
+            --output simulation-signoff-report.json \
+            --markdown simulation-signoff-report.md \
+            --require-live-simulation \
+            --strict
+          cat simulation-signoff-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark evidence
+        if: always() && inputs.heavy_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: benchmark-evidence
+          path: |
+            benchmark-001-report.json
+            benchmark-fixture-coverage.json
+            benchmark-fixture-integrity.json
+            external-benchmark-corpus.json
+            benchmark-reproduction.json
+            human-reference-scorecard.json
+            agent-evaluation-report.json
+            agent-evaluation-artifacts
+            release-convergence-report.json
+            release-verify-repair-artifacts
+            simulation-signoff-report.json
+            simulation-signoff-artifacts
+            benchmark-001-report.md
+            benchmark-fixture-coverage.md
+            benchmark-fixture-integrity.md
+            external-benchmark-corpus.md
+            benchmark-reproduction.md
+            human-reference-scorecard.md
+            agent-evaluation-report.md
+            release-convergence-report.md
+            simulation-signoff-report.md
+          if-no-files-found: error
+          retention-days: 30

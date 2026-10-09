@@ -41,6 +41,17 @@ failure semantics. Docs-only pull requests receive an explicit successful
 skip instead of a missing job. The caller and callee are covered by repository
 contract tests.
 
+## Benchmark evidence ownership
+
+The top-level Quality workflow retains its unconditional `benchmark-001` caller
+and fail-closed release-summary dependency. Its evidence-producing steps live
+in the read-only `.github/workflows/quality-benchmark.yml` reusable workflow,
+which receives the `heavy_ci` classification explicitly. Non-heavy changes
+receive an explicit successful skip, while applicable runs keep the same
+identity-bound fixture/corpus/agent/release/simulation gates, scheduled
+evaluation mode, `benchmark-evidence` artifact and 30-day retention.
+The caller/callee and uploaded evidence are checked by repository contract tests.
+
 ## Workflow security
 
 The required `Repository hooks` check runs actionlint and zizmor across all workflow files. Zizmor findings at Medium severity or higher block the check. Low and informational recommendations remain visible for triage but do not duplicate or replace CodeQL, Semgrep, or the repository's native linters.

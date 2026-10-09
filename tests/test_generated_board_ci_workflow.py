@@ -80,7 +80,7 @@ def test_validation_environment_uses_locked_identity_runtime() -> None:
 
 
 def test_benchmark_job_publishes_identity_bound_evidence_bundle() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality-benchmark.yml").read_text(encoding="utf-8")
 
     assert "scripts/ci_benchmark_001.py" in workflow
     assert "scripts/ci_benchmark_fixture_coverage.py" in workflow
