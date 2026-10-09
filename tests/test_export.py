@@ -46,6 +46,22 @@ def _design() -> Design:
     )
 
 
+def test_schematic_svg_escapes_untrusted_text() -> None:
+    import xml.etree.ElementTree as ET
+
+    design = Design(
+        meta=DesignMeta(name="Design <alpha> & test"),
+        components={
+            "c1": Component(id="c1", ref="R<&1", type='resistor & "sense"', value="10k", footprint="0805"),
+        },
+    )
+    svg = render_schematic_svg(design)
+    assert "Design &lt;alpha&gt; &amp; test" in svg
+    assert "R&lt;&amp;1" in svg
+    assert "resistor &amp; &quot;sense&quot;" in svg
+    ET.fromstring(svg)
+
+
 class TestBOM:
     def test_bom_csv(self) -> None:
         csv = generate_bom_csv(_design())
