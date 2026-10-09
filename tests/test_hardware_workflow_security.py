@@ -2,17 +2,30 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 WORKFLOW = Path(".github/workflows/hardware.yml")
-SAFE_SYNC = "uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build"
+ACTION = Path(".github/actions/setup-locked-python/action.yml")
+SHARED_SETUP = "./.github/actions/setup-locked-python"
 
 
 def test_hardware_workflow_installs_locked_dependencies_without_building_project() -> None:
-    workflow = WORKFLOW.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+    sync_script = action["runs"]["steps"][-1]["run"]
 
-    assert workflow.count(SAFE_SYNC) == 3
-    for line in workflow.splitlines():
-        if "uv sync" in line:
-            assert SAFE_SYNC in line
+    assert "uv lock --check" in sync_script
+    assert "sync_args=(--locked --all-extras --all-groups --no-install-project --no-build)" in sync_script
+    assert 'uv sync "${sync_args[@]}"' in sync_script
+    assert set(workflow["jobs"]) == {"regression", "examples", "kicad"}
+    for job in workflow["jobs"].values():
+        matches = [step for step in job["steps"] if step.get("uses") == SHARED_SETUP]
+        assert len(matches) == 1
+        assert matches[0]["with"] == {
+            "uv-version": "${{ env.UV_VERSION }}",
+            "python-version": "${{ env.PYTHON_VERSION }}",
+        }
+        assert not any("uv sync" in step.get("run", "") for step in job["steps"])
 
 
 def test_hardware_workflow_exposes_the_checked_out_source_tree_to_python() -> None:
