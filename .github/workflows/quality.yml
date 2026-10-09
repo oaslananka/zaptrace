@@ -511,19 +511,13 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Install uv
+      - name: Set up locked Python matrix
         if: needs.changes.outputs.test_mode != 'docs'
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        uses: ./.github/actions/setup-locked-python
         with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python 3.12
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build --python 3.12
+          uv-version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+          sync-explicit-python: "true"
 
       - name: Install external test tools
         if: needs.changes.outputs.test_mode != 'docs' && matrix.install_external
@@ -589,19 +583,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install uv
+      - name: Set up locked Python matrix
         if: needs.changes.outputs.test_mode != 'docs'
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        uses: ./.github/actions/setup-locked-python
         with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python ${{ matrix.python-version }}
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: uv python install ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build --python ${{ matrix.python-version }}
+          uv-version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python-version }}
+          sync-explicit-python: "true"
 
       - name: Run fast compatibility lanes
         if: needs.changes.outputs.test_mode != 'docs'

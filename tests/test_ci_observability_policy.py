@@ -268,9 +268,17 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
     assert steps[0]["uses"] == "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39"
     assert steps[1]["run"] == 'uv python install "$PYTHON_VERSION"'
     assert steps[1]["env"]["PYTHON_VERSION"] == "${{ inputs.python-version }}"
-    assert steps[2]["run"] == (
-        "uv lock --check && uv sync --locked --all-extras --all-groups --no-install-project --no-build"
+    sync_script = steps[2]["run"]
+    assert steps[2]["env"]["PYTHON_VERSION"] == "${{ inputs.python-version }}"
+    assert steps[2]["env"]["SYNC_EXPLICIT_PYTHON"] == "${{ inputs.sync-explicit-python }}"
+    assert action["inputs"]["sync-explicit-python"]["default"] == "false"
+    assert "uv lock --check" in sync_script
+    assert 'if [[ "$SYNC_EXPLICIT_PYTHON" == "true" ]]; then' in sync_script
+    assert (
+        'uv sync --locked --all-extras --all-groups --no-install-project --no-build --python "$PYTHON_VERSION"'
+        in sync_script
     )
+    assert "uv sync --locked --all-extras --all-groups --no-install-project --no-build\n" in sync_script
     assert all("permissions" not in step and "secrets" not in step for step in steps)
 
     heavy_jobs = {"rust", "benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
@@ -290,3 +298,25 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
             assert matches[0]["if"] == "needs.changes.outputs.full_ci == 'true'"
         else:
             assert "if" not in matches[0]
+
+
+def test_shared_locked_python_matrix_keeps_version_and_skip_semantics() -> None:
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    cases = {
+        "test": "3.12",
+        "test-compatibility": "${{ matrix.python-version }}",
+    }
+    for job_id, version in cases.items():
+        job = quality["jobs"][job_id]
+        matches = [step for step in job["steps"] if step.get("uses") == "./.github/actions/setup-locked-python"]
+        assert len(matches) == 1
+        step = matches[0]
+        assert step["if"] == "needs.changes.outputs.test_mode != 'docs'"
+        assert step["with"] == {
+            "uv-version": "${{ env.UV_VERSION }}",
+            "python-version": version,
+            "sync-explicit-python": "true",
+        }
+        assert any("Upload" in step.get("name", "") for step in job["steps"])
+    assert quality["jobs"]["test"]["name"] == "Test lane ${{ matrix.artifact }}"
+    assert quality["jobs"]["test-compatibility"]["name"] == "Fast compatibility (Python ${{ matrix.python-version }})"
