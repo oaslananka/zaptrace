@@ -281,8 +281,8 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
     assert all("permissions" not in step and "secrets" not in step for step in steps)
 
     heavy_jobs = {"rust", "benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
-    full_jobs = {"lint"}
-    unconditional_jobs = {"docs-stale", "release-gate-summary"}
+    full_jobs = {"lint", "mcp-compatibility"}
+    unconditional_jobs = {"docs-stale", "release-gate-summary", "test-lane-policy"}
     for job_id in heavy_jobs | full_jobs | unconditional_jobs:
         job = quality["jobs"][job_id]
         matches = [step for step in job["steps"] if step.get("uses") == "./.github/actions/setup-locked-python"]
@@ -297,6 +297,25 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
             assert matches[0]["if"] == "needs.changes.outputs.full_ci == 'true'"
         else:
             assert "if" not in matches[0]
+
+
+def test_shared_locked_python_policy_jobs_preserve_evidence_and_skip_contracts() -> None:
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    mcp_steps = quality["jobs"]["mcp-compatibility"]["steps"]
+    lane_steps = quality["jobs"]["test-lane-policy"]["steps"]
+
+    mcp_bootstrap = next(step for step in mcp_steps if step.get("uses") == "./.github/actions/setup-locked-python")
+    assert mcp_bootstrap["if"] == "needs.changes.outputs.full_ci == 'true'"
+    assert any(step.get("name") == "Skip MCP compatibility for docs-only PR" for step in mcp_steps)
+    mcp_upload = next(step for step in mcp_steps if step.get("name") == "Upload MCP dependency evidence")
+    assert mcp_upload["with"]["name"] == "mcp-dependency-evidence"
+    assert mcp_upload["if"] == "needs.changes.outputs.full_ci == 'true' && always()"
+
+    lane_bootstrap = next(step for step in lane_steps if step.get("uses") == "./.github/actions/setup-locked-python")
+    assert "if" not in lane_bootstrap
+    lane_upload = next(step for step in lane_steps if step.get("name") == "Upload test lane inventory")
+    assert lane_upload["with"]["name"] == "test-lane-inventory"
+    assert any(step.get("name") == "Validate lane policy and shard inventory" for step in lane_steps)
 
 
 def test_shared_locked_python_matrix_keeps_version_and_skip_semantics() -> None:
