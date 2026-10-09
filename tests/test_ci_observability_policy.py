@@ -368,10 +368,7 @@ def test_quality_lint_reusable_boundary_preserves_required_gates() -> None:
     }
     job = lint["jobs"]["validate"]
     assert job["name"] == "Lint & Typecheck"
-    assert job["env"] == {
-        key: quality["env"][key]
-        for key in ("PYTHON_VERSION", "UV_VERSION", "PYTHONPATH")
-    }
+    assert job["env"] == {key: quality["env"][key] for key in ("PYTHON_VERSION", "UV_VERSION", "PYTHONPATH")}
     steps = job["steps"]
     assert steps[0]["if"] == "inputs.full_ci != 'true'"
     assert "Docs-only PR" in steps[0]["run"]
@@ -384,11 +381,7 @@ def test_quality_lint_reusable_boundary_preserves_required_gates() -> None:
         "uv-version": "${{ env.UV_VERSION }}",
         "python-version": "${{ env.PYTHON_VERSION }}",
     }
-    for artifact_name in (
-        "version-consistency",
-        "component-evidence-gate",
-        "architecture-compiler-evidence",
-    ):
+    for artifact_name in ("version-consistency", "component-evidence-gate", "architecture-compiler-evidence"):
         upload = next(step for step in steps if step.get("with", {}).get("name") == artifact_name)
         assert upload["if"] == "always() && inputs.full_ci == 'true'"
         assert upload["with"]["if-no-files-found"] == "error"
