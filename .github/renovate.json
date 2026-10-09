@@ -13,6 +13,7 @@
   "prHourlyLimit": 2,
   "minimumReleaseAge": "5 days",
   "internalChecksFilter": "strict",
+  "internalChecksAsSuccess": true,
   "prCreation": "not-pending",
   "labels": [
     "dependencies"

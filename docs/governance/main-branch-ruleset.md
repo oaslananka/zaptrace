@@ -47,3 +47,22 @@ The evidence records the active ruleset ID, enforcement state, required contexts
 comparison errors, and any visibility warning caused by token scope. GitHub rule
 suite records are the negative evidence that a direct or failing update was
 blocked.
+
+
+## Release-tag immutability
+
+The separately enforced `immutable-release-tags` tag ruleset protects
+`refs/tags/v*` against updates and deletions. It intentionally **allows
+new release tags to be created** by actors who already have repository write
+permission; adding a creation restriction with no bypass actor would prevent
+the authorized release flow. The tag ruleset has no bypass actor. Once a
+version tag is created, even the publisher must use a new version rather than
+moving or deleting the old tag.
+
+The committed contract is `config/github-release-tag-ruleset.json`, checked
+against the live GitHub ruleset by `scripts/ci_repository_ruleset.py`.
+The resulting `repository-tag-ruleset-evidence.json` is included in the
+existing Repository hygiene artifact. This prevents an unprotected tag
+namespace from silently returning without introducing a seventh required
+check. Tag immutability alone does not verify release quality, source
+ancestry, signatures, or registry publication.

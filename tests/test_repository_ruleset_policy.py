@@ -42,6 +42,31 @@ def test_main_ruleset_policy_defines_stable_required_checks() -> None:
     }.issubset(rule_types)
 
 
+def test_release_tag_ruleset_rejects_replacement_and_deletion_but_allows_creation() -> None:
+    from scripts import ci_repository_ruleset
+
+    policy = json.loads((ROOT / "config/github-release-tag-ruleset.json").read_text(encoding="utf-8"))
+    assert policy["name"] == "immutable-release-tags"
+    assert policy["target"] == "tag"
+    assert policy["conditions"]["ref_name"]["include"] == ["refs/tags/v*"]
+    assert policy["enforcement"] == "active"
+    assert policy["bypass_actors"] == []
+    assert {item["type"] for item in policy["rules"]} == {"update", "deletion"}
+
+    live = {**policy, "id": 1234}
+    assert ci_repository_ruleset.compare_ruleset(policy, live) == []
+
+    drift = {**live, "rules": [{"type": "deletion"}]}
+    assert "rules missing: update" in ci_repository_ruleset.compare_ruleset(policy, drift)
+
+
+def test_repository_hygiene_verifies_release_tag_ruleset_at_live_api() -> None:
+    workflow = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+    assert "--policy config/github-release-tag-ruleset.json" in workflow
+    assert "repository-tag-ruleset-evidence.json" in workflow
+    assert 'target=str(policy["target"])' in (ROOT / "scripts/ci_repository_ruleset.py").read_text(encoding="utf-8")
+
+
 def test_security_workflow_exposes_one_stable_aggregate_gate() -> None:
     workflow = (WORKFLOWS / "security-scan.yml").read_text(encoding="utf-8")
 
