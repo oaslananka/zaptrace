@@ -66,7 +66,7 @@ def test_committed_manifest_preserves_current_heuristic_library(tmp_path: Path) 
 
 
 def test_quality_workflow_runs_component_evidence_gate() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality-lint.yml").read_text(encoding="utf-8")
 
     assert "- name: Component evidence gate" in workflow
     assert "scripts/ci_component_evidence_gate.py" in workflow

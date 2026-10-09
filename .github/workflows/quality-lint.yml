@@ -1,0 +1,148 @@
+name: Quality Lint and Repository Policy
+
+on:
+  workflow_call:
+    inputs:
+      full_ci:
+        description: Full-CI eligibility from Quality change classification
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: "3.13"
+      UV_VERSION: "0.11"
+      PYTHONPATH: "."
+    steps:
+      - name: Skip heavyweight lint/typecheck for docs-only PR
+        if: inputs.full_ci != 'true'
+        run: |
+          echo "Docs-only PR; skipping Python lint/typecheck."
+          echo "Docs-only PR; Python lint/typecheck skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+        if: inputs.full_ci == 'true'
+
+      - name: Set up locked Python
+        if: inputs.full_ci == 'true'
+        uses: ./.github/actions/setup-locked-python
+        with:
+          uv-version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Verify version consistency
+        if: inputs.full_ci == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_CONTEXT="development"
+          VERSION_SOURCE_REF="$GITHUB_REF"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$GITHUB_HEAD_REF" == release/v* ]]; then
+            VERSION_CONTEXT="release-preparation"
+            VERSION_SOURCE_REF="refs/heads/$GITHUB_HEAD_REF"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ]]; then
+            PACKAGE_VERSION="$(.venv/bin/python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+            if [[ "$PACKAGE_VERSION" != *.dev* ]]; then
+              VERSION_CONTEXT="release-preparation"
+            fi
+          fi
+          .venv/bin/python scripts/ci_version_consistency.py \
+            --context "$VERSION_CONTEXT" \
+            --source-ref "$VERSION_SOURCE_REF" \
+            --source-commit "$(git rev-parse HEAD)" \
+            --output version-consistency.json \
+            --markdown version-consistency.md \
+            --strict
+          cat version-consistency.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload version consistency evidence
+        if: always() && inputs.full_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: version-consistency
+          path: |
+            version-consistency.json
+            version-consistency.md
+          if-no-files-found: error
+
+      - name: Ruff lint
+        if: inputs.full_ci == 'true'
+        run: .venv/bin/ruff check .
+
+      - name: Ruff format check
+        if: inputs.full_ci == 'true'
+        run: .venv/bin/ruff format --check .
+
+      - name: Pyright
+        if: inputs.full_ci == 'true'
+        run: .venv/bin/pyright
+
+      - name: Component metadata gate
+        if: inputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_component_metadata_gate.py \
+            --trust-baseline config/component-trust-baseline.json \
+            --max-errors 0 \
+            --max-warnings 0 \
+            --strict \
+            --output component-metadata-gate.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Component evidence gate
+        if: inputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_component_evidence_gate.py \
+            --manifest config/component-evidence-manifest.json \
+            --strict \
+            --output component-evidence-gate.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload component evidence gate
+        if: always() && inputs.full_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: component-evidence-gate
+          path: component-evidence-gate.json
+          if-no-files-found: error
+
+      - name: Component selection coverage gate
+        if: inputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_component_selection_gate.py \
+            --corpus tests/fixtures/component_selection/prompts.yaml \
+            --minimum-governed-parts 100 \
+            --strict \
+            --output component-selection-coverage.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+
+      - name: Requirements architecture compiler gate
+        if: inputs.full_ci == 'true'
+        run: |
+          .venv/bin/python scripts/ci_architecture_compiler_gate.py \
+            --corpus tests/fixtures/architecture/prompts.yaml \
+            --minimum-ready-cases 5 \
+            --strict \
+            --schema-output electronics-architecture-v1.schema.json \
+            --output architecture-compiler-coverage.json \
+            --markdown "$GITHUB_STEP_SUMMARY"
+          cmp electronics-architecture-v1.schema.json docs/schemas/electronics-architecture-v1.schema.json
+          cmp architecture-compiler-coverage.json docs/reports/architecture-compiler-coverage-2026-07-27.json
+
+      - name: Upload architecture compiler evidence
+        if: always() && inputs.full_ci == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: architecture-compiler-evidence
+          path: |
+            architecture-compiler-coverage.json
+            electronics-architecture-v1.schema.json
+          if-no-files-found: error

@@ -166,9 +166,9 @@ def test_component_metadata_gate_enforces_monotonic_trust_baseline(
 
 
 def test_quality_workflow_enforces_component_trust_baseline() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality-lint.yml").read_text(encoding="utf-8")
     component_gate = workflow[
-        workflow.index("- name: Component metadata gate") : workflow.index("\n  mcp-compatibility:")
+        workflow.index("- name: Component metadata gate") : workflow.index("- name: Component evidence gate")
     ]
 
     assert "--trust-baseline config/component-trust-baseline.json" in component_gate

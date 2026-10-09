@@ -24,6 +24,23 @@ JUnit reports, lane JSON evidence, and per-lane coverage fragments are uploaded 
 
 External JavaScript bundle analysis is not enabled. ZapTrace is a Python/Rust package and does not emit a Vite, Webpack, or Rollup JavaScript application bundle. If a future web application introduces a supported bundler, bundle analysis should be evaluated in that application-specific workflow rather than added to the Python package CI.
 
+## Lint and repository policy ownership
+
+The top-level Quality workflow keeps a stable `lint` job and the existing
+fail-closed dependency in `release-gate-summary`. Its implementation lives
+in `.github/workflows/quality-lint.yml`, which receives only the change
+classifier's explicit `full_ci` input.
+
+The called workflow owns Ruff, Pyright, version consistency, component trust
+and evidence, component selection, and architecture compiler checks. It retains
+the locked Python bootstrap, full-history checkout required by version
+consistency, read-only token permissions, and the existing
+`version-consistency`, `component-evidence-gate`, and
+`architecture-compiler-evidence` artifact names with strict missing-file
+failure semantics. Docs-only pull requests receive an explicit successful
+skip instead of a missing job. The caller and callee are covered by repository
+contract tests.
+
 ## Workflow security
 
 The required `Repository hooks` check runs actionlint and zizmor across all workflow files. Zizmor findings at Medium severity or higher block the check. Low and informational recommendations remain visible for triage but do not duplicate or replace CodeQL, Semgrep, or the repository's native linters.
