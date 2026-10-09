@@ -84,6 +84,7 @@ nav:
 
   - Development:
       - CI for Contributors: ci-for-contributors.md
+      - CI Maintenance Ownership: ci/maintenance-workflow-ownership.md
       - CI Observability: development/ci-observability.md
       - Agent Tool Architecture: development/agent-tool-architecture.md
       - Coding Standards: development/coding-standards.md

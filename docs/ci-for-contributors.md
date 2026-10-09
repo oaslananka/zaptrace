@@ -15,3 +15,7 @@ Pull requests that change source code, tests, examples, scripts, workflow files,
 ## Main branch and manual runs
 
 Pushes to `main` and manually dispatched quality runs always run full validation.
+
+## Maintenance workflows and required checks
+
+The [CI maintenance and assurance ownership map](ci/maintenance-workflow-ownership.md) distinguishes six merge-required check contexts from default-branch Sonar historical-debt controls, scheduled OpenSSF Scorecard reporting, and manually dispatched baseline maintenance. Do not weaken required gates or use advisory statuses as substitutes for protected checks.
