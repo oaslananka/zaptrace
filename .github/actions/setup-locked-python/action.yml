@@ -30,8 +30,8 @@ runs:
         SYNC_EXPLICIT_PYTHON: ${{ inputs.sync-explicit-python }}
       run: |
         uv lock --check
+        sync_args=(--locked --all-extras --all-groups --no-install-project --no-build)
         if [[ "$SYNC_EXPLICIT_PYTHON" == "true" ]]; then
-          uv sync --locked --all-extras --all-groups --no-install-project --no-build --python "$PYTHON_VERSION"
-        else
-          uv sync --locked --all-extras --all-groups --no-install-project --no-build
+          sync_args+=(--python "$PYTHON_VERSION")
         fi
+        uv sync "${sync_args[@]}"
