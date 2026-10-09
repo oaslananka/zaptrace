@@ -32,6 +32,12 @@ The top-level `Quality` workflow retains logical job ID `rust`, `needs: changes`
 
 **Check-label migration:** GitHub may show the non-required nested Rust job as `Build Rust extension / Build, test and verify native wheel` instead of `Build Rust extension`. The six required branch checks, `Release gate summary`, release dependency, evidence identity, gate conditions, and Rust toolchain contract remain unchanged. Consumers of the former non-required label must migrate explicitly.
 
+## Distribution clean-install reusable boundary
+
+The top-level `Quality` job `distribution-clean-install` retains `needs: changes` and calls [Quality Distribution Clean Install](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/quality-distribution.yml) with only the existing required `heavy_ci` classifier input. The called workflow has read-only `contents` permission, receives no secrets, has the same 20-minute inner job timeout, and retains a successful explicit skip on non-heavy PRs. On heavy CI it builds the exact sdist, locks and clean-installs a hash-verified copy, runs the strict external-source distribution smoke, and uploads the same `distribution-smoke-sdist-linux-x86_64-cp313` evidence using `always()` and `if-no-files-found: error`. The upstream Quality classification and existing release-summary dependency graph are unchanged.
+
+**Check-label migration:** The non-required distribution check may display as `Distribution clean-install / Build and verify clean source distribution` instead of `Distribution clean-install`. The six branch-required check contexts do not change; any external consumer of this non-required check label must deliberately migrate.
+
 ## Maintenance ownership and failure response
 
 - **PR author / maintainer:** Fix source failures on the PR's exact head SHA, respond to review threads, and verify all six required checks plus relevant external reviews before a normal protected squash merge. Preserve package/artifact identities when moving jobs into reusable workflows.

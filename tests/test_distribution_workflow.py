@@ -5,8 +5,11 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 QUALITY = ROOT / ".github" / "workflows" / "quality.yml"
+DISTRIBUTION = ROOT / ".github" / "workflows" / "quality-distribution.yml"
 RELEASE = ROOT / ".github" / "workflows" / "release.yml"
 CHANGE_POLICY = ROOT / "scripts" / "ci_change_policy.py"
 
@@ -45,36 +48,65 @@ def test_distribution_policy_and_smoke_changes_select_heavy_ci() -> None:
 
 
 def test_quality_workflow_clean_installs_and_smokes_sdist() -> None:
-    job = _job(QUALITY, "  distribution-clean-install:", "\n  lint:")
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    distribution = yaml.safe_load(DISTRIBUTION.read_text(encoding="utf-8"))
+    caller = quality["jobs"]["distribution-clean-install"]
+    assert caller == {
+        "name": "Distribution clean-install",
+        "needs": "changes",
+        "uses": "./.github/workflows/quality-distribution.yml",
+        "with": {"heavy_ci": "${{ needs.changes.outputs.heavy_ci }}"},
+    }
+    assert distribution["permissions"] == {"contents": "read"}
+    assert distribution[True]["workflow_call"]["inputs"]["heavy_ci"] == {
+        "description": "Heavy-CI eligibility from Quality change classification",
+        "type": "string",
+        "required": True,
+    }
+    job = distribution["jobs"]["sdist"]
+    assert job["timeout-minutes"] == 20
+    assert job["name"] == "Build and verify clean source distribution"
+    assert job["env"] == {key: quality["env"][key] for key in ("PYTHON_VERSION", "UV_VERSION", "PYTHONPATH")}
+    steps = job["steps"]
+    assert steps[0]["if"] == "inputs.heavy_ci != 'true'"
+    assert "skipping distribution clean-install" in steps[0]["run"]
+    for step in steps[1:]:
+        assert step["if"] == (
+            "inputs.heavy_ci == 'true' && always()"
+            if step.get("name") == "Upload distribution clean-install evidence"
+            else "inputs.heavy_ci == 'true'"
+        ), step.get("name", step.get("uses"))
+    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["persist-credentials"] is False
+    evidence = next(step for step in steps if step.get("name") == "Upload distribution clean-install evidence")
+    assert evidence["with"]["name"] == "distribution-smoke-sdist-linux-x86_64-cp313"
+    assert evidence["with"]["if-no-files-found"] == "error"
 
-    assert "name: Distribution clean-install" in job
-    assert "needs: changes" in job
-    assert "runs-on: ubuntu-latest" in job
-    assert "needs.changes.outputs.heavy_ci != 'true'" in job
-    assert "uv python install ${{ env.PYTHON_VERSION }}" in job
-    assert "uv build --sdist" in job
-    assert 'UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke"' in job
-    assert "uv sync --locked --all-extras --all-groups --no-install-project --no-build" in job
-    assert "uv pip install" in job
-    assert '--python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"' in job
-    assert "--no-deps" in job
-    assert 'sdist="$(realpath dist/*.tar.gz)"' in job
-    assert 'cd "$RUNNER_TEMP"' in job
-    assert '"$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"' in job
-    assert '"$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py"' in job
-    assert '--artifact-root "$GITHUB_WORKSPACE/dist"' in job
-    assert "--artifact-type source-distribution" in job
-    assert "--target sdist-linux-x86_64-cp313" in job
-    assert '--policy "$GITHUB_WORKSPACE/config/distribution-support.json"' in job
-    assert '--source-root "$GITHUB_WORKSPACE"' in job
-    assert '--source-commit "$GITHUB_SHA"' in job
-    assert '--lockfile "$GITHUB_WORKSPACE/uv.lock"' in job
-    assert "--expected-native absent" in job
-    assert '--output "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.json"' in job
-    assert '--markdown "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md"' in job
-    assert "--strict" in job
-    assert "name: distribution-smoke-sdist-linux-x86_64-cp313" in job
-    assert "if-no-files-found: error" in job
+    body = DISTRIBUTION.read_text(encoding="utf-8")
+    assert "uv python install ${{ env.PYTHON_VERSION }}" in body
+    assert "uv build --sdist" in body
+    assert 'UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke"' in body
+    assert "uv sync --locked --all-extras --all-groups --no-install-project --no-build" in body
+    assert "uv pip install" in body
+    assert '--python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"' in body
+    assert "--no-deps" in body
+    assert 'sdist="$(realpath dist/*.tar.gz)"' in body
+    assert 'cd "$RUNNER_TEMP"' in body
+    assert '"$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"' in body
+    assert '"$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py"' in body
+    assert '--artifact-root "$GITHUB_WORKSPACE/dist"' in body
+    assert "--artifact-type source-distribution" in body
+    assert "--target sdist-linux-x86_64-cp313" in body
+    assert '--policy "$GITHUB_WORKSPACE/config/distribution-support.json"' in body
+    assert '--source-root "$GITHUB_WORKSPACE"' in body
+    assert '--source-commit "$GITHUB_SHA"' in body
+    assert '--lockfile "$GITHUB_WORKSPACE/uv.lock"' in body
+    assert "--expected-native absent" in body
+    assert '--output "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.json"' in body
+    assert '--markdown "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md"' in body
+    assert "--strict" in body
+    assert "name: distribution-smoke-sdist-linux-x86_64-cp313" in body
+    assert "if-no-files-found: error" in body
 
 
 def test_release_python_distribution_is_sdist_only_and_clean_installed() -> None:

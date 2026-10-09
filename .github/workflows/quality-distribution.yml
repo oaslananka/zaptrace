@@ -1,0 +1,106 @@
+name: Quality Distribution Clean Install
+
+on:
+  workflow_call:
+    inputs:
+      heavy_ci:
+        description: Heavy-CI eligibility from Quality change classification
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sdist:
+    name: Build and verify clean source distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHON_VERSION: "3.13"
+      UV_VERSION: "0.11"
+      PYTHONPATH: "."
+    steps:
+      - name: Skip distribution clean-install for non-heavy PR
+        if: inputs.heavy_ci != 'true'
+        run: |
+          echo "Non-heavy PR; skipping distribution clean-install."
+          echo "Non-heavy PR; distribution clean-install skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        if: inputs.heavy_ci == 'true'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install uv
+        if: inputs.heavy_ci == 'true'
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
+      - name: Set up Python
+        if: inputs.heavy_ci == 'true'
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Build source distribution
+        if: inputs.heavy_ci == 'true'
+        run: |
+          uv lock --check
+          uv build --sdist
+
+      - name: Create clean locked environment
+        if: inputs.heavy_ci == 'true'
+        run: |
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke" uv lock --check && UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/zaptrace-sdist-smoke" uv sync --locked --all-extras --all-groups --no-install-project --no-build \
+            --python "$PYTHON_VERSION"
+
+      - name: Install exact source distribution
+        if: inputs.heavy_ci == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdist="$(realpath dist/*.tar.gz)"
+          sdist_hash="$(sha256sum "$sdist" | awk '{print $1}')"
+          printf 'zaptrace-eda @ file://%s --hash=sha256:%s\n' "$sdist" "$sdist_hash" \
+            > "$RUNNER_TEMP/sdist.requirements.txt"
+          uv pip install \
+            --python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python" \
+            --no-deps \
+            --require-hashes \
+            -r "$RUNNER_TEMP/sdist.requirements.txt"
+          uv pip check --python "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python"
+
+      - name: Run clean-install distribution smoke
+        if: inputs.heavy_ci == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdist="$(realpath dist/*.tar.gz)"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/zaptrace-sdist-smoke/bin/python" \
+            "$GITHUB_WORKSPACE/scripts/ci_distribution_smoke.py" \
+            --artifact "$sdist" \
+            --artifact-root "$GITHUB_WORKSPACE/dist" \
+            --artifact-type source-distribution \
+            --target sdist-linux-x86_64-cp313 \
+            --policy "$GITHUB_WORKSPACE/config/distribution-support.json" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --lockfile "$GITHUB_WORKSPACE/uv.lock" \
+            --expected-native absent \
+            --output "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.json" \
+            --markdown "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md" \
+            --strict
+          cat "$GITHUB_WORKSPACE/distribution-smoke-sdist-linux-x86_64-cp313.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload distribution clean-install evidence
+        if: inputs.heavy_ci == 'true' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: distribution-smoke-sdist-linux-x86_64-cp313
+          path: |
+            distribution-smoke-sdist-linux-x86_64-cp313.json
+            distribution-smoke-sdist-linux-x86_64-cp313.md
+          if-no-files-found: error
