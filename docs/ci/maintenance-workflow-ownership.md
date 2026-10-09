@@ -6,17 +6,17 @@ This page records the operational boundary between **merge-blocking PR admission
 
 | Surface | Source or provider | Trigger | Responsibility | Required on PR? |
 | --- | --- | --- | --- | --- |
-| Release gate summary | [Quality](../../.github/workflows/quality.yml) | PR, main push, dispatch, schedule | Aggregate Python, Rust, packaging, KiCad, benchmark, docs and release-readiness checks | **Yes** |
-| Security gate | [Security](../../.github/workflows/security-scan.yml) | PR, main push, dispatch, weekly schedule | Aggregate risk-classified dependency audit, CodeQL, Semgrep and Cargo checks | **Yes** |
-| Repository hooks | [Pre-commit](../../.github/workflows/pre-commit.yml) | Repository workflow contract | Verify lint and workflow security/policy hooks | **Yes** |
-| Repository hygiene | [CI](../../.github/workflows/ci.yml) | Repository workflow contract | Enforce repository contracts and ruleset parity | **Yes** |
+| Release gate summary | [Quality](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/quality.yml) | PR, main push, dispatch, schedule | Aggregate Python, Rust, packaging, KiCad, benchmark, docs and release-readiness checks | **Yes** |
+| Security gate | [Security](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/security-scan.yml) | PR, main push, dispatch, weekly schedule | Aggregate risk-classified dependency audit, CodeQL, Semgrep and Cargo checks | **Yes** |
+| Repository hooks | [Pre-commit](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/pre-commit.yml) | Repository workflow contract | Verify lint and workflow security/policy hooks | **Yes** |
+| Repository hygiene | [CI](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/ci.yml) | Repository workflow contract | Enforce repository contracts and ruleset parity | **Yes** |
 | Dependency review | GitHub Dependency Review | PR | Reject newly introduced dependency risk according to its configured policy | **Yes** |
-| Container security gate | [Container Security](../../.github/workflows/container-security.yml) | PR, main push, release paths | Enforce exact-image scans when applicable; retain an explicit non-applicable result otherwise | **Yes** |
+| Container security gate | [Container Security](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/container-security.yml) | PR, main push, release paths | Enforce exact-image scans when applicable; retain an explicit non-applicable result otherwise | **Yes** |
 | SonarCloud new-code quality | SonarCloud PR integration | PR | Review new-code maintainability/security gates without relaxing historical-debt policy | Not one of the six committed branch-required contexts |
-| Historical Sonar debt | [Sonar Historical Debt](../../.github/workflows/sonar-debt.yml) | Main push, Sunday schedule, manual | Enforce exact-main historical-debt ratchet, record revision-bound report and artifacts | **No**; failure is a default-branch maintenance defect requiring repair |
-| Sonar baseline administration | [Sonar New Code Baseline](../../.github/workflows/sonar-baseline.yml) | Manual dispatch only | Apply and verify an explicitly reviewed committed new-code baseline | **No** |
-| OpenSSF Scorecard | [OpenSSF Scorecard](../../.github/workflows/scorecard.yml) | Main push, weekly schedule, manual | Produce Code Scanning SARIF and retained Scorecard artifact | **No** |
-| Renovate configuration validation | [Renovate Config](../../.github/workflows/renovate-config.yml) | Selected PR/branch paths; manual | Validate committed Renovate configuration using a locked CLI | Not in the six committed required contexts |
+| Historical Sonar debt | [Sonar Historical Debt](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/sonar-debt.yml) | Main push, Sunday schedule, manual | Enforce exact-main historical-debt ratchet, record revision-bound report and artifacts | **No**; failure is a default-branch maintenance defect requiring repair |
+| Sonar baseline administration | [Sonar New Code Baseline](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/sonar-baseline.yml) | Manual dispatch only | Apply and verify an explicitly reviewed committed new-code baseline | **No** |
+| OpenSSF Scorecard | [OpenSSF Scorecard](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/scorecard.yml) | Main push, weekly schedule, manual | Produce Code Scanning SARIF and retained Scorecard artifact | **No** |
+| Renovate configuration validation | [Renovate Config](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/renovate-config.yml) | Selected PR/branch paths; manual | Validate committed Renovate configuration using a locked CLI | Not in the six committed required contexts |
 
 The authoritative [main branch ruleset](../governance/main-branch-ruleset.md) names the six required check contexts. There are **no standing bypass actors**. A missing or stale required result cannot be treated as passing; a check may report non-applicability only via its designed, verified gate logic. External review services may add separate checks and comments, which should be resolved rather than silently ignored.
 
