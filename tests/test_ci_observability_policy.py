@@ -11,6 +11,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 QUALITY = WORKFLOWS / "quality.yml"
+COVERAGE = WORKFLOWS / "quality-coverage.yml"
 PRE_COMMIT_WORKFLOW = WORKFLOWS / "pre-commit.yml"
 
 
@@ -52,7 +53,7 @@ def test_quality_matrix_generates_and_retains_junit_results() -> None:
 
 
 def test_coverage_is_repository_owned_and_retained_as_artifacts() -> None:
-    workflow = QUALITY.read_text(encoding="utf-8")
+    workflow = COVERAGE.read_text(encoding="utf-8")
 
     assert ".venv/bin/coverage combine test-lane-artifacts" in workflow
     assert ".venv/bin/coverage report" in workflow
@@ -62,6 +63,58 @@ def test_coverage_is_repository_owned_and_retained_as_artifacts() -> None:
     assert "coverage.xml" in workflow
     assert "coverage.json" in workflow
     assert "codecov/codecov-action@" not in workflow
+
+
+def test_quality_coverage_reusable_boundary_preserves_gate_and_skip_contracts() -> None:
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    coverage = yaml.safe_load(COVERAGE.read_text(encoding="utf-8"))
+    caller = quality["jobs"]["coverage"]
+    assert caller["needs"] == ["changes", "test"]
+    assert caller["name"] == "Combined Python coverage"
+    assert caller["uses"] == "./.github/workflows/quality-coverage.yml"
+    assert caller["with"] == {"test_mode": "${{ needs.changes.outputs.test_mode }}"}
+    assert "secrets" not in caller
+    assert "if" not in caller  # Docs-only reports explicit success, not a missing check.
+
+    assert coverage["permissions"] == {"contents": "read"}
+    assert coverage[True]["workflow_call"]["inputs"]["test_mode"] == {
+        "description": "Docs-only mode from the caller's change classifier",
+        "type": "string",
+        "required": True,
+    }
+    assert coverage["jobs"]["aggregate"]["name"] == "Aggregate and enforce"
+    assert coverage["jobs"]["aggregate"]["env"]["UV_VERSION"] == quality["env"]["UV_VERSION"]
+    assert coverage["jobs"]["aggregate"]["env"]["PYTHONPATH"] == quality["env"]["PYTHONPATH"]
+    steps = coverage["jobs"]["aggregate"]["steps"]
+    assert steps[0]["if"] == "inputs.test_mode == 'docs'"
+    assert "coverage aggregation skipped" in steps[0]["run"]
+    for step in steps[1:]:
+        assert step["if"] == (
+            "inputs.test_mode != 'docs' && always()"
+            if step.get("name") == "Upload critical runtime coverage evidence"
+            else "inputs.test_mode != 'docs'"
+        ), step.get("name", step.get("uses"))
+    assert (
+        next(step for step in steps if step.get("uses", "").startswith("actions/checkout@"))["with"][
+            "persist-credentials"
+        ]
+        is False
+    )
+    downloaded = next(step for step in steps if step.get("name") == "Download lane coverage data")
+    assert downloaded["with"] == {
+        "pattern": "test-lane-results-*",
+        "path": "test-lane-artifacts",
+        "merge-multiple": True,
+    }
+    assert "coverage" in quality["jobs"]["release-gate-summary"]["needs"]
+    assert (
+        '--gate "coverage=${{ needs.coverage.result }}"'
+        in next(
+            step
+            for step in quality["jobs"]["release-gate-summary"]["steps"]
+            if step.get("name") == "Generate snapshot gate summary"
+        )["run"]
+    )
 
 
 def test_bundle_analysis_is_explicitly_out_of_scope() -> None:
@@ -210,7 +263,7 @@ def test_docker_smoke_runs_compose_runtime_and_uploads_evidence() -> None:
 
 
 def test_quality_workflow_enforces_and_uploads_critical_runtime_coverage() -> None:
-    workflow = QUALITY.read_text(encoding="utf-8")
+    workflow = COVERAGE.read_text(encoding="utf-8")
     gate_block = workflow[
         workflow.index("- name: Combine coverage and enforce critical floors") : workflow.index(
             "- name: Upload critical runtime coverage evidence"
