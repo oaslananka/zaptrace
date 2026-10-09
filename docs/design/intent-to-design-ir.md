@@ -7,7 +7,11 @@ This first compiler is deliberately bounded. It supports `esp32_usb_sensor` and 
 ## Public API
 
 ```python
-from zaptrace.generation import compile_intent_to_design_ir, minimal_board_generation_intent_example, validate_board_generation_intent
+from zaptrace.generation import (
+    compile_intent_to_design_ir,
+    minimal_board_generation_intent_example,
+    validate_board_generation_intent,
+)
 
 intent = validate_board_generation_intent(minimal_board_generation_intent_example())
 compiled = compile_intent_to_design_ir(intent)

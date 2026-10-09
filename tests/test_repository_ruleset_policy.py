@@ -259,6 +259,45 @@ def test_mergify_queue_uses_stable_aggregate_required_checks() -> None:
     assert set(failure_rule["conditions"][0]["or"]) == expected_failure
 
 
+def test_mergify_low_risk_renovate_uses_one_queue_authority() -> None:
+    config = yaml.safe_load((ROOT / ".mergify.yml").read_text(encoding="utf-8"))
+    # Auto-queue must not depend on an independently licensed Mergify product.
+    assert "merge_protections_settings" not in config
+    assert "merge_protections" not in config
+    rule = next(
+        rule for rule in config["pull_request_rules"] if rule["name"] == "queue verified low-risk Renovate updates"
+    )
+    conditions = set(rule["conditions"])
+    assert {"base = main", "author = renovate[bot]", "label = automerge:enabled"} <= conditions
+    assert {
+        "-draft",
+        "-conflict",
+        "-label = status/needs-review",
+        "-label = risk:high",
+        "-label = runtime-risk",
+        "-label = security",
+        "-label = area/security",
+        "-label = automerge:disabled",
+        "-label = do-not-merge",
+        "-label = hold",
+    } <= conditions
+    assert {
+        r"-files ~= ^\.github/",
+        r"-files ~= ^Dockerfile",
+        r"-files ~= (^|/)docker-compose(?:\.[^.]+)?\.ya?ml",
+        r"-files ~= ^\.mergify\.ya?ml",
+    } <= conditions
+    assert {
+        "check-success = Release gate summary",
+        "check-success = Security gate",
+        "check-success = Repository hooks",
+        "check-success = Repository hygiene",
+        "check-success = Dependency review",
+        "check-success = Container security gate",
+    } <= conditions
+    assert rule["actions"]["queue"]["name"] == "default"
+
+
 def test_mergify_config_has_no_unsupported_dequeue_queue_action() -> None:
     config = yaml.safe_load((ROOT / ".mergify.yml").read_text(encoding="utf-8"))
 

@@ -13,6 +13,8 @@ queue_rules:
   - name: default
     merge_method: squash
     batch_size: 1
+    checks_timeout: 90 min
+    branch_protection_injection_mode: queue
     queue_conditions:
       - check-success = Release gate summary
       - check-success = Security gate
@@ -28,7 +30,39 @@ queue_rules:
       - check-success = Dependency review
       - check-success = Container security gate
 
+
 pull_request_rules:
+  # Workflow Automation remains the merge-admission path even when the
+  # separate Merge Protections product is not enabled for this repository.
+  - name: queue verified low-risk Renovate updates
+    conditions:
+      - base = main
+      - author = renovate[bot]
+      - label = automerge:enabled
+      - -draft
+      - -conflict
+      - -label = automerge:disabled
+      - -label = do-not-merge
+      - -label = hold
+      - -label = status/needs-review
+      - -label = risk:high
+      - -label = runtime-risk
+      - -label = security
+      - -label = area/security
+      - '-files ~= ^\.github/'
+      - '-files ~= ^Dockerfile'
+      - '-files ~= (^|/)docker-compose(?:\.[^.]+)?\.ya?ml'
+      - '-files ~= ^\.mergify\.ya?ml'
+      - check-success = Release gate summary
+      - check-success = Security gate
+      - check-success = Repository hooks
+      - check-success = Repository hygiene
+      - check-success = Dependency review
+      - check-success = Container security gate
+    actions:
+      queue:
+        name: default
+
   - name: automatic merge on CI success
     conditions:
       - base = main
