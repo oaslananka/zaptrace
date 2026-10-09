@@ -607,67 +607,9 @@ jobs:
   coverage:
     name: Combined Python coverage
     needs: [changes, test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Skip coverage aggregation for docs-only PR
-        if: needs.changes.outputs.test_mode == 'docs'
-        run: echo "Docs-only PR; coverage aggregation skipped." >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        if: needs.changes.outputs.test_mode != 'docs'
-        with:
-          persist-credentials: false
-
-      - name: Install uv
-        if: needs.changes.outputs.test_mode != 'docs'
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
-        with:
-          version: ${{ env.UV_VERSION }}
-
-      - name: Set up Python 3.12
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: uv python install 3.12
-
-      - name: Install coverage tooling
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: uv lock --check && uv sync --locked --group test --no-install-project --no-build --python 3.12
-
-      - name: Download lane coverage data
-        if: needs.changes.outputs.test_mode != 'docs'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-        with:
-          pattern: test-lane-results-*
-          path: test-lane-artifacts
-          merge-multiple: true
-
-      - name: Combine coverage and enforce critical floors
-        if: needs.changes.outputs.test_mode != 'docs'
-        run: |
-          .venv/bin/coverage combine test-lane-artifacts
-          .venv/bin/coverage report
-          .venv/bin/coverage xml -o coverage.xml
-          .venv/bin/coverage json -o coverage.json
-          .venv/bin/python scripts/ci_critical_runtime_coverage.py \
-            --coverage coverage.json \
-            --policy config/critical-runtime-coverage.json \
-            --mode snapshot \
-            --output critical-runtime-coverage.json \
-            --markdown critical-runtime-coverage.md \
-            --strict
-          cat critical-runtime-coverage.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload critical runtime coverage evidence
-        if: needs.changes.outputs.test_mode != 'docs' && always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: critical-runtime-coverage
-          path: |
-            coverage.xml
-            coverage.json
-            critical-runtime-coverage.json
-            critical-runtime-coverage.md
-          if-no-files-found: error
-
+    uses: ./.github/workflows/quality-coverage.yml
+    with:
+      test_mode: ${{ needs.changes.outputs.test_mode }}
 
   rust:
     name: Build Rust extension

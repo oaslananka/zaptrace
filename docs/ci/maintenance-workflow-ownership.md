@@ -20,6 +20,12 @@ This page records the operational boundary between **merge-blocking PR admission
 
 The authoritative [main branch ruleset](../governance/main-branch-ruleset.md) names the six required check contexts. There are **no standing bypass actors**. A missing or stale required result cannot be treated as passing; a check may report non-applicability only via its designed, verified gate logic. External review services may add separate checks and comments, which should be resolved rather than silently ignored.
 
+## Quality coverage reusable boundary
+
+The top-level `Quality` workflow retains logical job ID `coverage` and `needs: [changes, test]`. That job calls the local [Quality Coverage Aggregation workflow](https://github.com/oaslananka/zaptrace/blob/main/.github/workflows/quality-coverage.yml) using `workflow_call` with a single required `test_mode` input from the existing change classifier. The called workflow runs with `contents: read` and no passed secrets. It downloads the same `test-lane-results-*` artifacts from the calling run, enforces the existing critical-runtime floors, and uploads the unchanged `critical-runtime-coverage` artifact. The docs-only path retains an explicit successful skip, while the caller's unchanged `Release gate summary` still evaluates `needs.coverage.result`.
+
+**Check-label migration:** GitHub may display the non-required coverage check as `Combined Python coverage / Aggregate and enforce` instead of the previous `Combined Python coverage`. This is not one of the six branch-required contexts; the branch ruleset, `Release gate summary` identity, coverage thresholds, and artifact names are unchanged. If a separate downstream policy consumes the coverage display label, it must be updated explicitly rather than treating a missing check as successful.
+
 ## Maintenance ownership and failure response
 
 - **PR author / maintainer:** Fix source failures on the PR's exact head SHA, respond to review threads, and verify all six required checks plus relevant external reviews before a normal protected squash merge. Preserve package/artifact identities when moving jobs into reusable workflows.
