@@ -6,7 +6,7 @@ from pathlib import Path
 from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[1]
-QUALITY = ROOT / ".github" / "workflows" / "quality.yml"
+BENCHMARK = ROOT / ".github" / "workflows" / "quality-benchmark.yml"
 CHANGE_POLICY = ROOT / "scripts" / "ci_change_policy.py"
 
 
@@ -21,10 +21,7 @@ def _load_change_policy() -> ModuleType:
 
 
 def _benchmark_job() -> str:
-    text = QUALITY.read_text(encoding="utf-8")
-    start = text.index("  benchmark-001:")
-    end = text.index("\n  generated-board-release-gate:", start)
-    return text[start:end]
+    return BENCHMARK.read_text(encoding="utf-8")
 
 
 def test_external_benchmark_paths_select_heavy_ci() -> None:
@@ -62,6 +59,6 @@ def test_quality_benchmark_job_uploads_complete_evidence_with_finite_retention()
         "benchmark-reproduction.md",
     ):
         assert artifact in job
-    assert "if: always() && needs.changes.outputs.heavy_ci == 'true'" in job
+    assert "if: always() && inputs.heavy_ci == 'true'" in job
     assert "if-no-files-found: error" in job
     assert "retention-days: 30" in job

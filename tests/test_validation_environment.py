@@ -163,7 +163,8 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
     assert "https://archive.ubuntu.com/ubuntu" in script
 
     expected_calls = {
-        Path(".github/workflows/quality.yml"): 4,
+        Path(".github/workflows/quality.yml"): 3,
+        Path(".github/workflows/quality-benchmark.yml"): 1,
         Path(".github/workflows/release.yml"): 1,
         Path(".github/workflows/hardware.yml"): 1,
         Path(".github/workflows/kicad-oracle.yml"): 1,
@@ -173,9 +174,9 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
         assert workflow.count("bash scripts/ci_install_kicad.sh") == count
         assert "add-apt-repository --yes ppa:kicad/kicad-10.0-releases" not in workflow
 
-    quality = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
-    benchmark = quality[
-        quality.index("      - name: Install simulation runtime") : quality.index(
+    benchmark_workflow = Path(".github/workflows/quality-benchmark.yml").read_text(encoding="utf-8")
+    benchmark = benchmark_workflow[
+        benchmark_workflow.index("      - name: Install simulation runtime") : benchmark_workflow.index(
             "      - name: Run simulation-backed sign-off evidence gate"
         )
     ]

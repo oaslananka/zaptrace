@@ -101,7 +101,7 @@ def test_ci_rejects_outputs_outside_trusted_root(tmp_path: Path) -> None:
 
 
 def test_simulation_runtime_is_isolated_from_existing_agent_benchmarks() -> None:
-    workflow = (ROOT / ".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/quality-benchmark.yml").read_text(encoding="utf-8")
     benchmark_step = workflow.index("- name: Run identity-bound benchmark evidence gates")
     agent_gate = workflow.index(".venv/bin/python scripts/ci_agent_evaluation.py", benchmark_step)
     install_runtime = workflow.index("- name: Install simulation runtime", benchmark_step)

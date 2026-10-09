@@ -440,7 +440,7 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
     assert sync_script.count('uv sync "${sync_args[@]}"') == 1
     assert all("permissions" not in step and "secrets" not in step for step in steps)
 
-    heavy_jobs = {"benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
+    heavy_jobs = {"generated-board-release-gate", "kicad-oracle", "build"}
     full_jobs = {"mcp-compatibility"}
     unconditional_jobs = {"docs-stale", "release-gate-summary", "test-lane-policy"}
     for job_id in heavy_jobs | full_jobs | unconditional_jobs:

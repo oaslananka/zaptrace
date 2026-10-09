@@ -84,7 +84,7 @@ def test_strict_mode_fails_when_observed_outcome_mismatches_contract(tmp_path: P
 
 
 def test_quality_workflow_runs_and_uploads_agent_evaluation_evidence() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality-benchmark.yml").read_text(encoding="utf-8")
 
     assert "scripts/ci_agent_evaluation.py" in workflow
     assert "agent-evaluation-report.json" in workflow
