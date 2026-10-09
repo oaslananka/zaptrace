@@ -38,6 +38,10 @@ The top-level `Quality` job `distribution-clean-install` retains `needs: changes
 
 **Check-label migration:** The non-required distribution check may display as `Distribution clean-install / Build and verify clean source distribution` instead of `Distribution clean-install`. The six branch-required check contexts do not change; any external consumer of this non-required check label must deliberately migrate.
 
+## Docker Hub pull-limit isolation
+
+The Quality Docker image smoke job uses a digest-pinned BuildKit container and Google's documented mirror.gcr.io cache for heavy CI. The immutable BuildKit index digest and the canonical Python base digest remain unchanged; the Compose REST/MCP probes and strict compose-runtime-smoke evidence upload still execute and feed the required Release gate summary. This avoids anonymous pull quotas on shared runners without adding secrets, weakening tests or changing the production Dockerfile. If the mirror cannot supply the pinned digest, CI must fail instead of skipping evidence.
+
 ## Maintenance ownership and failure response
 
 - **PR author / maintainer:** Fix source failures on the PR's exact head SHA, respond to review threads, and verify all six required checks plus relevant external reviews before a normal protected squash merge. Preserve package/artifact identities when moving jobs into reusable workflows.

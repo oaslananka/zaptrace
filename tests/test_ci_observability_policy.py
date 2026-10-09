@@ -303,6 +303,30 @@ def test_docker_smoke_runs_compose_runtime_and_uploads_evidence() -> None:
     assert "artifacts/compose-smoke/" in block
 
 
+def test_compose_smoke_pins_mirrored_buildkit_without_relaxing_runtime_assurance() -> None:
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    job = quality["jobs"]["docker-image-smoke"]
+    assert job["name"] == "Docker image smoke"
+    assert "docker-image-smoke" in quality["jobs"]["release-gate-summary"]["needs"]
+    steps = job["steps"]
+    mirror_step = next(step for step in steps if step.get("name") == "Configure digest-pinned mirrored BuildKit")
+    assert mirror_step["if"] == "needs.changes.outputs.heavy_ci == 'true'"
+    assert mirror_step["uses"] == "docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069"
+    assert mirror_step["with"]["name"] == "zaptrace-ci-mirror"
+    assert (
+        "image=mirror.gcr.io/moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea"
+        in mirror_step["with"]["driver-opts"]
+    )
+    assert 'mirrors = ["mirror.gcr.io"]' in mirror_step["with"]["buildkitd-config-inline"]
+    smoke = next(step for step in steps if step.get("name") == "Exercise Compose REST and MCP runtimes")
+    assert smoke["env"] == {"BUILDX_BUILDER": "zaptrace-ci-mirror"}
+    assert smoke["run"] == "python3 scripts/ci_compose_smoke.py"
+    upload = next(step for step in steps if step.get("name") == "Upload Compose smoke evidence")
+    assert upload["if"] == "always() && needs.changes.outputs.heavy_ci == 'true'"
+    assert upload["with"]["name"] == "compose-runtime-smoke"
+    assert upload["with"]["if-no-files-found"] == "error"
+
+
 def test_quality_workflow_enforces_and_uploads_critical_runtime_coverage() -> None:
     workflow = COVERAGE.read_text(encoding="utf-8")
     gate_block = workflow[
