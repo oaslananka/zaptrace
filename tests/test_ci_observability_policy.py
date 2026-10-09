@@ -13,6 +13,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 QUALITY = WORKFLOWS / "quality.yml"
 COVERAGE = WORKFLOWS / "quality-coverage.yml"
 NATIVE = WORKFLOWS / "quality-native.yml"
+LINT = WORKFLOWS / "quality-lint.yml"
 PRE_COMMIT_WORKFLOW = WORKFLOWS / "pre-commit.yml"
 
 
@@ -349,9 +350,57 @@ def test_quality_workflow_enforces_and_uploads_critical_runtime_coverage() -> No
     assert "if-no-files-found: error" in upload_block
 
 
+def test_quality_lint_reusable_boundary_preserves_required_gates() -> None:
+    quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
+    lint = yaml.safe_load(LINT.read_text(encoding="utf-8"))
+    caller = quality["jobs"]["lint"]
+    assert caller == {
+        "name": "Lint & Typecheck",
+        "needs": "changes",
+        "uses": "./.github/workflows/quality-lint.yml",
+        "with": {"full_ci": "${{ needs.changes.outputs.full_ci }}"},
+    }
+    assert lint["permissions"] == {"contents": "read"}
+    assert lint[True]["workflow_call"]["inputs"]["full_ci"] == {
+        "description": "Full-CI eligibility from Quality change classification",
+        "type": "string",
+        "required": True,
+    }
+    job = lint["jobs"]["validate"]
+    assert job["name"] == "Lint & Typecheck"
+    assert job["env"] == {
+        key: quality["env"][key]
+        for key in ("PYTHON_VERSION", "UV_VERSION", "PYTHONPATH")
+    }
+    steps = job["steps"]
+    assert steps[0]["if"] == "inputs.full_ci != 'true'"
+    assert "Docs-only PR" in steps[0]["run"]
+    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["if"] == "inputs.full_ci == 'true'"
+    assert checkout["with"] == {"persist-credentials": False, "fetch-depth": 0}
+    bootstrap = next(step for step in steps if step.get("uses") == "./.github/actions/setup-locked-python")
+    assert bootstrap["if"] == "inputs.full_ci == 'true'"
+    assert bootstrap["with"] == {
+        "uv-version": "${{ env.UV_VERSION }}",
+        "python-version": "${{ env.PYTHON_VERSION }}",
+    }
+    for artifact_name in (
+        "version-consistency",
+        "component-evidence-gate",
+        "architecture-compiler-evidence",
+    ):
+        upload = next(step for step in steps if step.get("with", {}).get("name") == artifact_name)
+        assert upload["if"] == "always() && inputs.full_ci == 'true'"
+        assert upload["with"]["if-no-files-found"] == "error"
+    summary = quality["jobs"]["release-gate-summary"]
+    assert "lint" in summary["needs"]
+    gate_step = next(step for step in summary["steps"] if step.get("name") == "Generate snapshot gate summary")
+    assert '--gate "lint=${{ needs.lint.result }}"' in gate_step["run"]
+
+
 def test_quality_workflow_enforces_bounded_version_contexts() -> None:
-    workflow = QUALITY.read_text(encoding="utf-8")
-    lint_section = workflow[workflow.index("  lint:") : workflow.index("\n  mcp-compatibility:")]
+    workflow = LINT.read_text(encoding="utf-8")
+    lint_section = workflow[workflow.index("  validate:") :]
     assert "fetch-depth: 0" in lint_section
     gate_start = workflow.index("- name: Verify version consistency")
     upload_start = workflow.index("- name: Upload version consistency evidence")
@@ -399,7 +448,7 @@ def test_shared_locked_python_bootstrap_preserves_quality_job_contracts() -> Non
     assert all("permissions" not in step and "secrets" not in step for step in steps)
 
     heavy_jobs = {"benchmark-001", "generated-board-release-gate", "kicad-oracle", "build"}
-    full_jobs = {"lint", "mcp-compatibility"}
+    full_jobs = {"mcp-compatibility"}
     unconditional_jobs = {"docs-stale", "release-gate-summary", "test-lane-policy"}
     for job_id in heavy_jobs | full_jobs | unconditional_jobs:
         job = quality["jobs"][job_id]
