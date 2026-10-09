@@ -21,7 +21,7 @@ dependencies = [
     "Pillow>=12.3.0",
     "httpx>=0.27",
     "pydantic-settings>=2.14.2",
-    "defusedxml>=0.7",
+    "defusedxml>=0.7.1",
 ]
 
 [project.urls]
