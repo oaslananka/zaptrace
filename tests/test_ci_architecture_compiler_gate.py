@@ -123,7 +123,7 @@ def test_architecture_compiler_gate_strict_mode_fails_ready_shortfall(tmp_path: 
 
 
 def test_quality_workflow_enforces_architecture_compiler_snapshot() -> None:
-    workflow = Path(".github/workflows/quality.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/quality-lint.yml").read_text(encoding="utf-8")
 
     assert "scripts/ci_architecture_compiler_gate.py" in workflow
     assert "docs/schemas/electronics-architecture-v1.schema.json" in workflow
