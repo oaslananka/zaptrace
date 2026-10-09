@@ -57,9 +57,13 @@ def render_schematic_svg(
         if comp.id not in positions:
             continue
         x, y = positions[comp.id]
-        lines.append(f'<rect class="comp-box" x="{x:.1f}" y="{y:.1f}" width="{COMP_W}" height="{COMP_H}" rx="4"/>')
-        lines.append(f'<text class="comp-ref" x="{x + 8:.1f}" y="{y + 18:.1f}">{comp.ref}</text>')
-        lines.append(f'<text class="comp-type" x="{x + 8:.1f}" y="{y + 33:.1f}">{comp.type[:18]}</text>')
+        lines.extend(
+            [
+                f'<rect class="comp-box" x="{x:.1f}" y="{y:.1f}" width="{COMP_W}" height="{COMP_H}" rx="4"/>',
+                f'<text class="comp-ref" x="{x + 8:.1f}" y="{y + 18:.1f}">{comp.ref}</text>',
+                f'<text class="comp-type" x="{x + 8:.1f}" y="{y + 33:.1f}">{comp.type[:18]}</text>',
+            ]
+        )
 
     lines.append("</svg>")
     return "\n".join(lines)

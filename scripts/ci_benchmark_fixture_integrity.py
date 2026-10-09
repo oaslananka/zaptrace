@@ -52,22 +52,24 @@ def render_markdown(report: FixtureIntegrityReport, *, identity: EvidenceIdentit
     if not isinstance(identity_data, dict):
         raise TypeError("evidence_identity must serialize as a mapping")
     lines = ["# Benchmark Fixture Integrity", ""]
-    lines.append("## Evidence identity")
-    lines.append("")
-    lines.append(f"- Mode: `{identity_data['mode']}`")
-    lines.append(f"- Source commit: `{identity_data['source_commit']}`")
-    lines.append(f"- Identity SHA-256: `{identity_data['identity_sha256']}`")
-    lines.append("")
-    lines.append(f"Passed families: {report.passed_family_count}/{report.family_count}")
-    lines.append(f"Failed checks: {report.failed_check_count}")
-    lines.append("")
-    lines.append("| Family | Status | Failed checks |")
-    lines.append("|--------|--------|---------------|")
+    lines.extend(
+        [
+            "## Evidence identity",
+            "",
+            f"- Mode: `{identity_data['mode']}`",
+            f"- Source commit: `{identity_data['source_commit']}`",
+            f"- Identity SHA-256: `{identity_data['identity_sha256']}`",
+            "",
+            f"Passed families: {report.passed_family_count}/{report.family_count}",
+            f"Failed checks: {report.failed_check_count}",
+            "",
+            "| Family | Status | Failed checks |",
+            "|--------|--------|---------------|",
+        ]
+    )
     for family in report.families:
         lines.append(f"| `{family.family_id}` | `{family.status}` | {family.failed_check_count} |")
-    lines.append("")
-    lines.append("## Non-claims")
-    lines.append("")
+    lines.extend(["", "## Non-claims", ""])
     for claim in report.non_claims:
         lines.append(f"- {claim}")
     return "\n".join(lines) + "\n"

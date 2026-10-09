@@ -52,26 +52,28 @@ def render_markdown(report: BenchmarkFixtureCoverageReport, *, identity: Evidenc
     if not isinstance(identity_data, dict):
         raise TypeError("evidence_identity must serialize as a mapping")
     lines = ["# Benchmark Fixture Coverage", ""]
-    lines.append("## Evidence identity")
-    lines.append("")
-    lines.append(f"- Mode: `{identity_data['mode']}`")
-    lines.append(f"- Source commit: `{identity_data['source_commit']}`")
-    lines.append(f"- Identity SHA-256: `{identity_data['identity_sha256']}`")
-    lines.append("")
-    lines.append(f"Complete families: {report.complete_family_count}/{report.family_count}")
-    lines.append(f"Missing required artifacts: {report.missing_required_artifact_count}")
-    lines.append("")
-    lines.append("| Family | Status | Present required | Missing required |")
-    lines.append("|--------|--------|------------------|------------------|")
+    lines.extend(
+        [
+            "## Evidence identity",
+            "",
+            f"- Mode: `{identity_data['mode']}`",
+            f"- Source commit: `{identity_data['source_commit']}`",
+            f"- Identity SHA-256: `{identity_data['identity_sha256']}`",
+            "",
+            f"Complete families: {report.complete_family_count}/{report.family_count}",
+            f"Missing required artifacts: {report.missing_required_artifact_count}",
+            "",
+            "| Family | Status | Present required | Missing required |",
+            "|--------|--------|------------------|------------------|",
+        ]
+    )
     for family in report.families:
         status = "complete" if family.complete else "incomplete"
         lines.append(
             f"| `{family.family_id}` | `{status}` | "
             f"{family.present_required_artifact_count} | {family.missing_required_artifact_count} |"
         )
-    lines.append("")
-    lines.append("## Non-claims")
-    lines.append("")
+    lines.extend(["", "## Non-claims", ""])
     for claim in report.non_claims:
         lines.append(f"- {claim}")
     return "\n".join(lines) + "\n"
