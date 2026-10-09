@@ -118,7 +118,6 @@ def test_quality_coverage_reusable_boundary_preserves_gate_and_skip_contracts() 
     )
 
 
-
 def test_quality_native_reusable_boundary_preserves_heavy_gate_evidence_and_permissions() -> None:
     quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
     native = yaml.safe_load(NATIVE.read_text(encoding="utf-8"))
