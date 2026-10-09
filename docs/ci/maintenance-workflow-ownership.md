@@ -1,0 +1,35 @@
+# CI maintenance and assurance ownership
+
+This page records the operational boundary between **merge-blocking PR admission**, **default-branch regression controls**, and **scheduled/advisory security telemetry**. It implements the maintenance-ownership part of [CI cleanup issue #59](https://github.com/oaslananka/zaptrace/issues/59) without changing triggers, status check names, or permissions. The executable configuration, not this page, determines what actually runs.
+
+## Check authority
+
+| Surface | Source or provider | Trigger | Responsibility | Required on PR? |
+| --- | --- | --- | --- | --- |
+| Release gate summary | [Quality](../../.github/workflows/quality.yml) | PR, main push, dispatch, schedule | Aggregate Python, Rust, packaging, KiCad, benchmark, docs and release-readiness checks | **Yes** |
+| Security gate | [Security](../../.github/workflows/security-scan.yml) | PR, main push, dispatch, weekly schedule | Aggregate risk-classified dependency audit, CodeQL, Semgrep and Cargo checks | **Yes** |
+| Repository hooks | [Pre-commit](../../.github/workflows/pre-commit.yml) | Repository workflow contract | Verify lint and workflow security/policy hooks | **Yes** |
+| Repository hygiene | [CI](../../.github/workflows/ci.yml) | Repository workflow contract | Enforce repository contracts and ruleset parity | **Yes** |
+| Dependency review | GitHub Dependency Review | PR | Reject newly introduced dependency risk according to its configured policy | **Yes** |
+| Container security gate | [Container Security](../../.github/workflows/container-security.yml) | PR, main push, release paths | Enforce exact-image scans when applicable; retain an explicit non-applicable result otherwise | **Yes** |
+| SonarCloud new-code quality | SonarCloud PR integration | PR | Review new-code maintainability/security gates without relaxing historical-debt policy | Not one of the six committed branch-required contexts |
+| Historical Sonar debt | [Sonar Historical Debt](../../.github/workflows/sonar-debt.yml) | Main push, Sunday schedule, manual | Enforce exact-main historical-debt ratchet, record revision-bound report and artifacts | **No**; failure is a default-branch maintenance defect requiring repair |
+| Sonar baseline administration | [Sonar New Code Baseline](../../.github/workflows/sonar-baseline.yml) | Manual dispatch only | Apply and verify an explicitly reviewed committed new-code baseline | **No** |
+| OpenSSF Scorecard | [OpenSSF Scorecard](../../.github/workflows/scorecard.yml) | Main push, weekly schedule, manual | Produce Code Scanning SARIF and retained Scorecard artifact | **No** |
+| Renovate configuration validation | [Renovate Config](../../.github/workflows/renovate-config.yml) | Selected PR/branch paths; manual | Validate committed Renovate configuration using a locked CLI | Not in the six committed required contexts |
+
+The authoritative [main branch ruleset](../governance/main-branch-ruleset.md) names the six required check contexts. There are **no standing bypass actors**. A missing or stale required result cannot be treated as passing; a check may report non-applicability only via its designed, verified gate logic. External review services may add separate checks and comments, which should be resolved rather than silently ignored.
+
+## Maintenance ownership and failure response
+
+- **PR author / maintainer:** Fix source failures on the PR's exact head SHA, respond to review threads, and verify all six required checks plus relevant external reviews before a normal protected squash merge. Preserve package/artifact identities when moving jobs into reusable workflows.
+- **Quality / Security workflow maintainers:** Keep the aggregate status check names, DAG, test matrices, risk classification, artifact uploads, and release dependencies stable. Changes to path filters must not make required contexts disappear. Security and container scans retain their existing risk-scoped and scheduled full-scan behavior.
+- **Sonar maintainer:** Treat PR new-code analysis and main-branch historical-debt ratchet as distinct. On a debt failure, inspect the exact-main [Sonar debt report](../quality/sonar-historical-debt.md) and its analysis revision and budget. Fix the code or follow the documented reviewed baseline-change procedure; never raise budgets, add broad exclusions, or dismiss issues simply to make a red run green. Optional Sonar measures API errors are recorded as warnings **only** when the authoritative quality-gate and issue evidence remain available.
+- **Security / supply-chain maintainer:** Review Code Scanning and Dependabot alerts separately from the six gate results. Scorecard findings are advisory evidence; they do not certify an exploit or automatically veto unrelated PRs. Preserve SARIF and review recurring High/Critical alerts; apply real upstream fixes or record the unpatched residual risk.
+- **Release maintainer:** Do not infer that successful PR/main maintenance checks prove a tagged version was published. Tagged release verification, registry artifact identity, container-security gates and GitHub Release must be checked end-to-end on a real release.
+
+## Safe workflow cleanup
+
+For issue #59, prefer a repository-owned **composite action** when several steps need to be shared inside existing jobs, because the existing job/check identity remains visible. A reusable workflow is suitable only when an entire job domain can move without changing required-context names or losing artifact ownership, matrix semantics, permissions, skip behavior, and failure propagation. The source branch should document any intentional status context migration *before* changing branch protection.
+
+Validate workflow migrations using the repository's actionlint/zizmor hooks, CI contract tests, exact PR check contexts and a post-merge default-branch run. Keep maintenance-only Scorecard/Sonar policy bookkeeping from becoming an accidental unrelated PR merge dependency, without weakening security/quality gates.
