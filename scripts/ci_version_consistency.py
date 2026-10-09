@@ -257,6 +257,44 @@ def _release_tag_audit(
                 f"tag resolves to {target_commit}; workflow source commit is {source_commit.lower()}",
             )
         )
+    # Fetch-depth 0 on the trusted release checkout exposes the reviewed default
+    # branch as a remote-tracking ref. A tag created on an unreviewed branch must
+    # never become a PyPI release merely by matching the package version.
+    main_ref = f"refs/remotes/origin/{policy.development_branch}"
+    if not _git_ref_exists(root, main_ref):
+        violations.append(
+            _violation(
+                "release-main-ref-unavailable",
+                _RELEASE_TAG_SURFACE,
+                f"cannot verify release ancestry: fetched default branch {main_ref!r} is missing",
+            )
+        )
+    else:
+        ancestry = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", source_commit, main_ref],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        if ancestry.returncode == 1:
+            violations.append(
+                _violation(
+                    "release-source-outside-main",
+                    _RELEASE_TAG_SURFACE,
+                    f"release commit {source_commit} is not an ancestor of {main_ref}",
+                )
+            )
+        elif ancestry.returncode != 0:
+            violations.append(
+                _violation(
+                    "release-main-ancestry-unverified",
+                    _RELEASE_TAG_SURFACE,
+                    (ancestry.stderr or ancestry.stdout).strip()
+                    or f"git merge-base failed with exit code {ancestry.returncode}",
+                )
+            )
     signature_verified: bool | None = None
     if policy.require_cryptographic_tag_verification:
         verification = subprocess.run(

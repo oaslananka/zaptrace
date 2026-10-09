@@ -39,6 +39,7 @@ Immediately after a final release attempt publishes immutable registry artifacts
 - development trees use `.devN` and do not reuse an already released final line;
 - release refs exactly match `v<package-version>`;
 - release tags resolve to the exact checked-out source commit;
+- tagged release commits must belong to the fetched protected `origin/main` history; missing remote default-branch history is a hard release blocker;
 - future release tags are annotated Git tag objects.
 
 The Quality workflow publishes `version-consistency.json` and `version-consistency.md`. The tag workflow publishes `version-consistency-release.json` and `version-consistency-release.md`. Both reports embed the shared evidence identity.
@@ -57,6 +58,7 @@ A release PR must use the exact `release/v<version>` branch name, synchronize al
 - a tag/package mismatch;
 - a lightweight future tag;
 - a tag pointing to a different commit;
+- a tag created from a commit that is not reachable from the reviewed `origin/main` history, or missing fetch evidence for that ancestry check;
 - Python, runtime, API/MCP, Rust, or lockfile disagreement.
 
 ## Local verification
