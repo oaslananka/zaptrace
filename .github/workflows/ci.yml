@@ -62,6 +62,16 @@ jobs:
             --output repository-ruleset-evidence.json \
             --strict
 
+      - name: Verify live release-tag protection
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/ci_repository_ruleset.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --policy config/github-release-tag-ruleset.json \
+            --output repository-tag-ruleset-evidence.json \
+            --strict
+
       - name: Upload repository policy evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -70,5 +80,6 @@ jobs:
           path: |
             repository-policy.json
             repository-ruleset-evidence.json
+            repository-tag-ruleset-evidence.json
             reuse-compliance.json
           if-no-files-found: error

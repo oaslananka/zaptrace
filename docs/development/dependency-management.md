@@ -18,6 +18,24 @@ ZapTrace uses standard ecosystem tooling:
 - Docker/base-runtime updates require extra caution even when CI passes.
 - Security updates should be triaged before routine feature work.
 
+## Renovate PR admission
+
+Renovate waits at least **five days** after a dependency release and uses
+`prCreation: not-pending`, `internalChecksFilter: strict`, and
+`internalChecksAsSuccess: true`. The last option allows the passing
+`renovate/stability-days` check to satisfy Renovate's *pre-PR* branch check:
+the repository's Actions jobs run on pull requests, not on unpublished
+`renovate/*` branches. Without that option, the branch can remain pending
+with no external checks, preventing PR creation indefinitely.
+
+This does **not** authorize merging a PR from the Renovate check alone.
+Regular PR validation, the six protected `main` required checks, Mergify's
+low-risk scope restrictions, the maximum concurrent PR count, and manual
+review requirements for major, sensitive or container changes still apply.
+If branches remain pending after their release-age window, inspect the
+Renovate Dependency Dashboard and actual branch checks; do not bypass
+cooling-off or batch-approve all major updates.
+
 ## Container runtime locks
 
 The container image does not resolve `.[mcp,server]` during the image build. Its Python runtime dependencies are exported from `uv.lock` into the committed, hash-complete `requirements/container-runtime.txt`; the ZapTrace wheel is then installed separately with `--no-deps`. The runtime Alpine package set is committed in `requirements/container-apk.txt` with exact package versions.

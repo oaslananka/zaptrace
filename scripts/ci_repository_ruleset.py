@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the live GitHub main-branch ruleset against the committed policy."""
+"""Verify live GitHub branch or tag rulesets against committed policies."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def compare_ruleset(policy: Mapping[str, Any], live: Mapping[str, Any]) -> list[
             errors.append(f"{key}: expected {policy.get(key)!r}, got {live.get(key)!r}")
 
     if live.get("conditions") != policy.get("conditions"):
-        errors.append("conditions do not match the committed main-branch target")
+        errors.append("conditions do not match the committed target")
 
     if "bypass_actors" in live and live.get("bypass_actors") != policy.get("bypass_actors"):
         errors.append("bypass_actors do not match the committed policy")
@@ -119,7 +119,7 @@ def _request_json(repository: str, *, ruleset_id: int | None = None, token: str 
         return json.load(response)
 
 
-def fetch_ruleset(repository: str, name: str, *, token: str = "") -> dict[str, Any]:
+def fetch_ruleset(repository: str, name: str, *, target: str = "branch", token: str = "") -> dict[str, Any]:
     listing = _request_json(repository, token=token)
     if not isinstance(listing, list):
         raise ValueError("GitHub ruleset listing must be an array")
@@ -127,7 +127,7 @@ def fetch_ruleset(repository: str, name: str, *, token: str = "") -> dict[str, A
         (
             item
             for item in listing
-            if isinstance(item, Mapping) and item.get("name") == name and item.get("target", "branch") == "branch"
+            if isinstance(item, Mapping) and item.get("name") == name and item.get("target", "branch") == target
         ),
         None,
     )
@@ -179,6 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             else fetch_ruleset(
                 args.repository,
                 str(policy["name"]),
+                target=str(policy["target"]),
                 token=os.environ.get(args.token_env, ""),
             )
         )

@@ -116,7 +116,7 @@ zaptrace://audit/events
 
 ## Current limitations
 
-- Static bearer credentials and local SQLite ACLs are intended for controlled deployments, not enterprise identity federation or arbitrary untrusted multi-tenancy. The OAuth/JWT production profile remains design-only until #524 is complete.
+- Static bearer credentials and local SQLite ACLs are intended for controlled deployments, not enterprise identity federation or arbitrary untrusted multi-tenancy. The bounded OAuth/JWT resource-server profile is implemented and tested, but still depends on a configured external issuer, HTTPS termination and deployment isolation; it is **not** public multi-tenant certification. See `docs/security/mcp-http-authorization-contract.md` for the implemented scope and non-goals.
 - When `ZAPTRACE_SESSION_STORE_ROOT` is configured, committed session state, audit events, and object ACLs are persistent; mutation locks and destroyed-session guards remain process-local coordination mechanisms.
 - Cancellation-safe execution does not coordinate incorrectly configured independent server processes and is not an operating-system container or general plugin sandbox.
 - SQLite commits session state atomically, but artifact payload publication and database metadata do not form a distributed cross-filesystem transaction. Protected evidence references prevent retention cleanup after successful registration.
