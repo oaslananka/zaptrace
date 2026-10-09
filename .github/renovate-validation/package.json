@@ -6,10 +6,11 @@
     "node": "24.11.0"
   },
   "devDependencies": {
-    "renovate": "^44.140.0"
+    "renovate": "^44.148.4"
   },
   "overrides": {
     "simple-git": "^4.0.2",
-    "@simple-git/argv-parser": "^2.0.1"
+    "@simple-git/argv-parser": "^2.0.1",
+    "global-agent": "4.1.3"
   }
 }

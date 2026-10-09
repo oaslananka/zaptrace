@@ -137,6 +137,21 @@ def test_renovate_validator_uses_committed_npm_lockfile() -> None:
     assert resolved.startswith("44.")
     assert resolved == package["devDependencies"]["renovate"].lstrip("^~")
 
+    # The validation-only CLI must not retain the unpatched sprintf-js chain
+    # pulled in by global-agent 3 -> roarr 2. Hosted Renovate is independent.
+    packages = lockfile["packages"]
+    assert package["overrides"]["global-agent"].startswith("4.")
+    assert packages["node_modules/global-agent"]["version"].startswith("4.")
+    assert not any(path.endswith("node_modules/roarr") for path in packages)
+    assert not any(path.endswith("node_modules/sprintf-js") for path in packages)
+
+    # Renovate carries handlebars; older versions have critical JS injection
+    # advisories, fixed upstream in 4.7.10.
+    version = packages["node_modules/handlebars"]["version"]
+    assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version), "require a stable patched Handlebars release"
+    handlebars_version = tuple(int(part) for part in version.split("."))
+    assert handlebars_version >= (4, 7, 10)
+
 
 def test_scorecard_can_read_pull_request_check_runs() -> None:
     workflow = (WORKFLOWS / "scorecard.yml").read_text(encoding="utf-8")
