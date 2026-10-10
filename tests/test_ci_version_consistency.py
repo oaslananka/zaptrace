@@ -66,6 +66,9 @@ def _write_repo(
     _git(root, "config", "user.name", "Version Tests")
     _git(root, "add", ".")
     _git(root, "commit", "-qm", "initial")
+    # Simulate checkout@fetch-depth=0 in the release workflow: all remote
+    # refs, including the protected default branch, are available locally.
+    _git(root, "update-ref", "refs/remotes/origin/main", _git(root, "rev-parse", "HEAD"))
     return root
 
 
@@ -332,6 +335,39 @@ def test_release_rejects_lightweight_tag_and_accepts_annotated_exact_tag(tmp_pat
 
     assert any(item.code == "release-tag-not-annotated" for item in lightweight.violations)
     assert annotated.passed is True, [item.model_dump(mode="json") for item in annotated.violations]
+
+
+def test_release_rejects_unreviewed_tag_commit_outside_default_branch(tmp_path: Path) -> None:
+    root = _write_repo(tmp_path, python_version="1.2.4", cargo_version="1.2.4")
+    _git(root, "checkout", "-qb", "unreviewed")
+    (root / "unreviewed.py").write_text("unreviewed = True\n", encoding="utf-8")
+    _git(root, "add", "unreviewed.py")
+    _git(root, "commit", "-qm", "unreviewed branch change")
+    _git(root, "tag", "-a", "v1.2.4", "-m", "unreviewed release")
+    report = _audit(
+        root,
+        context=VersionContext.RELEASE,
+        runtime_version="1.2.4",
+        source_ref="refs/tags/v1.2.4",
+    )
+
+    assert report.passed is False
+    assert any(item.code == "release-source-outside-main" for item in report.violations)
+
+
+def test_release_fails_closed_when_default_branch_history_is_unavailable(tmp_path: Path) -> None:
+    root = _write_repo(tmp_path, python_version="1.2.4", cargo_version="1.2.4")
+    _git(root, "tag", "-a", "v1.2.4", "-m", "release")
+    _git(root, "update-ref", "-d", "refs/remotes/origin/main")
+    report = _audit(
+        root,
+        context=VersionContext.RELEASE,
+        runtime_version="1.2.4",
+        source_ref="refs/tags/v1.2.4",
+    )
+
+    assert report.passed is False
+    assert any(item.code == "release-main-ref-unavailable" for item in report.violations)
 
 
 def test_reports_distinguish_unreleased_and_tagged_release_evidence(tmp_path: Path) -> None:
