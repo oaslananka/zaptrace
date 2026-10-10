@@ -181,6 +181,16 @@
         "area/ci",
         "automerge:enabled"
       ]
+    },
+    {
+      "description": "Keep the published Python >=3.12 compatibility floor governed by intentional platform-support releases, not dependency automation.",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchDepTypes": [
+        "requires-python"
+      ],
+      "enabled": false
     }
   ],
   "automerge": false,
