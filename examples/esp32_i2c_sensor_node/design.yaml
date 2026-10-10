@@ -62,6 +62,14 @@ components:
     ref: "U3"
     type: "AMS1117-3.3"
     footprint: "SOT-223"
+    footprint_asset: "ams1117-sot223-tabpin2"
+    # Fixed-version Advanced Monolithic Systems AMS1117 SOT-223 pinout:
+    # pad 1 GND, pad 2 VOUT (including metal heatsink tab), pad 3 VIN.
+    # Real package geometry does not qualify a specific production lot.
+    package_pin_map:
+      "1": "GND"
+      "2": "OUTPUT"
+      "3": "INPUT"
     pins:
       INPUT:  {type: "power",   net: "VCC_5V"}
       OUTPUT: {type: "output",  net: "VCC_3V3"}

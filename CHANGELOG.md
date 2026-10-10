@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Bind the actual AMS1117-3.3 SOT-223 regulator land pattern with byte-pinned KiCad 10.0.6 geometry and manufacturer pinout, including both physical pad-2 VOUT copper regions (tab and lead). ESP32 source pad coverage now 27/31; DRC/ERC, USB-C/TVS selection, LDO thermal/stability and fabrication acceptance remain blocked.
 - Bind verified KiCad 10.0.6 resistor, capacitor and test-point land patterns with exact pad maps and recorded SHA-256/provenance; ESP32 demo now resolves 24/31 physical net nodes while preserving fail-closed DRC/clearance and fabrication nonclaims.
 - Added allowlisted SHA-256-pinned vendored KiCad land-pattern loading via the design parser, binding the ESP32-WROOM-32 and BME280 source packages to their real footprint pads (12/31 mapped). Reject unknown identifiers, altered vendor assets and conflicting inline geometry; remain fail-closed on all unmapped pads and DRC/clearance errors.
 - Generate a deterministic, unique KiCad UUID for every exported physical pad occurrence (including duplicate pad numbers within one footprint and identical pad numbers across components).
