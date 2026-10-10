@@ -25,6 +25,20 @@ def test_renovate_stability_check_can_unblock_pr_creation_only() -> None:
             assert rule["automerge"] is False
 
 
+def test_python_support_floor_is_not_automatically_raised_by_renovate() -> None:
+    import tomllib
+
+    config = json.loads((ROOT / ".github/renovate.json").read_text(encoding="utf-8"))
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert project["project"]["requires-python"] == ">=3.12"
+    assert any(
+        rule.get("matchManagers") == ["pep621"]
+        and rule.get("matchDepTypes") == ["requires-python"]
+        and rule.get("enabled") is False
+        for rule in config["packageRules"]
+    )
+
+
 def test_renovate_configuration_does_not_replace_required_merge_checks() -> None:
     workflow = (ROOT / ".github/workflows/quality.yml").read_text(encoding="utf-8")
     mergify = (ROOT / ".mergify.yml").read_text(encoding="utf-8")
