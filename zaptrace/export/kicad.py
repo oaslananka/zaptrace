@@ -804,8 +804,19 @@ def _build_footprint(
     fp = comp.footprint_def
     net_idx = _net_index(design)
 
-    # Determine a reasonable KiCad library ID
-    lib_id = _physical_footprint_library_id(comp) if comp.footprint_asset else f"zaptrace:{comp.type or 'unknown'}"
+    # Pinned physical assets must embed their exact vendor footprint artwork,
+    # including courtyard, antenna keepout and models; pads-only redraws are
+    # not equivalent to the library and trigger KiCad footprint mismatch DRC.
+    if comp.footprint_asset:
+        from zaptrace.export.kicad_verified_embed import render_verified_footprint
+
+        _physical_footprint_library_id(comp)
+        instance = render_verified_footprint(comp, at, net_idx, lambda num: _net_name(design, num), _uuid4)
+        lines.append("  " + instance.replace("\n", "\n  "))
+        return
+
+    # Synthetic / unverified assets retain the legacy explicit pad format.
+    lib_id = f"zaptrace:{comp.type or 'unknown'}"
     has_pads = fp is not None and len(fp.pads) > 0
 
     lines.append(f'  (footprint "{lib_id}"')

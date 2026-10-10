@@ -242,9 +242,13 @@ def test_esp32_reference_field_is_outside_verified_pad_copper(tmp_path: Path) ->
     design = parse_file(EXAMPLE / "design.yaml")
     u1 = design.components["U1"]
     assert u1.footprint_def is not None
-    pad_top = max(pad.position[1] + pad.size[1] / 2 for pad in u1.footprint_def.pads)
+    left = min(pad.position[0] - pad.size[0] / 2 for pad in u1.footprint_def.pads)
+    right = max(pad.position[0] + pad.size[0] / 2 for pad in u1.footprint_def.pads)
+    bottom = min(pad.position[1] - pad.size[1] / 2 for pad in u1.footprint_def.pads)
+    top = max(pad.position[1] + pad.size[1] / 2 for pad in u1.footprint_def.pads)
     board = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
     block = next(part for part in board.split("\n  (footprint ") if '(property "Reference" "U1"' in part)
-    match = re.search(r'\(property "Reference" "U1"\s*\(at 0 ([-.\d]+) 0\)', block)
+    match = re.search(r'\(property "Reference" "U1"\s*\(at ([-.\d]+) ([-.\d]+) ([-.\d]+)\)', block)
     assert match is not None
-    assert float(match.group(1)) >= pad_top + 2.0
+    x, y, _angle = map(float, match.groups())
+    assert x < left - 0.5 or x > right + 0.5 or y < bottom - 0.5 or y > top + 0.5
