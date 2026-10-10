@@ -583,6 +583,7 @@ def _pad_shape_kicad(shape: PadShape) -> str:
         PadShape.RECT: "rect",
         PadShape.CIRCLE: "circle",
         PadShape.OVAL: "oval",
+        PadShape.ROUNDRECT: "roundrect",
         PadShape.CUSTOM: "custom",
     }
     return mapping.get(shape, "rect")
@@ -803,8 +804,26 @@ def _build_footprint(
     fp = comp.footprint_def
     net_idx = _net_index(design)
 
-    # Determine a reasonable KiCad library ID
-    lib_id = _physical_footprint_library_id(comp) if comp.footprint_asset else f"zaptrace:{comp.type or 'unknown'}"
+    # Pinned physical assets must embed their exact vendor footprint artwork,
+    # including courtyard, antenna keepout and models; pads-only redraws are
+    # not equivalent to the library and trigger KiCad footprint mismatch DRC.
+    if comp.footprint_asset:
+        from zaptrace.export.kicad_verified_embed import render_verified_footprint
+
+        _physical_footprint_library_id(comp)
+        instance = render_verified_footprint(
+            comp,
+            at,
+            net_idx,
+            lambda num: _net_name(design, num),
+            _uuid4,
+            _copper_layers(canonical_board_definition(design).layers),
+        )
+        lines.append("  " + instance.replace("\n", "\n  "))
+        return
+
+    # Synthetic / unverified assets retain the legacy explicit pad format.
+    lib_id = f"zaptrace:{comp.type or 'unknown'}"
     has_pads = fp is not None and len(fp.pads) > 0
 
     lines.append(f'  (footprint "{lib_id}"')
@@ -812,9 +831,17 @@ def _build_footprint(
     lines.append(f'    (uuid "{uid}")')
     lines.append(f"    (at {x} {y} 0)")
 
+    # The ESP32 module's dense center GND pad/thermal vias lie at y≈-2;
+    # putting the default reference there creates real F.SilkS/copper
+    # collisions. Keep its label outside the verified local pad envelope.
+    # This is an annotation position only, not a footprint geometry edit.
+    reference_y = -2.0
+    if comp.footprint_asset == "esp32-wroom-32" and fp is not None and fp.pads:
+        reference_y = max(pad.position[1] + pad.size[1] / 2 for pad in fp.pads) + 3.0
+
     # Reference designator
     lines.append(f'    (property "Reference" "{comp.ref}"')
-    lines.append("      (at 0 -2 0)")
+    lines.append(f"      (at 0 {reference_y:g} 0)")
     lines.append('      (layer "F.SilkS")')
     lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-ref-prop")}")')
     lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
@@ -855,7 +882,10 @@ def _build_pad(
     """Emit a pad with an instance-specific UUID, including repeated pad IDs."""
     uid = _uuid4(f"pad-{comp.ref}-{pad.id}-{pad_ordinal}")
     pad_id = pad.id
-    pad_type = "smd" if pad.drill is None else "thru_hole"
+    if pad.drill is not None and pad.drill_slot is not None:
+        raise ValueError(f"Ambiguous round and oval drill on pad {pad.id!r}")
+    has_hole = pad.drill is not None or pad.drill_slot is not None
+    pad_type = ("thru_hole" if pad.plated else "np_thru_hole") if has_hole else "smd"
     pad_shape = _pad_shape_kicad(pad.shape)
     px, py = pad.position
     sw, sh = pad.size
@@ -872,9 +902,18 @@ def _build_pad(
     lines.append(f'    (pad "{pad_id}" {pad_type} {pad_shape}')
     lines.append(f"      (at {px} {py} {pad.rotation})")
     lines.append(f"      (size {sw} {sh})")
-    if pad.drill is not None:
+    if pad.drill_slot is not None:
+        width, height = pad.drill_slot
+        lines.append(f"      (drill oval {width} {height})")
+    elif pad.drill is not None:
         lines.append(f"      (drill {pad.drill})")
+    if has_hole:
+        layers_str = '"*.Cu" "*.Mask"' if pad.plated else '"F&B.Cu" "*.Mask"'
+        if pad.solder_paste:
+            layers_str += ' "F.Paste"'
     lines.append(f"      (layers {layers_str})")
+    if pad.shape == PadShape.ROUNDRECT and pad.roundrect_rratio is not None:
+        lines.append(f"      (roundrect_rratio {pad.roundrect_rratio})")
 
     net_num = _pin_net_number(comp, pad_id, net_idx, design)
     if net_num > 0:

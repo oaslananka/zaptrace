@@ -158,7 +158,7 @@ def test_route_stage_falls_back_when_grid_router_routes_nothing() -> None:
     assert design.routing.traces  # fallback router produced traces
 
 
-def test_physical_demo_does_not_emit_fallback_copper_when_grid_cannot_route(tmp_path: Path) -> None:
+def test_physical_demo_rejects_graph_routes_without_real_pad_continuity(tmp_path: Path) -> None:
     from zaptrace.core.parser import parse_file
 
     demo = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
@@ -183,6 +183,10 @@ def test_physical_demo_does_not_emit_fallback_copper_when_grid_cannot_route(tmp_
     assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 6
     assert design.routing is not None
     assert not design.routing.traces
+    assert not design.routing.vias
+    assert ctx.positions == design.placement
+    # Reject the legacy source ground flood pending genuine RF keepout review.
+    assert not design.copper_pours
     pilot.run_stage(ctx, PipelineStage.KICAD)
     assert ctx.kicad_files is not None
     pcb = ctx.kicad_files["pcb"].read_text(encoding="utf-8")

@@ -49,6 +49,7 @@ class FootprintPadProof(BaseModel):
     position_mm: tuple[float, float]
     size_mm: tuple[float, float]
     drill_mm: float | None = None
+    slot_drill_mm: tuple[float, float] | None = None
     plated: bool = True
     solder_paste: bool = True
     solder_mask: bool = True
@@ -98,6 +99,7 @@ def _pad_to_proof(pad: Pad) -> FootprintPadProof:
         position_mm=pad.position,
         size_mm=pad.size,
         drill_mm=pad.drill,
+        slot_drill_mm=pad.drill_slot,
         plated=pad.plated,
         solder_paste=pad.solder_paste,
         solder_mask=True,
@@ -149,7 +151,8 @@ def build_footprint_proof(
     """Build a footprint proof from a FootprintDef."""
     resolved_source = source or _default_source(source_type, footprint.source or package_id, source_path)
     thermal = set(footprint.thermal_pads or [])
-    mapping = pin_map or {pad.id: pad.id for pad in footprint.pads if pad.id not in thermal}
+    # Anonymous NPTH locating drills are mechanical-only, not package pins.
+    mapping = pin_map or {pad.id: pad.id for pad in footprint.pads if pad.id and pad.id not in thermal}
     pin_count = expected_pin_count if expected_pin_count is not None else len(mapping)
     paste_enabled = sum(1 for pad in footprint.pads if pad.solder_paste)
     paste_disabled = len(footprint.pads) - paste_enabled
@@ -472,9 +475,16 @@ def validate_footprint_proof(
     require_courtyard: bool = True,
 ) -> FootprintProofValidationReport:
     """Validate pad/pin-count and pin-map consistency for one footprint proof."""
-    pad_ids = {pad.pad_id for pad in proof.pads}
+    # Unnumbered NPTH locating holes are drill features, NOT logical pins.
+    # Keep unnamed solder/copper pads in signal identity checks so malformed
+    # footprints still fail closed instead of hiding unmapped electrical pads.
+    pad_ids = {pad.pad_id for pad in proof.pads if pad.pad_id}
     thermal = set(proof.thermal_pads)
-    signal_pad_ids = pad_ids - thermal
+    signal_pad_ids = {
+        pad.pad_id
+        for pad in proof.pads
+        if pad.pad_id or pad.plated or (pad.drill_mm is None and pad.slot_drill_mm is None)
+    } - thermal
     mapped_pads = set(proof.pin_map.values())
 
     candidates = (
