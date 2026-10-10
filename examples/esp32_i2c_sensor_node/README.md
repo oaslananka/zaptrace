@@ -40,6 +40,23 @@ J1 land pattern retains four plated oval shell-stake slots and two nonplated
 alignment holes, in addition to 16 USB contacts. D1 is a provisional,
 byte-verified Nexperia SOD-323 candidate, not an approved VBUS protection design.
 
+The reference input now uses a **provisional 100 × 75 mm layout** with
+14 explicit, complete footprint positions and zero overlapping conservative
+courtyards; the previous 50 × 40 mm source could not contain the official
+ESP32 RF/antenna courtyard (48 × 41.25 mm). This is a review-only
+placement, not an approved board outline, antenna layout, USB enclosure fit,
+or qualified RF layout. The pipeline **refuses** to silently override partial,
+off-board, or conflicting explicit positions.
+
+The grid router can misleadingly report 6/6 graph-connected nets while
+native KiCad sees dangling traces, shorts, and more missing connections.
+For verified physical footprints the pipeline now rejects candidate copper
+when actual pad-endpoint coverage or source DRC fails. Consequently this
+demo intentionally exports **zero traces, zero vias and zero GND zones**
+rather than apparently complete but invalid copper. The earlier hand-drawn
+GND polygon was also removed because its antenna/keepout clearance was not
+qualified. This fail-closed result is **not** a successful physical route.
+
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
 fabricator or certify their safety.
@@ -55,7 +72,8 @@ uv run --no-sync zaptrace proof run \
 checks report six passes (including full physical pad identity mapping) and
 two blockers: source DRC and copper clearance. The result is **still a fail**.
 The source-only routing-completeness check is **not proof that KiCad PCB traces
-were generated or all physical pads are electrically joined**:
+were generated or all physical pads are electrically joined**. The pipeline
+refuses to export the current grid-router trace candidate:
 
 - `drc-clean`: copper clearance error between `VCC_3V3` and `I2C_SCL`
   plus right-angle routing warnings on `I2C_SDA`.
@@ -88,9 +106,13 @@ kicad-cli sch erc --exit-code-violations \
   build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
 ```
 
-Independent KiCad **10.0.6** was run on the exact J1 oval-slot branch
-(2026-10-10): **82 PCB DRC violations, 37 unconnected items, and ZERO
-schematic ERC violations**. The prior main baseline before J1 physical binding
+Independent KiCad **10.0.6** on the preceding PR head (2026-10-10) found
+**82 PCB DRC violations, 37 unconnected items, and ZERO schematic ERC
+violations**. In an isolated native layout experiment, enlarging the board
+to 100 × 75 mm and separating every courtyard reduced the *unrouted*
+board to **36 PCB DRC violations, still 37 unconnected items** (without
+fixing footprint or manufacturing limits). The final exact-branch oracle
+must be run again after these new layout and fail-closed checks land. The prior main baseline before J1 physical binding
 had 78 DRC findings, 31 unconnected items, and one J1 footprint-link ERC
 warning. J1 now references the byte-pinned USB4105 footprint; ERC is clean
 because this *metadata link* is resolved, **not** because physical copper is

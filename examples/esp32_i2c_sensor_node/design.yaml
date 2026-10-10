@@ -5,9 +5,34 @@ meta:
   tags: ["esp32", "i2c", "sensor", "bme280", "wifi", "ble"]
 
 board:
-  width_mm: 50
-  height_mm: 40
+  # Provisional review geometry: the supplier-verified U1 RF/antenna courtyard
+  # spans 48 x 41.25 mm; the former 50 x 40 mm board cannot contain it.
+  # Larger board != RF approval or manufacturing acceptance.
+  width_mm: 100
+  height_mm: 75
   layers: 2
+  # RF antenna keepout and genuine copper connectivity are not qualified.
+  # Never auto-flood unreviewed GND over the supplier's antenna region.
+  copper_pour_gnd: false
+
+# Deterministic conservative preflight placement, measured by independent
+# KiCad 10.0.6. No component courtyard overlaps or off-board courtyards.
+# This is NOT routed copper continuity, USB enclosure fit or fab approval.
+placement:
+  U1: [30, 34]
+  U2: [47, 60]
+  U3: [65, 36]
+  J1: [80, 67]
+  R1: [54, 58]
+  R2: [58, 58]
+  C1: [30, 60]
+  C2: [37, 60]
+  R3: [72, 60]
+  R4: [77, 60]
+  C3: [68, 68]
+  D1: [62, 68]
+  TP1: [51, 66]
+  TP2: [55, 66]
 
 components:
   U1:
@@ -241,8 +266,5 @@ nets:
   I2C_SDA:   {id: "I2C_SDA",  name: "I2C_SDA",  type: "data",   nodes: ["U1.GPIO21","U2.SDA","R1.P2","TP1.P1"]}
   I2C_SCL:   {id: "I2C_SCL",  name: "I2C_SCL",  type: "clock",  nodes: ["U1.GPIO22","U2.SCK","R2.P2","TP2.P1"]}
 
-copper_pours:
-  gnd_top:
-    layer: F.Cu
-    net_id: GND
-    polygon: [[2, 2], [48, 2], [48, 38], [2, 38]]
+# No GND zone until native RF clearance/antenna keepout and thermal
+# connections have been reviewed. This is deliberately unrouted source.

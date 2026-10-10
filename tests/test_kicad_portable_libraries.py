@@ -65,7 +65,7 @@ def test_portable_library_output_member_rejects_path_fragments(tmp_path: Path, b
 
 def test_verified_assets_are_portable_and_byte_identical(tmp_path: Path) -> None:
     design = parse_file(_EXAMPLE)
-    # The demo source intentionally has no precomputed board placement.
+    # Override the provisional demo layout to isolate a portable U3 export.
     design.placement = {"U3": (20.0, 15.0)}
     files = export_kicad(design, tmp_path)
     for key in ("schematic", "pcb", "project", "symbol_library", "symbol_library_table", "footprint_library_table"):
