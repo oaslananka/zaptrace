@@ -1,7 +1,7 @@
 # proof.yaml — ESP32 I2C Sensor Node Proof Pack
 version: "1.0"
 name: "esp32-sensor-node"
-description: "Validates ESP32 sensor node is ready for JLCPCB manufacturing"
+description: "Detects design-rule and routing risks; passing checks never certify fabrication readiness"
 
 design_path: "../design.yaml"
 
@@ -53,8 +53,17 @@ checks:
     type: net_connected
     severity: critical
     params:
-      net_name: "VCC"
-      expected_pins: ["U1-1", "C1-1", "J1-1"]
+      net_name: "VCC_3V3"
+      expected_pins:
+        - "U3.OUTPUT"
+        - "U1.VCC"
+        - "U1.EN"
+        - "U2.VDD"
+        - "U2.CSB"
+        - "C1.P1"
+        - "C2.P1"
+        - "R1.P1"
+        - "R2.P1"
 
   - name: "gnd-connected"
     description: "GND net has expected connections"
@@ -63,7 +72,16 @@ checks:
     severity: critical
     params:
       net_name: "GND"
-      expected_pins: ["U1-8", "C1-2", "J1-2", "R1-2", "LED1-2"]
+      expected_pins:
+        - "J1.GND"
+        - "U3.GND"
+        - "U1.GND"
+        - "U2.GND"
+        - "U2.SDO"
+        - "C1.P2"
+        - "C2.P2"
+        - "C3.P2"
+        - "D1.GND"
 
 author: "ZapTrace Core Team"
 tags: ["esp32", "sensor", "jlcpcb", "example"]

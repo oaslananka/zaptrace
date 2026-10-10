@@ -129,12 +129,15 @@ source .venv/bin/activate
 # Run diagnostics
 zaptrace doctor
 
-# Parse and validate a design
-zaptrace parse examples/esp32_i2c_sensor_node/design.yaml
-zaptrace erc my_design
+# First run: scaffold a design locally (the published wheel does not
+# contain the repository's examples/ directory).
+zaptrace init sensor-demo --template esp32_i2c_sensor
+zaptrace parse sensor-demo/design.yaml
+zaptrace view sensor-demo/design.yaml --output sensor-demo/review
 
-# Generate manufacturing outputs
-zaptrace export manufacturing my_design --output build/board
+# Create KiCad/inspection outputs inside the working directory.
+# Generation success does not mean ERC/DRC or fabrication readiness.
+zaptrace pipeline --source sensor-demo/design.yaml --output sensor-demo/build
 ```
 
 ---

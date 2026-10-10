@@ -1220,8 +1220,8 @@ def init_project(name: str, template: str, target_dir: str) -> None:
         console.print(f"  [green]✓[/] Created {gitignore}")
 
     print_summary(True, f"Project '{name}' initialized successfully in {dest.resolve()}")
-    console.print(f"  [dim]Next steps:[/] run [bold cyan]zaptrace check {design_file}[/]")
-    console.print(f"               or  [bold cyan]zaptrace view {design_file} --open[/]")
+    console.print(f"  [dim]Next steps:[/] run [bold cyan]zaptrace parse {design_file}[/]")
+    console.print(f"               then [bold cyan]zaptrace view {design_file} --open[/]")
 
 
 # ---------------------------------------------------------------------------
