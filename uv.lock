@@ -1791,13 +1791,13 @@ provides-extras = ["mcp", "server", "all"]
 dev = [
     { name = "maturin", specifier = ">=1.7" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
-    { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.9.0" },
 ]
 lint = [{ name = "ruff", specifier = ">=0.9.0" }]
 test = [
     { name = "hypothesis", specifier = ">=6.156.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
-    { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
 ]
 typecheck = [{ name = "pyright", specifier = ">=1.1.414" }]
