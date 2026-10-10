@@ -55,6 +55,24 @@ uv export \
   --output-file requirements/container-runtime.txt
 ```
 
+The generated file is part of the immutable container source identity. After
+exporting it, update the two `ARG CONTAINER_LOCK_SHA256` defaults in
+`Dockerfile` to the new `sha256sum requirements/container-runtime.txt`.
+Keep their digests identical: the builder provenance and final runtime image
+must refer to the same manifest. Do not reuse a digest from an earlier lock.
+
+Renovate's `minimumReleaseAge` eligibility applies to proposed package
+updates but does not, by itself, guarantee that every transitive package
+resolved into `uv.lock` has passed the same waiting period. Before merging a
+sensitive runtime dependency PR, review the **resolved** `uv.lock` changes
+against the package index's actual artifact upload timestamps: at least
+10 days for the sensitive network/cryptography/validation runtime group
+and at least the global 5-day interval for other changed resolutions.
+The lock export and image scan prove consistency and known vulnerability
+status; neither substitutes for the release-age review. Keep
+`runtime-risk` / `status/needs-review` labels until the complete
+runtime, package age and protected PR checks are accepted.
+
 Then run the fail-closed consistency check:
 
 ```bash
