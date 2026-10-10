@@ -106,17 +106,23 @@ kicad-cli sch erc --exit-code-violations \
   build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
 ```
 
-Independent KiCad **10.0.6** on exact PR head `b1eb3c4` (2026-10-10)
-finds **30 PCB DRC violations, 37 unconnected items, and ZERO schematic ERC
+Independent KiCad **10.0.6** on exact PR head `cce5b4d` (2026-10-10)
+finds **17 PCB DRC violations, 37 unconnected items, and ZERO schematic ERC
 violations**. The previously overlapping 50 × 40 mm placement with the same
 physical J1 footprint had **82** PCB DRC violations and 37 unconnected
 items. The provisional 100 × 75 mm placement removes physical shorts,
 copper clearance and solder-mask bridge violations. Relocating the ESP32
 silkscreen reference outside its verified pad envelope eliminates six
-silk-over-copper violations. The surviving native findings are **14
-`lib_footprint_mismatch` warnings** (generated PCB footprint graphics differ
-from the byte-pinned library artwork), **12 `drill_out_of_range` errors**
-(real ESP32 0.20 mm holes versus configured 0.30 mm minimum), and **four
+silk-over-copper violations. The vendor footprint is now embedded with
+its full checked-in artwork, keepout region, and 3D model references.
+Because KiCad stores board-instance footprint rule-area vertices in absolute
+board coordinates, the exporter now translates and clips the manufacturer
+antenna keepout to the board's installed copper layers; it does not drop
+or relocate the RF exclusion area arbitrarily. Its S-expression geometry
+and translated polygon have additional regression coverage. This reduced
+`lib_footprint_mismatch` warnings from 14 to **1 (U1 ESP32 only)**.
+The other surviving native findings are **12 `drill_out_of_range` errors**
+(real ESP32 0.20 mm holes versus configured 0.30 mm minimum) and **four
 `hole_clearance` errors** (GCT J1 locating pegs versus outer GND
 contacts, measured 0.1944 mm versus 0.25 mm board rule). All 37 real
 unconnected copper items remain, no traces/vias/zones are falsely emitted,
@@ -129,10 +135,10 @@ falsified, and the board manufacturing rule is not reduced to hide
 these authentic failures. Additional historical ERC warnings arose from
 missing project-local KiCad symbol/footprint library links; they are now
 resolved by generated local libraries, **not** by suppressing KiCad checks.
-Independent PCB `lib_footprint_mismatch` findings remain visible
-because generated PCB footprint graphics differ from the verified KiCad
-library definitions; exact pad geometry alone does not establish footprint
-equivalence. The reduced trace-related violation count came from discarding
+The one remaining U1 `lib_footprint_mismatch` warning stays visible.
+Although its vendor graphics and antenna rule area are retained, the KiCad
+10 comparison still finds a difference and the board is not signed off;
+there is no DRC rule exemption or modified supplier footprint. The reduced trace-related violation count came from discarding
 78 unsafe fallback segments, **not** successful routing. In particular, no
 physical continuity has been verified. These results may change with KiCad version, configuration,
 or routing changes. They are *not* the same rule set as the in-process
