@@ -72,6 +72,10 @@ components:
     type: "RES"
     value: "4.7k"
     footprint: "0402"
+    footprint_asset: "r-0402"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
     pins:
       P1: {type: "passive", net: "VCC_3V3"}
       P2: {type: "passive", net: "I2C_SDA"}
@@ -81,6 +85,10 @@ components:
     type: "RES"
     value: "4.7k"
     footprint: "0402"
+    footprint_asset: "r-0402"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
     pins:
       P1: {type: "passive", net: "VCC_3V3"}
       P2: {type: "passive", net: "I2C_SCL"}
@@ -90,6 +98,10 @@ components:
     type: "CAP"
     value: "100nF"
     footprint: "0402"
+    footprint_asset: "c-0402"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
     pins:
       P1: {type: "passive", net: "VCC_3V3"}
       P2: {type: "passive", net: "GND"}
@@ -99,6 +111,10 @@ components:
     type: "CAP"
     value: "10uF"
     footprint: "0805"
+    footprint_asset: "c-0805"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
     pins:
       P1: {type: "passive", net: "VCC_3V3"}
       P2: {type: "passive", net: "GND"}
@@ -117,6 +133,10 @@ components:
     type: "CAP"
     value: "100nF"
     footprint: "0402"
+    footprint_asset: "c-0402"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
     pins:
       P1: {type: "passive", net: "VCC_5V"}
       P2: {type: "passive", net: "GND"}
@@ -134,6 +154,9 @@ components:
     ref: "TP1"
     type: "TESTPOINT"
     footprint: "TestPoint_Pad_1.0mm"
+    footprint_asset: "testpoint-pad-d1"
+    package_pin_map:
+      "1": "P1"
     pins:
       P1: {type: "passive", net: "I2C_SDA"}
   TP2:
@@ -141,6 +164,9 @@ components:
     ref: "TP2"
     type: "TESTPOINT"
     footprint: "TestPoint_Pad_1.0mm"
+    footprint_asset: "testpoint-pad-d1"
+    package_pin_map:
+      "1": "P1"
     pins:
       P1: {type: "passive", net: "I2C_SCL"}
 

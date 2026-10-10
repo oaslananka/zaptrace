@@ -25,6 +25,22 @@ _PINNED_FOOTPRINTS: dict[str, tuple[str, str]] = {
         "Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering.kicad_mod",
         "533735a1edf6b96a54dbfd1958c232b7f3800ce05295e6d783837ee24b74c5c8",
     ),
+    "r-0402": (
+        "R_0402_1005Metric.kicad_mod",
+        "e05c7605248c220836f642ed1f526133edf0374acdfd5bb2631e58b4e377acfb",
+    ),
+    "c-0402": (
+        "C_0402_1005Metric.kicad_mod",
+        "0403382fc4583ed510b461b1fa4a36dfaec6f4c0d9b1a67e6b0027837a54e1b5",
+    ),
+    "c-0805": (
+        "C_0805_2012Metric.kicad_mod",
+        "62775a51fe74ba7f1b572de327bdbd3fc92582721b2abcaa47787865590d89cb",
+    ),
+    "testpoint-pad-d1": (
+        "TestPoint_Pad_D1.0mm.kicad_mod",
+        "6d602c576b4ab0de29fa4cc096f419a62e828ba45ceee30c1263d86b420b2b12",
+    ),
 }
 
 

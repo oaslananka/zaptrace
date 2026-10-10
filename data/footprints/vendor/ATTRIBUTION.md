@@ -20,6 +20,10 @@ ZapTrace are unaffected. The footprint files themselves remain under CC-BY-SA 4.
 
 | File | Package | Used for | Source |
 |------|---------|----------|--------|
+| `R_0402_1005Metric.kicad_mod` | 0402 resistor | R1, R2 | Official KiCad 10.0.6 `Resistor_SMD.pretty`, copied unmodified; SHA-256 `e05c7605248c220836f642ed1f526133edf0374acdfd5bb2631e58b4e377acfb` |
+| `C_0402_1005Metric.kicad_mod` | 0402 capacitor | C1, C3 | Official KiCad 10.0.6 `Capacitor_SMD.pretty`, copied unmodified; SHA-256 `0403382fc4583ed510b461b1fa4a36dfaec6f4c0d9b1a67e6b0027837a54e1b5` |
+| `C_0805_2012Metric.kicad_mod` | 0805 capacitor | C2 | Official KiCad 10.0.6 `Capacitor_SMD.pretty`, copied unmodified; SHA-256 `62775a51fe74ba7f1b572de327bdbd3fc92582721b2abcaa47787865590d89cb` |
+| `TestPoint_Pad_D1.0mm.kicad_mod` | 1.0 mm test pad | TP1, TP2 | Official KiCad 10.0.6 `TestPoint.pretty`, copied unmodified; SHA-256 `6d602c576b4ab0de29fa4cc096f419a62e828ba45ceee30c1263d86b420b2b12` |
 | `Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering.kicad_mod` | LGA-8 | BME280 | KiCad official library (`Package_LGA.pretty`) |
 | `SOT-23-6.kicad_mod` | SOT-23-6 / SOT23-6L | USBLC6-2SC6 | KiCad official library (`Package_TO_SOT_SMD.pretty`), revision `91ed84ca84ac27649b4c752bd55edb0aecb5e6de` |
 | `SOT-23-8.kicad_mod` | SOT-23-8 / TI DCN candidate | INA219AIDCNR | KiCad official library (`Package_TO_SOT_SMD.pretty`), revision `f35846091d26862be42fa412df7fb00c45b8f3d0`, SHA-256 `f4891c800213c5b817c42db6fd6dcd3f7e1614ae8460cec9e00c03859ad4004d` |

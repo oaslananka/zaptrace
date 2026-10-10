@@ -29,6 +29,16 @@ def test_vendored_bindings_have_concrete_pads_and_roundtrip() -> None:
     assert d.components["U2"].footprint_asset == "bme280-lga8"
     assert len(d.components["U1"].footprint_def.pads) == 60
     assert len(d.components["U2"].footprint_def.pads) == 8
+    for ref, expected in {
+        "R1": 2,
+        "R2": 2,
+        "C1": 2,
+        "C2": 2,
+        "C3": 2,
+        "TP1": 1,
+        "TP2": 1,
+    }.items():
+        assert len(d.components[ref].footprint_def.pads) == expected
     recovered = parse_str(dump_str(d))
     assert recovered.components["U1"].footprint_def == d.components["U1"].footprint_def
     assert recovered.components["U2"].footprint_def == d.components["U2"].footprint_def

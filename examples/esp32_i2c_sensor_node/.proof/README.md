@@ -2,7 +2,7 @@
 
 The policy in [proof.yaml](proof.yaml) checks eight facts about
 `../design.yaml`. Five currently pass; **DRC, copper clearance and physical pad mapping fail**
-with incomplete physical geometry (12/31 mapped) and genuine routing violations. This is an **expected blocked-design
+with incomplete physical geometry (24/31 mapped) and genuine routing violations. This is an **expected blocked-design
 demonstration**, not JLCPCB sign-off or a clean PCB reference.
 
 Run from the repository root:

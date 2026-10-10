@@ -39,6 +39,24 @@ def test_esp32_and_bme280_physical_pin_maps_match_documented_land_patterns() -> 
     assert "U2.VDDIO" in {f"{node.component_ref}.{node.pin_name}" for node in design.nets["VCC_3V3"].nodes}
 
 
+def test_passive_and_testpoint_physical_pad_maps_are_explicit() -> None:
+    design = parse_file(EXAMPLE / "design.yaml")
+    assets = {
+        "R1": "r-0402",
+        "R2": "r-0402",
+        "C1": "c-0402",
+        "C2": "c-0805",
+        "C3": "c-0402",
+        "TP1": "testpoint-pad-d1",
+        "TP2": "testpoint-pad-d1",
+    }
+    for ref, asset in assets.items():
+        comp = design.components[ref]
+        assert comp.footprint_asset == asset
+        assert comp.package_pin_map == ({"1": "P1"} if ref.startswith("TP") else {"1": "P1", "2": "P2"})
+        assert {str(pad.id) for pad in comp.footprint_def.pads} == set(comp.package_pin_map)
+
+
 def test_example_proof_expectations_match_real_component_and_pin_identities() -> None:
     design = parse_file(EXAMPLE / "design.yaml")
     policy = yaml.safe_load((EXAMPLE / ".proof" / "proof.yaml").read_text(encoding="utf-8"))
@@ -62,21 +80,21 @@ def test_esp32_demo_reports_partial_pinned_physical_pad_coverage(tmp_path: Path)
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
     assert evidence["node_count"] == 31
-    assert evidence["missing_pcb_pad_node_count"] == 19
+    assert evidence["missing_pcb_pad_node_count"] == 7
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
-    assert evidence["fidelity"]["pcb_pad_coverage"] == 12 / 31
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 24 / 31
     assert all(
         node["pcb_pad_present"]
         for net in evidence["nets"]
         for node in net["nodes"]
-        if node["component_ref"] in {"U1", "U2"}
+        if node["component_ref"] not in {"U3", "J1", "D1"}
     )
     assert all(
         not node["pcb_pad_present"]
         for net in evidence["nets"]
         for node in net["nodes"]
-        if node["component_ref"] not in {"U1", "U2"}
+        if node["component_ref"] in {"U3", "J1", "D1"}
     )
 
 
@@ -96,8 +114,8 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
         "min-clearance",
         "physical-pads-mapped",
     }
-    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 12 / 31
-    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 19
+    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 24 / 31
+    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 7
     assert by_name["drc-clean"].details["violations"]
     assert by_name["min-clearance"].details["violations"]
     assert not pack.passed
