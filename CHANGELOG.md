@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Add separate 5.1 kΩ USB-C sink CC pull-downs (R3/R4) with distinct CC1/CC2 nets and verified resistor pad assignments in the ESP32 example. Source ERC021 is clean but J1's four logical nodes remain physically unmapped (33/37 covered); the KiCad 10.0.6 demo still fails 78 DRC violations, 31 unconnected items and one J1 ERC. No PD, slot manufacturing, copper connectivity, or fabrication approval is claimed.
 - Add a byte-pinned official KiCad 10.0.6 SOD-323 footprint and manufacturer-specified bidirectional pin identities for **provisional** Nexperia PESD5V0S1BA D1 ESD protection, improving the ESP32 source pad map to **29/31**. Independent KiCad still finds 36 DRC errors, 29 unconnected items and one J1 ERC warning; 5 V VBUS/surge qualification and fabrication acceptance remain **blocked**.
 - Make exported KiCad projects portable with project-local connectivity symbol library/table and byte-exact SHA-256-verified footprint library/table. Native KiCad 10.0.6 schematic ERC on the ESP32 demo now reports only two unresolved-footprint warnings (J1/D1), down from 24 library-reference warnings, while all independent PCB DRC/continuity and physical-fabrication failures remain visible.
 - Guard GridRouter A* diagonal steps against cutting through blocked orthogonal neighbor cells, with explicit impossible-corner and safe-detour regressions. This does not claim routed PCB continuity; ESP32 remains zero-route/fail-closed until placement, copper occupancy and native KiCad acceptance are corrected.
