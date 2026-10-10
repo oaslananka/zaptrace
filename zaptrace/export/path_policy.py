@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -51,3 +52,29 @@ def resolve_output_artifact(
     except ValueError as exc:
         raise ValueError(f"artifact path escapes output directory: {stem!r}") from exc
     return resolved
+
+
+def resolve_output_member(output_dir: Path, *components: str) -> Path:
+    """Resolve a fixed project-local output member without path traversal.
+
+    Used for KiCad's mandated literal table/library names. The caller is
+    responsible for validating its chosen output workspace; *every* member,
+    including intermediate directories, must remain inside that canonical
+    workspace even if an existing member is a symlink. The trusted root is
+    created by the caller's normal artifact export before this helper runs.
+    This function only *resolves* a member; it must not create directories.
+    """
+    if not components:
+        raise ValueError("output member requires at least one component")
+    for component in components:
+        if not component or component in {".", ".."} or "/" in component or "\\" in component:
+            raise ValueError(f"output member must be a single path component: {component!r}")
+
+    # CodeQL py/path-injection models normalization via realpath followed by
+    # a guarded prefix check. Resolve symlinks *before* checking containment.
+    # The workspace root is explicitly chosen and trusted by the caller.
+    root = os.path.realpath(output_dir)
+    candidate = os.path.realpath(os.path.join(root, *components))
+    if not candidate.startswith(root.rstrip(os.sep) + os.sep):
+        raise ValueError("output member escapes output directory")
+    return Path(candidate)

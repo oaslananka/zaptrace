@@ -6,7 +6,7 @@
     (company "zaptrace")
   )
   (lib_symbols
-    (symbol "ZapTrace_R1"
+    (symbol "ZapTrace:ZapTrace_R1"
       (exclude_from_sim no)
       (in_bom yes)
       (on_board yes)
@@ -42,7 +42,7 @@
         )
       )
     )
-    (symbol "ZapTrace_R2"
+    (symbol "ZapTrace:ZapTrace_R2"
       (exclude_from_sim no)
       (in_bom yes)
       (on_board yes)
@@ -73,7 +73,7 @@
         )
       )
     )
-    (symbol "ZapTrace_C1"
+    (symbol "ZapTrace:ZapTrace_C1"
       (exclude_from_sim no)
       (in_bom yes)
       (on_board yes)
@@ -104,7 +104,7 @@
         )
       )
     )
-    (symbol "ZapTrace_J1"
+    (symbol "ZapTrace:ZapTrace_J1"
       (exclude_from_sim no)
       (in_bom yes)
       (on_board yes)
@@ -132,7 +132,7 @@
     )
   )
   (symbol
-    (lib_id "ZapTrace_R1")
+    (lib_id "ZapTrace:ZapTrace_R1")
     (at 50.8 50.8 0)
     (unit 1)
     (exclude_from_sim no)
@@ -159,7 +159,7 @@
     (pin "2" (uuid "<UUID>"))
   )
   (symbol
-    (lib_id "ZapTrace_R2")
+    (lib_id "ZapTrace:ZapTrace_R2")
     (at 101.6 50.8 0)
     (unit 1)
     (exclude_from_sim no)
@@ -185,7 +185,7 @@
     (pin "2" (uuid "<UUID>"))
   )
   (symbol
-    (lib_id "ZapTrace_C1")
+    (lib_id "ZapTrace:ZapTrace_C1")
     (at 152.4 50.8 0)
     (unit 1)
     (exclude_from_sim no)
@@ -211,7 +211,7 @@
     (pin "1" (uuid "<UUID>"))
   )
   (symbol
-    (lib_id "ZapTrace_J1")
+    (lib_id "ZapTrace:ZapTrace_J1")
     (at 203.2 50.8 0)
     (unit 1)
     (exclude_from_sim no)

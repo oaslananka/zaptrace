@@ -48,20 +48,29 @@ _PINNED_FOOTPRINTS: dict[str, tuple[str, str]] = {
 }
 
 
-def resolve_verified_footprint(asset_id: str) -> FootprintDef:
-    """Load a pinned checked-in footprint or fail closed on unknown/modified data."""
+def verified_footprint_bytes(asset_id: str) -> tuple[str, bytes]:
+    """Return trusted footprint filename and verified, immutable bytes.
+
+    Callers may write these exact bytes into a portable KiCad .pretty
+    library. Arbitrary filenames and modified vendored data fail closed.
+    """
     if asset_id not in _PINNED_FOOTPRINTS:
         raise ValueError(f"Unknown verified footprint asset: {asset_id!r}")
     filename, expected_digest = _PINNED_FOOTPRINTS[asset_id]
-    # `data/` is included beside `zaptrace/` in source and built wheels.
-    vendored_dir = Path(__file__).resolve().parents[2] / "data" / "footprints" / "vendor"
-    source = vendored_dir / filename
+    source = Path(__file__).resolve().parents[2] / "data" / "footprints" / "vendor" / filename
     try:
-        actual_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        content = source.read_bytes()
     except OSError as exc:
         raise ValueError(f"Verified footprint asset unavailable: {asset_id!r}") from exc
-    if actual_digest != expected_digest:
+    if hashlib.sha256(content).hexdigest() != expected_digest:
         raise ValueError(f"Verified footprint SHA-256 mismatch: {asset_id!r}")
+    return filename, content
+
+
+def resolve_verified_footprint(asset_id: str) -> FootprintDef:
+    """Load a pinned checked-in footprint or fail closed on unknown/modified data."""
+    filename, _checked_bytes = verified_footprint_bytes(asset_id)
+    source = Path(__file__).resolve().parents[2] / "data" / "footprints" / "vendor" / filename
     footprint = load_kicad_footprint(source)
     if footprint is None or not footprint.pads:
         raise ValueError(f"Verified footprint has no parseable pads: {asset_id!r}")

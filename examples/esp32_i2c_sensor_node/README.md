@@ -31,6 +31,13 @@ The interactive viewer displays the **declared Proof Pack policy**;
 providing `--proof` does **not run** that policy. Execute the separate
 `proof run` command below for authoritative pass/fail results.
 The pipeline generates a KiCad schematic and PCB under `build/esp32-demo/kicad/`.
+Keep its `ZapTrace.kicad_sym`, `sym-lib-table`, `fp-lib-table` and
+`ZapTrace.pretty/` files **together** with the schematic and PCB when moving
+the project. The symbol library contains generated *connectivity-only*
+symbols, not supplier-qualified electrical symbol definitions. Only exact
+SHA-256-verified KiCad footprint files are bundled. No substitute physical
+footprint is invented for J1 (USB-C) or D1 (TVS).
+
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
 fabricator or certify their safety.
@@ -81,9 +88,17 @@ kicad-cli sch erc --exit-code-violations \
 
 Both commands currently **exit nonzero** because the generated KiCad
 project has additional errors. Independently tested with KiCad 10.0.6:
-**36 PCB DRC findings, 27 unconnected items, and 24 schematic ERC
-warnings**. This reduced violation count is solely due to discarding all 78
-unsafe fallback segments, **not** successful routing. In particular, no
+**36 PCB DRC findings, 27 unconnected items, and 2 schematic ERC
+warnings**. The two remaining schematic warnings are unresolved
+`footprint_link_issues` for **J1 and D1**, precisely the components without
+vetted physical footprints. Previously, the other 22 ERC warnings arose from
+missing project-local KiCad symbol/footprint library links; they are now
+resolved by generated local libraries, **not** by suppressing KiCad checks.
+Ten independent PCB `lib_footprint_mismatch` findings remain visible
+because generated PCB footprint graphics differ from the verified KiCad
+library definitions; exact pad geometry alone does not establish footprint
+equivalence. The reduced trace-related violation count came from discarding
+78 unsafe fallback segments, **not** successful routing. In particular, no
 physical continuity has been verified. These results may change with KiCad version, configuration,
 or routing changes. They are *not* the same rule set as the in-process
 ZapTrace ERC/DRC checks. A clean ZapTrace source ERC result must never
