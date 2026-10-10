@@ -59,11 +59,11 @@ were generated or all physical pads are electrically joined**:
   plus right-angle routing warnings on `I2C_SDA`.
 - `min-clearance`: additional intersections violating the configured
   0.15 mm copper clearance.
-- Physical pad mapping: 27 of 31 logical net nodes now have real pad
-  definitions from digest-pinned ESP32/BME280, 0402/0805 passives and test
-  point and AMS1117 SOT-223 assets. The remaining four nodes belong to J1
-  (USB-C) and D1 (ESD/TVS). Resolved pad identity is **not** proof of
-  route continuity.
+- Physical pad mapping: 29 of 31 logical net nodes now have real pad
+  definitions from digest-pinned ESP32/BME280, passive/test-point, AMS1117
+  SOT-223 and **provisional** Nexperia PESD5V0S1BA SOD-323 assets.
+  The two remaining nodes belong to the unresolved USB-C connector J1.
+  Pad identity is **not** proof of electrical routing or ESD qualification.
 
 Those are **design/routing and physical mapping defects**, not configuration issues to silence
 or an invitation to reduce clearance thresholds. The template is a useful
@@ -88,10 +88,10 @@ kicad-cli sch erc --exit-code-violations \
 
 Both commands currently **exit nonzero** because the generated KiCad
 project has additional errors. Independently tested with KiCad 10.0.6:
-**36 PCB DRC findings, 27 unconnected items, and 2 schematic ERC
-warnings**. The two remaining schematic warnings are unresolved
-`footprint_link_issues` for **J1 and D1**, precisely the components without
-vetted physical footprints. Previously, the other 22 ERC warnings arose from
+**36 PCB DRC findings, 29 unconnected items, and 1 schematic ERC
+warning**. The remaining ERC warning is an unresolved
+`footprint_link_issues` for **J1**, the component without a selected,
+validated physical receptacle footprint. Previously, the other 22 ERC warnings arose from
 missing project-local KiCad symbol/footprint library links; they are now
 resolved by generated local libraries, **not** by suppressing KiCad checks.
 Ten independent PCB `lib_footprint_mismatch` findings remain visible
@@ -118,10 +118,19 @@ U3 (AMS1117 SOT-223) using digest-pinned package data and explicit
 logical-to-physical pin maps. The AMS1117's middle leg and thermal tab
 are both physical pad **2**, connected to VCC_3V3 (never GND). See the
 [manufacturer pinout](https://www.datasheets.com/advanced-monolithic-systems/ams1117-3.3/datasheet.pdf).
-This is **not** a complete board: physical pad mapping for four nodes on
-J1 and D1, routed copper continuity, USB-C CC handling, LDO capacitor
-stability/thermal performance and vendor qualification still require
-professional review and independent KiCad evidence.
+A provisional Nexperia PESD5V0S1BA SOD323 **bidirectional** ESD candidate
+now supplies D1's two source pad identities. Per the
+[manufacturer's 2024-04-26 datasheet](https://assets.nexperia.com/documents/data-sheet/PESD5V0S1BA.pdf),
+pin 1 is K1 and pin 2 is K2, both cathode identifiers of the bidirectional
+device; we map pad 1 to VCC_5V and pad 2 to GND for this *reference example*.
+Its **5 V maximum reverse standoff rating** is not proof of adequate
+protection across the full USB-C VBUS voltage envelope; sustained voltage,
+surge/current/thermal derating and short return-loop placement must be
+reviewed by a qualified hardware engineer before selecting production parts.
+This is **not** a complete board: physical pad mapping for two J1 source
+nodes, real copper continuity, USB-C CC pull-down resistors and connector
+orientation, LDO capacitor stability/thermal performance, and protection
+qualification all require independent KiCad and physical evidence.
 
 The `power-nets-connected` and `gnd-connected` checks use the actual
 `VCC_3V3`/`GND` net names and component-qualified pin identities such as
@@ -130,9 +139,9 @@ they cannot pass merely because a different component has a same-named pin.
 
 **Critical incomplete physical footprint evidence:** the source demo has 31
 logical net nodes; the verified U1/U2, passive and test-point footprints now
-supply **27 resolved physical-pad mappings**, with **four still missing**.
+supply **29 resolved physical-pad mappings**, with **two still missing on J1**.
 The source schematic covers 31/31 nodes, but physical pad mapping covers
-**27/31**. This is only pad
+**29/31**. This is only pad
 identity evidence, not a full manufacturing/ERC/DRC pass. Binding
 actual pad geometries exposes copper-level clearance, pad-mask and routing
 problems which were invisible while the exported footprints had no pads. `pipeline`
