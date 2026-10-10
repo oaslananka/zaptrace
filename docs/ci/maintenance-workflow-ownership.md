@@ -42,6 +42,27 @@ The top-level `Quality` job `distribution-clean-install` retains `needs: changes
 
 The Quality Docker image smoke job uses a digest-pinned BuildKit container and Google's documented mirror.gcr.io cache for heavy CI. The immutable BuildKit index digest and the canonical Python base digest remain unchanged; the Compose REST/MCP probes and strict compose-runtime-smoke evidence upload still execute and feed the required Release gate summary. This avoids anonymous pull quotas on shared runners without adding secrets, weakening tests or changing the production Dockerfile. If the mirror cannot supply the pinned digest, CI must fail instead of skipping evidence.
 
+## Shared KiCad oracle steps
+
+The three KiCad/Hardware owners — the `Quality` `kicad-oracle` job,
+standalone `KiCad Oracle` and the `Hardware` `kicad` job — now invoke the
+same local read-only composite
+[`kicad-oracle` action](https://github.com/oaslananka/zaptrace/blob/main/.github/actions/kicad-oracle/action.yml).
+It owns the bounded KiCad 10 install helper and strict oracle invocation.
+Explicit inputs preserve the prior differences: Quality runs strict oracle
+and source-identified jobset without an availability probe; standalone runs
+both probes and jobset; Hardware runs availability and strict oracle, but
+not the jobset. The Quality step retains its prior `heavy_ci` selector and
+the exact PR head `ZAPTRACE_SOURCE_COMMIT`.
+
+No workflow trigger, job ID, aggregate release-gate dependency, artifact
+name, non-applicable skip or retention policy changed. `Hardware` still
+executes its extra design export regression; Quality still executes the
+KiCad benchmark corpus and physical candidate readiness. The separate
+standalone oracle's evidence upload remains strict on missing files. CI
+contract tests validate the shared steps, callers and their distinct
+required evidence.
+
 ## Maintenance ownership and failure response
 
 - **PR author / maintainer:** Fix source failures on the PR's exact head SHA, respond to review threads, and verify all six required checks plus relevant external reviews before a normal protected squash merge. Preserve package/artifact identities when moving jobs into reusable workflows.

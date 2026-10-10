@@ -101,15 +101,10 @@ jobs:
           uv-version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install KiCad 10 CLI
-        run: |
-          bash scripts/ci_install_kicad.sh kicad
-
-      - name: Record KiCad availability
-        run: .venv/bin/python scripts/ci_kicad_oracle.py --check --output kicad-oracle-check.json
-
-      - name: Run KiCad oracle
-        run: .venv/bin/python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json
+      - name: Run shared KiCad oracle checks
+        uses: ./.github/actions/kicad-oracle
+        with:
+          record-availability: "true"
 
       - name: Upload KiCad oracle evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

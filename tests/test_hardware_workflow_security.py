@@ -44,8 +44,7 @@ def test_hardware_workflow_executes_only_the_pre_synced_environment() -> None:
         ".venv/bin/python scripts/ci_smoke.py proof",
         ".venv/bin/python scripts/ci_kicad_roundtrip_scorecard.py",
         ".venv/bin/python scripts/ci_examples.py",
-        ".venv/bin/python scripts/ci_kicad_oracle.py --check",
-        ".venv/bin/python scripts/ci_kicad_oracle.py --strict-skips",
+        "uses: ./.github/actions/kicad-oracle",
         '.venv/bin/python -c "',
     ):
         assert command in workflow
