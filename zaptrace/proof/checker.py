@@ -83,6 +83,7 @@ class ProofRunner:
         self.register("routed", self._check_routed)
         self.register("clearance", self._check_clearance)
         self.register("footprint_exists", self._check_footprint_exists)
+        self.register("footprint_pads_mapped", self._check_footprint_pads_mapped)
         self.register("net_connected", self._check_net_connected)
         self.register("spice", self._check_spice)
         self.register("signal_integrity", self._check_signal_integrity)
@@ -207,6 +208,43 @@ class ProofRunner:
             status=CheckStatus.PASS if passed else CheckStatus.FAIL,
             message=f"{len(missing)} missing footprints" if missing else "All footprints found",
             details={"missing_footprints": missing},
+        )
+
+    def _check_footprint_pads_mapped(self, check: CheckDefinition) -> CheckResult:
+        """Require real footprint pad definitions for every logical net node.
+
+        This is stronger than footprint_exists, which verifies only that
+        the component has a footprint name. It does not assert placement,
+        physical trace continuity, KiCad library identity or fab readiness.
+        """
+        from typing import cast
+
+        from zaptrace.export.kicad import _build_netlist_evidence
+
+        evidence = _build_netlist_evidence(self.design)
+        total_nodes = cast(int, evidence["node_count"])
+        missing_count = cast(int, evidence["missing_pcb_pad_node_count"])
+        missing_nodes: list[str] = []
+        for net in cast(list[dict[str, object]], evidence["nets"]):
+            missing_nodes.extend(cast(list[str], net["missing_pcb_pad_nodes"]))
+        fidelity = cast(dict[str, float | bool], evidence["fidelity"])
+        # An empty manifest with no connected net nodes is not evidence
+        # that a physical board has validated copper pad mappings.
+        passed = total_nodes > 0 and missing_count == 0
+        return CheckResult(
+            check=check,
+            status=CheckStatus.PASS if passed else CheckStatus.FAIL,
+            message=(
+                f"{total_nodes - missing_count}/{total_nodes} logical net nodes have resolved physical footprint pads"
+            ),
+            details={
+                "node_count": total_nodes,
+                "missing_pcb_pad_node_count": missing_count,
+                "missing_pcb_pad_nodes": missing_nodes,
+                "schematic_node_coverage": fidelity["schematic_node_coverage"],
+                "pcb_pad_coverage": fidelity["pcb_pad_coverage"],
+                "non_claim": "Pad mapping does not establish routed copper connectivity or fabrication approval",
+            },
         )
 
     def _check_net_connected(self, check: CheckDefinition) -> CheckResult:

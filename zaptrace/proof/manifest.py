@@ -79,7 +79,11 @@ class CheckDefinition(BaseModel):
     severity: CheckSeverity = Field(default=CheckSeverity.ERROR)
 
     # Check type and parameters
-    type: str = Field(description="Check type: drc, erc, routed, footprint_exists, net_connected, clearance, custom")
+    type: str = Field(
+        description=(
+            "Check type: drc, erc, routed, footprint_exists, footprint_pads_mapped, net_connected, clearance, custom"
+        )
+    )
     params: dict[str, Any] = Field(default_factory=dict)
 
     # Expected outcome
