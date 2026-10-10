@@ -131,9 +131,42 @@ components:
     ref: "J1"
     type: "USB-C-16P"
     footprint: "USB-C-16P-SMD"
+    # GCT USB4105: A5=CC1 and B5=CC2. No package_pin_map is declared
+    # until its plated oval shell slots can be exported faithfully.
     pins:
-      VBUS: {type: "power",  net: "VCC_5V"}
-      GND:  {type: "power",  net: "GND"}
+      VBUS: {type: "power",   net: "VCC_5V"}
+      GND:  {type: "power",   net: "GND"}
+      CC1:  {type: "passive", net: "USB_CC1"}
+      CC2:  {type: "passive", net: "USB_CC2"}
+
+  # Fixed USB-C 5 V sink: each CC contact requires an INDEPENDENT 5.1k Rd
+  # to ground. These logical nets do not certify physical routing or PD.
+  R3:
+    id: "R3"
+    ref: "R3"
+    type: "RES"
+    value: "5.1k"
+    footprint: "0402"
+    footprint_asset: "r-0402"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
+    pins:
+      P1: {type: "passive", net: "USB_CC1"}
+      P2: {type: "passive", net: "GND"}
+  R4:
+    id: "R4"
+    ref: "R4"
+    type: "RES"
+    value: "5.1k"
+    footprint: "0402"
+    footprint_asset: "r-0402"
+    package_pin_map:
+      "1": "P1"
+      "2": "P2"
+    pins:
+      P1: {type: "passive", net: "USB_CC2"}
+      P2: {type: "passive", net: "GND"}
 
   C3:
     id: "C3"
@@ -189,7 +222,9 @@ components:
 nets:
   VCC_5V:    {id: "VCC_5V",   name: "VCC_5V",   type: "power",  nodes: ["J1.VBUS","U3.INPUT","C3.P1","D1.IO"]}
   VCC_3V3:   {id: "VCC_3V3",  name: "VCC_3V3",  type: "power",  nodes: ["U3.OUTPUT","U1.VCC","U1.EN","U2.VDD","U2.VDDIO","U2.CSB","C1.P1","C2.P1","R1.P1","R2.P1"]}
-  GND:       {id: "GND",      name: "GND",       type: "ground", nodes: ["J1.GND","U3.GND","U1.GND","U2.GND","U2.SDO","C1.P2","C2.P2","C3.P2","D1.GND"]}
+  GND:       {id: "GND",      name: "GND",       type: "ground", nodes: ["J1.GND","U3.GND","U1.GND","U2.GND","U2.SDO","C1.P2","C2.P2","C3.P2","D1.GND","R3.P2","R4.P2"]}
+  USB_CC1:   {id: "USB_CC1", name: "USB_CC1", type: "data", nodes: ["J1.CC1","R3.P1"]}
+  USB_CC2:   {id: "USB_CC2", name: "USB_CC2", type: "data", nodes: ["J1.CC2","R4.P1"]}
   I2C_SDA:   {id: "I2C_SDA",  name: "I2C_SDA",  type: "data",   nodes: ["U1.GPIO21","U2.SDA","R1.P2","TP1.P1"]}
   I2C_SCL:   {id: "I2C_SCL",  name: "I2C_SCL",  type: "clock",  nodes: ["U1.GPIO22","U2.SCK","R2.P2","TP2.P1"]}
 

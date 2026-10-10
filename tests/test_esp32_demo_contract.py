@@ -48,6 +48,7 @@ def test_regulator_vout_and_tab_share_physical_pad_id_without_short(tmp_path: Pa
     regulator = design.components["U3"]
     assert regulator.footprint_asset == "ams1117-sot223-tabpin2"
     assert regulator.package_pin_map == {"1": "GND", "2": "OUTPUT", "3": "INPUT"}
+    assert regulator.footprint_def is not None
     assert [str(p.id) for p in regulator.footprint_def.pads] == ["1", "2", "2", "3"]
     # Direct PCB export only includes components with a resolved placement.
     design.placement = {"U3": (20.0, 15.0)}
@@ -78,6 +79,7 @@ def test_bidirectional_tvs_candidate_uses_real_kicad_pads_and_distinct_nets(tmp_
     assert tvs.type == "PESD5V0S1BA"
     assert tvs.footprint_asset == "pesd5v0s1ba-sod323"
     assert tvs.package_pin_map == {"1": "IO", "2": "GND"}
+    assert tvs.footprint_def is not None
     assert [str(pad.id) for pad in tvs.footprint_def.pads] == ["1", "2"]
     assert tvs.pins["IO"].net == "VCC_5V"
     assert tvs.pins["GND"].net == "GND"
@@ -97,11 +99,55 @@ def test_bidirectional_tvs_candidate_uses_real_kicad_pads_and_distinct_nets(tmp_
     assert len({uuid for _, _, uuid in pads}) == 2
 
 
+def test_usb_c_sink_uses_two_independent_resistors_and_ground_returns() -> None:
+    from zaptrace.erc import rules
+
+    design = parse_file(EXAMPLE / "design.yaml")
+    j1 = design.components["J1"]
+    assert j1.package_pin_map == {}
+    assert {pin: j1.pins[pin].net for pin in ("CC1", "CC2")} == {
+        "CC1": "USB_CC1",
+        "CC2": "USB_CC2",
+    }
+    for cc, ref in (("CC1", "R3"), ("CC2", "R4")):
+        resistor = design.components[ref]
+        assert resistor.value == "5.1k"
+        assert resistor.footprint_asset == "r-0402"
+        assert resistor.package_pin_map == {"1": "P1", "2": "P2"}
+        assert resistor.footprint_def is not None
+        assert {str(pad.id) for pad in resistor.footprint_def.pads} == {"1", "2"}
+        assert resistor.pins["P1"].net == f"USB_{cc}"
+        assert resistor.pins["P2"].net == "GND"
+        nodes = {f"{node.component_ref}.{node.pin_name}" for node in design.nets[f"USB_{cc}"].nodes}
+        assert nodes == {f"J1.{cc}", f"{ref}.P1"}
+        assert f"{ref}.P2" in {f"{node.component_ref}.{node.pin_name}" for node in design.nets["GND"].nodes}
+    assert not rules.rule_erc021(design)
+
+
+def test_usb_c_sink_resistor_pads_export_to_separate_kicad_nets(tmp_path: Path) -> None:
+    import re
+
+    from zaptrace.export.kicad import export_kicad_pcb
+
+    design = parse_file(EXAMPLE / "design.yaml")
+    design.placement = {"R3": (12.0, 12.0), "R4": (16.0, 12.0)}
+    pcb = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
+    for ref, cc_net in (("R3", "USB_CC1"), ("R4", "USB_CC2")):
+        footprint = next(block for block in pcb.split("\n  (footprint ") if f'(property "Reference" "{ref}"' in block)
+        pads = re.findall(
+            r'\(pad "([12])" smd[\s\S]*?\(net \d+ "([^"]+)"\)',
+            footprint,
+        )
+        assert pads == [("1", cc_net), ("2", "GND")]
+
+
 def test_passive_and_testpoint_physical_pad_maps_are_explicit() -> None:
     design = parse_file(EXAMPLE / "design.yaml")
     assets = {
         "R1": "r-0402",
         "R2": "r-0402",
+        "R3": "r-0402",
+        "R4": "r-0402",
         "C1": "c-0402",
         "C2": "c-0805",
         "C3": "c-0402",
@@ -112,6 +158,7 @@ def test_passive_and_testpoint_physical_pad_maps_are_explicit() -> None:
         comp = design.components[ref]
         assert comp.footprint_asset == asset
         assert comp.package_pin_map == ({"1": "P1"} if ref.startswith("TP") else {"1": "P1", "2": "P2"})
+        assert comp.footprint_def is not None
         assert {str(pad.id) for pad in comp.footprint_def.pads} == set(comp.package_pin_map)
 
 
@@ -137,11 +184,11 @@ def test_esp32_demo_reports_partial_pinned_physical_pad_coverage(tmp_path: Path)
     artifact = export_kicad_netlist_evidence(design, tmp_path)
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
-    assert evidence["node_count"] == 31
-    assert evidence["missing_pcb_pad_node_count"] == 2
+    assert evidence["node_count"] == 37
+    assert evidence["missing_pcb_pad_node_count"] == 4
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
-    assert evidence["fidelity"]["pcb_pad_coverage"] == 29 / 31
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 33 / 37
     assert all(
         node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"] if node["component_ref"] != "J1"
     )
@@ -169,9 +216,15 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
         "min-clearance",
         "physical-pads-mapped",
     }
-    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 29 / 31
-    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 2
-    assert by_name["drc-clean"].details["violations"]
-    assert by_name["min-clearance"].details["violations"]
+    physical_details = by_name["physical-pads-mapped"].details
+    drc_details = by_name["drc-clean"].details
+    clearance_details = by_name["min-clearance"].details
+    assert physical_details is not None
+    assert drc_details is not None
+    assert clearance_details is not None
+    assert physical_details["pcb_pad_coverage"] == 33 / 37
+    assert physical_details["missing_pcb_pad_node_count"] == 4
+    assert drc_details["violations"]
+    assert clearance_details["violations"]
     assert not pack.passed
     assert pack.autonomous_signoff.status.value == "blocked-insufficient-evidence"

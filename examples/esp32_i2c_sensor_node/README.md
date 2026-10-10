@@ -35,8 +35,9 @@ Keep its `ZapTrace.kicad_sym`, `sym-lib-table`, `fp-lib-table` and
 `ZapTrace.pretty/` files **together** with the schematic and PCB when moving
 the project. The symbol library contains generated *connectivity-only*
 symbols, not supplier-qualified electrical symbol definitions. Only exact
-SHA-256-verified KiCad footprint files are bundled. No substitute physical
-footprint is invented for J1 (USB-C) or D1 (TVS).
+SHA-256-verified KiCad footprint files are bundled. No substitute physical footprint is invented for J1 (USB-C); D1
+uses a provisional, byte-verified Nexperia SOD-323 candidate, which is not
+an approved VBUS protection design.
 
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
@@ -59,10 +60,10 @@ were generated or all physical pads are electrically joined**:
   plus right-angle routing warnings on `I2C_SDA`.
 - `min-clearance`: additional intersections violating the configured
   0.15 mm copper clearance.
-- Physical pad mapping: 29 of 31 logical net nodes now have real pad
+- Physical pad mapping: 33 of 37 logical net nodes now have real pad
   definitions from digest-pinned ESP32/BME280, passive/test-point, AMS1117
   SOT-223 and **provisional** Nexperia PESD5V0S1BA SOD-323 assets.
-  The two remaining nodes belong to the unresolved USB-C connector J1.
+  The four remaining nodes belong to the unresolved USB-C connector J1.
   Pad identity is **not** proof of electrical routing or ESD qualification.
 
 Those are **design/routing and physical mapping defects**, not configuration issues to silence
@@ -88,13 +89,13 @@ kicad-cli sch erc --exit-code-violations \
 
 Both commands currently **exit nonzero** because the generated KiCad
 project has additional errors. Independently tested with KiCad 10.0.6:
-**36 PCB DRC findings, 29 unconnected items, and 1 schematic ERC
+**78 PCB DRC findings, 31 unconnected items, and 1 schematic ERC
 warning**. The remaining ERC warning is an unresolved
 `footprint_link_issues` for **J1**, the component without a selected,
 validated physical receptacle footprint. Previously, the other 22 ERC warnings arose from
 missing project-local KiCad symbol/footprint library links; they are now
 resolved by generated local libraries, **not** by suppressing KiCad checks.
-Ten independent PCB `lib_footprint_mismatch` findings remain visible
+Independent PCB `lib_footprint_mismatch` findings remain visible
 because generated PCB footprint graphics differ from the verified KiCad
 library definitions; exact pad geometry alone does not establish footprint
 equivalence. The reduced trace-related violation count came from discarding
@@ -113,7 +114,7 @@ to their **logical** pin names, based on their respective official datasheets:
 and [Bosch BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
 BME280 VDDIO (physical pad 6) is now explicitly on the 3.3 V supply,
 rather than silently absent from the source schematic. Additional exact
-KiCad 10.0.6 geometries are bound to R1/R2, C1/C2/C3, TP1/TP2 and
+KiCad 10.0.6 geometries are bound to R1/R2/R3/R4, C1/C2/C3, TP1/TP2 and
 U3 (AMS1117 SOT-223) using digest-pinned package data and explicit
 logical-to-physical pin maps. The AMS1117's middle leg and thermal tab
 are both physical pad **2**, connected to VCC_3V3 (never GND). See the
@@ -127,10 +128,20 @@ Its **5 V maximum reverse standoff rating** is not proof of adequate
 protection across the full USB-C VBUS voltage envelope; sustained voltage,
 surge/current/thermal derating and short return-loop placement must be
 reviewed by a qualified hardware engineer before selecting production parts.
-This is **not** a complete board: physical pad mapping for two J1 source
-nodes, real copper continuity, USB-C CC pull-down resistors and connector
-orientation, LDO capacitor stability/thermal performance, and protection
-qualification all require independent KiCad and physical evidence.
+This is **not** a complete board: J1's four logical net nodes still lack
+validated physical pad assignments. Two distinct 5.1 kΩ Rd resistors, R3 and
+R4, now logically terminate J1.CC1 and J1.CC2 to ground on separate USB_CC1
+and USB_CC2 nets. This follows the GCT USB4105 contact assignment (A5/B5)
+and ST AN5225 fixed-sink termination guidance, but J1's plated oval shell
+slots are not safely represented by the current round-hole-only importer.
+Therefore the new CC terminations are **source topology only**; real copper
+continuity, slot/drill manufacturing data, receptacle orientation, LDO
+capacitor stability/thermal performance, and protection qualification still
+require independent KiCad and physical evidence. This is a 5 V fixed-sink
+reference, not a USB Power Delivery implementation.
+
+- [GCT USB4105 manufacturer drawing (pin assignment)](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/5492/USB4105.pdf)
+- [ST AN5225 USB Type-C application note](https://www.st.com/content/ccc/resource/technical/document/application_note/group1/38/94/1d/41/0e/ba/49/21/DM00536349/files/DM00536349.pdf/jcr%3Acontent/translations/en.DM00536349.pdf)
 
 The `power-nets-connected` and `gnd-connected` checks use the actual
 `VCC_3V3`/`GND` net names and component-qualified pin identities such as
@@ -139,9 +150,9 @@ they cannot pass merely because a different component has a same-named pin.
 
 **Critical incomplete physical footprint evidence:** the source demo has 31
 logical net nodes; the verified U1/U2, passive and test-point footprints now
-supply **29 resolved physical-pad mappings**, with **two still missing on J1**.
-The source schematic covers 31/31 nodes, but physical pad mapping covers
-**29/31**. This is only pad
+supply **33 resolved physical-pad mappings**, with **four still missing on J1**.
+The source schematic covers 37/37 nodes, but physical pad mapping covers
+**33/37**. This is only pad
 identity evidence, not a full manufacturing/ERC/DRC pass. Binding
 actual pad geometries exposes copper-level clearance, pad-mask and routing
 problems which were invisible while the exported footprints had no pads. `pipeline`
