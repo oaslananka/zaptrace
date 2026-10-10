@@ -163,6 +163,14 @@ class TestObstacleMap:
         # (5,5) is past the end — should be free
         assert obs.is_free(GridPos(5, 5, 0))
 
+    def test_reserved_copper_cannot_be_erased_by_later_net_endpoint(self) -> None:
+        obs = ObstacleMap(12, 12, 2)
+        obs.block_line(GridPos(3, 5, 0), GridPos(8, 5, 0), radius=1, reserve=True)
+        for x in range(2, 10):
+            obs.unblock(GridPos(x, 5, 0))
+            assert not obs.is_free(GridPos(x, 5, 0))
+        assert obs.is_free(GridPos(5, 5, 1))
+
     def test_line_blocking_with_radius(self) -> None:
         obs = ObstacleMap(10, 10, 1)
         obs.block_line(GridPos(1, 1, 0), GridPos(1, 4, 0), radius=1)
@@ -237,6 +245,31 @@ class TestSimplifyPath:
         p = [GridPos(0, 0, 0), GridPos(5, 0, 0), GridPos(5, 0, 1)]
         r = _simplify_path(p)
         assert len(r) == 3  # layer change should not be collapsed
+
+
+def test_astar_never_cuts_diagonally_between_blocked_adjacent_cells() -> None:
+    # The diagonal endpoints are free, yet a straight segment would cross
+    # the shared corner of two blocked cells. No other way out exists.
+    obs = ObstacleMap(width=3, height=3, layers=1)
+    obs.block(GridPos(1, 0))
+    obs.block(GridPos(0, 1))
+    assert GridRouter()._astar(obs, GridPos(0, 0), GridPos(1, 1)) is None
+
+
+def test_astar_diagonal_segments_preserve_axis_side_clearance() -> None:
+    obs = ObstacleMap(width=7, height=7, layers=1)
+    obs.block(GridPos(3, 2))
+    obs.block(GridPos(2, 3))
+    path = GridRouter()._astar(obs, GridPos(1, 1), GridPos(5, 5))
+    assert path is not None
+    assert path[0] == GridPos(1, 1)
+    assert path[-1] == GridPos(5, 5)
+    for first, second in zip(path, path[1:], strict=False):
+        dx = second.x - first.x
+        dy = second.y - first.y
+        if first.layer == second.layer and abs(dx) == abs(dy) == 1:
+            assert obs.is_free(GridPos(first.x + dx, first.y, first.layer))
+            assert obs.is_free(GridPos(first.x, first.y + dy, first.layer))
 
 
 # ======================================================================

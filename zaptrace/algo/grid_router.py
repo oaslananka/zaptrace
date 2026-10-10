@@ -124,6 +124,7 @@ class ObstacleMap:
         self.layers = layers
         # cells[layer][row][col]
         self._cells: list[list[list[int]]] = [[[0] * width for _ in range(height)] for _ in range(layers)]
+        self._reserved_copper: set[GridPos] = set()
 
     # -- Query ------------------------------------------------------------
 
@@ -140,8 +141,8 @@ class ObstacleMap:
             self._cells[pos.layer][pos.y][pos.x] = 1
 
     def unblock(self, pos: GridPos) -> None:
-        """Mark a single cell as free."""
-        if self.in_bounds(pos):
+        """Unblock footprint keepouts but never a previously reserved net."""
+        if self.in_bounds(pos) and pos not in self._reserved_copper:
             self._cells[pos.layer][pos.y][pos.x] = 0
 
     def block_rect(
@@ -161,7 +162,7 @@ class ObstacleMap:
             for x in range(x0c, x1c + 1):
                 row[x] = 1
 
-    def block_line(self, p0: GridPos, p1: GridPos, radius: int = 0) -> None:
+    def block_line(self, p0: GridPos, p1: GridPos, radius: int = 0, *, reserve: bool = False) -> None:
         """Bresenham line. Optionally dilate by ``radius`` cells."""
         dx = abs(p1.x - p0.x)
         sx = 1 if p0.x < p1.x else -1
@@ -180,6 +181,10 @@ class ObstacleMap:
                     y + radius,
                     p0.layer,
                 )
+            if reserve:
+                for ry in range(max(0, y - radius), min(self.height, y + radius + 1)):
+                    for rx in range(max(0, x - radius), min(self.width, x + radius + 1)):
+                        self._reserved_copper.add(GridPos(rx, ry, p0.layer))
             if x == p1.x and y == p1.y:
                 break
             e2 = 2 * err
@@ -366,7 +371,14 @@ class GridRouter:
         grid_positions = [self._to_grid_point(point, context) for point in route_points]
         for gx, gy in grid_positions:
             self._unblock_endpoint(context.obstacles, GridPos(gx, gy, layer), max(clear_cells, 1))
+        # An endpoint cannot erase copper belonging to an earlier net.
+        if any(not context.obstacles.is_free(GridPos(gx, gy, layer)) for gx, gy in grid_positions):
+            return _GridNetPlan(True, False, net.id)
         edge_paths = self._route_mst_paths(context, grid_positions, layer, clear_cells)
+        if edge_paths is not None:
+            for path in edge_paths:
+                for first, second in zip(path, path[1:], strict=False):
+                    context.obstacles.block_line(first, second, clear_cells, reserve=True)
         return _GridNetPlan(True, edge_paths is not None, net.id, rule.trace_width, edge_paths or [])
 
     def _append_grid_net_output(
@@ -455,6 +467,17 @@ class GridRouter:
         for dx, dy, move_cost in DIRECTIONS_8:
             position = GridPos(current.pos.x + dx, current.pos.y + dy, current.pos.layer)
             if not obstacles.is_free(position):
+                continue
+            # A diagonal segment between adjacent blocked cells can clip a
+            # neighboring net's copper even when its destination is free.
+            if (
+                dx
+                and dy
+                and not (
+                    obstacles.is_free(GridPos(current.pos.x + dx, current.pos.y, current.pos.layer))
+                    and obstacles.is_free(GridPos(current.pos.x, current.pos.y + dy, current.pos.layer))
+                )
+            ):
                 continue
             key = (position.x, position.y, position.layer)
             if key in closed:

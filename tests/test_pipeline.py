@@ -122,6 +122,9 @@ def test_route_stage_writes_design_routing() -> None:
     assert design.routing is not None
     assert design.routing.traces
     assert {trace.net_id for trace in design.routing.traces} <= set(design.nets)
+    assert ctx.routing.unrouted_nets == [
+        net.id for net in design.nets.values() if net.id not in {trace.net_id for trace in design.routing.traces}
+    ]
 
 
 def test_route_stage_falls_back_when_grid_router_routes_nothing() -> None:
@@ -153,6 +156,29 @@ def test_route_stage_falls_back_when_grid_router_routes_nothing() -> None:
     assert ctx.routing is not None
     assert design.routing is not None
     assert design.routing.traces  # fallback router produced traces
+
+
+def test_physical_demo_does_not_emit_fallback_copper_when_grid_cannot_route(tmp_path: Path) -> None:
+    from zaptrace.core.parser import parse_file
+
+    demo = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(demo)
+    pilot = Autopilot(output_dir=tmp_path)
+    ctx = PipelineContext(design=design, output_dir=tmp_path)
+    pilot.run_stage(ctx, PipelineStage.PLACE)
+    pilot.run_stage(ctx, PipelineStage.ROUTE)
+    assert ctx.routing is not None
+    assert ctx.routing.routed_nets == 0
+    assert ctx.routing.total_nets > 0
+    assert set(ctx.routing.unrouted_nets) == {"VCC_5V", "VCC_3V3", "I2C_SDA", "I2C_SCL"}
+    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 4
+    assert design.routing is not None
+    assert not design.routing.traces
+    pilot.run_stage(ctx, PipelineStage.KICAD)
+    assert ctx.kicad_files is not None
+    pcb = ctx.kicad_files["pcb"].read_text(encoding="utf-8")
+    assert "(footprint " in pcb
+    assert "  (segment" not in pcb
 
 
 def test_pipeline_kicad_export_contains_routed_segments(tmp_path: Path) -> None:
