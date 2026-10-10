@@ -143,7 +143,13 @@ def _run_kicad_cli(cli: Path, args: list[str]) -> str:
     if not cli.is_absolute() or cli.name != "kicad-cli" or not cli.is_file():
         raise ValueError("KiCad executable must be a verified absolute kicad-cli path")
     command = [str(cli), *args]
-    # B603: fixed, resolved executable and argument vector; never use a shell.
+    # This one invocation is a reviewed false positive for the generic
+    # subprocess-taint rule: the executable is an absolute, prevalidated
+    # kicad-cli path and every option is fixed; board/report are absolute
+    # path operands. Python passes an argv list WITHOUT invoking a shell.
+    # Bandit and Semgrep exemptions below apply to these two narrow generic
+    # findings only; tests pin the non-shell execution contract.
+    # nosemgrep: python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use
     result = subprocess.run(  # nosec B603
         command, capture_output=True, text=True, check=False, timeout=120
     )
