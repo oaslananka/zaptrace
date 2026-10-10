@@ -72,7 +72,7 @@ def test_esp32_demo_does_not_claim_physical_pad_mapping_without_footprints(tmp_p
 def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() -> None:
     pack = run_proof(EXAMPLE / ".proof")
     by_name = {result.check.name: result for result in pack.results}
-    assert len(by_name) == 7
+    assert len(by_name) == 8
     assert {name for name, result in by_name.items() if result.passed} == {
         "erc-clean",
         "all-nets-routed",
@@ -83,7 +83,10 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
     assert {name for name, result in by_name.items() if not result.passed} == {
         "drc-clean",
         "min-clearance",
+        "physical-pads-mapped",
     }
+    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 0.0
+    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 31
     assert by_name["drc-clean"].details["violations"]
     assert by_name["min-clearance"].details["violations"]
     assert not pack.passed

@@ -38,16 +38,19 @@ uv run --no-sync zaptrace proof run \
   examples/esp32_i2c_sensor_node/.proof --verbose
 ```
 
-**The nonzero exit code is intentional for the present design.** The seven
-checks report five passes (ERC, routing-completeness, footprint presence,
-3.3 V connections, and ground connections) and two blockers:
+**The nonzero exit code is intentional for the present design.** The eight
+checks report five passes (ERC, routing-completeness, named footprint presence,
+3.3 V connections, and ground connections) and three blockers:
 
 - `drc-clean`: copper clearance error between `VCC_3V3` and `I2C_SCL`
   plus right-angle routing warnings on `I2C_SDA`.
 - `min-clearance`: additional intersections violating the configured
   0.15 mm copper clearance.
+- Physical pad mapping: all 31 logical source net nodes lack resolved
+  physical footprint pad geometry (0/31). Source schematic pins are not
+  verified PCB pad connectivity.
 
-Those are **design/routing defects**, not configuration issues to silence
+Those are **design/routing and physical mapping defects**, not configuration issues to silence
 or an invitation to reduce clearance thresholds. The template is a useful
 demonstration of ZapTrace **catching** unsuitable generated geometry.
 Its Proof Pack must remain **blocked** until the generated copper geometry

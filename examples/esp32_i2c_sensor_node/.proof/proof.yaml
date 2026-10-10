@@ -47,6 +47,12 @@ checks:
     type: footprint_exists
     severity: error
 
+  - name: "physical-pads-mapped"
+    description: "All logical net nodes have actual footprint pad geometry"
+    category: footprint
+    type: footprint_pads_mapped
+    severity: critical
+
   - name: "power-nets-connected"
     description: "Power nets have expected connections"
     category: custom

@@ -434,6 +434,77 @@ class TestProofRunner:
         assert results[0].status == CheckStatus.FAIL
         assert "1 missing" in results[0].message
 
+    def test_footprint_pads_mapped_passes_with_real_pads(self) -> None:
+        from zaptrace.core.models import Component, Design, DesignMeta, FootprintDef, Net, NetNode, Pad
+
+        design = Design(
+            meta=DesignMeta(name="PhysicalPadGateTest"),
+            components={
+                "r1": Component(
+                    id="r1",
+                    ref="R1",
+                    type="resistor",
+                    footprint="0805",
+                    footprint_def=FootprintDef(pads=[Pad(id="1"), Pad(id="2")]),
+                )
+            },
+            nets={"pwr": Net(id="pwr", name="VCC", nodes=[NetNode(component_ref="R1", pin_name="1")])},
+        )
+        result = ProofRunner(design).run_checks([CheckDefinition(name="actual-pad", type="footprint_pads_mapped")])[0]
+        assert result.status == CheckStatus.PASS
+        assert result.details["node_count"] == 1
+        assert result.details["missing_pcb_pad_node_count"] == 0
+        assert result.details["pcb_pad_coverage"] == 1.0
+
+    def test_footprint_pads_mapped_rejects_named_footprint_without_geometry(self) -> None:
+        from zaptrace.core.models import Component, Design, DesignMeta, Net, NetNode
+
+        design = Design(
+            meta=DesignMeta(name="PhysicalPadGateTest"),
+            components={"r1": Component(id="r1", ref="R1", type="resistor", footprint="0805")},
+            nets={"pwr": Net(id="pwr", name="VCC", nodes=[NetNode(component_ref="R1", pin_name="1")])},
+        )
+        checker = ProofRunner(design)
+        named = checker.run_checks([CheckDefinition(name="named", type="footprint_exists")])[0]
+        physical = checker.run_checks([CheckDefinition(name="real", type="footprint_pads_mapped")])[0]
+        assert named.status == CheckStatus.PASS
+        assert physical.status == CheckStatus.FAIL
+        assert physical.details["missing_pcb_pad_node_count"] == 1
+        assert physical.details["missing_pcb_pad_nodes"] == ["R1.1"]
+        assert physical.details["pcb_pad_coverage"] == 0.0
+        assert "fabrication" in physical.details["non_claim"]
+
+    def test_footprint_pads_mapped_rejects_empty_design_as_no_evidence(self) -> None:
+        from zaptrace.core.models import Design, DesignMeta
+
+        empty = Design(meta=DesignMeta(name="NoEvidence"))
+        result = ProofRunner(empty).run_checks([CheckDefinition(name="no-proof", type="footprint_pads_mapped")])[0]
+        assert result.status == CheckStatus.FAIL
+        assert result.details["node_count"] == 0
+        assert result.details["pcb_pad_coverage"] == 1.0
+        assert "0/0" in result.message
+
+    def test_footprint_pads_mapped_rejects_unmapped_physical_id(self) -> None:
+        from zaptrace.core.models import Component, Design, DesignMeta, FootprintDef, Net, NetNode, Pad
+
+        design = Design(
+            meta=DesignMeta(name="PhysicalPadGateTest"),
+            components={
+                "u1": Component(
+                    id="u1",
+                    ref="U1",
+                    type="mcu",
+                    footprint="real",
+                    package_pin_map={"33": "GPIO21"},
+                    footprint_def=FootprintDef(pads=[Pad(id="32")]),
+                )
+            },
+            nets={"gpio": Net(id="gpio", name="GPIO", nodes=[NetNode(component_ref="U1", pin_name="GPIO21")])},
+        )
+        result = ProofRunner(design).run_checks([CheckDefinition(name="mapped-pad", type="footprint_pads_mapped")])[0]
+        assert result.status == CheckStatus.FAIL
+        assert result.details["missing_pcb_pad_nodes"] == ["U1.GPIO21"]
+
     def test_net_connected_pass(self) -> None:
         design = FakeDesign(nets=[FakeNet("n1", "VCC", nodes=[FakePinNode("R1.p1"), FakePinNode("C1.p1")])])
         runner = ProofRunner(design)
