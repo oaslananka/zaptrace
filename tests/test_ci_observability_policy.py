@@ -173,15 +173,31 @@ def test_bundle_analysis_is_explicitly_out_of_scope() -> None:
 
 
 def test_pre_commit_pins_actionlint_and_zizmor() -> None:
-    config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    from packaging.version import Version
 
-    assert "repo: https://github.com/rhysd/actionlint" in config
-    assert "rev: v1.7.12" in config
-    assert "repo: https://github.com/zizmorcore/zizmor-pre-commit" in config
-    assert "rev: v1.29.0" in config
-    assert "rev: v1.27.0" not in config
-    assert "--min-severity=medium" in config
-    assert "--strict-collection" in config
+    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    repos = config["repos"]
+
+    def hook(repo_url: str) -> dict:
+        matches = [entry for entry in repos if entry["repo"] == repo_url]
+        assert len(matches) == 1
+        return matches[0]
+
+    actionlint = hook("https://github.com/rhysd/actionlint")
+    assert actionlint["rev"] == "v1.7.12"
+    assert any(item["id"] == "actionlint" for item in actionlint["hooks"])
+
+    zizmor = hook("https://github.com/zizmorcore/zizmor-pre-commit")
+    version = zizmor["rev"]
+    assert isinstance(version, str) and re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", version)
+    assert Version(version[1:]) >= Version("1.29.0")
+    hooks = [item for item in zizmor["hooks"] if item["id"] == "zizmor"]
+    assert len(hooks) == 1
+    assert hooks[0]["args"] == [
+        "--min-severity=medium",
+        "--collect=workflows",
+        "--strict-collection",
+    ]
 
 
 def test_required_repository_hook_runs_workflow_security_on_all_files() -> None:
