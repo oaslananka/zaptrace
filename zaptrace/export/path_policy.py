@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -67,9 +68,12 @@ def resolve_output_member(output_dir: Path, *components: str) -> Path:
         if not component or component in {".", ".."} or "/" in component or "\\" in component:
             raise ValueError(f"output member must be a single path component: {component!r}")
 
-    root = output_dir.resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    candidate = root.joinpath(*components).resolve()
-    if not candidate.is_relative_to(root):
+    # CodeQL py/path-injection models normalization via realpath followed by
+    # a guarded prefix check. Resolve symlinks *before* checking containment.
+    # The workspace root is explicitly chosen and trusted by the caller.
+    root = os.path.realpath(output_dir)
+    os.makedirs(root, exist_ok=True)
+    candidate = os.path.realpath(os.path.join(root, *components))
+    if not candidate.startswith(root.rstrip(os.sep) + os.sep):
         raise ValueError("output member escapes output directory")
-    return candidate
+    return Path(candidate)
