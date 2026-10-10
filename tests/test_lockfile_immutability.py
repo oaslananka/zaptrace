@@ -40,8 +40,17 @@ def test_stale_project_metadata_is_rejected_without_rewriting_lock(tmp_path: Pat
     original_lock = (project / "uv.lock").read_bytes()
 
     metadata = (project / "pyproject.toml").read_text(encoding="utf-8")
-    metadata = metadata.replace('    "rich>=13.0",', '    "rich>=13.0",\n    "packaging>=26.0",')
-    (project / "pyproject.toml").write_text(metadata, encoding="utf-8")
+    # Mutate the dependency array itself, not a specific version of rich.
+    # Renovate routinely rewrites individual minimum versions; the test must
+    # still prove that uv rejects a stale lock after *any* such update.
+    marker = "dependencies = [\n"
+    assert metadata.count(marker) == 1
+    assert not any(
+        Requirement(dependency).name == "packaging" for dependency in tomllib.loads(metadata)["project"]["dependencies"]
+    )
+    changed = metadata.replace(marker, marker + '    "packaging>=26.0",\n', 1)
+    assert changed != metadata
+    (project / "pyproject.toml").write_text(changed, encoding="utf-8")
 
     result = subprocess.run(
         [_uv(), "lock", "--check", "--project", str(project)],
