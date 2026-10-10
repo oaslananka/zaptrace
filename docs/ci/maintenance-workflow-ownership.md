@@ -47,7 +47,7 @@ The Quality Docker image smoke job uses a digest-pinned BuildKit container and G
 The three KiCad/Hardware owners — the `Quality` `kicad-oracle` job,
 standalone `KiCad Oracle` and the `Hardware` `kicad` job — now invoke the
 same local read-only composite
-[`kicad-oracle` action](../../.github/actions/kicad-oracle/action.yml).
+[`kicad-oracle` action](https://github.com/oaslananka/zaptrace/blob/main/.github/actions/kicad-oracle/action.yml).
 It owns the bounded KiCad 10 install helper and strict oracle invocation.
 Explicit inputs preserve the prior differences: Quality runs strict oracle
 and source-identified jobset without an availability probe; standalone runs
