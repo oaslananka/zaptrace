@@ -93,11 +93,11 @@ is genuinely corrected and rechecked by the KiCad oracle and a qualified
 hardware engineer. Do not fabricate from this example.
 The tracked engineering follow-up is
 [issue #91](https://github.com/oaslananka/zaptrace/issues/91).
-An independent manufacturer capability review and **fourteen genuinely pad-connected,
-KiCad-native review-only routes** (30 copper segments; 37→23 unconnected;
+An independent manufacturer capability review and **nineteen genuinely pad-connected,
+KiCad-native review-only routes** (41 copper segments; 37→18 unconnected;
 native DRC still 16) are documented in
 [MANUFACTURING_REVIEW.md](MANUFACTURING_REVIEW.md). The default pipeline
-remains fail-closed and does **not** fabricate the 23 missing connections.
+remains fail-closed and does **not** fabricate the 18 missing connections.
 
 ### Independent KiCad checks (when KiCad 10 is installed)
 

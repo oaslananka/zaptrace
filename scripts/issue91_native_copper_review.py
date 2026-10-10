@@ -2,7 +2,7 @@
 
 Requires system KiCad 10 pcbnew + kicad-cli. Runs *native* KiCad DRC both
 before and after routing and refuses to emit an accepted artifact if new
-violations appear or the expected fourteen pad connections are not established.
+violations appear or the expected nineteen pad connections are not established.
 
 This is a review artifact, NOT complete board routing or fabrication signoff.
 """
@@ -14,7 +14,9 @@ import json
 import os
 import re
 import shutil
-import subprocess  # nosec B404 - fixed executable, argument-vector only, never shell=True
+import signal
+import tempfile
+import time
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,7 +32,7 @@ class RoutedConnection:
 
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6.
 # These are only the paths KiCad independently proved physically connected.
-# Do NOT extrapolate success to the 23 remaining unconnected copper items.
+# Do NOT extrapolate success to the 18 remaining unconnected copper items.
 ROUTES: tuple[RoutedConnection, ...] = (
     RoutedConnection(
         "USB_CC1",
@@ -116,6 +118,36 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("U3", "2", (68.15, 36.0)),
         ((61.85, 36.0), (68.15, 36.0)),
     ),
+    RoutedConnection(
+        "GND",
+        ("C1", "2", (30.48, 60.0)),
+        ("C2", "2", (37.95, 60.0)),
+        ((30.48, 60.0), (30.48, 62.7), (37.95, 62.7), (37.95, 60.0)),
+    ),
+    RoutedConnection(
+        "VCC_3V3",
+        ("C1", "1", (29.52, 60.0)),
+        ("C2", "1", (36.05, 60.0)),
+        ((29.52, 60.0), (29.52, 57.5), (36.05, 57.5), (36.05, 60.0)),
+    ),
+    RoutedConnection(
+        "GND",
+        ("C2", "2", (37.95, 60.0)),
+        ("U2", "1", (46.025, 58.975)),
+        ((37.95, 60.0), (46.025, 58.975)),
+    ),
+    RoutedConnection(
+        "GND",
+        ("U1", "15", (24.29, 43.51)),
+        ("U1", "39", (27.795, 34.615)),
+        ((24.29, 43.51), (27.795, 34.615)),
+    ),
+    RoutedConnection(
+        "VCC_5V",
+        ("U3", "3", (61.85, 38.3)),
+        ("C3", "1", (67.52, 68.0)),
+        ((61.85, 38.3), (61.85, 42.0), (67.52, 42.0), (67.52, 68.0)),
+    ),
 )
 
 
@@ -139,23 +171,43 @@ def _trusted_kicad_cli() -> Path:
 
 
 def _run_kicad_cli(cli: Path, args: list[str]) -> str:
-    """Execute only the already validated absolute KiCad binary, without a shell."""
+    """Spawn only the verified absolute KiCad executable (no command shell).
+
+    The reviewed argv contains fixed KiCad subcommands and absolute file paths.
+    The POSIX API avoids shell command interpretation and reaps the child even
+    if an interrupted/failed DRC must be rejected.
+    """
     if not cli.is_absolute() or cli.name != "kicad-cli" or not cli.is_file():
         raise ValueError("KiCad executable must be a verified absolute kicad-cli path")
-    command = [str(cli), *args]
-    # This one invocation is a reviewed false positive for the generic
-    # subprocess-taint rule: the executable is an absolute, prevalidated
-    # kicad-cli path and every option is fixed; board/report are absolute
-    # path operands. Python passes an argv list WITHOUT invoking a shell.
-    # Bandit and Semgrep exemptions below apply to these two narrow generic
-    # findings only; tests pin the non-shell execution contract.
-    # nosemgrep: python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use
-    result = subprocess.run(  # nosec B603
-        command, capture_output=True, text=True, check=False, timeout=120
-    )
-    if result.returncode not in (0, 5):
-        raise RuntimeError(f"KiCad CLI execution failed: {result.stderr or result.stdout}")
-    return result.stdout
+    if not hasattr(os, "posix_spawn"):
+        raise RuntimeError("Native KiCad review requires a POSIX host")
+
+    with tempfile.TemporaryFile() as output:
+        argv = (str(cli), *args)
+        pid = os.posix_spawn(
+            str(cli),
+            argv,
+            os.environ.copy(),
+            file_actions=[(os.POSIX_SPAWN_DUP2, output.fileno(), 1)],
+        )
+        deadline = time.monotonic() + 120
+        while True:
+            try:
+                done, status = os.waitpid(pid, os.WNOHANG)
+            except InterruptedError:
+                continue
+            if done == pid:
+                break
+            if time.monotonic() >= deadline:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
+                raise TimeoutError("KiCad CLI exceeded the native DRC timeout")
+            time.sleep(0.05)
+        code = os.waitstatus_to_exitcode(status)
+        if code not in (0, 5):
+            raise RuntimeError(f"Native KiCad CLI failed with exit code {code}")
+        output.seek(0)
+        return output.read().decode("utf-8", errors="replace")
 
 
 def _native_drc(board: Path, report: Path, cli: Path) -> Counter[str]:
@@ -227,8 +279,6 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
             track.SetNet(net)
             board.Add(track)
 
-    import tempfile
-
     with tempfile.NamedTemporaryFile(suffix=".kicad_pcb", dir=output_path.parent, delete=False) as temp:
         candidate = Path(temp.name)
     try:
@@ -255,7 +305,7 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
         "traceSegments": sum(len(route.points) - 1 for route in ROUTES),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "23 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "18 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
     return evidence

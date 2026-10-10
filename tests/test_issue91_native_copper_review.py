@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -22,8 +21,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 14
-    assert sum(len(route.points) - 1 for route in ROUTES) == 30
+    assert len(ROUTES) == 19
+    assert sum(len(route.points) - 1 for route in ROUTES) == 41
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
@@ -80,27 +79,24 @@ def test_run_kicad_rejects_partial_binaries_and_shell_execution(
 ) -> None:
     binary = tmp_path / "kicad-cli"
     binary.write_text("", encoding="utf-8")
-    commands: list[tuple[object, ...]] = []
+    calls: list[tuple[object, ...]] = []
 
-    def stub_run(command: list[str], **kwargs: object) -> SimpleNamespace:
-        commands.append((command, kwargs))
-        return SimpleNamespace(returncode=0, stdout="10.0.6\n", stderr="")
+    def stub_spawn(executable: str, argv: tuple[str, ...], env: dict[str, str], **kwargs: object) -> int:
+        calls.append((executable, argv, kwargs))
+        assert "file_actions" in kwargs
+        return 43012
 
-    monkeypatch.setattr("scripts.issue91_native_copper_review.subprocess.run", stub_run)
+    monkeypatch.setattr("scripts.issue91_native_copper_review.os.posix_spawn", stub_spawn)
+    monkeypatch.setattr("scripts.issue91_native_copper_review.os.waitpid", lambda pid, _: (pid, 0))
     with pytest.raises(ValueError, match="absolute"):
         _run_kicad_cli(Path("kicad-cli"), ["version"])
-    assert _run_kicad_cli(binary.resolve(), ["version"]) == "10.0.6\n"
-    assert commands == [
-        (
-            [str(binary.resolve()), "version"],
-            {
-                "capture_output": True,
-                "text": True,
-                "check": False,
-                "timeout": 120,
-            },
-        )
-    ]
+    assert _run_kicad_cli(binary.resolve(), ["version"]) == ""
+    assert len(calls) == 1
+    executable, argv, kwargs = calls[0]
+    assert executable == str(binary.resolve())
+    assert argv == (str(binary.resolve()), "version")
+    assert isinstance(kwargs, dict)
+    assert set(kwargs) == {"file_actions"}
 
 
 def test_native_drc_rejects_stale_report_after_incomplete_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
