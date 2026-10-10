@@ -1761,7 +1761,7 @@ typecheck = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anyio", specifier = ">=4.14.2" },
+    { name = "anyio", specifier = ">=4.15.1" },
     { name = "click", specifier = ">=8.1" },
     { name = "cryptography", marker = "extra == 'all'", specifier = ">=50.0.0" },
     { name = "cryptography", marker = "extra == 'server'", specifier = ">=50.0.0" },
