@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Bind verified KiCad 10.0.6 resistor, capacitor and test-point land patterns with exact pad maps and recorded SHA-256/provenance; ESP32 demo now resolves 24/31 physical net nodes while preserving fail-closed DRC/clearance and fabrication nonclaims.
 - Added allowlisted SHA-256-pinned vendored KiCad land-pattern loading via the design parser, binding the ESP32-WROOM-32 and BME280 source packages to their real footprint pads (12/31 mapped). Reject unknown identifiers, altered vendor assets and conflicting inline geometry; remain fail-closed on all unmapped pads and DRC/clearance errors.
 - Generate a deterministic, unique KiCad UUID for every exported physical pad occurrence (including duplicate pad numbers within one footprint and identical pad numbers across components).
 - Added a fail-closed Proof Pack physical-pad-mapping check independent of named footprint assignment. The ESP32 demo now explicitly fails when physical pad mapping is missing, in addition to genuine DRC/clearance violations; no fabrication approval.
