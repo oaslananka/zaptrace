@@ -813,9 +813,17 @@ def _build_footprint(
     lines.append(f'    (uuid "{uid}")')
     lines.append(f"    (at {x} {y} 0)")
 
+    # The ESP32 module's dense center GND pad/thermal vias lie at y≈-2;
+    # putting the default reference there creates real F.SilkS/copper
+    # collisions. Keep its label outside the verified local pad envelope.
+    # This is an annotation position only, not a footprint geometry edit.
+    reference_y = -2.0
+    if comp.footprint_asset == "esp32-wroom-32" and fp is not None and fp.pads:
+        reference_y = max(pad.position[1] + pad.size[1] / 2 for pad in fp.pads) + 3.0
+
     # Reference designator
     lines.append(f'    (property "Reference" "{comp.ref}"')
-    lines.append("      (at 0 -2 0)")
+    lines.append(f"      (at 0 {reference_y:g} 0)")
     lines.append('      (layer "F.SilkS")')
     lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-ref-prop")}")')
     lines.append("      (effects (font (size 1 1) (thickness 0.15)))")

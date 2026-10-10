@@ -232,3 +232,19 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
     assert clearance_details["violations"]
     assert not pack.passed
     assert pack.autonomous_signoff.status.value == "blocked-insufficient-evidence"
+
+
+def test_esp32_reference_field_is_outside_verified_pad_copper(tmp_path: Path) -> None:
+    import re
+
+    from zaptrace.export.kicad import export_kicad_pcb
+
+    design = parse_file(EXAMPLE / "design.yaml")
+    u1 = design.components["U1"]
+    assert u1.footprint_def is not None
+    pad_top = max(pad.position[1] + pad.size[1] / 2 for pad in u1.footprint_def.pads)
+    board = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
+    block = next(part for part in board.split("\n  (footprint ") if '(property "Reference" "U1"' in part)
+    match = re.search(r'\(property "Reference" "U1"\s*\(at 0 ([-.\d]+) 0\)', block)
+    assert match is not None
+    assert float(match.group(1)) >= pad_top + 2.0
