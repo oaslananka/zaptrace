@@ -114,3 +114,16 @@ def test_vendor_legacy_reference_becomes_real_board_reference_property(tmp_path:
     assert len(_child(j1, "pad")) == 22
     assert len(_child(j1, "fp_rect")) == 2
     assert any(isinstance(pad, list) and pad[1] == "S1" and _child(pad, "drill") for pad in _child(j1, "pad"))
+
+
+def test_heatsink_pad_enum_is_unquoted_for_native_kicad_parser(tmp_path: Path) -> None:
+    """KiCad 10 drops quoted pad enums silently, even if generic ASTs match."""
+    design = parse_file(_SOURCE)
+    board_text = export_kicad_pcb(design, tmp_path)["pcb"].read_text(encoding="utf-8")
+    _name, source = verified_footprint_bytes("esp32-wroom-32")
+    vendor_count = source.count(b"(property pad_prop_heatsink)")
+    assert vendor_count > 0
+    assert board_text.count("(property pad_prop_heatsink)") == vendor_count
+    assert '(property "pad_prop_heatsink")' not in board_text
+    assert board_text.count('(property "Reference" "U1"') == 1
+    assert board_text.count('(property "Value" "ESP32-WROOM-32"') == 1

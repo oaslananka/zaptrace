@@ -48,7 +48,14 @@ def _kicad_format(node: SexpNode, indent: int = 0) -> str:
     nested = False
     for pos, value in enumerate(node):
         if isinstance(value, str) and not nested:
-            atoms.append(json.dumps(value) if pos in _QUOTE_ATOM_POSITIONS.get(kind, set()) else write(value))
+            # KiCad's (property pad_prop_heatsink) is a *bare enum* on a pad,
+            # while (property "Reference" "U1") is a quoted footprint field.
+            # Quoting the enum appears parseable to a generic S-expression
+            # reader but KiCad 10 silently discards the thermal-pad property
+            # on reload, making the physical footprint differ from its library.
+            pad_enum = kind == "property" and len(node) == 2 and pos == 1
+            quote = pos in _QUOTE_ATOM_POSITIONS.get(kind, set()) and not pad_enum
+            atoms.append(json.dumps(value) if quote else write(value))
         else:
             nested = True
             if not isinstance(value, list):
