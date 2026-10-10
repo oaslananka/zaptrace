@@ -1,0 +1,158 @@
+name: Quality Python Test Lanes
+
+# Called after the Quality lane-inventory policy gate. Coverage consumes
+# test-lane-results-* artifacts from this same workflow run.
+on:
+  workflow_call:
+    inputs:
+      test_mode:
+        description: Python lane mode from the caller's change classifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.11"
+  PYTHONPATH: "."
+
+jobs:
+  test:
+    name: Test lane ${{ matrix.artifact }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: unit
+            artifact: unit-1
+            shard_index: "1"
+            shard_count: "3"
+            install_external: false
+            build_native: false
+          - lane: unit
+            artifact: unit-2
+            shard_index: "2"
+            shard_count: "3"
+            install_external: false
+            build_native: false
+          - lane: unit
+            artifact: unit-3
+            shard_index: "3"
+            shard_count: "3"
+            install_external: false
+            build_native: false
+          - lane: integration
+            artifact: integration
+            shard_index: ""
+            shard_count: ""
+            install_external: false
+            build_native: false
+          - lane: benchmark
+            artifact: benchmark-1
+            shard_index: "1"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: benchmark
+            artifact: benchmark-2
+            shard_index: "2"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: hardware
+            artifact: hardware-1
+            shard_index: "1"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: hardware
+            artifact: hardware-2
+            shard_index: "2"
+            shard_count: "2"
+            install_external: false
+            build_native: false
+          - lane: external_tool
+            artifact: external-tool
+            shard_index: ""
+            shard_count: ""
+            install_external: true
+            build_native: false
+          - lane: native
+            artifact: native
+            shard_index: ""
+            shard_count: ""
+            install_external: false
+            build_native: true
+    env:
+      LANE: ${{ matrix.lane }}
+      ARTIFACT: ${{ matrix.artifact }}
+      SHARD_INDEX: ${{ matrix.shard_index }}
+      SHARD_COUNT: ${{ matrix.shard_count }}
+      JUNIT_PATH: junit-lane-${{ matrix.artifact }}.xml
+      LANE_REPORT: test-lane-report-${{ matrix.artifact }}.json
+
+    steps:
+      - name: Skip Python lanes for docs-only PR
+        if: inputs.test_mode == 'docs'
+        run: echo "Docs-only PR; $LANE lane skipped." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        if: inputs.test_mode != 'docs'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up locked Python matrix
+        if: inputs.test_mode != 'docs'
+        uses: ./.github/actions/setup-locked-python
+        with:
+          uv-version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+          sync-explicit-python: "true"
+
+      - name: Install external test tools
+        if: inputs.test_mode != 'docs' && matrix.install_external
+        run: |
+          bash scripts/ci_install_kicad.sh kicad ngspice
+
+      - name: Build native extension for native lane
+        if: inputs.test_mode != 'docs' && matrix.build_native
+        run: .venv/bin/maturin develop --release --manifest-path zaptrace_core/Cargo.toml
+
+      - name: Run bounded test lane
+        if: inputs.test_mode != 'docs'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shard_args=()
+          if [[ -n "$SHARD_INDEX" ]]; then
+            shard_args+=(--lane-shard-index "$SHARD_INDEX" --lane-shard-count "$SHARD_COUNT")
+          fi
+          COVERAGE_FILE=".coverage.$ARTIFACT" .venv/bin/coverage run \
+            --parallel-mode \
+            --source=zaptrace \
+            -m pytest \
+            -p tests.lane_policy \
+            --lane "$LANE" \
+            "${shard_args[@]}" \
+            --require-lane-execution \
+            --enforce-lane-budget \
+            --lane-report "$LANE_REPORT" \
+            --junitxml "$JUNIT_PATH" \
+            -o junit_family=legacy \
+            -q
+
+      - name: Upload lane evidence
+        if: inputs.test_mode != 'docs' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: test-lane-results-${{ matrix.artifact }}
+          path: |
+            .coverage.*
+            ${{ env.JUNIT_PATH }}
+            ${{ env.LANE_REPORT }}
+          include-hidden-files: true
+          if-no-files-found: error
