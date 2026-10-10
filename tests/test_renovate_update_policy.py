@@ -52,3 +52,17 @@ def test_renovate_configuration_does_not_replace_required_merge_checks() -> None
         "Container security gate",
     ):
         assert f"check-success = {context}" in mergify
+
+
+def test_renovate_config_validation_is_time_bounded_and_least_privileged() -> None:
+    import yaml
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/renovate-config.yml").read_text(encoding="utf-8"))
+    assert workflow["permissions"] == {"contents": "read"}
+    job = workflow["jobs"]["validate"]
+    assert 1 <= job["timeout-minutes"] <= 10
+    assert job["runs-on"] == "ubuntu-latest"
+    install = next(step for step in job["steps"] if step["name"] == "Install locked Renovate CLI")
+    assert install["run"] == "npm ci --ignore-scripts --no-audit --no-fund"
+    validation = next(step for step in job["steps"] if step["name"] == "Validate Renovate configuration")
+    assert validation["run"] == ".github/renovate-validation/node_modules/.bin/renovate-config-validator --strict"
