@@ -11,8 +11,11 @@ on:
         options:
           - capture
           - check
-  push:
-    branches: [main]
+      verify_revision:
+        description: Require Sonar's analysis to match this run's checked-out commit
+        required: false
+        type: boolean
+        default: false
   schedule:
     - cron: "17 3 * * 0"
 
@@ -52,10 +55,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           DISPATCH_MODE: ${{ inputs.mode }}
+          VERIFY_REVISION: ${{ inputs.verify_revision }}
         run: |
           mode="${DISPATCH_MODE:-check}"
           expected_args=()
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          if [[ "$VERIFY_REVISION" == "true" ]]; then
             expected_args=(
               --expected-analysis-revision "$GITHUB_SHA"
               --analysis-attempts 30

@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "ci_sonar_debt.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "sonar-debt.yml"
@@ -32,18 +34,27 @@ def test_committed_contract_files_exist() -> None:
 
 def test_workflow_is_secret_bounded_and_retains_evidence() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    assert "workflow_dispatch:" in workflow
-    assert "schedule:" in workflow
-    assert "push:" in workflow
-    assert "branches: [main]" in workflow
+    triggers = yaml.safe_load(workflow)[True]
+    assert set(triggers) == {"workflow_dispatch", "schedule"}
+    assert triggers["schedule"] == [{"cron": "17 3 * * 0"}]
+    dispatch = triggers["workflow_dispatch"]["inputs"]
+    assert dispatch["mode"]["default"] == "check"
+    assert dispatch["mode"]["options"] == ["capture", "check"]
+    assert dispatch["verify_revision"]["type"] == "boolean"
+    assert dispatch["verify_revision"]["default"] is False
+    # Advisory historical ratchet runs weekly or when explicitly requested,
+    # not as a repeated, non-required job for each main merge.
     assert "workflow_run:" not in workflow
     assert "pull_request:" not in workflow
+    assert "push:" not in workflow
     assert "SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}" in workflow
     assert "permissions:\n  contents: read" in workflow
     assert "persist-credentials: false" in workflow
     assert "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39" in workflow
     assert "uv lock --check && uv sync --locked" in workflow
     assert ".venv/bin/python scripts/ci_sonar_debt.py" in workflow
+    assert "VERIFY_REVISION: ${{ inputs.verify_revision }}" in workflow
+    assert 'if [[ "$VERIFY_REVISION" == "true" ]]; then' in workflow
     assert '--expected-analysis-revision "$GITHUB_SHA"' in workflow
     assert "--analysis-attempts 30" in workflow
     assert "--analysis-poll-seconds 10" in workflow
