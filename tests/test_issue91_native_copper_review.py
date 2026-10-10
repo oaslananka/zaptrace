@@ -8,10 +8,11 @@ import pytest
 
 from scripts.issue91_native_copper_review import (
     ROUTES,
-    _native_drc,
-    _run_kicad_cli,
-    _trusted_kicad_cli,
+    _file_sha256,
+    _read_native_report,
+    _require_paths,
     _violations,
+    finalize_review,
 )
 from zaptrace.core.parser import parse_file
 
@@ -60,63 +61,70 @@ def test_native_drc_result_cannot_hide_new_finding_classes() -> None:
     }
 
 
-def test_native_cli_is_resolved_and_must_be_executable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    binary = tmp_path / "kicad-cli"
-    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    binary.chmod(0o755)
-    monkeypatch.setattr("scripts.issue91_native_copper_review.shutil.which", lambda _: str(binary))
-    assert _trusted_kicad_cli() == binary.resolve()
-    binary.chmod(0o644)
-    with pytest.raises(RuntimeError, match="not an executable"):
-        _trusted_kicad_cli()
-    monkeypatch.setattr("scripts.issue91_native_copper_review.shutil.which", lambda _: None)
-    with pytest.raises(RuntimeError, match="not found"):
-        _trusted_kicad_cli()
+def test_native_report_fail_closed_on_missing_and_unparseable(tmp_path: Path) -> None:
+    report = tmp_path / "native.rpt"
+    with pytest.raises(RuntimeError, match="Missing or empty"):
+        _read_native_report(report)
+    report.write_text("unparseable gibberish\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="not parseable"):
+        _read_native_report(report)
+    report.write_text("[shorting_items]: gap\n", encoding="utf-8")
+    assert _read_native_report(report) == {"shorting_items": 1}
 
 
-def test_run_kicad_rejects_partial_binaries_and_shell_execution(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    binary = tmp_path / "kicad-cli"
-    binary.write_text("", encoding="utf-8")
-    calls: list[tuple[object, ...]] = []
-
-    def stub_spawn(executable: str, argv: tuple[str, ...], env: dict[str, str], **kwargs: object) -> int:
-        calls.append((executable, argv, kwargs))
-        assert "file_actions" in kwargs
-        assert set(env) == {"HOME", "PATH", "LANG", "LC_ALL"}
-        assert env["PATH"] == "/usr/bin:/bin"
-        assert "LD_PRELOAD" not in env
-        assert "PYTHONPATH" not in env
-        return 43012
-
-    monkeypatch.setattr("scripts.issue91_native_copper_review.os.posix_spawn", stub_spawn)
-    monkeypatch.setattr("scripts.issue91_native_copper_review.os.waitpid", lambda pid, _: (pid, 0))
-    with pytest.raises(ValueError, match="absolute"):
-        _run_kicad_cli(Path("kicad-cli"), ["version"])
-    with pytest.raises(ValueError, match="Only the fixed"):
-        _run_kicad_cli(binary.resolve(), ["--unsafe-user-option"])
-    with pytest.raises(ValueError, match="absolute"):
-        _run_kicad_cli(
-            binary.resolve(), ["pcb", "drc", "--exit-code-violations", "--output", "relative.rpt", "relative.kicad_pcb"]
-        )
-    assert _run_kicad_cli(binary.resolve(), ["version"]) == ""
-    assert len(calls) == 1
-    executable, argv, kwargs = calls[0]
-    assert executable == str(binary.resolve())
-    assert argv == (str(binary.resolve()), "version")
-    assert isinstance(kwargs, dict)
-    assert set(kwargs) == {"file_actions"}
+def test_review_requires_distinct_same_directory_pcb_paths(tmp_path: Path) -> None:
+    source = tmp_path / "source.kicad_pcb"
+    source.write_text("", encoding="utf-8")
+    with pytest.raises(ValueError, match="distinct"):
+        _require_paths(source, source)
+    with pytest.raises(ValueError, match="distinct"):
+        _require_paths(source, tmp_path / "different" / "other.kicad_pcb")
+    with pytest.raises(ValueError, match="KiCad PCB"):
+        _require_paths(source, tmp_path / "other.txt")
 
 
-def test_native_drc_rejects_stale_report_after_incomplete_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    stale_report = tmp_path / "stale.rpt"
-    stale_report.write_text("[unconnected_items]: stale result\n", encoding="utf-8")
-    board = tmp_path / "board.kicad_pcb"
-    board.write_text("", encoding="utf-8")
-    binary = tmp_path / "kicad-cli"
-    binary.write_text("", encoding="utf-8")
-    monkeypatch.setattr("scripts.issue91_native_copper_review._run_kicad_cli", lambda *args: "ok")
-    with pytest.raises(RuntimeError, match="did not create"):
-        _native_drc(board, stale_report, binary)
-    assert not stale_report.exists()
+def test_finalize_rejects_tampered_candidate_before_loading_pcbnew(tmp_path: Path) -> None:
+    source = tmp_path / "source.kicad_pcb"
+    source.write_text("source content", encoding="utf-8")
+    output = tmp_path / "review.kicad_pcb"
+    candidate = tmp_path / "review.candidate.kicad_pcb"
+    manifest = tmp_path / "review.candidate-evidence.json"
+    candidate.write_text("candidate", encoding="utf-8")
+    import json
+
+    manifest.write_text(
+        json.dumps({"sourceSha256": _file_sha256(source), "candidateSha256": _file_sha256(candidate)}),
+        encoding="utf-8",
+    )
+    candidate.write_text("tampered candidate", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="changed between routing"):
+        finalize_review(source, output, "10.0.6")
+    assert not output.exists()
+
+
+def test_finalize_rejects_new_native_drc_class_without_publishing(tmp_path: Path) -> None:
+    source = tmp_path / "source.kicad_pcb"
+    source.write_text("source content", encoding="utf-8")
+    output = tmp_path / "review.kicad_pcb"
+    candidate = tmp_path / "review.candidate.kicad_pcb"
+    candidate.write_text("candidate", encoding="utf-8")
+    import json
+
+    (tmp_path / "review.candidate-evidence.json").write_text(
+        json.dumps({"sourceSha256": _file_sha256(source), "candidateSha256": _file_sha256(candidate)}),
+        encoding="utf-8",
+    )
+    (tmp_path / "review.baseline-drc.rpt").write_text(
+        "[drill_out_of_range]: x\n" * 12 + "[hole_clearance]: y\n" * 4 + "[unconnected_items]: z\n" * 37,
+        encoding="utf-8",
+    )
+    (tmp_path / "review.review-drc.rpt").write_text(
+        "[drill_out_of_range]: x\n" * 12
+        + "[hole_clearance]: y\n" * 4
+        + "[unconnected_items]: z\n" * 18
+        + "[shorting_items]: new short\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="rejected"):
+        finalize_review(source, output, "10.0.6")
+    assert not output.exists()

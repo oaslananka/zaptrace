@@ -40,10 +40,17 @@ to export no tracks rather than pretending to complete all nets.
 
 ```bash
 zaptrace pipeline --source examples/esp32_i2c_sensor_node/design.yaml --output build/esp32-review
-/usr/bin/python3 scripts/issue91_native_copper_review.py \
+bash scripts/issue91_native_copper_review.sh \
   build/esp32-review/kicad/ESP32_I2C_Sensor_Board.kicad_pcb \
   build/esp32-review/kicad/ESP32_I2C_Sensor_Board_partial_review.kicad_pcb
 ```
+
+The shell driver invokes *only* the system KiCad 10 CLI for independent
+DRC before and after Python generates a staged candidate. Python itself
+does not spawn processes; a source/candidate SHA-256 manifest, unchanged
+physical pad contracts and the two full native DRC reports must validate
+before the review PCB is published. This avoids tainted arbitrary subprocess
+arguments and preserves fail-closed hardware evidence.
 
 The opt-in review emits **41 real 0.20 mm F.Cu segments joining 19 pairs**
 of actual, pinned physical pad centers across USB-CC1/CC2, I²C, VCC_3V3,
@@ -62,7 +69,7 @@ footprint geometry causes the review script to fail closed until physically
 revalidated.
 
 Independent native **KiCad 10.0.6 on 2026-10-11** using source commit
-`7ab9da6` and the extended fourteen-link review experiment:
+`b66315c` and nineteen native copper links:
 
 | Physical check | Default (0 tracks) | Opt-in routed evidence |
 |---|---:|---:|

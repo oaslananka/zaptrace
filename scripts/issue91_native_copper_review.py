@@ -1,8 +1,9 @@
 """Reproducible, fail-closed *partial* physical routing for ESP32 issue #91.
 
-Requires system KiCad 10 pcbnew + kicad-cli. Runs *native* KiCad DRC both
-before and after routing and refuses to emit an accepted artifact if new
-violations appear or the expected nineteen pad connections are not established.
+Requires system KiCad 10 pcbnew and native KiCad CLI reports. The companion
+shell driver runs independently audited native DRC before and after routing.
+Python NEVER launches an external process and refuses an accepted artifact
+unless every physical net, file digest and DRC result matches the contract.
 
 This is a review artifact, NOT complete board routing or fabrication signoff.
 """
@@ -10,17 +11,14 @@ This is a review artifact, NOT complete board routing or fabrication signoff.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib
 import json
-import os
-import pwd
 import re
-import shutil
-import signal
-import tempfile
-import time
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 
 
 @dataclass(frozen=True)
@@ -156,145 +154,84 @@ def _violations(text: str) -> Counter[str]:
     return Counter(re.findall(r"^\[([^]]+)\]:", text, re.MULTILINE))
 
 
-def _trusted_kicad_cli() -> Path:
-    """Resolve a real, executable KiCad CLI before launching a fixed argv.
-
-    Calling KiCad is essential for independent native DRC. No shell or
-    user-provided executable/extra flags are permitted in this review.
-    """
-    executable = shutil.which("kicad-cli")
-    if executable is None:
-        raise RuntimeError("Native kicad-cli executable not found")
-    resolved = Path(executable).resolve(strict=True)
-    if not resolved.is_file() or not os.access(resolved, os.X_OK):
-        raise RuntimeError("Native kicad-cli is not an executable file")
-    return resolved
-
-
-def _run_kicad_cli(cli: Path, args: list[str]) -> str:
-    """Spawn only the verified absolute KiCad executable (no command shell).
-
-    The reviewed argv contains fixed KiCad subcommands and absolute file paths.
-    The POSIX API avoids shell command interpretation and reaps the child even
-    if an interrupted/failed DRC must be rejected.
-    """
-    if not cli.is_absolute() or cli.name != "kicad-cli" or not cli.is_file():
-        raise ValueError("KiCad executable must be a verified absolute kicad-cli path")
-    if not hasattr(os, "posix_spawn"):
-        raise RuntimeError("Native KiCad review requires a POSIX host")
-    if args != ["version"]:
-        valid_drc = (
-            len(args) == 6
-            and args[:4] == ["pcb", "drc", "--exit-code-violations", "--output"]
-            and Path(args[4]).is_absolute()
-            and Path(args[5]).is_absolute()
-            and Path(args[4]).suffix == ".rpt"
-            and Path(args[5]).suffix == ".kicad_pcb"
-        )
-        if not valid_drc:
-            raise ValueError("Only the fixed KiCad DRC invocation with absolute file paths is allowed")
-
-    with tempfile.TemporaryFile() as output:
-        argv = (str(cli), *args)
-        # Never forward the caller's full environment to KiCad. In particular
-        # LD_PRELOAD, PYTHONPATH and other attacker-controlled injection hooks
-        # must not be inherited by this review subprocess.
-        system_user = pwd.getpwuid(os.getuid())
-        clean_env = {
-            "HOME": system_user.pw_dir,
-            "PATH": "/usr/bin:/bin",
-            "LANG": "C.UTF-8",
-            "LC_ALL": "C.UTF-8",
-        }
-        # The executable path is verified and argv subcommands are allowlisted.
-        # nosemgrep: python.lang.security.dangerous-os-exec.dangerous-os-exec
-        pid = os.posix_spawn(
-            str(cli),
-            argv,  # nosemgrep: python.lang.security.dangerous-os-exec.dangerous-os-exec
-            clean_env,
-            file_actions=[(os.POSIX_SPAWN_DUP2, output.fileno(), 1)],
-        )
-        deadline = time.monotonic() + 120
-        while True:
-            try:
-                done, status = os.waitpid(pid, os.WNOHANG)
-            except InterruptedError:
-                continue
-            if done == pid:
-                break
-            if time.monotonic() >= deadline:
-                os.kill(pid, signal.SIGKILL)
-                os.waitpid(pid, 0)
-                raise TimeoutError("KiCad CLI exceeded the native DRC timeout")
-            time.sleep(0.05)
-        code = os.waitstatus_to_exitcode(status)
-        if code not in (0, 5):
-            raise RuntimeError(f"Native KiCad CLI failed with exit code {code}")
-        output.seek(0)
-        return output.read().decode("utf-8", errors="replace")
-
-
-def _native_drc(board: Path, report: Path, cli: Path) -> Counter[str]:
-    report.unlink(missing_ok=True)  # Never accept a stale DRC report after a process failure.
-    _run_kicad_cli(
-        cli,
-        ["pcb", "drc", "--exit-code-violations", "--output", str(report), str(board)],
+def _evidence_paths(output: Path) -> tuple[Path, Path, Path, Path]:
+    return (
+        output.with_suffix(".candidate.kicad_pcb"),
+        output.with_suffix(".candidate-evidence.json"),
+        output.with_suffix(".baseline-drc.rpt"),
+        output.with_suffix(".review-drc.rpt"),
     )
-    if not report.is_file():
-        raise RuntimeError("Native KiCad did not create its DRC evidence report")
-    return _violations(report.read_text(encoding="utf-8"))
 
 
-def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _read_native_report(report: Path) -> Counter[str]:
+    if not report.is_file() or not report.stat().st_size:
+        raise RuntimeError(f"Missing or empty native KiCad DRC report: {report}")
+    text = report.read_text(encoding="utf-8")
+    findings = _violations(text)
+    if "DRC" not in text and not findings:
+        raise RuntimeError("Native KiCad DRC output is not parseable")
+    return findings
+
+
+def _require_paths(board: Path, output: Path) -> tuple[Path, Path]:
+    board = board.resolve(strict=True)
+    output = output.resolve()
+    if board.suffix != ".kicad_pcb" or output.suffix != ".kicad_pcb":
+        raise ValueError("Review requires KiCad PCB source and output paths")
+    if board == output or board.parent != output.parent:
+        raise ValueError("Review output must be a distinct PCB in the same portable library directory")
+    return board, output
+
+
+def _require_native_pcbnew() -> ModuleType:
     try:
-        import importlib
-
-        pcbnew = importlib.import_module("pcbnew")
+        return importlib.import_module("pcbnew")
     except ImportError as exc:
-        raise RuntimeError("Native KiCad pcbnew Python bindings are required") from exc
+        raise RuntimeError("Native system KiCad pcbnew bindings are required") from exc
 
-    cli = _trusted_kicad_cli()
-    version = _run_kicad_cli(cli, ["version"]).strip()
-    if not version.startswith("10."):
-        raise RuntimeError(f"Validated only on KiCad 10, not {version!r}")
-    board_path = board_path.resolve()
-    output_path = output_path.resolve()
-    if not board_path.exists() or output_path == board_path or output_path.parent != board_path.parent:
-        raise ValueError("Both PCB paths must be distinct files in one portable KiCad library directory")
 
-    before = _native_drc(board_path, output_path.with_suffix(".baseline-drc.rpt"), cli)
+def prepare_review(board_path: Path, output_path: Path) -> Path:
+    """Stage only a candidate; never publish an unverified review PCB."""
+    board_path, output_path = _require_paths(board_path, output_path)
+    before = _read_native_report(_evidence_paths(output_path)[2])
     if before != {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}:
-        raise RuntimeError(f"Board baseline changed: {dict(before)}. Revalidate physical routing first.")
+        raise RuntimeError(f"Board DRC baseline changed; no routing permitted: {dict(before)}")
 
+    pcbnew = _require_native_pcbnew()
     board = pcbnew.LoadBoard(str(board_path))
+    if len(board.GetTracks()) != 0:
+        raise RuntimeError("Source PCB already contains copper; routing contract must be reviewed again")
     fps = {f.GetReference(): f for f in board.GetFootprints()}
 
     def check_pad(ref: str, pad_number: str, expected: tuple[float, float], net: str) -> None:
         fp = fps.get(ref)
         if fp is None:
             raise ValueError(f"Missing footprint {ref}")
-        matches = [pad for pad in fp.Pads() if pad.GetNumber() == pad_number]
-        if not matches:
-            raise ValueError(f"Missing pad {ref}.{pad_number}")
-        for pad in matches:
+        for pad in fp.Pads():
+            if pad.GetNumber() != pad_number:
+                continue
             xy = (pcbnew.ToMM(pad.GetPosition().x), pcbnew.ToMM(pad.GetPosition().y))
             if abs(xy[0] - expected[0]) < 0.0005 and abs(xy[1] - expected[1]) < 0.0005:
                 if pad.GetNetname() != net or not pad.IsOnLayer(pcbnew.F_Cu):
-                    raise ValueError(f"Incorrect pad net/layer {ref}.{pad_number}")
+                    raise ValueError(f"Wrong net or layer on {ref}.{pad_number}")
                 return
-        raise ValueError(f"Moved or unmatched physical pad {ref}.{pad_number}")
+        raise ValueError(f"Moved or missing physical pad {ref}.{pad_number}")
 
     for route in ROUTES:
         check_pad(*route.source, route.net)
         check_pad(*route.target, route.net)
         if route.points[0] != route.source[2] or route.points[-1] != route.target[2]:
-            raise ValueError(f"Route endpoints are not the physical pad centers: {route.net}")
+            raise ValueError(f"Route endpoints differ from pad centers: {route.net}")
         net = board.FindNet(route.net)
         if net is None:
-            raise ValueError(f"Missing physical net {route.net}")
+            raise ValueError(f"Unknown net {route.net}")
         for start, end in zip(route.points, route.points[1:], strict=False):
             if start == end:
-                raise ValueError("Zero-length track")
+                raise ValueError("Zero-length physical trace")
             track = pcbnew.PCB_TRACK(board)
             track.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(start[0]), pcbnew.FromMM(start[1])))
             track.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(end[0]), pcbnew.FromMM(end[1])))
@@ -303,44 +240,66 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
             track.SetNet(net)
             board.Add(track)
 
-    with tempfile.NamedTemporaryFile(suffix=".kicad_pcb", dir=output_path.parent, delete=False) as temp:
-        candidate = Path(temp.name)
-    try:
-        pcbnew.SaveBoard(str(candidate), board)
-        after = _native_drc(candidate, output_path.with_suffix(".review-drc.rpt"), cli)
-        if (
-            after["drill_out_of_range"] != before["drill_out_of_range"]
-            or after["hole_clearance"] != before["hole_clearance"]
-            or after["unconnected_items"] != before["unconnected_items"] - len(ROUTES)
-            or set(after) - {"drill_out_of_range", "hole_clearance", "unconnected_items"}
-        ):
-            raise RuntimeError(f"Routing is NOT KiCad-DRC safe: before={dict(before)}, after={dict(after)}")
-        candidate.replace(output_path)
-    finally:
-        candidate.unlink(missing_ok=True)
-        candidate.with_suffix(".kicad_pro").unlink(missing_ok=True)
-        candidate.with_suffix(".kicad_prl").unlink(missing_ok=True)
+    candidate, manifest, _, _ = _evidence_paths(output_path)
+    candidate.unlink(missing_ok=True)
+    manifest.unlink(missing_ok=True)
+    pcbnew.SaveBoard(str(candidate), board)
+    metadata = {"sourceSha256": _file_sha256(board_path), "candidateSha256": _file_sha256(candidate)}
+    manifest.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    return candidate
 
-    evidence = {
-        "kiCadVersion": version,
+
+def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> dict[str, object]:
+    """Publish only after *external* native KiCad independently verified both boards."""
+    board_path, output_path = _require_paths(board_path, output_path)
+    if not kicad_version.startswith("10."):
+        raise RuntimeError(f"Only KiCad 10 is currently validated: {kicad_version}")
+    candidate, manifest, before_path, after_path = _evidence_paths(output_path)
+    if not candidate.is_file() or not manifest.is_file():
+        raise RuntimeError("Missing staged PCB or source/candidate integrity manifest")
+    hashes = json.loads(manifest.read_text(encoding="utf-8"))
+    if hashes != {"sourceSha256": _file_sha256(board_path), "candidateSha256": _file_sha256(candidate)}:
+        raise RuntimeError("Source or candidate PCB changed between routing and native KiCad DRC")
+    before = _read_native_report(before_path)
+    after = _read_native_report(after_path)
+    expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 18}
+    if before != expected_before or after != expected_after:
+        raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
+
+    pcbnew = _require_native_pcbnew()
+    routed = pcbnew.LoadBoard(str(candidate))
+    total_segments = sum(len(route.points) - 1 for route in ROUTES)
+    if len(routed.GetTracks()) != total_segments:
+        raise RuntimeError("KiCad track count differs from the verified physical connection contract")
+
+    candidate.replace(output_path)
+    manifest.unlink(missing_ok=True)
+    result: dict[str, object] = {
+        "kiCadVersion": kicad_version,
         "baseline": dict(before),
         "partialRouted": dict(after),
         "connectionsAdded": len(ROUTES),
-        "traceSegments": sum(len(route.points) - 1 for route in ROUTES),
+        "traceSegments": total_segments,
         "fabApproved": False,
         "physicalContinuityComplete": False,
         "warning": "18 real unconnected items and 16 manufacturability DRC violations remain",
     }
-    output_path.with_suffix(".review-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
-    return evidence
+    output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    return result
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("pcb", type=Path, help="Generated, untouched KiCad source PCB")
-    parser.add_argument("output", type=Path, help="Review-only PCB in same KiCad library directory")
+    parser.add_argument("phase", choices=("prepare", "finalize"))
+    parser.add_argument("pcb", type=Path, help="Generated, untouched source KiCad board")
+    parser.add_argument("output", type=Path, help="Review-only board in same directory")
+    parser.add_argument("--kicad-version", default="", help="Version verified by native DRC driver")
     args = parser.parse_args()
-    print(json.dumps(run_review(args.pcb, args.output), indent=2))
+    if args.phase == "prepare":
+        print(prepare_review(args.pcb, args.output))
+    else:
+        print(json.dumps(finalize_review(args.pcb, args.output, args.kicad_version), indent=2))
 
 
 if __name__ == "__main__":

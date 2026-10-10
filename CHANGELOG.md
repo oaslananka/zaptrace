@@ -4,6 +4,7 @@
 
 ### Added
 
+- Run opt-in physical PCB review through a fail-closed native KiCad 10 shell driver with separate pre-/post-route DRC and SHA-256-bound staged artifact, rather than dynamically spawning KiCad from Python. This prevents unaudited subprocess argument construction and leaves the default board exporter unchanged.
 - Add an opt-in, fail-closed KiCad 10 native *partial* physical PCB routing review for ESP32 Issue #91 with 41 F.Cu segments connecting nineteen real pad pairs. Native DRC validates before/after without creating new violations, reducing unconnected copper 37→18 while 16 real manufacturer DRC blockers remain. Document JLCPCB, PCBWay and GCT published hole/slot capability and clearances separately from any order/DFM qualification; no DRC bypass or fabrication claim.
 
 ### Fixed
