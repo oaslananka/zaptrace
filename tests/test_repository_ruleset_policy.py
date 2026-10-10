@@ -294,6 +294,9 @@ def test_mergify_low_risk_renovate_uses_one_queue_authority() -> None:
     )
     conditions = set(rule["conditions"])
     assert {"base = main", "author = renovate[bot]", "label = automerge:enabled"} <= conditions
+    # Mergify must not auto-queue an update while the Renovate age check is
+    # pending, even if all six mandatory software CI gates have passed.
+    assert "check-success = renovate/stability-days" in conditions
     assert {
         "-draft",
         "-conflict",
