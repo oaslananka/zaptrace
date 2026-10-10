@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Guard GridRouter A* diagonal steps against cutting through blocked orthogonal neighbor cells, with explicit impossible-corner and safe-detour regressions. This does not claim routed PCB continuity; ESP32 remains zero-route/fail-closed until placement, copper occupancy and native KiCad acceptance are corrected.
 - Prevent verified-footprint designs from silently exporting legacy Manhattan fallback copper when obstacle-aware routing fails. The ESP32 demo now reports four unrouted signal/power nets and emits no fabricated trace segments rather than 78 shorting/crossing segments (KiCad 10.0.6: 36 DRC errors, 27 unconnected and 24 ERC warnings; fail-closed, NOT fabrication-ready). Preserve the old routing fallback only for synthetic models without verified physical footprint assets.
 - Bind the actual AMS1117-3.3 SOT-223 regulator land pattern with byte-pinned KiCad 10.0.6 geometry and manufacturer pinout, including both physical pad-2 VOUT copper regions (tab and lead). ESP32 source pad coverage now 27/31; DRC/ERC, USB-C/TVS selection, LDO thermal/stability and fabrication acceptance remain blocked.
 - Bind verified KiCad 10.0.6 resistor, capacitor and test-point land patterns with exact pad maps and recorded SHA-256/provenance; ESP32 demo now resolves 24/31 physical net nodes while preserving fail-closed DRC/clearance and fabrication nonclaims.
