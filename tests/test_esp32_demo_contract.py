@@ -52,7 +52,7 @@ def test_example_proof_expectations_match_real_component_and_pin_identities() ->
         assert all("." in pin for pin in assertion["expected_pins"])
 
 
-def test_esp32_demo_does_not_claim_physical_pad_mapping_without_footprints(tmp_path: Path) -> None:
+def test_esp32_demo_reports_partial_pinned_physical_pad_coverage(tmp_path: Path) -> None:
     import json
 
     from zaptrace.export.kicad import export_kicad_netlist_evidence
@@ -62,11 +62,22 @@ def test_esp32_demo_does_not_claim_physical_pad_mapping_without_footprints(tmp_p
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
     assert evidence["node_count"] == 31
-    assert evidence["missing_pcb_pad_node_count"] == 31
+    assert evidence["missing_pcb_pad_node_count"] == 19
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
-    assert evidence["fidelity"]["pcb_pad_coverage"] == 0.0
-    assert not any(node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"])
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 12 / 31
+    assert all(
+        node["pcb_pad_present"]
+        for net in evidence["nets"]
+        for node in net["nodes"]
+        if node["component_ref"] in {"U1", "U2"}
+    )
+    assert all(
+        not node["pcb_pad_present"]
+        for net in evidence["nets"]
+        for node in net["nodes"]
+        if node["component_ref"] not in {"U1", "U2"}
+    )
 
 
 def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() -> None:
@@ -85,8 +96,8 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
         "min-clearance",
         "physical-pads-mapped",
     }
-    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 0.0
-    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 31
+    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 12 / 31
+    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 19
     assert by_name["drc-clean"].details["violations"]
     assert by_name["min-clearance"].details["violations"]
     assert not pack.passed

@@ -489,6 +489,19 @@
           "title": "Footprint",
           "type": "string"
         },
+        "footprint_asset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowlisted SHA-256-pinned vendored KiCad pad geometry identifier",
+          "title": "Footprint Asset"
+        },
         "pins": {
           "additionalProperties": {
             "$ref": "#/$defs/Pin"

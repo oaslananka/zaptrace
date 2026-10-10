@@ -15,8 +15,9 @@ components:
     ref: "U1"
     type: "ESP32-WROOM-32"
     footprint: "ESP32-WROOM-32"
+    footprint_asset: "esp32-wroom-32"
     # Official Espressif ESP32-WROOM-32 physical module pad numbers.
-    # The real footprint geometry still needs to be bound before release.
+    # The pinned module pad geometry is loaded; full board review is still required.
     package_pin_map:
       "1": "GND"
       "2": "VCC"
@@ -37,6 +38,7 @@ components:
     ref: "U2"
     type: "BME280"
     footprint: "LGA-8"
+    footprint_asset: "bme280-lga8"
     # Bosch BME280 datasheet Table 35; GPIO 'SDA' uses physical SDI pad 3.
     package_pin_map:
       "1": "GND"

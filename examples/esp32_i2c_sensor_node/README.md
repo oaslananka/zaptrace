@@ -46,9 +46,9 @@ checks report five passes (ERC, routing-completeness, named footprint presence,
   plus right-angle routing warnings on `I2C_SDA`.
 - `min-clearance`: additional intersections violating the configured
   0.15 mm copper clearance.
-- Physical pad mapping: all 31 logical source net nodes lack resolved
-  physical footprint pad geometry (0/31). Source schematic pins are not
-  verified PCB pad connectivity.
+- Physical pad mapping: 12 of 31 logical net nodes now have real pad
+  definitions from digest-pinned ESP32/BME280 vendor assets; the other 19
+  remain unbound. Resolved pad identity is **not** proof of route continuity.
 
 Those are **design/routing and physical mapping defects**, not configuration issues to silence
 or an invitation to reduce clearance thresholds. The template is a useful
@@ -87,21 +87,23 @@ to their **logical** pin names, based on their respective official datasheets:
 [Espressif ESP32-WROOM-32](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
 and [Bosch BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
 BME280 VDDIO (physical pad 6) is now explicitly on the 3.3 V supply,
-rather than silently absent from the source schematic. This represents
-*logical mapping intent only*: manufacturer pad geometry, net continuity,
-complete USB-C CC handling, routing and vendor qualification still need
-professional review and KiCad evidence.
+rather than silently absent from the source schematic. Real pad geometry is loaded only for the two digest-pinned vendored footprints;
+this is **not** a complete board: physical pad mapping for 19 nodes, routed
+copper continuity, USB-C CC handling and vendor qualification still require
+professional review and independent KiCad evidence.
 
 The `power-nets-connected` and `gnd-connected` checks use the actual
 `VCC_3V3`/`GND` net names and component-qualified pin identities such as
 `U1.VCC` and `U2.GND`; unlike obsolete unqualified pin expectations,
 they cannot pass merely because a different component has a same-named pin.
 
-**Critical missing physical footprint evidence:** the source demo's 31
-logical net nodes have **0 resolved physical pad geometries** in its
-current KiCad netlist evidence. The source schematic connectivity covers 31/31
-logical nodes, but PCB pad mapping covers **0/31**. That is a genuine unresolved
-footprint/package mapping deficiency, not a KiCad DRC pass. `pipeline`
+**Critical incomplete physical footprint evidence:** the source demo has 31
+logical net nodes; U1 ESP32-WROOM-32 and U2 BME280 now supply **12 resolved
+physical-pad mappings**, with **19 still missing**. The source schematic covers
+31/31 nodes, but physical pad mapping covers **12/31**. This is only pad
+identity evidence, not a full manufacturing/ERC/DRC pass. Binding the two
+vendored footprints exposes new copper-level clearance, pad-mask and routing
+problems which were invisible while the exported footprints had no pads. `pipeline`
 producing a `.kicad_pcb` file does **not** make its footprints real or
 its routed copper electrically connected. See
 [issue #91](https://github.com/oaslananka/zaptrace/issues/91).

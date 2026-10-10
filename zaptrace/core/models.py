@@ -165,6 +165,9 @@ class Component(BaseModel):
     type: str = Field(description="Component type (e.g. 'resistor', 'capacitor', 'ic')")
     value: str | None = Field(default=None, description="Component value (e.g. '10k', '100nF')")
     footprint: str = Field(default="", description="Footprint name (e.g. '0805', 'SOIC-8')")
+    footprint_asset: str | None = Field(
+        default=None, description="Allowlisted SHA-256-pinned vendored KiCad pad geometry identifier"
+    )
     pins: dict[str, Pin] = Field(default_factory=dict, description="Pin dictionary, keyed by pin name")
     package_pin_map: dict[str, str] = Field(
         default_factory=dict, description="Physical package pad/pin ID to logical component pin name"
