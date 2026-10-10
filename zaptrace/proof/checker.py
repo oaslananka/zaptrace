@@ -229,8 +229,14 @@ class ProofRunner:
                 message=f"Net '{net_name}' not found",
             )
 
-        connected = [node.pin_name for node in net.nodes]
-        missing = [p for p in expected_pins if p not in connected]
+        # Preserve legacy bare pin-name expectations, but also validate
+        # component-qualified pins (U1.VCC) so a matching pin on a different
+        # component cannot accidentally satisfy an engineering assertion.
+        connected = {node.pin_name for node in net.nodes}
+        connected.update(
+            f"{node.component_ref}.{node.pin_name}" for node in net.nodes if getattr(node, "component_ref", None)
+        )
+        missing = [pin for pin in expected_pins if pin not in connected]
         passed = len(missing) == 0
         if missing:
             msg = f"Net '{net_name}': {len(missing)} missing connections"

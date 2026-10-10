@@ -292,6 +292,8 @@ class TestNewV1Commands:
         assert (target / "zaptrace.yaml").exists()
         assert (target / ".gitignore").exists()
         assert "initialized successfully" in result.output
+        assert "zaptrace parse " in result.output
+        assert "zaptrace check " not in result.output
 
     def test_supply_check_and_cache(self) -> None:
         result = _runner().invoke(cli, ["supply", "cache"])

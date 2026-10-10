@@ -445,6 +445,39 @@ class TestProofRunner:
         results = runner.run_checks([check])
         assert results[0].status == CheckStatus.PASS
 
+    def test_net_connected_qualified_pin_disambiguates_component_reference(self) -> None:
+        from zaptrace.core.models import Net, NetNode
+
+        class NamedNetDesign:
+            components: dict = {}
+            routing = None
+            nets = {
+                "power": Net(
+                    id="power",
+                    name="VCC_3V3",
+                    nodes=[
+                        NetNode(component_ref="U1", pin_name="VCC"),
+                        NetNode(component_ref="R2", pin_name="P1"),
+                    ],
+                )
+            }
+
+        runner = ProofRunner(NamedNetDesign())
+        passes = CheckDefinition(
+            name="qualified",
+            type="net_connected",
+            params={"net_name": "VCC_3V3", "expected_pins": ["U1.VCC", "R2.P1"]},
+        )
+        fails = CheckDefinition(
+            name="wrong-component",
+            type="net_connected",
+            params={"net_name": "VCC_3V3", "expected_pins": ["R1.P1"]},
+        )
+        results = runner.run_checks([passes, fails])
+        assert results[0].status == CheckStatus.PASS
+        assert results[1].status == CheckStatus.FAIL
+        assert results[1].details["missing_pins"] == ["R1.P1"]
+
     def test_net_connected_fail(self) -> None:
         design = FakeDesign(nets=[FakeNet("n1", "VCC", nodes=[FakePinNode("R1.p1")])])
         runner = ProofRunner(design)

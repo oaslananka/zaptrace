@@ -1,35 +1,96 @@
-# ESP32 I2C Sensor Node
+# ESP32 I²C Sensor Node — generated design and real validation failures
 
-A compact ESP32-based sensor node with BME280 temperature/humidity/pressure sensor
-on I2C bus, powered by USB-C.
+This example is the existing ESP32-WROOM-32 + BME280 sensor-node source design.
+It is a **working generation-and-inspection demo**, **not a passed release
+candidate**. ZapTrace can generate placement, routing, KiCad project files,
+reviewable SVG/HTML, Gerber layers, and a manufacturing bundle. **Generating
+files is not evidence that the board is safe to build.**
 
-## Specifications
+## Run from the repository root
 
-- **MCU:** ESP32-WROOM-32
-- **Sensor:** BME280 (I2C address 0x76)
-- **Power:** USB-C (5V → 3.3V LDO)
-- **Dimensions:** 40×30mm, 2-layer
-- **Features:** I2C pull-ups, EN pull-up, boot button, status LED
-
-## Design
+After installing the project's locked Python environment (see the repository
+Quickstart), run:
 
 ```bash
-# Create from template
-zaptrace new esp32-i2c-sensor
-
-# Run autopilot
-zaptrace autopilot --design design.yaml
-
-# Export for manufacturing
-zaptrace export gerber --output gerber/
-zaptrace export bom --output bom.csv
+uv run --no-sync zaptrace parse examples/esp32_i2c_sensor_node/design.yaml
+uv run --no-sync zaptrace pipeline \
+  --source examples/esp32_i2c_sensor_node/design.yaml \
+  --output build/esp32-demo
+uv run --no-sync zaptrace view \
+  examples/esp32_i2c_sensor_node/design.yaml \
+  --proof examples/esp32_i2c_sensor_node/.proof/proof.yaml \
+  --output build/esp32-review
 ```
 
-## Files
+Open `build/esp32-review/index.html` to inspect the generated design.
+The interactive viewer displays the **declared Proof Pack policy**;
+providing `--proof` does **not run** that policy. Execute the separate
+`proof run` command below for authoritative pass/fail results.
+The pipeline generates a KiCad schematic and PCB under `build/esp32-demo/kicad/`.
+The CLI pipeline returning success means the generation stages ran; it is
+**not** a manufacturing sign-off. The program does not submit boards to a
+fabricator or certify their safety.
 
-| File | Description |
-|------|-------------|
-| `design.yaml` | Complete PCB design |
-| `schematic.pdf` | Rendered schematic |
-| `gerber/` | Manufacturing outputs |
-| `bom.csv` | Bill of materials |
+## Run the strict Proof Pack — expected to block
+
+```bash
+uv run --no-sync zaptrace proof run \
+  examples/esp32_i2c_sensor_node/.proof --verbose
+```
+
+**The nonzero exit code is intentional for the present design.** The seven
+checks report five passes (ERC, routing-completeness, footprint presence,
+3.3 V connections, and ground connections) and two blockers:
+
+- `drc-clean`: copper clearance error between `VCC_3V3` and `I2C_SCL`
+  plus right-angle routing warnings on `I2C_SDA`.
+- `min-clearance`: additional intersections violating the configured
+  0.15 mm copper clearance.
+
+Those are **design/routing defects**, not configuration issues to silence
+or an invitation to reduce clearance thresholds. The template is a useful
+demonstration of ZapTrace **catching** unsuitable generated geometry.
+Its Proof Pack must remain **blocked** until the generated copper geometry
+is genuinely corrected and rechecked by the KiCad oracle and a qualified
+hardware engineer. Do not fabricate from this example.
+The tracked engineering follow-up is
+[issue #91](https://github.com/oaslananka/zaptrace/issues/91).
+
+### Independent KiCad checks (when KiCad 10 is installed)
+
+```bash
+kicad-cli pcb drc --exit-code-violations \
+  --output build/esp32-demo/kicad/board-drc.rpt \
+  build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_pcb
+
+kicad-cli sch erc --exit-code-violations \
+  --output build/esp32-demo/kicad/schematic-erc.rpt \
+  build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
+```
+
+Both commands currently **exit nonzero** because the generated KiCad
+project has additional errors. Independently tested with KiCad 10.0.6:
+**22 PCB DRC violations, 3 unconnected items, and 24 schematic ERC
+violations**. These results may change with KiCad version, configuration,
+or routing changes. They are *not* the same rule set as the in-process
+ZapTrace ERC/DRC checks. A clean ZapTrace source ERC result must never
+be substituted for KiCad CLI acceptance.
+
+## What's verified and what isn't
+
+The `power-nets-connected` and `gnd-connected` checks use the actual
+`VCC_3V3`/`GND` net names and component-qualified pin identities such as
+`U1.VCC` and `U2.GND`; unlike obsolete unqualified pin expectations,
+they cannot pass merely because a different component has a same-named pin.
+
+Passing source ERC or an automatically generated manufacturing ZIP is **not**
+equivalent to KiCad ERC/DRC acceptance, datasheet-verified footprints,
+electrical simulation, physical testing, or manufacturer approval.
+
+## Source files
+
+- `design.yaml` — canonical input design
+- `.proof/proof.yaml` — strict validation policy and evidence contract
+
+The repository's separate `scripts/ci_examples.py` checks generation/export
+ability; it does not certify this example's strict Proof Pack.

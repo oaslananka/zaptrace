@@ -1,0 +1,47 @@
+"""Regression guard: the public ESP32 demo must not pretend unsafe routing is approved."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import yaml
+
+from zaptrace.core.parser import parse_file
+from zaptrace.proof.pack import run_proof
+
+ROOT = Path(__file__).resolve().parents[1]
+EXAMPLE = ROOT / "examples" / "esp32_i2c_sensor_node"
+
+
+def test_example_proof_expectations_match_real_component_and_pin_identities() -> None:
+    design = parse_file(EXAMPLE / "design.yaml")
+    policy = yaml.safe_load((EXAMPLE / ".proof" / "proof.yaml").read_text(encoding="utf-8"))
+    checks = {check["name"]: check for check in policy["checks"]}
+
+    for name in ("power-nets-connected", "gnd-connected"):
+        assertion = checks[name]["params"]
+        matching_net = next(net for net in design.nets.values() if net.name == assertion["net_name"])
+        connected = {f"{node.component_ref}.{node.pin_name}" for node in matching_net.nodes}
+        assert set(assertion["expected_pins"]) <= connected
+        assert all("." in pin for pin in assertion["expected_pins"])
+
+
+def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() -> None:
+    pack = run_proof(EXAMPLE / ".proof")
+    by_name = {result.check.name: result for result in pack.results}
+    assert len(by_name) == 7
+    assert {name for name, result in by_name.items() if result.passed} == {
+        "erc-clean",
+        "all-nets-routed",
+        "footprints-complete",
+        "power-nets-connected",
+        "gnd-connected",
+    }
+    assert {name for name, result in by_name.items() if not result.passed} == {
+        "drc-clean",
+        "min-clearance",
+    }
+    assert by_name["drc-clean"].details["violations"]
+    assert by_name["min-clearance"].details["violations"]
+    assert not pack.passed
+    assert pack.autonomous_signoff.status.value == "blocked-insufficient-evidence"
