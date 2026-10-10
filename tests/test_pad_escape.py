@@ -156,6 +156,66 @@ class TestComputeEscapePointHappy:
         ep = compute_escape_point(comp, "1", (10.0, 10.0))
         assert ep.escape_point == pytest.approx((10.5, 10.0))
 
+    def test_logical_pin_uses_explicit_package_pad_mapping(self) -> None:
+        comp = _make_comp(
+            ref="U1",
+            pads=[
+                _smd_pad("2", x=-1.0, y=0.0),
+                _smd_pad("33", x=1.0, y=0.5),
+                _smd_pad("36", x=1.0, y=-0.5),
+            ],
+        )
+        comp.package_pin_map = {"2": "VCC", "33": "GPIO21", "36": "GPIO22"}
+
+        gpio21 = compute_escape_point(comp, "GPIO21", (10.0, 10.0))
+        gpio22 = compute_escape_point(comp, "GPIO22", (10.0, 10.0))
+        assert not gpio21.is_fallback
+        assert gpio21.pad_id == "33"
+        assert gpio21.pad_center == pytest.approx((11.0, 10.5))
+        assert gpio22.pad_id == "36"
+        assert gpio22.pad_center == pytest.approx((11.0, 9.5))
+
+    def test_vendored_esp32_footprint_escapes_use_real_gpio_package_pads(self) -> None:
+        from pathlib import Path
+
+        from zaptrace.kicad.importer import load_kicad_footprint
+
+        path = Path(__file__).resolve().parents[1] / "data" / "footprints" / "vendor" / "ESP32-WROOM-32.kicad_mod"
+        footprint = load_kicad_footprint(path)
+        assert footprint is not None
+        comp = _make_comp(ref="U1", footprint_def=footprint)
+        # ESP32-WROOM-32 (not 32E) datasheet: IO21=33, IO22=36.
+        comp.package_pin_map = {"2": "VCC", "33": "GPIO21", "36": "GPIO22"}
+        gpio21 = compute_escape_point(comp, "GPIO21", (25.0, 20.0))
+        gpio22 = compute_escape_point(comp, "GPIO22", (25.0, 20.0))
+        assert not gpio21.is_fallback
+        assert not gpio22.is_fallback
+        assert gpio21.pad_id == "33"
+        assert gpio22.pad_id == "36"
+        assert gpio21.pad_center != gpio22.pad_center
+        assert gpio21.escape_point != gpio22.escape_point
+
+    def test_partial_package_mapping_must_not_fallback_to_same_named_pad_id(self) -> None:
+        comp = _make_comp(ref="U1", pads=[_smd_pad("1"), _smd_pad("2")])
+        comp.package_pin_map = {"1": "GND"}
+
+        missing = compute_escape_point(comp, "2", (10.0, 20.0))
+        assert missing.is_fallback
+        assert missing.pad_id == "?"
+        assert "no mapped physical pad" in missing.fallback_reason
+
+    def test_multiple_physical_pads_for_logical_ground_use_deterministic_first_pad(self) -> None:
+        comp = _make_comp(
+            ref="U1",
+            pads=[_smd_pad("38", x=-2.0), _smd_pad("1", x=2.0)],
+        )
+        comp.package_pin_map = {"1": "GND", "38": "GND"}
+
+        ground = compute_escape_point(comp, "GND", (10.0, 10.0))
+        assert not ground.is_fallback
+        assert ground.pad_id == "38"
+        assert ground.pad_center == pytest.approx((8.0, 10.0))
+
     def test_numeric_pin_name_matched(self) -> None:
         # Pin name "1" should match pad id "1"
         comp = _make_comp(ref="R1", pads=[_smd_pad("1", x=0.5, y=0.0)])

@@ -126,9 +126,18 @@ def compute_escape_point(
     if fp is None:
         return fallback
 
-    pad = _find_pad(fp, pin_name)
+    if comp.package_pin_map:
+        # Physical package pad numbers and logical source pin names are not
+        # interchangeable (e.g. ESP32 IO21 is pad 33). Resolve through the
+        # reviewed explicit package map, just as KiCad pad-net export does.
+        # A partially mapped package must NOT fall back to an unrelated pad
+        # that happens to have the same literal ID as a logical pin name.
+        physical_ids = {pad_id for pad_id, logical_name in comp.package_pin_map.items() if logical_name == pin_name}
+        pad = next((candidate for candidate in fp.pads if str(candidate.id) in physical_ids), None)
+    else:
+        pad = _find_pad(fp, pin_name)
     if pad is None:
-        fallback.fallback_reason = f"pin '{pin_name}' not found in footprint pads"
+        fallback.fallback_reason = f"pin '{pin_name}' has no mapped physical pad in footprint"
         return fallback
 
     pad_type = classify_pad(pad)
