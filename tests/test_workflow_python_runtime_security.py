@@ -56,4 +56,6 @@ def test_proof_and_kicad_jobs_use_only_the_pre_synced_environment() -> None:
     assert "uv run" not in proof
     assert "uv run" not in oracle
     assert '.venv/bin/python -c "' in proof
-    assert ".venv/bin/python scripts/ci_kicad_oracle.py --strict-skips" in oracle
+    action = Path(".github/actions/kicad-oracle/action.yml").read_text(encoding="utf-8")
+    assert "uses: ./.github/actions/kicad-oracle" in oracle
+    assert ".venv/bin/python scripts/ci_kicad_oracle.py --strict-skips" in action

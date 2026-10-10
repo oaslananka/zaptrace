@@ -410,20 +410,13 @@ jobs:
           uv-version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install KiCad 10 CLI
+      - name: Run shared KiCad oracle checks
         if: needs.changes.outputs.heavy_ci == 'true'
-        run: |
-          bash scripts/ci_install_kicad.sh kicad
-
-      - name: Run KiCad oracle
-        if: needs.changes.outputs.heavy_ci == 'true'
-        run: .venv/bin/python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json
-
-      - name: Run atomic KiCad 10 jobset oracle
-        if: needs.changes.outputs.heavy_ci == 'true'
+        uses: ./.github/actions/kicad-oracle
+        with:
+          run-jobset: "true"
         env:
           ZAPTRACE_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: .venv/bin/python scripts/ci_kicad_jobset_oracle.py --output kicad-jobset-oracle-summary.json
 
       - name: Run KiCad benchmark corpus gate
         if: needs.changes.outputs.heavy_ci == 'true'

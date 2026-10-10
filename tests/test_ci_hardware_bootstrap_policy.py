@@ -47,24 +47,52 @@ def test_hardware_oracle_jobs_reuse_pinned_locked_python(workflow_name: str, exp
 
 
 @pytest.mark.parametrize(
-    ("workflow_name", "job_id", "run_step"),
-    [("hardware.yml", "kicad", "Run KiCad oracle"), ("kicad-oracle.yml", "oracle", "Run focused oracle checks")],
+    ("workflow_name", "job_id", "run_jobset"),
+    [("hardware.yml", "kicad", False), ("kicad-oracle.yml", "oracle", True)],
 )
-def test_kicad_oracle_retains_cli_install_and_evidence_upload(workflow_name: str, job_id: str, run_step: str) -> None:
+def test_kicad_oracle_retains_shared_runner_and_evidence_upload(
+    workflow_name: str, job_id: str, run_jobset: bool
+) -> None:
     workflow = yaml.safe_load((WORKFLOWS / workflow_name).read_text(encoding="utf-8"))
     steps = workflow["jobs"][job_id]["steps"]
     names = [step.get("name", "") for step in steps]
-    assert names.index("Set up locked Python validation environment") < names.index("Install KiCad 10 CLI")
-    assert names.index("Install KiCad 10 CLI") < names.index(run_step)
-    assert names.index("Install KiCad 10 CLI") < names.index("Record KiCad availability") < names.index(run_step)
-    check = next(step for step in steps if step.get("name") == "Record KiCad availability")
-    assert check["run"] == (".venv/bin/python scripts/ci_kicad_oracle.py --check --output kicad-oracle-check.json")
+    assert names.index("Set up locked Python validation environment") < names.index("Run shared KiCad oracle checks")
+    runner = next(step for step in steps if step.get("name") == "Run shared KiCad oracle checks")
+    assert runner["uses"] == "./.github/actions/kicad-oracle"
+    assert runner["with"]["record-availability"] == "true"
+    assert (runner["with"].get("run-jobset") == "true") is run_jobset
 
     upload = next(step for step in steps if step.get("name") == "Upload KiCad oracle evidence")
     assert "kicad-oracle-check.json" in upload["with"]["path"]
     assert "kicad-oracle-summary.json" in upload["with"]["path"]
     assert upload["with"]["name"] == "kicad-oracle-evidence"
     assert upload["uses"].startswith("actions/upload-artifact@")
+
+
+def test_shared_kicad_oracle_action_is_strict_and_optional_steps_are_explicit() -> None:
+    action = yaml.safe_load((ROOT / ".github/actions/kicad-oracle/action.yml").read_text(encoding="utf-8"))
+    assert action["runs"]["using"] == "composite"
+    assert action["inputs"]["record-availability"]["default"] == "false"
+    assert action["inputs"]["run-jobset"]["default"] == "false"
+    steps = action["runs"]["steps"]
+    assert [step["name"] for step in steps] == [
+        "Install KiCad 10 CLI",
+        "Record KiCad availability",
+        "Run strict KiCad oracle",
+        "Run atomic KiCad 10 jobset oracle",
+    ]
+    assert steps[0]["run"] == "bash scripts/ci_install_kicad.sh kicad"
+    assert steps[1]["if"] == "inputs.record-availability == 'true'"
+    assert steps[1]["run"] == (".venv/bin/python scripts/ci_kicad_oracle.py --check --output kicad-oracle-check.json")
+    assert steps[2]["run"] == (
+        ".venv/bin/python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json"
+    )
+    assert steps[3]["if"] == "inputs.run-jobset == 'true'"
+    assert steps[3]["run"] == (
+        ".venv/bin/python scripts/ci_kicad_jobset_oracle.py --output kicad-jobset-oracle-summary.json"
+    )
+    assert all(step["shell"] == "bash" for step in steps)
+    assert all("uv run" not in step["run"] for step in steps)
 
 
 def test_hardware_scorecard_and_example_evidence_unchanged() -> None:
@@ -77,3 +105,31 @@ def test_hardware_scorecard_and_example_evidence_unchanged() -> None:
         step.get("name") == "Validate all examples through full pipeline"
         for step in workflow["jobs"]["examples"]["steps"]
     )
+
+
+def test_quality_oracle_reuses_shared_action_without_weakening_release_gate() -> None:
+    quality = yaml.safe_load((WORKFLOWS / "quality.yml").read_text(encoding="utf-8"))
+    job = quality["jobs"]["kicad-oracle"]
+    assert job["name"] == "KiCad Oracle"
+    assert job["needs"] == "changes"
+    steps = job["steps"]
+    shared = next(step for step in steps if step.get("name") == "Run shared KiCad oracle checks")
+    assert shared["if"] == "needs.changes.outputs.heavy_ci == 'true'"
+    assert shared["uses"] == "./.github/actions/kicad-oracle"
+    assert shared["with"] == {"run-jobset": "true"}
+    assert shared["env"]["ZAPTRACE_SOURCE_COMMIT"] == "${{ github.event.pull_request.head.sha || github.sha }}"
+
+    oracle_upload = next(step for step in steps if step.get("name") == "Upload KiCad oracle summary")
+    assert oracle_upload["if"] == "needs.changes.outputs.heavy_ci == 'true'"
+    assert oracle_upload["with"]["name"] == "kicad-oracle-summary"
+    assert oracle_upload["with"]["if-no-files-found"] == "error"
+    for path in ("kicad-oracle-summary.json", "kicad-jobset-oracle-summary.json", "kicad-benchmark-corpus.json"):
+        assert path in oracle_upload["with"]["path"]
+    physical = next(step for step in steps if step.get("name") == "Upload physical candidate readiness")
+    assert physical["with"]["name"] == "physical-candidate-readiness"
+    assert physical["with"]["retention-days"] == 30
+
+    summary = quality["jobs"]["release-gate-summary"]
+    assert "kicad-oracle" in summary["needs"]
+    assert '--required-oracle "kicad-oracle"' in summary["steps"][-2]["run"]
+    assert '--gate "kicad-oracle=${{ needs.kicad-oracle.result }}"' in summary["steps"][-2]["run"]

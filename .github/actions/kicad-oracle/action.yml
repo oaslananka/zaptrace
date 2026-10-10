@@ -1,0 +1,33 @@
+name: KiCad oracle checks
+description: Run the same pinned KiCad CLI installation and strict oracle across Quality and Hardware jobs
+
+inputs:
+  record-availability:
+    description: Write the additional standalone/hardware availability check evidence
+    required: false
+    default: "false"
+  run-jobset:
+    description: Run the atomic KiCad 10 jobset oracle as well as focused oracle checks
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install KiCad 10 CLI
+      shell: bash
+      run: bash scripts/ci_install_kicad.sh kicad
+
+    - name: Record KiCad availability
+      if: inputs.record-availability == 'true'
+      shell: bash
+      run: .venv/bin/python scripts/ci_kicad_oracle.py --check --output kicad-oracle-check.json
+
+    - name: Run strict KiCad oracle
+      shell: bash
+      run: .venv/bin/python scripts/ci_kicad_oracle.py --strict-skips --output kicad-oracle-summary.json
+
+    - name: Run atomic KiCad 10 jobset oracle
+      if: inputs.run-jobset == 'true'
+      shell: bash
+      run: .venv/bin/python scripts/ci_kicad_jobset_oracle.py --output kicad-jobset-oracle-summary.json

@@ -173,8 +173,11 @@ def test_source_commit_prefers_explicit_pr_head(monkeypatch: pytest.MonkeyPatch)
 
 def test_required_quality_gate_runs_jobset_oracle_and_uploads_evidence() -> None:
     workflow = (oracle.ROOT / ".github/workflows/quality.yml").read_text(encoding="utf-8")
-    assert "Run atomic KiCad 10 jobset oracle" in workflow
-    assert "scripts/ci_kicad_jobset_oracle.py --output kicad-jobset-oracle-summary.json" in workflow
+    action = (oracle.ROOT / ".github/actions/kicad-oracle/action.yml").read_text(encoding="utf-8")
+    assert "Run shared KiCad oracle checks" in workflow
+    assert 'run-jobset: "true"' in workflow
+    assert "Run atomic KiCad 10 jobset oracle" in action
+    assert "scripts/ci_kicad_jobset_oracle.py --output kicad-jobset-oracle-summary.json" in action
     assert "kicad-jobset-oracle-summary.json" in workflow
     assert '--required-oracle "kicad-oracle"' in workflow
 
