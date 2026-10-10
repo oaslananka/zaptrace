@@ -3,9 +3,11 @@ from __future__ import annotations
 import os
 import stat
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
+from packaging.version import Version
 
 from scripts import ci_validation_environment
 from tests.validation_environment_test_support import install_fake_validation_toolchain
@@ -55,7 +57,13 @@ def test_report_identifies_authoritative_release_role_and_dependency_identity() 
     assert report["authoritative_release_path"] == ".github/workflows/release.yml"
     assert report["scoped_validator_role"] == "diagnostic-only"
     assert len(report["lock_sha256"]) == 64
-    assert report["locked_dependencies"] == {"fastmcp": "4.0.2", "mcp": "2.1.1"}
+    with (Path(__file__).resolve().parents[1] / "uv.lock").open("rb") as lock_file:
+        lock = tomllib.load(lock_file)
+    expected = {record["name"]: record["version"] for record in lock["package"] if record["name"] in {"fastmcp", "mcp"}}
+    assert set(expected) == {"fastmcp", "mcp"}
+    assert Version(expected["fastmcp"]) >= Version("4.0.2")
+    assert Version(expected["mcp"]) >= Version("2.1.1")
+    assert report["locked_dependencies"] == expected
     assert len(report["policy_sha256"]) == 64
     assert report["evidence_identity"]["lock_sha256"] == report["lock_sha256"]
     assert "scripts/ci_validation_environment.py" in report["evidence_identity"]["source_inputs"]

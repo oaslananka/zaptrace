@@ -7,6 +7,8 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,8 +58,20 @@ def test_optional_mcp_dependencies_have_explicit_major_bounds() -> None:
     data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     optional = data["project"]["optional-dependencies"]
 
-    assert set(optional["mcp"]) == {"fastmcp>=4.0.2,<5", "mcp>=2,<3"}
-    assert {"fastmcp>=4.0.2,<5", "mcp>=2,<3"} <= set(optional["all"])
+    mcp_dependencies = {requirement.name: requirement for requirement in map(Requirement, optional["mcp"])}
+    assert set(mcp_dependencies) == {"fastmcp", "mcp"}
+    assert set(optional["mcp"]) <= set(optional["all"])
+
+    # Changes to the approved minimum are allowed within the supported major
+    # bands; silently widening a major boundary or lowering the security floor
+    # is not. This contract applies to every Renovate-generated update.
+    for name, min_version, max_major in (
+        ("fastmcp", Version("4.0.2"), "5"),
+        ("mcp", Version("2.0.0"), "3"),
+    ):
+        specifiers = list(mcp_dependencies[name].specifier)
+        assert any(specifier.operator == ">=" and Version(specifier.version) >= min_version for specifier in specifiers)
+        assert any(specifier.operator == "<" and specifier.version == max_major for specifier in specifiers)
 
 
 def test_every_python_workflow_checks_and_uses_committed_lock() -> None:
