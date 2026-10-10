@@ -106,21 +106,26 @@ kicad-cli sch erc --exit-code-violations \
   build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
 ```
 
-Independent KiCad **10.0.6** on the preceding PR head (2026-10-10) found
-**82 PCB DRC violations, 37 unconnected items, and ZERO schematic ERC
-violations**. In an isolated native layout experiment, enlarging the board
-to 100 × 75 mm and separating every courtyard reduced the *unrouted*
-board to **36 PCB DRC violations, still 37 unconnected items** (without
-fixing footprint or manufacturing limits). The final exact-branch oracle
-must be run again after these new layout and fail-closed checks land. The prior main baseline before J1 physical binding
+Independent KiCad **10.0.6** on exact PR head `b1eb3c4` (2026-10-10)
+finds **30 PCB DRC violations, 37 unconnected items, and ZERO schematic ERC
+violations**. The previously overlapping 50 × 40 mm placement with the same
+physical J1 footprint had **82** PCB DRC violations and 37 unconnected
+items. The provisional 100 × 75 mm placement removes physical shorts,
+copper clearance and solder-mask bridge violations. Relocating the ESP32
+silkscreen reference outside its verified pad envelope eliminates six
+silk-over-copper violations. The surviving native findings are **14
+`lib_footprint_mismatch` warnings** (generated PCB footprint graphics differ
+from the byte-pinned library artwork), **12 `drill_out_of_range` errors**
+(real ESP32 0.20 mm holes versus configured 0.30 mm minimum), and **four
+`hole_clearance` errors** (GCT J1 locating pegs versus outer GND
+contacts, measured 0.1944 mm versus 0.25 mm board rule). All 37 real
+unconnected copper items remain, no traces/vias/zones are falsely emitted,
+and **PCB DRC still exits nonzero**. The prior main baseline before J1 physical binding
 had 78 DRC findings, 31 unconnected items, and one J1 footprint-link ERC
 warning. J1 now references the byte-pinned USB4105 footprint; ERC is clean
 because this *metadata link* is resolved, **not** because physical copper is
-routed or fabrication accepted. DRC details include 20 clearance, 15 solder-mask
-bridge, 14 verified-library footprint graphic mismatch, 12 real 0.20 mm ESP32
-drills below the configured 0.30 mm board minimum, 13 silk-over-copper,
-6 hole-clearance, and 2 physical shorting findings. The ESP32 pad/drill source
-is not falsified, and the board manufacturing rule is not reduced to hide
+routed or fabrication accepted. The ESP32 pad/drill source is not
+falsified, and the board manufacturing rule is not reduced to hide
 these authentic failures. Additional historical ERC warnings arose from
 missing project-local KiCad symbol/footprint library links; they are now
 resolved by generated local libraries, **not** by suppressing KiCad checks.
