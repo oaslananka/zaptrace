@@ -10,6 +10,7 @@ footprint and keeps the unmodified source as the audit authority.
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 
 from zaptrace.core.models import Component
@@ -63,6 +64,55 @@ def _form(node: SexpNode, kind: str) -> bool:
     return isinstance(node, list) and len(node) > 0 and node[0] == kind
 
 
+def _board_zone_coordinates(zone: list[SexpNode], at: tuple[float, float], copper_layers: list[str]) -> None:
+    """Convert vendor-local footprint rule-area points to board coordinates.
+
+    KiCad stores a footprint's antenna/keepout zone points in *board* space,
+    unlike its local pad and artwork coordinates. The layer set is constrained
+    to real layers of the board, just as KiCad native footprint placement does.
+    """
+    if not copper_layers:
+        raise ValueError("No installed copper layers for verified footprint rule area")
+
+    seen_polygon = False
+    seen_layers = False
+    updated: list[SexpNode] = [zone[0]]
+    for item in zone[1:]:
+        if not isinstance(item, list) or not item:
+            raise ValueError("Invalid supplier footprint zone")
+        kind = item[0]
+        if kind in {"net", "net_name", "filled_areas_thickness"}:
+            continue
+        if kind == "layers":
+            active = [layer for layer in item[1:] if isinstance(layer, str) and layer in copper_layers]
+            if not active:
+                raise ValueError("Vendor keepout applies to no installed copper layer")
+            updated.append(["layers", *active])
+            seen_layers = True
+        elif kind == "polygon":
+            for pts in item[1:]:
+                if not isinstance(pts, list) or not pts or pts[0] != "pts":
+                    raise ValueError("Unsupported footprint zone polygon geometry")
+                for point in pts[1:]:
+                    if not isinstance(point, list) or len(point) != 3 or point[0] != "xy":
+                        raise ValueError("Malformed vendor footprint zone coordinate")
+                    x, y = float(str(point[1])), float(str(point[2]))
+                    if not math.isfinite(x) or not math.isfinite(y):
+                        raise ValueError("Nonfinite vendor footprint zone point")
+                    x_text = f"{x + at[0]:.5f}".rstrip("0").rstrip(".")
+                    y_text = f"{y + at[1]:.5f}".rstrip("0").rstrip(".")
+                    point[1] = "0" if x_text in {"", "-0"} else x_text
+                    point[2] = "0" if y_text in {"", "-0"} else y_text
+            updated.append(item)
+            seen_polygon = True
+        else:
+            updated.append(item)
+
+    if not (seen_polygon and seen_layers):
+        raise ValueError("Verified rule-area footprint missing layer/shape")
+    zone[:] = updated
+
+
 def _instance_identity(node: SexpNode, ref: str, path: str, uuid_for: Callable[[str], str]) -> None:
     if not isinstance(node, list):
         return
@@ -79,6 +129,7 @@ def render_verified_footprint(
     net_index: dict[str, int],
     net_name: Callable[[int], str],
     uuid_for: Callable[[str], str],
+    copper_layers: list[str],
 ) -> str:
     """Build a KiCad board footprint from a digest-pinned, unmodified source.
 
@@ -110,6 +161,8 @@ def render_verified_footprint(
         if kind in {"uuid", "tstamp", "at"}:
             # These fields belong to the library root, not its board instance.
             continue
+        if kind == "zone":
+            _board_zone_coordinates(child, at, copper_layers)
         if kind == "property" and len(child) >= 3:
             if child[1] == "Reference":
                 child[2] = component.ref

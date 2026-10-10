@@ -811,7 +811,14 @@ def _build_footprint(
         from zaptrace.export.kicad_verified_embed import render_verified_footprint
 
         _physical_footprint_library_id(comp)
-        instance = render_verified_footprint(comp, at, net_idx, lambda num: _net_name(design, num), _uuid4)
+        instance = render_verified_footprint(
+            comp,
+            at,
+            net_idx,
+            lambda num: _net_name(design, num),
+            _uuid4,
+            _copper_layers(canonical_board_definition(design).layers),
+        )
         lines.append("  " + instance.replace("\n", "\n  "))
         return
 

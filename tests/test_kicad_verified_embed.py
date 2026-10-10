@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
 from zaptrace.core.parser import parse_file
 from zaptrace.export.kicad import export_kicad_pcb
 from zaptrace.io.sexp import SexpNode, parse
@@ -39,6 +41,7 @@ def test_embedded_vendor_courtyard_antenna_keepout_and_3d_models_survive(tmp_pat
     footprints = _child(board, "footprint")
     assert len(footprints) == len(design.components)
     for comp in design.components.values():
+        assert comp.footprint_asset is not None
         filename, raw_bytes = verified_footprint_bytes(comp.footprint_asset)
         library = parse(raw_bytes.decode("utf-8"))
         expected_id = "ZapTrace:" + filename.removesuffix(".kicad_mod")
@@ -52,11 +55,27 @@ def test_embedded_vendor_courtyard_antenna_keepout_and_3d_models_survive(tmp_pat
                 for prop in _child(fp, "property")
             )
         )
-        for kind in ("fp_line", "fp_rect", "fp_poly", "fp_circle", "fp_arc", "zone", "model"):
+        for kind in ("fp_line", "fp_rect", "fp_poly", "fp_circle", "fp_arc", "model"):
             # All supplier artwork/keepouts copied, with instance-unique IDs.
             assert [_geometry(item) for item in _child(instance, kind)] == [
                 _geometry(item) for item in _child(library, kind)
             ], (comp.ref, kind)
+        # Native KiCad stores footprint rule-area polygons in board-absolute
+        # coordinates and restricts them to the installed copper layers.
+        library_zones = _child(library, "zone")
+        instance_zones = _child(instance, "zone")
+        assert len(library_zones) == len(instance_zones)
+        assert design.placement is not None
+        for original, placed in zip(library_zones, instance_zones, strict=True):
+            source_points = _child(_child(original, "polygon")[0], "pts")[0]
+            board_points = _child(_child(placed, "polygon")[0], "pts")[0]
+            cx, cy = design.placement[comp.id]
+            for source_point, placed_point in zip(source_points[1:], board_points[1:], strict=True):
+                assert isinstance(source_point, list) and isinstance(placed_point, list)
+                expected = (float(str(source_point[1])) + cx, float(str(source_point[2])) + cy)
+                actual = (float(str(placed_point[1])), float(str(placed_point[2])))
+                assert actual == pytest.approx(expected)
+            assert _child(placed, "layers") == [["layers", "F.Cu", "B.Cu"]]
         assert len(_child(instance, "pad")) == len(_child(library, "pad"))
         assert [_geometry(x) for x in _child(instance, "pad")] == [_geometry(x) for x in _child(library, "pad")], (
             comp.ref
