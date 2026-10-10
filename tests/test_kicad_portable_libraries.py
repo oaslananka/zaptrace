@@ -125,7 +125,7 @@ def test_verified_assets_reject_wrong_digest_on_export(tmp_path: Path, monkeypat
         export_kicad(design, tmp_path)
 
 
-def test_real_kicad10_erc_exposes_only_unverified_packages(tmp_path: Path) -> None:
+def test_real_kicad10_erc_uses_verified_j1_footprint_without_link_warning(tmp_path: Path) -> None:
     binary = shutil.which("kicad-cli")
     if binary is None:
         pytest.skip("KiCad CLI not installed")

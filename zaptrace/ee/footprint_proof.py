@@ -151,7 +151,8 @@ def build_footprint_proof(
     """Build a footprint proof from a FootprintDef."""
     resolved_source = source or _default_source(source_type, footprint.source or package_id, source_path)
     thermal = set(footprint.thermal_pads or [])
-    mapping = pin_map or {pad.id: pad.id for pad in footprint.pads if pad.id not in thermal}
+    # Anonymous NPTH locating drills are mechanical-only, not package pins.
+    mapping = pin_map or {pad.id: pad.id for pad in footprint.pads if pad.id and pad.id not in thermal}
     pin_count = expected_pin_count if expected_pin_count is not None else len(mapping)
     paste_enabled = sum(1 for pad in footprint.pads if pad.solder_paste)
     paste_disabled = len(footprint.pads) - paste_enabled

@@ -88,12 +88,18 @@ kicad-cli sch erc --exit-code-violations \
   build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
 ```
 
-The **prior main baseline** before J1 physical binding was independently
-tested on KiCad 10.0.6 with **78 PCB DRC findings, 31 unconnected items,
-and one J1 footprint-link ERC warning**. J1 now references the byte-pinned
-USB4105 footprint. An exact-branch independent KiCad oracle run is still
-required; the old DRC and ERC numbers are *not* results for the new geometry.
-Earlier additional ERC warnings arose from
+Independent KiCad **10.0.6** was run on the exact J1 oval-slot branch
+(2026-10-10): **82 PCB DRC violations, 37 unconnected items, and ZERO
+schematic ERC violations**. The prior main baseline before J1 physical binding
+had 78 DRC findings, 31 unconnected items, and one J1 footprint-link ERC
+warning. J1 now references the byte-pinned USB4105 footprint; ERC is clean
+because this *metadata link* is resolved, **not** because physical copper is
+routed or fabrication accepted. DRC details include 20 clearance, 15 solder-mask
+bridge, 14 verified-library footprint graphic mismatch, 12 real 0.20 mm ESP32
+drills below the configured 0.30 mm board minimum, 13 silk-over-copper,
+6 hole-clearance, and 2 physical shorting findings. The ESP32 pad/drill source
+is not falsified, and the board manufacturing rule is not reduced to hide
+these authentic failures. Additional historical ERC warnings arose from
 missing project-local KiCad symbol/footprint library links; they are now
 resolved by generated local libraries, **not** by suppressing KiCad checks.
 Independent PCB `lib_footprint_mismatch` findings remain visible
