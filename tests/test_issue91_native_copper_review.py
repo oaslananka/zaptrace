@@ -90,6 +90,12 @@ def test_run_kicad_rejects_partial_binaries_and_shell_execution(
     monkeypatch.setattr("scripts.issue91_native_copper_review.os.waitpid", lambda pid, _: (pid, 0))
     with pytest.raises(ValueError, match="absolute"):
         _run_kicad_cli(Path("kicad-cli"), ["version"])
+    with pytest.raises(ValueError, match="Only the fixed"):
+        _run_kicad_cli(binary.resolve(), ["--unsafe-user-option"])
+    with pytest.raises(ValueError, match="absolute"):
+        _run_kicad_cli(
+            binary.resolve(), ["pcb", "drc", "--exit-code-violations", "--output", "relative.rpt", "relative.kicad_pcb"]
+        )
     assert _run_kicad_cli(binary.resolve(), ["version"]) == ""
     assert len(calls) == 1
     executable, argv, kwargs = calls[0]

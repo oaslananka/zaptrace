@@ -181,12 +181,27 @@ def _run_kicad_cli(cli: Path, args: list[str]) -> str:
         raise ValueError("KiCad executable must be a verified absolute kicad-cli path")
     if not hasattr(os, "posix_spawn"):
         raise RuntimeError("Native KiCad review requires a POSIX host")
+    if args != ["version"]:
+        valid_drc = (
+            len(args) == 6
+            and args[:4] == ["pcb", "drc", "--exit-code-violations", "--output"]
+            and Path(args[4]).is_absolute()
+            and Path(args[5]).is_absolute()
+            and Path(args[4]).suffix == ".rpt"
+            and Path(args[5]).suffix == ".kicad_pcb"
+        )
+        if not valid_drc:
+            raise ValueError("Only the fixed KiCad DRC invocation with absolute file paths is allowed")
 
     with tempfile.TemporaryFile() as output:
         argv = (str(cli), *args)
+        # The executable path is verified, the command is strictly allowlisted,
+        # and file paths are absolute argv operands, never shell syntax.
+        # This precise Semgrep warning is a false positive after those checks.
+        # nosemgrep: python.lang.security.dangerous-os-exec.dangerous-os-exec
         pid = os.posix_spawn(
             str(cli),
-            argv,
+            argv,  # nosemgrep: python.lang.security.dangerous-os-exec.dangerous-os-exec
             os.environ.copy(),
             file_actions=[(os.POSIX_SPAWN_DUP2, output.fileno(), 1)],
         )
