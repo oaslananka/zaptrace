@@ -456,6 +456,18 @@ class GridRouter:
             position = GridPos(current.pos.x + dx, current.pos.y + dy, current.pos.layer)
             if not obstacles.is_free(position):
                 continue
+            # The diagonal segment traverses the shared corners of adjacent
+            # axis-aligned cells. Require both side cells to be clear so copper
+            # cannot clip a neighboring footprint or already blocked trace.
+            if (
+                dx
+                and dy
+                and (
+                    not obstacles.is_free(GridPos(current.pos.x + dx, current.pos.y, current.pos.layer))
+                    or not obstacles.is_free(GridPos(current.pos.x, current.pos.y + dy, current.pos.layer))
+                )
+            ):
+                continue
             key = (position.x, position.y, position.layer)
             if key in closed:
                 continue

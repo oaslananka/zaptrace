@@ -239,6 +239,30 @@ class TestSimplifyPath:
         assert len(r) == 3  # layer change should not be collapsed
 
 
+def test_astar_does_not_cross_blocked_diagonal_corners() -> None:
+    # Both orthogonal neighbors are occupied; moving diagonally from the
+    # otherwise-free start would physically cross their copper keepouts.
+    obstacles = ObstacleMap(3, 3, layers=1)
+    obstacles.block(GridPos(1, 0))
+    obstacles.block(GridPos(0, 1))
+    assert GridRouter()._astar(obstacles, GridPos(0, 0), GridPos(1, 1)) is None
+
+
+def test_astar_diagonal_steps_respect_both_side_clearance_cells() -> None:
+    obstacles = ObstacleMap(7, 7, layers=1)
+    obstacles.block(GridPos(3, 2))
+    obstacles.block(GridPos(2, 3))
+    path = GridRouter()._astar(obstacles, GridPos(1, 1), GridPos(5, 5))
+    assert path is not None
+    assert path[0] == GridPos(1, 1)
+    assert path[-1] == GridPos(5, 5)
+    for first, second in zip(path, path[1:], strict=False):
+        dx, dy = second.x - first.x, second.y - first.y
+        if first.layer == second.layer and abs(dx) == abs(dy) == 1:
+            assert obstacles.is_free(GridPos(first.x + dx, first.y, first.layer))
+            assert obstacles.is_free(GridPos(first.x, first.y + dy, first.layer))
+
+
 # ======================================================================
 # GridRouter integration tests
 # ======================================================================
