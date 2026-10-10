@@ -104,7 +104,19 @@ def test_usb_c_sink_uses_two_independent_resistors_and_ground_returns() -> None:
 
     design = parse_file(EXAMPLE / "design.yaml")
     j1 = design.components["J1"]
-    assert j1.package_pin_map == {}
+    assert j1.footprint_asset == "usb4105-16p"
+    assert j1.package_pin_map == {
+        "A1": "GND",
+        "A4": "VBUS",
+        "A5": "CC1",
+        "A9": "VBUS",
+        "A12": "GND",
+        "B1": "GND",
+        "B4": "VBUS",
+        "B5": "CC2",
+        "B9": "VBUS",
+        "B12": "GND",
+    }
     assert {pin: j1.pins[pin].net for pin in ("CC1", "CC2")} == {
         "CC1": "USB_CC1",
         "CC2": "USB_CC2",
@@ -185,19 +197,11 @@ def test_esp32_demo_reports_partial_pinned_physical_pad_coverage(tmp_path: Path)
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
     assert evidence["node_count"] == 37
-    assert evidence["missing_pcb_pad_node_count"] == 4
+    assert evidence["missing_pcb_pad_node_count"] == 0
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
-    assert evidence["fidelity"]["pcb_pad_coverage"] == 33 / 37
-    assert all(
-        node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"] if node["component_ref"] != "J1"
-    )
-    assert all(
-        not node["pcb_pad_present"]
-        for net in evidence["nets"]
-        for node in net["nodes"]
-        if node["component_ref"] == "J1"
-    )
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 1.0
+    assert all(node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"])
 
 
 def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() -> None:
@@ -210,11 +214,11 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
         "footprints-complete",
         "power-nets-connected",
         "gnd-connected",
+        "physical-pads-mapped",
     }
     assert {name for name, result in by_name.items() if not result.passed} == {
         "drc-clean",
         "min-clearance",
-        "physical-pads-mapped",
     }
     physical_details = by_name["physical-pads-mapped"].details
     drc_details = by_name["drc-clean"].details
@@ -222,8 +226,8 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
     assert physical_details is not None
     assert drc_details is not None
     assert clearance_details is not None
-    assert physical_details["pcb_pad_coverage"] == 33 / 37
-    assert physical_details["missing_pcb_pad_node_count"] == 4
+    assert physical_details["pcb_pad_coverage"] == 1.0
+    assert physical_details["missing_pcb_pad_node_count"] == 0
     assert drc_details["violations"]
     assert clearance_details["violations"]
     assert not pack.passed

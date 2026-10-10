@@ -583,6 +583,7 @@ def _pad_shape_kicad(shape: PadShape) -> str:
         PadShape.RECT: "rect",
         PadShape.CIRCLE: "circle",
         PadShape.OVAL: "oval",
+        PadShape.ROUNDRECT: "roundrect",
         PadShape.CUSTOM: "custom",
     }
     return mapping.get(shape, "rect")
@@ -855,7 +856,10 @@ def _build_pad(
     """Emit a pad with an instance-specific UUID, including repeated pad IDs."""
     uid = _uuid4(f"pad-{comp.ref}-{pad.id}-{pad_ordinal}")
     pad_id = pad.id
-    pad_type = "smd" if pad.drill is None else "thru_hole"
+    if pad.drill is not None and pad.drill_slot is not None:
+        raise ValueError(f"Ambiguous round and oval drill on pad {pad.id!r}")
+    has_hole = pad.drill is not None or pad.drill_slot is not None
+    pad_type = ("thru_hole" if pad.plated else "np_thru_hole") if has_hole else "smd"
     pad_shape = _pad_shape_kicad(pad.shape)
     px, py = pad.position
     sw, sh = pad.size
@@ -872,9 +876,18 @@ def _build_pad(
     lines.append(f'    (pad "{pad_id}" {pad_type} {pad_shape}')
     lines.append(f"      (at {px} {py} {pad.rotation})")
     lines.append(f"      (size {sw} {sh})")
-    if pad.drill is not None:
+    if pad.drill_slot is not None:
+        width, height = pad.drill_slot
+        lines.append(f"      (drill oval {width} {height})")
+    elif pad.drill is not None:
         lines.append(f"      (drill {pad.drill})")
+    if has_hole:
+        layers_str = '"*.Cu" "*.Mask"' if pad.plated else '"F&B.Cu" "*.Mask"'
+        if pad.solder_paste:
+            layers_str += ' "F.Paste"'
     lines.append(f"      (layers {layers_str})")
+    if pad.shape == PadShape.ROUNDRECT and pad.roundrect_rratio is not None:
+        lines.append(f"      (roundrect_rratio {pad.roundrect_rratio})")
 
     net_num = _pin_net_number(comp, pad_id, net_idx, design)
     if net_num > 0:

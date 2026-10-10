@@ -131,8 +131,21 @@ components:
     ref: "J1"
     type: "USB-C-16P"
     footprint: "USB-C-16P-SMD"
-    # GCT USB4105: A5=CC1 and B5=CC2. No package_pin_map is declared
-    # until its plated oval shell slots can be exported faithfully.
+    footprint_asset: "usb4105-16p"
+    # GCT USB4105 actual contact IDs; S1 shell mounts are mechanically
+    # separate from the USB GND contacts until EMI/chassis policy is reviewed.
+    # The 4 plated oval S1 slots and 2 NPTH pegs are preserved geometrically.
+    package_pin_map:
+      "A1": "GND"
+      "A4": "VBUS"
+      "A5": "CC1"
+      "A9": "VBUS"
+      "A12": "GND"
+      "B1": "GND"
+      "B4": "VBUS"
+      "B5": "CC2"
+      "B9": "VBUS"
+      "B12": "GND"
     pins:
       VBUS: {type: "power",   net: "VCC_5V"}
       GND:  {type: "power",   net: "GND"}

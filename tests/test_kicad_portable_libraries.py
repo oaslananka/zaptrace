@@ -90,11 +90,11 @@ def test_verified_assets_are_portable_and_byte_identical(tmp_path: Path) -> None
         assert copied.read_bytes() == source.read_bytes()
         assert hashlib.sha256(copied.read_bytes()).hexdigest() == digest
 
-    # The supplier-qualified geometry and byte-pinned reference candidate
-    # may use local portable IDs. J1 remains intentionally unresolved until
-    # an actual USB-C receptacle and its CC1/CC2 termination are reviewed.
-    assert '(property "Footprint" "USB-C-16P-SMD"' in schematic
-    assert '(property "Footprint" "ZapTrace:USB-C-16P-SMD"' not in schematic
+    # Physical J1 source file is pinned; this is NOT electrical/DRC or fab acceptance.
+    assert '(property "Footprint" "ZapTrace:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal"' in schematic
+    assert (
+        tmp_path / "ZapTrace.pretty" / "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal.kicad_mod"
+    ).is_file()
     assert '(property "Footprint" "ZapTrace:D_SOD-323"' in schematic
     assert (tmp_path / "ZapTrace.pretty" / "D_SOD-323.kicad_mod").is_file()
 
@@ -154,7 +154,7 @@ def test_real_kicad10_erc_exposes_only_unverified_packages(tmp_path: Path) -> No
         timeout=60,
         check=False,
     )
-    assert run.returncode == 5, run.stderr
+    assert run.returncode == 0, run.stderr
     report = json.loads(output.read_text(encoding="utf-8"))
     sheets = report["sheets"]
     warnings = (
@@ -162,11 +162,6 @@ def test_real_kicad10_erc_exposes_only_unverified_packages(tmp_path: Path) -> No
         if isinstance(sheets, dict)
         else [v for sheet in sheets for v in sheet.get("violations", [])]
     )
-    # Exactly the source-incomplete USB-C receptacle must remain unverified.
-    # D1 is now an explicit, byte-pinned SOD323 reference candidate; this
-    # ERC reduction does NOT constitute a protection/fabrication approval.
-    assert len(warnings) == 1
-    assert {entry["type"] for entry in warnings} == {"footprint_link_issues"}
-    assert {item["description"] for entry in warnings for item in entry.get("items", [])} == {
-        "Symbol J1 [ZapTrace_J1]",
-    }
+    # A verified J1 library reference resolves this metadata warning.
+    # Clean schematic ERC does NOT mean correct copper, routing or fab approval.
+    assert warnings == []

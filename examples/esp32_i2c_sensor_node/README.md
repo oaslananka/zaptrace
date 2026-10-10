@@ -35,9 +35,10 @@ Keep its `ZapTrace.kicad_sym`, `sym-lib-table`, `fp-lib-table` and
 `ZapTrace.pretty/` files **together** with the schematic and PCB when moving
 the project. The symbol library contains generated *connectivity-only*
 symbols, not supplier-qualified electrical symbol definitions. Only exact
-SHA-256-verified KiCad footprint files are bundled. No substitute physical footprint is invented for J1 (USB-C); D1
-uses a provisional, byte-verified Nexperia SOD-323 candidate, which is not
-an approved VBUS protection design.
+SHA-256-verified KiCad footprint files are bundled. The byte-pinned GCT USB4105
+J1 land pattern retains four plated oval shell-stake slots and two nonplated
+alignment holes, in addition to 16 USB contacts. D1 is a provisional,
+byte-verified Nexperia SOD-323 candidate, not an approved VBUS protection design.
 
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
@@ -51,8 +52,8 @@ uv run --no-sync zaptrace proof run \
 ```
 
 **The nonzero exit code is intentional for the present design.** The eight
-checks report five passes (source-net assertions, ERC, named footprint
-presence, 3.3 V connections, and ground connections) and three blockers.
+checks report six passes (including full physical pad identity mapping) and
+two blockers: source DRC and copper clearance. The result is **still a fail**.
 The source-only routing-completeness check is **not proof that KiCad PCB traces
 were generated or all physical pads are electrically joined**:
 
@@ -60,13 +61,13 @@ were generated or all physical pads are electrically joined**:
   plus right-angle routing warnings on `I2C_SDA`.
 - `min-clearance`: additional intersections violating the configured
   0.15 mm copper clearance.
-- Physical pad mapping: 33 of 37 logical net nodes now have real pad
-  definitions from digest-pinned ESP32/BME280, passive/test-point, AMS1117
-  SOT-223 and **provisional** Nexperia PESD5V0S1BA SOD-323 assets.
-  The four remaining nodes belong to the unresolved USB-C connector J1.
-  Pad identity is **not** proof of electrical routing or ESD qualification.
+- Physical pad identity coverage: all **37/37** source net nodes now resolve
+  to actual footprint contacts, including J1 USB4105 A5=CC1, B5=CC2,
+  four VBUS and four GND USB contacts; the four plated S1 shell stakes
+  are deliberately not assigned to GND pending shield/EMI policy review.
+  This is **not** evidence of physical routing or ESD qualification.
 
-Those are **design/routing and physical mapping defects**, not configuration issues to silence
+Those are **design/routing defects**, even with complete pad identity mapping, not configuration issues to silence
 or an invitation to reduce clearance thresholds. The template is a useful
 demonstration of ZapTrace **catching** unsuitable generated geometry.
 Its Proof Pack must remain **blocked** until the generated copper geometry
@@ -87,12 +88,12 @@ kicad-cli sch erc --exit-code-violations \
   build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
 ```
 
-Both commands currently **exit nonzero** because the generated KiCad
-project has additional errors. Independently tested with KiCad 10.0.6:
-**78 PCB DRC findings, 31 unconnected items, and 1 schematic ERC
-warning**. The remaining ERC warning is an unresolved
-`footprint_link_issues` for **J1**, the component without a selected,
-validated physical receptacle footprint. Previously, the other 22 ERC warnings arose from
+The **prior main baseline** before J1 physical binding was independently
+tested on KiCad 10.0.6 with **78 PCB DRC findings, 31 unconnected items,
+and one J1 footprint-link ERC warning**. J1 now references the byte-pinned
+USB4105 footprint. An exact-branch independent KiCad oracle run is still
+required; the old DRC and ERC numbers are *not* results for the new geometry.
+Earlier additional ERC warnings arose from
 missing project-local KiCad symbol/footprint library links; they are now
 resolved by generated local libraries, **not** by suppressing KiCad checks.
 Independent PCB `lib_footprint_mismatch` findings remain visible
@@ -128,17 +129,16 @@ Its **5 V maximum reverse standoff rating** is not proof of adequate
 protection across the full USB-C VBUS voltage envelope; sustained voltage,
 surge/current/thermal derating and short return-loop placement must be
 reviewed by a qualified hardware engineer before selecting production parts.
-This is **not** a complete board: J1's four logical net nodes still lack
-validated physical pad assignments. Two distinct 5.1 kΩ Rd resistors, R3 and
-R4, now logically terminate J1.CC1 and J1.CC2 to ground on separate USB_CC1
-and USB_CC2 nets. This follows the GCT USB4105 contact assignment (A5/B5)
-and ST AN5225 fixed-sink termination guidance, but J1's plated oval shell
-slots are not safely represented by the current round-hole-only importer.
-Therefore the new CC terminations are **source topology only**; real copper
-continuity, slot/drill manufacturing data, receptacle orientation, LDO
-capacitor stability/thermal performance, and protection qualification still
-require independent KiCad and physical evidence. This is a 5 V fixed-sink
-reference, not a USB Power Delivery implementation.
+This is **not** a complete board: the four J1 logical nets now map to
+actual verified USB4105 pads (A5/B5 for CC1/CC2, four USB VBUS and four USB
+GND). R3 and R4 provide separate 5.1 kΩ Rd terminations to GND. The importer
+retains four plated 0.6 × 1.7/1.4 mm oval shell stakes (S1) and two NPTH
+0.65 mm alignment holes, and the Excellon exporter emits G85 routed slots,
+not zero/round replacement holes. The S1 shell metal is deliberately unassigned
+pending shield/EMI review; actual routed copper continuity, drill/manufacturer
+acceptance, connector orientation, native KiCad DRC, LDO capacitor stability
+and thermal performance, and protection qualification still require evidence.
+This is a 5 V fixed-sink reference, not a USB Power Delivery implementation.
 
 - [GCT USB4105 manufacturer drawing (pin assignment)](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/5492/USB4105.pdf)
 - [ST AN5225 USB Type-C application note](https://www.st.com/content/ccc/resource/technical/document/application_note/group1/38/94/1d/41/0e/ba/49/21/DM00536349/files/DM00536349.pdf/jcr%3Acontent/translations/en.DM00536349.pdf)
@@ -148,12 +148,11 @@ The `power-nets-connected` and `gnd-connected` checks use the actual
 `U1.VCC` and `U2.GND`; unlike obsolete unqualified pin expectations,
 they cannot pass merely because a different component has a same-named pin.
 
-**Critical incomplete physical footprint evidence:** the source demo has 31
-logical net nodes; the verified U1/U2, passive and test-point footprints now
-supply **33 resolved physical-pad mappings**, with **four still missing on J1**.
-The source schematic covers 37/37 nodes, but physical pad mapping covers
-**33/37**. This is only pad
-identity evidence, not a full manufacturing/ERC/DRC pass. Binding
+**Physical pad identity evidence is complete, not fabrication-ready:** the
+source schematic covers 37/37 net nodes and all 37 have actual footprint pad
+identities, including J1. This is only logical-to-physical pad-identity
+evidence, not routed continuity, a manufacturing drill acceptance, or a
+full native KiCad ERC/DRC pass. Binding
 actual pad geometries exposes copper-level clearance, pad-mask and routing
 problems which were invisible while the exported footprints had no pads. `pipeline`
 producing a `.kicad_pcb` file does **not** make its footprints real or

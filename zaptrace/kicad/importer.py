@@ -8,6 +8,7 @@ silently treated as fully understood.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -119,7 +120,8 @@ def load_kicad_footprint(path: str | Path) -> FootprintDef | None:
     root = _parse_one(fp_path.read_text(encoding="utf-8"))
     if not isinstance(root, list) or _head(root) != "footprint":
         return None
-    pads = [_pad_from_form(pad) for pad in _children(root, "pad") if _atom(pad, 1)]
+    # Anonymous NPTH alignment pegs are real physical hole geometry.
+    pads = [_pad_from_form(pad) for pad in _children(root, "pad") if _atom(pad, 1) or _first(pad, "drill") is not None]
     if not pads:
         return None
     return FootprintDef(
@@ -374,6 +376,8 @@ def _footprint_pins_and_pads(
     for pad_form in _children(footprint, "pad"):
         pad_id = _atom(pad_form, 1)
         if not pad_id:
+            if _first(pad_form, "drill") is not None:
+                pads.append(_pad_from_form(pad_form))
             continue
         net_id = _pad_net_id(pad_form, net_number_to_id)
         pins[pad_id] = Pin(name=pad_id, type=PinType.PASSIVE, net=net_id)
@@ -498,15 +502,37 @@ def _pad_from_form(pad_form: list[SExpr]) -> Pad:
     at = _first(pad_form, "at")
     size = _first(pad_form, "size")
     drill = _first(pad_form, "drill")
+    if drill is not None and _first(drill, "offset") is not None:
+        raise ValueError(f"Unsupported KiCad drill offset for pad {pad_id!r}")
     layers = _first(pad_form, "layers")
+    roundrect = _first(pad_form, "roundrect_rratio")
+    if drill is not None:
+        raw = _atom(drill, 1)
+        if raw == "oval":
+            slot = (_float_atom(drill, 2), _float_atom(drill, 3))
+            round_hole = None
+        else:
+            try:
+                round_hole = float(raw)
+            except ValueError as exc:
+                raise ValueError(f"Invalid KiCad drill for pad {pad_id!r}: {raw!r}") from exc
+            if not math.isfinite(round_hole) or round_hole <= 0:
+                raise ValueError(f"Invalid KiCad drill for pad {pad_id!r}: {raw!r}")
+            slot = None
+    else:
+        round_hole = None
+        slot = None
     return Pad(
         id=pad_id,
         layer=_pad_layer(layers),
         shape=shape,
         position=(_float_atom(at, 1), _float_atom(at, 2)),
         size=(_float_atom(size, 1, 1.0), _float_atom(size, 2, 1.0)),
-        drill=_float_atom(drill, 1) if drill else None,
+        drill=round_hole,
+        drill_slot=slot,
+        roundrect_rratio=_float_atom(roundrect, 1) if roundrect else None,
         plated=_atom(pad_form, 2) != "np_thru_hole",
+        solder_paste=any(_atom(layers, i) in {"F.Paste", "B.Paste", "*.Paste"} for i in range(1, len(layers or []))),
         rotation=_float_atom(at, 3),
     )
 
