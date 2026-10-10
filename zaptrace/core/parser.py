@@ -18,6 +18,7 @@ from zaptrace.core.models import (
     Design,
     DesignMeta,
     DRCResult,
+    FootprintDef,
     LayerSpec,
     MountingHole,
     Net,
@@ -125,6 +126,22 @@ def _parse_components(raw: dict[str, Any]) -> dict[str, Component]:
                 pin_data = {"type": pin_data}
             pins[pin_name] = Pin.model_validate({**pin_data, "name": pin_name})
         filtered_comp = {k: v for k, v in comp_data.items() if k not in ("pins", "id")}
+        asset_id = filtered_comp.get("footprint_asset")
+        if asset_id is not None:
+            if not isinstance(asset_id, str):
+                raise ValueError("footprint_asset must be a registered string identifier")
+            from zaptrace.kicad.verified_vendor import resolve_verified_footprint
+
+            resolved = resolve_verified_footprint(asset_id)
+            inline = filtered_comp.get("footprint_def")
+            if inline is not None:
+                # A dumped/reloaded Design can contain the already-resolved
+                # geometry. Reject any attempted inline override to the pinned
+                # source, including changed pad position or net identity.
+                candidate = FootprintDef.model_validate(inline)
+                if candidate != resolved:
+                    raise ValueError("footprint_asset conflicts with inline footprint_def")
+            filtered_comp["footprint_def"] = resolved
         components[comp_id] = Component(id=comp_id, pins=pins, **filtered_comp)
     return components
 
