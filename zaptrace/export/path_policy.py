@@ -51,3 +51,25 @@ def resolve_output_artifact(
     except ValueError as exc:
         raise ValueError(f"artifact path escapes output directory: {stem!r}") from exc
     return resolved
+
+
+def resolve_output_member(output_dir: Path, *components: str) -> Path:
+    """Resolve a fixed project-local output member without path traversal.
+
+    Used for KiCad's mandated literal table/library names. The caller is
+    responsible for validating its chosen output workspace; *every* member,
+    including intermediate directories, must remain inside that canonical
+    workspace even if an existing member is a symlink.
+    """
+    if not components:
+        raise ValueError("output member requires at least one component")
+    for component in components:
+        if not component or component in {".", ".."} or "/" in component or "\\" in component:
+            raise ValueError(f"output member must be a single path component: {component!r}")
+
+    root = output_dir.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    candidate = root.joinpath(*components).resolve()
+    if not candidate.is_relative_to(root):
+        raise ValueError("output member escapes output directory")
+    return candidate

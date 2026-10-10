@@ -25,7 +25,7 @@ from zaptrace.core.models import (
     TraceSegment,
 )
 from zaptrace.core.net_identity import canonical_routing_net_ids
-from zaptrace.export.path_policy import resolve_output_artifact
+from zaptrace.export.path_policy import resolve_output_artifact, resolve_output_member
 from zaptrace.kicad.verified_vendor import resolve_verified_footprint, verified_footprint_bytes
 
 _INDENTED_CLOSE = "    )"
@@ -138,11 +138,11 @@ def _write_portable_kicad_libraries(design: Design, output_dir: Path) -> dict[st
         raw_symbol[0] = raw_symbol[0].replace('(symbol "ZapTrace:ZapTrace_', '(symbol "ZapTrace_')
         symbol_lines.extend(raw_symbol)
     symbol_lines.append(")")
-    symbol_path = output_dir / "ZapTrace.kicad_sym"
+    symbol_path = resolve_output_member(output_dir, "ZapTrace.kicad_sym")
     symbol_path.write_text("\n".join(symbol_lines) + "\n", encoding="utf-8", newline="\n")
     files["symbol_library"] = symbol_path
 
-    symbols_table_path = output_dir / "sym-lib-table"
+    symbols_table_path = resolve_output_member(output_dir, "sym-lib-table")
     symbols_table_path.write_text(
         "(sym_lib_table\n"
         '  (lib (name "ZapTrace")(type "KiCad")'
@@ -177,14 +177,14 @@ def _write_verified_footprint_library(design: Design, output_dir: Path) -> dict[
         footprints[filename] = verified_content
 
     if footprints:
-        pretty_dir = output_dir / "ZapTrace.pretty"
+        pretty_dir = resolve_output_member(output_dir, "ZapTrace.pretty")
         pretty_dir.mkdir(parents=True, exist_ok=True)
         for filename, verified_content in sorted(footprints.items()):
-            dest = pretty_dir / filename
+            dest = resolve_output_member(output_dir, "ZapTrace.pretty", filename)
             dest.write_bytes(verified_content)
             files[f"verified_footprint_{dest.stem}"] = dest
 
-        footprints_table = output_dir / "fp-lib-table"
+        footprints_table = resolve_output_member(output_dir, "fp-lib-table")
         footprints_table.write_text(
             "(fp_lib_table\n"
             '  (lib (name "ZapTrace")(type "KiCad")'

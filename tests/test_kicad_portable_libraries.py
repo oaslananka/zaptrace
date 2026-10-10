@@ -17,6 +17,43 @@ from zaptrace.kicad.verified_vendor import _PINNED_FOOTPRINTS
 _EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
 
 
+@pytest.mark.parametrize(
+    "untrusted_member",
+    [
+        "ZapTrace.kicad_sym",
+        "sym-lib-table",
+        "ZapTrace.pretty",
+        "fp-lib-table",
+        "ZapTrace.pretty/SOT-223-3_TabPin2.kicad_mod",
+    ],
+)
+def test_portable_libraries_reject_symlinks_outside_workspace(tmp_path: Path, untrusted_member: str) -> None:
+    """Never overwrite an external file or copy verified copper outside root."""
+    export_dir = tmp_path / "output"
+    external = tmp_path / "external"
+    export_dir.mkdir()
+    external.mkdir()
+    target = external / "sentinel"
+    target.write_text("MUST-NOT-OVERWRITE", encoding="utf-8")
+    forged = export_dir / untrusted_member
+    forged.parent.mkdir(parents=True, exist_ok=True)
+    forged.symlink_to(external if untrusted_member == "ZapTrace.pretty" else target)
+
+    design = parse_file(_EXAMPLE)
+    with pytest.raises(ValueError, match="output member escapes output directory"):
+        export_kicad(design, export_dir)
+    assert target.read_text(encoding="utf-8") == "MUST-NOT-OVERWRITE"
+    assert not (external / "SOT-223-3_TabPin2.kicad_mod").exists()
+
+
+@pytest.mark.parametrize("bad_member", ["", ".", "..", "../outside", "a/b", "a\\b"])
+def test_portable_library_output_member_rejects_path_fragments(tmp_path: Path, bad_member: str) -> None:
+    from zaptrace.export.path_policy import resolve_output_member
+
+    with pytest.raises(ValueError, match="single path component"):
+        resolve_output_member(tmp_path / "output", bad_member)
+
+
 def test_verified_assets_are_portable_and_byte_identical(tmp_path: Path) -> None:
     design = parse_file(_EXAMPLE)
     # The demo source intentionally has no precomputed board placement.
