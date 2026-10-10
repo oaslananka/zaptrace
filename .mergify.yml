@@ -39,6 +39,9 @@ pull_request_rules:
       - base = main
       - author = renovate[bot]
       - label = automerge:enabled
+      # A complete CI suite must not override Renovate's release-age cooldown.
+      # Apply this only to the bot auto-queue path, not explicit human queueing.
+      - check-success = renovate/stability-days
       - -draft
       - -conflict
       - -label = automerge:disabled
