@@ -26,6 +26,23 @@ def test_example_proof_expectations_match_real_component_and_pin_identities() ->
         assert all("." in pin for pin in assertion["expected_pins"])
 
 
+def test_esp32_demo_does_not_claim_physical_pad_mapping_without_footprints(tmp_path: Path) -> None:
+    import json
+
+    from zaptrace.export.kicad import export_kicad_netlist_evidence
+
+    design = parse_file(EXAMPLE / "design.yaml")
+    artifact = export_kicad_netlist_evidence(design, tmp_path)
+    evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
+
+    assert evidence["node_count"] == 30
+    assert evidence["missing_pcb_pad_node_count"] == 30
+    assert evidence["missing_schematic_pin_node_count"] == 0
+    assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 0.0
+    assert not any(node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"])
+
+
 def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() -> None:
     pack = run_proof(EXAMPLE / ".proof")
     by_name = {result.check.name: result for result in pack.results}

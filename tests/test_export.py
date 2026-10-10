@@ -721,8 +721,9 @@ def test_kicad_netlist_evidence_helpers_report_mapped_and_missing_nodes() -> Non
 
     design = _design()
     mapped, complete = _net_node_evidence(design, "R1", "1")
-    assert complete is True
+    assert complete is False
     assert mapped["component_present"] is True
+    assert mapped["pcb_pad_present"] is False
 
     missing, complete = _net_node_evidence(design, "MISSING", "1")
     assert complete is False
@@ -731,6 +732,8 @@ def test_kicad_netlist_evidence_helpers_report_mapped_and_missing_nodes() -> Non
     net_id = next(iter(design.nets))
     payload, node_count, missing_count = _net_evidence(design, net_id, Counter({net_id: 2}), Counter({net_id: 1}))
     assert node_count == len(design.nets[net_id].nodes)
-    assert missing_count == 0
+    # No resolved footprint pads exist for the bare source-only fixture.
+    assert missing_count == 1
+    assert payload["missing_pcb_pad_nodes"] == ["R1.p1"]
     assert payload["routed_segment_count"] == 2
     assert payload["routed_via_count"] == 1

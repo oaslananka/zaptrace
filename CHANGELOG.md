@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Removed the false physical-pad-completeness signal from KiCad netlist evidence: unresolved footprint definitions no longer count logical pin names as real PCB pads; schematic and physical-pad coverage are reported independently. Added regressions and documented the existing ESP32 example's 0/30 physical-pad mapping without loosening strict Proof Pack/KiCad gates.
+
 ### Changed
 
 - Corrected the ESP32 I²C example's obsolete power/ground Proof Pack pin identities, added component-qualified net-check support with regression coverage, and replaced stale first-run CLI suggestions with working commands. Documented real DRC/clearance and independent KiCad ERC/DRC failures explicitly; the demo remains fail-closed and is **not** fabrication-ready.
