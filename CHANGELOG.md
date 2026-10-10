@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Make exported KiCad projects portable with project-local connectivity symbol library/table and byte-exact SHA-256-verified footprint library/table. Native KiCad 10.0.6 schematic ERC on the ESP32 demo now reports only two unresolved-footprint warnings (J1/D1), down from 24 library-reference warnings, while all independent PCB DRC/continuity and physical-fabrication failures remain visible.
 - Guard GridRouter A* diagonal steps against cutting through blocked orthogonal neighbor cells, with explicit impossible-corner and safe-detour regressions. This does not claim routed PCB continuity; ESP32 remains zero-route/fail-closed until placement, copper occupancy and native KiCad acceptance are corrected.
 - Prevent verified-footprint designs from silently exporting legacy Manhattan fallback copper when obstacle-aware routing fails. The ESP32 demo now reports four unrouted signal/power nets and emits no fabricated trace segments rather than 78 shorting/crossing segments (KiCad 10.0.6: 36 DRC errors, 27 unconnected and 24 ERC warnings; fail-closed, NOT fabrication-ready). Preserve the old routing fallback only for synthetic models without verified physical footprint assets.
 - Bind the actual AMS1117-3.3 SOT-223 regulator land pattern with byte-pinned KiCad 10.0.6 geometry and manufacturer pinout, including both physical pad-2 VOUT copper regions (tab and lead). ESP32 source pad coverage now 27/31; DRC/ERC, USB-C/TVS selection, LDO thermal/stability and fabrication acceptance remain blocked.

@@ -89,7 +89,8 @@ def test_schematic_exports_connected_net_nodes_as_kicad_library_pins(tmp_path: P
     schematic = Path(export_kicad_schematic(design, tmp_path)["schematic"]).read_text(encoding="utf-8")
 
     assert "(lib_symbols" in schematic
-    assert '(symbol "ZapTrace_R1"' in schematic
+    assert '(symbol "ZapTrace:ZapTrace_R1"' in schematic
+    assert '(lib_id "ZapTrace:ZapTrace_R1")' in schematic
     assert "(pin passive line (at -5.08 0 0)" in schematic
     assert '(number "1"' in schematic
     assert '(pin "1" (uuid ' in schematic

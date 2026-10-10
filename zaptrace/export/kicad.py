@@ -26,6 +26,7 @@ from zaptrace.core.models import (
 )
 from zaptrace.core.net_identity import canonical_routing_net_ids
 from zaptrace.export.path_policy import resolve_output_artifact
+from zaptrace.kicad.verified_vendor import resolve_verified_footprint, verified_footprint_bytes
 
 _INDENTED_CLOSE = "    )"
 _DOUBLE_INDENTED_CLOSE = "      )"
@@ -71,6 +72,7 @@ def export_kicad_schematic(design: Design, output_dir: Path) -> dict[str, Path]:
     pro_path = _artifact_path(output_dir, design, ".kicad_pro")
     pro_path.write_text(_build_project(design), encoding="utf-8", newline="\n")
     files["project"] = pro_path
+    files.update(_write_portable_kicad_libraries(design, output_dir))
 
     return files
 
@@ -85,6 +87,7 @@ def export_kicad_pcb(design: Design, output_dir: Path) -> dict[str, Path]:
     pcb_path = _artifact_path(output_dir, design, ".kicad_pcb")
     pcb_path.write_text(_build_pcb(design), encoding="utf-8", newline="\n")
     files["pcb"] = pcb_path
+    files.update(_write_verified_footprint_library(design, output_dir))
 
     return files
 
@@ -103,6 +106,97 @@ def export_kicad_netlist_evidence(design: Design, output_dir: Path) -> dict[str,
         newline="\n",
     )
     return {"netlist_evidence": evidence_path}
+
+
+# ======================================================================
+# Portable project-local KiCad symbol and verified-footprint libraries
+# ======================================================================
+
+
+def _physical_footprint_library_id(component: Component) -> str:
+    """Only digest-vetted copper geometry earns a resolved KiCad library ID."""
+    if not component.footprint_asset:
+        return component.footprint or ""
+    filename, _verified_content = verified_footprint_bytes(component.footprint_asset)
+    if component.footprint_def != resolve_verified_footprint(component.footprint_asset):
+        raise ValueError(f"Verified footprint geometry conflicts with {component.ref!r}")
+    return f"ZapTrace:{filename.removesuffix('.kicad_mod')}"
+
+
+def _write_portable_kicad_libraries(design: Design, output_dir: Path) -> dict[str, Path]:
+    """Write genuine project-local symbol definitions and digest-pinned .pretty files.
+
+    These generated symbols carry connectivity only, *not* reviewed electrical
+    pin directions. Unverified packages deliberately receive no fabricated
+    physical footprint or resolved library ID.
+    """
+    files: dict[str, Path] = {}
+    symbol_lines = ["(kicad_symbol_lib", "  (version 20231120)", '  (generator "zaptrace")']
+    for component in design.components.values():
+        raw_symbol = _schematic_library_symbol(component, _schematic_nodes_for_component(design, component))
+        # Inside a .kicad_sym file the nickname is supplied by sym-lib-table.
+        raw_symbol[0] = raw_symbol[0].replace('(symbol "ZapTrace:ZapTrace_', '(symbol "ZapTrace_')
+        symbol_lines.extend(raw_symbol)
+    symbol_lines.append(")")
+    symbol_path = output_dir / "ZapTrace.kicad_sym"
+    symbol_path.write_text("\n".join(symbol_lines) + "\n", encoding="utf-8", newline="\n")
+    files["symbol_library"] = symbol_path
+
+    symbols_table_path = output_dir / "sym-lib-table"
+    symbols_table_path.write_text(
+        "(sym_lib_table\n"
+        '  (lib (name "ZapTrace")(type "KiCad")'
+        '(uri "${KIPRJMOD}/ZapTrace.kicad_sym")(options "")'
+        '(descr "ZapTrace generated connectivity symbols"))\n'
+        ")\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    files["symbol_library_table"] = symbols_table_path
+
+    files.update(_write_verified_footprint_library(design, output_dir))
+
+    return files
+
+
+def _write_verified_footprint_library(design: Design, output_dir: Path) -> dict[str, Path]:
+    """Include a portable KiCad footprint table with exact validated copper assets.
+
+    Standalone PCB exports need the same source-controlled physical packages
+    as full schematic exports; unknown or modified packages are never copied.
+    """
+    files: dict[str, Path] = {}
+    footprints: dict[str, bytes] = {}
+    for component in design.components.values():
+        if not component.footprint_asset:
+            continue
+        filename, verified_content = verified_footprint_bytes(component.footprint_asset)
+        # Reject forged in-memory pad definitions rather than labelling them as
+        # the contents of the digest-pinned vendor footprint.
+        _physical_footprint_library_id(component)
+        footprints[filename] = verified_content
+
+    if footprints:
+        pretty_dir = output_dir / "ZapTrace.pretty"
+        pretty_dir.mkdir(parents=True, exist_ok=True)
+        for filename, verified_content in sorted(footprints.items()):
+            dest = pretty_dir / filename
+            dest.write_bytes(verified_content)
+            files[f"verified_footprint_{dest.stem}"] = dest
+
+        footprints_table = output_dir / "fp-lib-table"
+        footprints_table.write_text(
+            "(fp_lib_table\n"
+            '  (lib (name "ZapTrace")(type "KiCad")'
+            '(uri "${KIPRJMOD}/ZapTrace.pretty")(options "")'
+            '(descr "SHA-256 verified ZapTrace footprints"))\n'
+            ")\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        files["footprint_library_table"] = footprints_table
+
+    return files
 
 
 # ======================================================================
@@ -174,7 +268,8 @@ def _schematic_property(
 
 def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]) -> list[str]:
     """Build a self-contained minimal KiCad library symbol for one component."""
-    lib_id = f"ZapTrace_{_schematic_identifier(component.ref)}"
+    symbol_name = f"ZapTrace_{_schematic_identifier(component.ref)}"
+    lib_id = f"ZapTrace:{symbol_name}"
     lines = [
         f'    (symbol "{lib_id}"',
         "      (exclude_from_sim no)",
@@ -198,7 +293,7 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
         '      (property "Description" "ZapTrace generated connectivity symbol" (at 0 0 0)',
         _SCHEMATIC_HIDDEN_EFFECTS,
         _DOUBLE_INDENTED_CLOSE,
-        f'      (symbol "{lib_id}_1_1"',
+        f'      (symbol "{symbol_name}_1_1"',
         "        (rectangle (start -2.54 2.54) (end 2.54 -2.54)",
         "          (stroke (width 0) (type default))",
         "          (fill (type background))",
@@ -228,7 +323,7 @@ def _schematic_symbol_instance(
 ) -> tuple[list[str], list[str]]:
     """Build one symbol instance plus same-coordinate labels for connected pins."""
     x, y = _schematic_component_position(index)
-    lib_id = f"ZapTrace_{_schematic_identifier(component.ref)}"
+    lib_id = f"ZapTrace:ZapTrace_{_schematic_identifier(component.ref)}"
     symbol_uuid = _schematic_uuid(design, "symbol", component.ref)
     lines = [
         "  (symbol",
@@ -243,7 +338,7 @@ def _schematic_symbol_instance(
     ]
     _schematic_property(lines, "Reference", component.ref, x, y - 7.62)
     _schematic_property(lines, "Value", component.value or component.type or component.ref, x, y + 7.62)
-    _schematic_property(lines, "Footprint", component.footprint or "", x, y, hidden=True)
+    _schematic_property(lines, "Footprint", _physical_footprint_library_id(component), x, y, hidden=True)
     _schematic_property(lines, "Datasheet", "", x, y, hidden=True)
     _schematic_property(lines, "Description", "ZapTrace generated connectivity symbol", x, y, hidden=True)
 
@@ -709,7 +804,7 @@ def _build_footprint(
     net_idx = _net_index(design)
 
     # Determine a reasonable KiCad library ID
-    lib_id = f"zaptrace:{comp.type or 'unknown'}"
+    lib_id = _physical_footprint_library_id(comp) if comp.footprint_asset else f"zaptrace:{comp.type or 'unknown'}"
     has_pads = fp is not None and len(fp.pads) > 0
 
     lines.append(f'  (footprint "{lib_id}"')
