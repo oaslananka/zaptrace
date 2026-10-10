@@ -60,11 +60,22 @@ The 0.4.0 target is tightened to the current 27-finding baseline so the ratchet 
 
 ## Workflow behavior
 
-`Sonar Historical Debt` runs in three modes:
+`Sonar Historical Debt` is **maintenance-only**, not a merge-required
+context. It runs under two triggers:
 
-- on pushes to `main`, it waits boundedly for Sonar to expose the exact `GITHUB_SHA`, then runs the ratchet;
-- weekly, it checks the latest main analysis;
-- by manual dispatch, maintainers can choose `capture` or `check`.
+- **weekly on Sunday** against the latest Sonar `main` analysis, enforcing the
+  committed historical-debt non-regression ratchet;
+- **manual dispatch** with `mode=check` (default) or `mode=capture`. Set
+  `verify_revision=true` to wait boundedly for Sonar's analyzed revision to
+  match the checked-out `GITHUB_SHA` before validating; a missing/mismatched
+  revision fails closed rather than being treated as current evidence.
+
+It does not run on every `main` push. PR new-code gates and repository-owned
+security, test, coverage and release controls remain unchanged; weekly debt
+red runs require maintainer triage, and a release maintainer can manually run
+`check` with `verify_revision=true` to get exact-source evidence. A weekly
+report identifies both the checkout revision and Sonar's analyzed revision;
+the latest analysis must not automatically be described as the latest commit.
 
 The workflow uses `SONAR_TOKEN` only from GitHub Actions secrets, installs locked project dependencies, writes JSON and Markdown under `artifacts/sonar-debt/`, and retains those artifacts for 30 days. The token is sent only in the bearer header and is never written to reports.
 
@@ -82,6 +93,8 @@ Authenticated capture is performed through GitHub Actions after the workflow is 
 
 ```bash
 gh workflow run sonar-debt.yml --repo oaslananka/zaptrace -f mode=capture
+# Before release acceptance, require exact main-source Sonar evidence:
+gh workflow run sonar-debt.yml --repo oaslananka/zaptrace -f mode=check -F verify_revision=true
 ```
 
 ## Updating the baseline
