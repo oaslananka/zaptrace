@@ -45,6 +45,10 @@ _PINNED_FOOTPRINTS: dict[str, tuple[str, str]] = {
         "SOT-223-3_TabPin2.kicad_mod",
         "8ae5f03e2c16377abed15e51af6864e23a934e1457b97fb7ea930e17fa99f11d",
     ),
+    "pesd5v0s1ba-sod323": (
+        "D_SOD-323.kicad_mod",
+        "03669ee95335b8ad49c3458e5262e7c2fd7ace6fe481bfd00f46b6f2f32abc8a",
+    ),
 }
 
 

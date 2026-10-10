@@ -151,9 +151,17 @@ components:
   D1:
     id: "D1"
     ref: "D1"
-    type: "TVS"
-    value: "USB_ESD"
-    footprint: "SOD-323"
+    type: "PESD5V0S1BA"
+    value: "PESD5V0S1BA"
+    footprint: "D_SOD-323"
+    footprint_asset: "pesd5v0s1ba-sod323"
+    # Nexperia product datasheet v6 (2024-04-26), SOD323, K1/K2,
+    # bidirectional device; either polarity is electrically equivalent.
+    # Illustrative ESD candidate only: VBUS standoff/surge/thermals and
+    # connector proximity require qualification for a production PCB.
+    package_pin_map:
+      "1": "IO"
+      "2": "GND"
     pins:
       IO:  {type: "passive", net: "VCC_5V"}
       GND: {type: "passive", net: "GND"}

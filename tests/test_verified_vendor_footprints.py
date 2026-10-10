@@ -31,6 +31,7 @@ def test_vendored_bindings_have_concrete_pads_and_roundtrip() -> None:
     assert len(d.components["U2"].footprint_def.pads) == 8
     assert len(d.components["U3"].footprint_def.pads) == 4
     assert [str(pad.id) for pad in d.components["U3"].footprint_def.pads] == ["1", "2", "2", "3"]
+    assert [str(pad.id) for pad in d.components["D1"].footprint_def.pads] == ["1", "2"]
     for ref, expected in {
         "R1": 2,
         "R2": 2,
@@ -45,6 +46,7 @@ def test_vendored_bindings_have_concrete_pads_and_roundtrip() -> None:
     assert recovered.components["U1"].footprint_def == d.components["U1"].footprint_def
     assert recovered.components["U2"].footprint_def == d.components["U2"].footprint_def
     assert recovered.components["U3"].footprint_def == d.components["U3"].footprint_def
+    assert recovered.components["D1"].footprint_def == d.components["D1"].footprint_def
 
 
 @pytest.mark.parametrize("asset", ["../../../../etc/passwd", "/tmp/asset.kicad_mod", "", "unknown"])
@@ -53,8 +55,10 @@ def test_unregistered_ids_fail_closed(asset: str) -> None:
         parse_str(_design_yaml(asset))
 
 
-def test_vendor_digest_mutation_is_rejected_without_modifying_source(monkeypatch: pytest.MonkeyPatch) -> None:
-    asset_id = "bme280-lga8"
+@pytest.mark.parametrize("asset_id", ["bme280-lga8", "pesd5v0s1ba-sod323"])
+def test_vendor_digest_mutation_is_rejected_without_modifying_source(
+    monkeypatch: pytest.MonkeyPatch, asset_id: str
+) -> None:
     filename, _digest = _PINNED_FOOTPRINTS[asset_id]
     monkeypatch.setitem(_PINNED_FOOTPRINTS, asset_id, (filename, "0" * 64))
     with pytest.raises(ValueError, match="SHA-256 mismatch"):

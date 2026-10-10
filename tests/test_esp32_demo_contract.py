@@ -68,6 +68,35 @@ def test_regulator_vout_and_tab_share_physical_pad_id_without_short(tmp_path: Pa
     assert len({uuid for _, _, uuid in pads}) == 4
 
 
+def test_bidirectional_tvs_candidate_uses_real_kicad_pads_and_distinct_nets(tmp_path: Path) -> None:
+    import re
+
+    from zaptrace.export.kicad import export_kicad_pcb
+
+    design = parse_file(EXAMPLE / "design.yaml")
+    tvs = design.components["D1"]
+    assert tvs.type == "PESD5V0S1BA"
+    assert tvs.footprint_asset == "pesd5v0s1ba-sod323"
+    assert tvs.package_pin_map == {"1": "IO", "2": "GND"}
+    assert [str(pad.id) for pad in tvs.footprint_def.pads] == ["1", "2"]
+    assert tvs.pins["IO"].net == "VCC_5V"
+    assert tvs.pins["GND"].net == "GND"
+
+    # This is pad identity and export fidelity, NOT surge/thermal approval.
+    design.placement = {"D1": (20.0, 15.0)}
+    pcb = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
+    d1 = next(part for part in pcb.split("\n  (footprint ") if '(property "Reference" "D1"' in part)
+    pads = re.findall(
+        r'\(pad "([12])" smd[\s\S]*?\(net \d+ "([^"]+)"\)[\s\S]*?\(uuid "([0-9a-f-]{36})"\)',
+        d1,
+    )
+    assert [(pad_id, net) for pad_id, net, _ in pads] == [
+        ("1", "VCC_5V"),
+        ("2", "GND"),
+    ]
+    assert len({uuid for _, _, uuid in pads}) == 2
+
+
 def test_passive_and_testpoint_physical_pad_maps_are_explicit() -> None:
     design = parse_file(EXAMPLE / "design.yaml")
     assets = {
@@ -109,21 +138,18 @@ def test_esp32_demo_reports_partial_pinned_physical_pad_coverage(tmp_path: Path)
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
     assert evidence["node_count"] == 31
-    assert evidence["missing_pcb_pad_node_count"] == 4
+    assert evidence["missing_pcb_pad_node_count"] == 2
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
-    assert evidence["fidelity"]["pcb_pad_coverage"] == 27 / 31
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 29 / 31
     assert all(
-        node["pcb_pad_present"]
-        for net in evidence["nets"]
-        for node in net["nodes"]
-        if node["component_ref"] not in {"J1", "D1"}
+        node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"] if node["component_ref"] != "J1"
     )
     assert all(
         not node["pcb_pad_present"]
         for net in evidence["nets"]
         for node in net["nodes"]
-        if node["component_ref"] in {"J1", "D1"}
+        if node["component_ref"] == "J1"
     )
 
 
@@ -143,8 +169,8 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
         "min-clearance",
         "physical-pads-mapped",
     }
-    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 27 / 31
-    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 4
+    assert by_name["physical-pads-mapped"].details["pcb_pad_coverage"] == 29 / 31
+    assert by_name["physical-pads-mapped"].details["missing_pcb_pad_node_count"] == 2
     assert by_name["drc-clean"].details["violations"]
     assert by_name["min-clearance"].details["violations"]
     assert not pack.passed
