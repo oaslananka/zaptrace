@@ -83,6 +83,15 @@ The `power-nets-connected` and `gnd-connected` checks use the actual
 `U1.VCC` and `U2.GND`; unlike obsolete unqualified pin expectations,
 they cannot pass merely because a different component has a same-named pin.
 
+**Critical missing physical footprint evidence:** the source demo's 30
+logical net nodes have **0 resolved physical pad geometries** in its
+current KiCad netlist evidence. The source schematic connectivity covers 30/30
+logical nodes, but PCB pad mapping covers **0/30**. That is a genuine unresolved
+footprint/package mapping deficiency, not a KiCad DRC pass. `pipeline`
+producing a `.kicad_pcb` file does **not** make its footprints real or
+its routed copper electrically connected. See
+[issue #91](https://github.com/oaslananka/zaptrace/issues/91).
+
 Passing source ERC or an automatically generated manufacturing ZIP is **not**
 equivalent to KiCad ERC/DRC acceptance, datasheet-verified footprints,
 electrical simulation, physical testing, or manufacturer approval.

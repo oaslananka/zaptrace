@@ -11,6 +11,7 @@ import json
 import uuid as _uuid
 from collections import Counter
 from pathlib import Path
+from typing import cast
 
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import (
@@ -502,7 +503,9 @@ def _component_by_ref_or_id(design: Design, ref: str) -> Component | None:
 def _component_pad_ids(comp: Component) -> set[str]:
     if comp.footprint_def is not None and comp.footprint_def.pads:
         return {pad.id for pad in comp.footprint_def.pads}
-    return set(comp.pins)
+    # Logical component pins are not PCB copper pads: the exporter only
+    # emits physical pads when a real footprint definition supplies them.
+    return set()
 
 
 def _physical_pad_ids_for_logical_pin(comp: Component, pin_name: str) -> set[str]:
@@ -517,10 +520,12 @@ def _net_node_evidence(design: Design, component_ref: str, pin_name: str) -> tup
     pad_ids = _component_pad_ids(component) if component is not None else set()
     schematic_pin_present = component is not None and (pin_name in component.pins or not component.pins)
     expected_pad_ids = _physical_pad_ids_for_logical_pin(component, pin_name) if component is not None else set()
-    if component is not None and component.package_pin_map:
-        pcb_pad_present = bool(expected_pad_ids) and expected_pad_ids.issubset(pad_ids)
-    else:
-        pcb_pad_present = component is not None and (expected_pad_ids.issubset(pad_ids) if pad_ids else True)
+    # A logical pin in the source design is not a physical KiCad pad.
+    # Unless a concrete footprint definition contains the expected pad IDs,
+    # the exported PCB footprint has no connected copper pads to verify.
+    # Report that absence explicitly rather than treating an empty pad set
+    # as complete mapping (which would falsely certify preview-only boards).
+    pcb_pad_present = bool(expected_pad_ids) and bool(pad_ids) and expected_pad_ids.issubset(pad_ids)
     payload: dict[str, object] = {
         "component_ref": component_ref,
         "pin_name": pin_name,
@@ -551,6 +556,12 @@ def _net_evidence(
         "type": str(net.type),
         "nodes": nodes,
         "missing_or_unmapped_nodes": missing_nodes,
+        "missing_pcb_pad_nodes": [
+            f"{node['component_ref']}.{node['pin_name']}" for node in nodes if not node["pcb_pad_present"]
+        ],
+        "missing_schematic_pin_nodes": [
+            f"{node['component_ref']}.{node['pin_name']}" for node in nodes if not node["schematic_pin_present"]
+        ],
         "routed_segment_count": int(trace_counts.get(net_id, 0)),
         "routed_via_count": int(via_counts.get(net_id, 0)),
     }
@@ -567,11 +578,15 @@ def _build_netlist_evidence(design: Design) -> dict[str, object]:
     nets: list[dict[str, object]] = []
     total_nodes = 0
     total_missing_pads = 0
+    total_missing_schematic_pins = 0
+    total_missing_nodes = 0
     for net_id in design.nets:
         payload, node_count, missing_count = _net_evidence(design, net_id, trace_counts, via_counts)
         nets.append(payload)
         total_nodes += node_count
-        total_missing_pads += missing_count
+        total_missing_nodes += missing_count
+        total_missing_pads += len(cast(list[str], payload["missing_pcb_pad_nodes"]))
+        total_missing_schematic_pins += len(cast(list[str], payload["missing_schematic_pin_nodes"]))
 
     return {
         "schema_version": "1.0",
@@ -579,10 +594,14 @@ def _build_netlist_evidence(design: Design) -> dict[str, object]:
         "design": design.meta.name,
         "net_count": len(nets),
         "node_count": total_nodes,
-        "missing_or_unmapped_node_count": total_missing_pads,
+        "missing_or_unmapped_node_count": total_missing_nodes,
+        "missing_pcb_pad_node_count": total_missing_pads,
+        "missing_schematic_pin_node_count": total_missing_schematic_pins,
         "nets": nets,
         "fidelity": {
-            "schematic_node_coverage": 1.0 if total_nodes == 0 else (total_nodes - total_missing_pads) / total_nodes,
+            "schematic_node_coverage": (
+                1.0 if total_nodes == 0 else (total_nodes - total_missing_schematic_pins) / total_nodes
+            ),
             "pcb_pad_coverage": 1.0 if total_nodes == 0 else (total_nodes - total_missing_pads) / total_nodes,
             "has_routed_pcb_geometry": any(trace_counts.values()),
         },

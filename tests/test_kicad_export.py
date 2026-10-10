@@ -232,3 +232,29 @@ def test_kicad_netlist_evidence_reports_missing_footprint_pad(tmp_path: Path) ->
     gnd = next(net for net in evidence["nets"] if net["id"] == "gnd")
     assert "r1.2" in gnd["missing_or_unmapped_nodes"]
     assert evidence["fidelity"]["pcb_pad_coverage"] < 1.0
+
+
+def test_kicad_netlist_evidence_does_not_invent_unresolved_footprint_pads(tmp_path: Path) -> None:
+    design = _make_test_design()
+    design.placement = {"r1": (10.0, 10.0), "c1": (25.0, 10.0)}
+    design.components["r1"].footprint_def = None
+    output = export_kicad(design, tmp_path)
+    evidence = json.loads(Path(output["netlist_evidence"]).read_text(encoding="utf-8"))
+
+    # R1's two source schematic pins exist, but the exported PCB omits
+    # R1's pad geometry. Never count those logical pins as physical copper.
+    assert evidence["node_count"] == 4
+    assert evidence["missing_or_unmapped_node_count"] == 2
+    assert evidence["missing_pcb_pad_node_count"] == 2
+    assert evidence["missing_schematic_pin_node_count"] == 0
+    assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 0.5
+    assert [net["missing_pcb_pad_nodes"] for net in evidence["nets"]] == [["r1.1"], ["r1.2"]]
+
+    pcb = Path(output["pcb"]).read_text(encoding="utf-8")
+    assert '(footprint "zaptrace:resistor"' in pcb
+    assert '(pad "1"' in pcb  # Other C1 has a resolved footprint
+    from zaptrace.kicad.parity import compare_kicad_schematic_to_pcb_files
+
+    report = compare_kicad_schematic_to_pcb_files(design, output["netlist_evidence"], output["pcb"])
+    assert not report.passed
