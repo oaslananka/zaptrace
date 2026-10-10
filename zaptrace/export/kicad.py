@@ -742,8 +742,8 @@ def _build_footprint(
     lines.append(_INDENTED_CLOSE)
 
     if has_pads and fp is not None:
-        for pad in fp.pads:
-            _build_pad(lines, pad, comp, net_idx, design)
+        for pad_ordinal, pad in enumerate(fp.pads):
+            _build_pad(lines, pad, comp, net_idx, design, pad_ordinal=pad_ordinal)
 
     lines.append("  )")
 
@@ -754,9 +754,11 @@ def _build_pad(
     comp: Component,
     net_idx: dict[str, int],
     design: Design | None = None,
+    *,
+    pad_ordinal: int = 0,
 ) -> None:
-    """Emit a KiCad pad S-expression."""
-    uid = _uuid4(f"pad-{pad.id}")
+    """Emit a pad with an instance-specific UUID, including repeated pad IDs."""
+    uid = _uuid4(f"pad-{comp.ref}-{pad.id}-{pad_ordinal}")
     pad_id = pad.id
     pad_type = "smd" if pad.drill is None else "thru_hole"
     pad_shape = _pad_shape_kicad(pad.shape)

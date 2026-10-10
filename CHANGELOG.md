@@ -5,6 +5,7 @@
 ### Fixed
 
 - Added allowlisted SHA-256-pinned vendored KiCad land-pattern loading via the design parser, binding the ESP32-WROOM-32 and BME280 source packages to their real footprint pads (12/31 mapped). Reject unknown identifiers, altered vendor assets and conflicting inline geometry; remain fail-closed on all unmapped pads and DRC/clearance errors.
+- Generate a deterministic, unique KiCad UUID for every exported physical pad occurrence (including duplicate pad numbers within one footprint and identical pad numbers across components).
 - Added a fail-closed Proof Pack physical-pad-mapping check independent of named footprint assignment. The ESP32 demo now explicitly fails when physical pad mapping is missing, in addition to genuine DRC/clearance violations; no fabrication approval.
 - Removed the false physical-pad-completeness signal from KiCad netlist evidence: absent footprint geometry no longer counts logical pins as physical pads. The ESP32 demo initially had 0/30 and now has 0/31 after explicit BME280 VDDIO power mapping.
 - Respect explicit physical pad-to-logical pin maps when selecting routed pad escape positions; incomplete maps remain conspicuous routing fallbacks rather than silently routing to a same-named pad.
