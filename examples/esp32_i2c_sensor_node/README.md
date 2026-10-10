@@ -46,9 +46,11 @@ checks report five passes (ERC, routing-completeness, named footprint presence,
   plus right-angle routing warnings on `I2C_SDA`.
 - `min-clearance`: additional intersections violating the configured
   0.15 mm copper clearance.
-- Physical pad mapping: 24 of 31 logical net nodes now have real pad
+- Physical pad mapping: 27 of 31 logical net nodes now have real pad
   definitions from digest-pinned ESP32/BME280, 0402/0805 passives and test
-  point assets. The remaining seven nodes belong to U3, J1 and D1. Resolved pad identity is **not** proof of route continuity.
+  point and AMS1117 SOT-223 assets. The remaining four nodes belong to J1
+  (USB-C) and D1 (ESD/TVS). Resolved pad identity is **not** proof of
+  route continuity.
 
 Those are **design/routing and physical mapping defects**, not configuration issues to silence
 or an invitation to reduce clearance thresholds. The template is a useful
@@ -73,7 +75,7 @@ kicad-cli sch erc --exit-code-violations \
 
 Both commands currently **exit nonzero** because the generated KiCad
 project has additional errors. Independently tested with KiCad 10.0.6:
-**140 PCB DRC findings, 19 unconnected items, and 24 schematic ERC
+**122 PCB DRC findings, 26 unconnected items, and 24 schematic ERC
 warnings**. These results may change with KiCad version, configuration,
 or routing changes. They are *not* the same rule set as the in-process
 ZapTrace ERC/DRC checks. A clean ZapTrace source ERC result must never
@@ -88,11 +90,14 @@ to their **logical** pin names, based on their respective official datasheets:
 and [Bosch BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
 BME280 VDDIO (physical pad 6) is now explicitly on the 3.3 V supply,
 rather than silently absent from the source schematic. Additional exact
-KiCad 10.0.6 geometries are bound to R1/R2, C1/C2/C3 and TP1/TP2 using
-digest-pinned package data and explicit logical-to-physical pin maps.
-This is **not** a complete board: physical pad mapping for seven nodes on
-U3, J1 and D1, routed copper continuity, USB-C CC handling and vendor
-qualification still require
+KiCad 10.0.6 geometries are bound to R1/R2, C1/C2/C3, TP1/TP2 and
+U3 (AMS1117 SOT-223) using digest-pinned package data and explicit
+logical-to-physical pin maps. The AMS1117's middle leg and thermal tab
+are both physical pad **2**, connected to VCC_3V3 (never GND). See the
+[manufacturer pinout](https://www.datasheets.com/advanced-monolithic-systems/ams1117-3.3/datasheet.pdf).
+This is **not** a complete board: physical pad mapping for four nodes on
+J1 and D1, routed copper continuity, USB-C CC handling, LDO capacitor
+stability/thermal performance and vendor qualification still require
 professional review and independent KiCad evidence.
 
 The `power-nets-connected` and `gnd-connected` checks use the actual
@@ -102,9 +107,9 @@ they cannot pass merely because a different component has a same-named pin.
 
 **Critical incomplete physical footprint evidence:** the source demo has 31
 logical net nodes; the verified U1/U2, passive and test-point footprints now
-supply **24 resolved physical-pad mappings**, with **seven still missing**.
+supply **27 resolved physical-pad mappings**, with **four still missing**.
 The source schematic covers 31/31 nodes, but physical pad mapping covers
-**24/31**. This is only pad
+**27/31**. This is only pad
 identity evidence, not a full manufacturing/ERC/DRC pass. Binding
 actual pad geometries exposes copper-level clearance, pad-mask and routing
 problems which were invisible while the exported footprints had no pads. `pipeline`

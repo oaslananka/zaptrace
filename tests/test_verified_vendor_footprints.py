@@ -29,6 +29,8 @@ def test_vendored_bindings_have_concrete_pads_and_roundtrip() -> None:
     assert d.components["U2"].footprint_asset == "bme280-lga8"
     assert len(d.components["U1"].footprint_def.pads) == 60
     assert len(d.components["U2"].footprint_def.pads) == 8
+    assert len(d.components["U3"].footprint_def.pads) == 4
+    assert [str(pad.id) for pad in d.components["U3"].footprint_def.pads] == ["1", "2", "2", "3"]
     for ref, expected in {
         "R1": 2,
         "R2": 2,
@@ -42,6 +44,7 @@ def test_vendored_bindings_have_concrete_pads_and_roundtrip() -> None:
     recovered = parse_str(dump_str(d))
     assert recovered.components["U1"].footprint_def == d.components["U1"].footprint_def
     assert recovered.components["U2"].footprint_def == d.components["U2"].footprint_def
+    assert recovered.components["U3"].footprint_def == d.components["U3"].footprint_def
 
 
 @pytest.mark.parametrize("asset", ["../../../../etc/passwd", "/tmp/asset.kicad_mod", "", "unknown"])
