@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -31,12 +32,26 @@ def test_rust_lock_version_matches_cargo_manifest() -> None:
     assert _cargo_lock_package_version("zaptrace-core") == _cargo_manifest_version("zaptrace_core/Cargo.toml")
 
 
+def _supported_rust_toolchain(channel: str) -> bool:
+    """Only accept stable, exactly pinned Rust versions above the CI minimum."""
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", channel):
+        return False
+    return tuple(int(part) for part in channel.split(".")) >= (1, 98, 0)
+
+
+def test_rust_toolchain_policy_rejects_unpinned_or_too_old_versions() -> None:
+    for supported in ("1.98.0", "1.99.0", "1.100.0"):
+        assert _supported_rust_toolchain(supported)
+    for invalid in ("1.97.9", "stable", "nightly", "1.99", "1.99.0-beta.1"):
+        assert not _supported_rust_toolchain(invalid)
+
+
 def test_rust_toolchain_file_declares_pinned_channel_and_components() -> None:
     toolchain_path = Path("rust-toolchain.toml")
     assert toolchain_path.is_file(), "rust-toolchain.toml must exist at repository root"
     data = tomllib.loads(toolchain_path.read_text(encoding="utf-8"))
     toolchain = data["toolchain"]
-    assert toolchain["channel"] == "1.98.0"
+    assert _supported_rust_toolchain(toolchain["channel"])
     assert toolchain["components"] == ["rustfmt", "clippy"]
     assert toolchain["profile"] == "minimal"
 
