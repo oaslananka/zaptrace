@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
-from scripts.issue91_native_copper_review import ROUTES, _violations
+import pytest
+
+from scripts.issue91_native_copper_review import (
+    ROUTES,
+    _native_drc,
+    _run_kicad_cli,
+    _trusted_kicad_cli,
+    _violations,
+)
 from zaptrace.core.parser import parse_file
 
 _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
@@ -50,3 +59,58 @@ def test_native_drc_result_cannot_hide_new_finding_classes() -> None:
         "unconnected_items": 1,
         "shorting_items": 1,
     }
+
+
+def test_native_cli_is_resolved_and_must_be_executable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    binary = tmp_path / "kicad-cli"
+    binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    binary.chmod(0o755)
+    monkeypatch.setattr("scripts.issue91_native_copper_review.shutil.which", lambda _: str(binary))
+    assert _trusted_kicad_cli() == binary.resolve()
+    binary.chmod(0o644)
+    with pytest.raises(RuntimeError, match="not an executable"):
+        _trusted_kicad_cli()
+    monkeypatch.setattr("scripts.issue91_native_copper_review.shutil.which", lambda _: None)
+    with pytest.raises(RuntimeError, match="not found"):
+        _trusted_kicad_cli()
+
+
+def test_run_kicad_rejects_partial_binaries_and_shell_execution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    binary = tmp_path / "kicad-cli"
+    binary.write_text("", encoding="utf-8")
+    commands: list[tuple[object, ...]] = []
+
+    def stub_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        commands.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout="10.0.6\n", stderr="")
+
+    monkeypatch.setattr("scripts.issue91_native_copper_review.subprocess.run", stub_run)
+    with pytest.raises(ValueError, match="absolute"):
+        _run_kicad_cli(Path("kicad-cli"), ["version"])
+    assert _run_kicad_cli(binary.resolve(), ["version"]) == "10.0.6\n"
+    assert commands == [
+        (
+            [str(binary.resolve()), "version"],
+            {
+                "capture_output": True,
+                "text": True,
+                "check": False,
+                "timeout": 120,
+            },
+        )
+    ]
+
+
+def test_native_drc_rejects_stale_report_after_incomplete_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    stale_report = tmp_path / "stale.rpt"
+    stale_report.write_text("[unconnected_items]: stale result\n", encoding="utf-8")
+    board = tmp_path / "board.kicad_pcb"
+    board.write_text("", encoding="utf-8")
+    binary = tmp_path / "kicad-cli"
+    binary.write_text("", encoding="utf-8")
+    monkeypatch.setattr("scripts.issue91_native_copper_review._run_kicad_cli", lambda *args: "ok")
+    with pytest.raises(RuntimeError, match="did not create"):
+        _native_drc(board, stale_report, binary)
+    assert not stale_report.exists()

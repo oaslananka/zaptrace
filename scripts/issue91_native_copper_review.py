@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
-import subprocess
+import shutil
+import subprocess  # nosec B404 - fixed executable, argument-vector only, never shell=True
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -121,11 +123,43 @@ def _violations(text: str) -> Counter[str]:
     return Counter(re.findall(r"^\[([^]]+)\]:", text, re.MULTILINE))
 
 
-def _native_drc(board: Path, report: Path) -> Counter[str]:
-    command = ["kicad-cli", "pcb", "drc", "--exit-code-violations", "--output", str(report), str(board)]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode not in (0, 5) or not report.is_file():
-        raise RuntimeError(f"KiCad DRC could not produce evidence: {result.stderr or result.stdout}")
+def _trusted_kicad_cli() -> Path:
+    """Resolve a real, executable KiCad CLI before launching a fixed argv.
+
+    Calling KiCad is essential for independent native DRC. No shell or
+    user-provided executable/extra flags are permitted in this review.
+    """
+    executable = shutil.which("kicad-cli")
+    if executable is None:
+        raise RuntimeError("Native kicad-cli executable not found")
+    resolved = Path(executable).resolve(strict=True)
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise RuntimeError("Native kicad-cli is not an executable file")
+    return resolved
+
+
+def _run_kicad_cli(cli: Path, args: list[str]) -> str:
+    """Execute only the already validated absolute KiCad binary, without a shell."""
+    if not cli.is_absolute() or cli.name != "kicad-cli" or not cli.is_file():
+        raise ValueError("KiCad executable must be a verified absolute kicad-cli path")
+    command = [str(cli), *args]
+    # B603: fixed, resolved executable and argument vector; never use a shell.
+    result = subprocess.run(  # nosec B603
+        command, capture_output=True, text=True, check=False, timeout=120
+    )
+    if result.returncode not in (0, 5):
+        raise RuntimeError(f"KiCad CLI execution failed: {result.stderr or result.stdout}")
+    return result.stdout
+
+
+def _native_drc(board: Path, report: Path, cli: Path) -> Counter[str]:
+    report.unlink(missing_ok=True)  # Never accept a stale DRC report after a process failure.
+    _run_kicad_cli(
+        cli,
+        ["pcb", "drc", "--exit-code-violations", "--output", str(report), str(board)],
+    )
+    if not report.is_file():
+        raise RuntimeError("Native KiCad did not create its DRC evidence report")
     return _violations(report.read_text(encoding="utf-8"))
 
 
@@ -137,7 +171,8 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
     except ImportError as exc:
         raise RuntimeError("Native KiCad pcbnew Python bindings are required") from exc
 
-    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, check=True).stdout.strip()
+    cli = _trusted_kicad_cli()
+    version = _run_kicad_cli(cli, ["version"]).strip()
     if not version.startswith("10."):
         raise RuntimeError(f"Validated only on KiCad 10, not {version!r}")
     board_path = board_path.resolve()
@@ -145,7 +180,7 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
     if not board_path.exists() or output_path == board_path or output_path.parent != board_path.parent:
         raise ValueError("Both PCB paths must be distinct files in one portable KiCad library directory")
 
-    before = _native_drc(board_path, output_path.with_suffix(".baseline-drc.rpt"))
+    before = _native_drc(board_path, output_path.with_suffix(".baseline-drc.rpt"), cli)
     if before != {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}:
         raise RuntimeError(f"Board baseline changed: {dict(before)}. Revalidate physical routing first.")
 
@@ -170,7 +205,8 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
     for route in ROUTES:
         check_pad(*route.source, route.net)
         check_pad(*route.target, route.net)
-        assert route.points[0] == route.source[2] and route.points[-1] == route.target[2]
+        if route.points[0] != route.source[2] or route.points[-1] != route.target[2]:
+            raise ValueError(f"Route endpoints are not the physical pad centers: {route.net}")
         net = board.FindNet(route.net)
         if net is None:
             raise ValueError(f"Missing physical net {route.net}")
@@ -191,7 +227,7 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
         candidate = Path(temp.name)
     try:
         pcbnew.SaveBoard(str(candidate), board)
-        after = _native_drc(candidate, output_path.with_suffix(".review-drc.rpt"))
+        after = _native_drc(candidate, output_path.with_suffix(".review-drc.rpt"), cli)
         if (
             after["drill_out_of_range"] != before["drill_out_of_range"]
             or after["hole_clearance"] != before["hole_clearance"]
