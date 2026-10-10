@@ -8,6 +8,25 @@ Python 3.12 lane jobs publish parallel Coverage.py data. The `Combined Python co
 
 The merged reports and the critical-runtime report are retained as GitHub Actions artifacts. Coverage enforcement therefore does not depend on a third-party upload service, token, dashboard, or API being available.
 
+## Python test-lane ownership
+
+The Quality orchestrator keeps its stable `test` job ID with an explicit
+dependency on the change classifier and `test-lane-policy` inventory gate.
+Its ten-shard Python 3.12 test matrix is implemented in the read-only
+`.github/workflows/quality-test-lanes.yml` reusable workflow. The
+`test_mode` input controls the same explicit docs-only skip as before, with
+no workflow-wide path filter.
+
+The called workflow retains ten independent, fail-fast-disabled jobs, the
+locked Python environment, required lane execution and budget checks, native
+and external-tool setup, per-shard JUnit/coverage evidence and strict
+`test-lane-results-*` artifact upload. The separately owned Python 3.13/3.14
+compatibility jobs remain in the orchestrator. Downstream `coverage` and
+`release-gate-summary` still depend on the same parent `test` job ID;
+no release gate may accept a failed shard. Individual rendered job titles
+now include the reusable caller prefix; the six repository branch-protection
+gate names and evidence names are unchanged.
+
 ## Critical runtime coverage evidence
 
 The repository-owned critical-runtime gate enforces exact per-module floors for MCP, transaction-safe isolated execution, REST transport/authentication, object authorization, capability policy, release evidence, and REST release-export code. The combined Python 3.12 lane coverage job publishes the `critical-runtime-coverage` artifact; tagged releases publish `critical-runtime-coverage-release` after executing all approved lanes. Each report is bound to the producing revision through the shared evidence identity.

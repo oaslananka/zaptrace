@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 QUALITY = WORKFLOWS / "quality.yml"
 COVERAGE = WORKFLOWS / "quality-coverage.yml"
+TEST_LANES = WORKFLOWS / "quality-test-lanes.yml"
 NATIVE = WORKFLOWS / "quality-native.yml"
 LINT = WORKFLOWS / "quality-lint.yml"
 PRE_COMMIT_WORKFLOW = WORKFLOWS / "pre-commit.yml"
@@ -40,16 +41,18 @@ def _checkout_steps_without_credential_policy(path: Path) -> list[int]:
 
 
 def test_quality_matrix_generates_and_retains_junit_results() -> None:
-    workflow = QUALITY.read_text(encoding="utf-8")
+    quality = QUALITY.read_text(encoding="utf-8")
+    workflow = TEST_LANES.read_text(encoding="utf-8")
 
     assert "JUNIT_PATH: junit-lane-${{ matrix.artifact }}.xml" in workflow
     assert '--junitxml "$JUNIT_PATH"' in workflow
-    assert "junit-${lane}-${{ matrix.python-version }}.xml" in workflow
-    assert workflow.count("-o junit_family=legacy") >= 2
+    assert "junit-${lane}-${{ matrix.python-version }}.xml" in quality
+    assert workflow.count("-o junit_family=legacy") == 1
+    assert quality.count("-o junit_family=legacy") == 1
     assert "${{ env.JUNIT_PATH }}" in workflow
     assert "test-lane-report-${{ matrix.artifact }}.json" in workflow
     assert "test-lane-results-${{ matrix.artifact }}" in workflow
-    assert "CODECOV_TOKEN" not in workflow
+    assert "CODECOV_TOKEN" not in workflow and "CODECOV_TOKEN" not in quality
     assert "codecov/codecov-action@" not in workflow
     assert not (ROOT / "codecov.yml").exists()
 
@@ -480,21 +483,44 @@ def test_shared_locked_python_policy_jobs_preserve_evidence_and_skip_contracts()
 
 def test_shared_locked_python_matrix_keeps_version_and_skip_semantics() -> None:
     quality = yaml.safe_load(QUALITY.read_text(encoding="utf-8"))
-    cases = {
-        "test": "3.12",
-        "test-compatibility": "${{ matrix.python-version }}",
+    lanes = yaml.safe_load(TEST_LANES.read_text(encoding="utf-8"))
+    caller = quality["jobs"]["test"]
+    assert caller == {
+        "name": "Python test lanes",
+        "needs": ["changes", "test-lane-policy"],
+        "uses": "./.github/workflows/quality-test-lanes.yml",
+        "with": {"test_mode": "${{ needs.changes.outputs.test_mode }}"},
     }
-    for job_id, version in cases.items():
-        job = quality["jobs"][job_id]
+    assert lanes["permissions"] == {"contents": "read"}
+    assert lanes[True]["workflow_call"]["inputs"]["test_mode"] == {
+        "description": "Python lane mode from the caller's change classifier",
+        "required": True,
+        "type": "string",
+    }
+
+    test_job = lanes["jobs"]["test"]
+    compatibility_job = quality["jobs"]["test-compatibility"]
+    cases = (
+        (test_job, "3.12", "inputs.test_mode"),
+        (compatibility_job, "${{ matrix.python-version }}", "needs.changes.outputs.test_mode"),
+    )
+    for job, version, selector in cases:
         matches = [step for step in job["steps"] if step.get("uses") == "./.github/actions/setup-locked-python"]
         assert len(matches) == 1
         step = matches[0]
-        assert step["if"] == "needs.changes.outputs.test_mode != 'docs'"
+        assert step["if"] == f"{selector} != 'docs'"
         assert step["with"] == {
             "uv-version": "${{ env.UV_VERSION }}",
             "python-version": version,
             "sync-explicit-python": "true",
         }
         assert any("Upload" in step.get("name", "") for step in job["steps"])
-    assert quality["jobs"]["test"]["name"] == "Test lane ${{ matrix.artifact }}"
-    assert quality["jobs"]["test-compatibility"]["name"] == "Fast compatibility (Python ${{ matrix.python-version }})"
+
+    assert test_job["name"] == "Test lane ${{ matrix.artifact }}"
+    assert compatibility_job["name"] == "Fast compatibility (Python ${{ matrix.python-version }})"
+    assert test_job["strategy"]["fail-fast"] is False
+    assert test_job["timeout-minutes"] == 30
+    assert len(test_job["strategy"]["matrix"]["include"]) == 10
+    assert "test" in quality["jobs"]["coverage"]["needs"]
+    assert "test" in quality["jobs"]["release-gate-summary"]["needs"]
+    assert '--gate "tests=${{ needs.test.result }}"' in QUALITY.read_text(encoding="utf-8")

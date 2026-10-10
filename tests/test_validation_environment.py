@@ -163,7 +163,8 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
     assert "https://archive.ubuntu.com/ubuntu" in script
 
     expected_calls = {
-        Path(".github/workflows/quality.yml"): 3,
+        Path(".github/workflows/quality.yml"): 2,
+        Path(".github/workflows/quality-test-lanes.yml"): 1,
         Path(".github/workflows/quality-benchmark.yml"): 1,
         Path(".github/workflows/release.yml"): 1,
         Path(".github/workflows/hardware.yml"): 1,

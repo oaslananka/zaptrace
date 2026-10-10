@@ -78,7 +78,7 @@ def test_duration_baseline_is_measured_and_has_heavy_modules() -> None:
 
 def test_unit_lane_uses_three_duration_weighted_shards_in_ci_and_release() -> None:
     policy = load_lane_policy(ROOT / "config/test-lanes.json")
-    quality = (ROOT / ".github/workflows/quality.yml").read_text(encoding="utf-8")
+    quality = (ROOT / ".github/workflows/quality-test-lanes.yml").read_text(encoding="utf-8")
     release = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 
     assert policy.shard_counts["unit"] == 3
@@ -176,16 +176,19 @@ def test_required_benchmark_lane_cannot_pass_without_execution(tmp_path: Path) -
 
 def test_quality_and_release_workflows_publish_lane_evidence() -> None:
     quality = (ROOT / ".github/workflows/quality.yml").read_text(encoding="utf-8")
+    lanes = (ROOT / ".github/workflows/quality-test-lanes.yml").read_text(encoding="utf-8")
     release = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
 
+    assert "uses: ./.github/workflows/quality-test-lanes.yml" in quality
     for lane in PRIMARY_LANES:
-        assert f"lane: {lane}" in quality
+        assert f"lane: {lane}" in lanes
         assert f'"{lane}' in release
     assert '--lane "$lane"' in release
-    assert "test-lane-report" in quality
+    assert "test-lane-report" in lanes
     assert "test-lane-inventory.json" in quality
-    assert "--require-lane-execution" in quality
-    assert quality.count("-p tests.lane_policy") >= 3
+    assert "--require-lane-execution" in lanes
+    assert quality.count("-p tests.lane_policy") >= 2
+    assert lanes.count("-p tests.lane_policy") >= 1
     assert ".venv/bin/pytest -p tests.lane_policy" in release
 
 
