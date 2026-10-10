@@ -258,3 +258,19 @@ def test_kicad_netlist_evidence_does_not_invent_unresolved_footprint_pads(tmp_pa
 
     report = compare_kicad_schematic_to_pcb_files(design, output["netlist_evidence"], output["pcb"])
     assert not report.passed
+
+
+def test_kicad_pad_uuid_is_unique_across_components_and_repeated_pad_ids(tmp_path: Path) -> None:
+    import re
+
+    design = _make_test_design()
+    design.placement = {"r1": (10.0, 10.0), "c1": (20.0, 10.0)}
+    # ESP32 module exposes pad 39 as several individual copper rectangles.
+    # KiCad allows repeated pad numbers, not repeated object UUID identities.
+    design.components["r1"].footprint_def.pads.append(Pad(id="1", position=(2.0, 0.0)))
+    pcb = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
+    uuids = re.findall(r'\(pad "[^"]+"[\s\S]*?\(uuid "([0-9a-f-]{36})"\)', pcb)
+    assert len(uuids) == 5  # three R1 and two C1 physical pads
+    assert len(set(uuids)) == len(uuids)
+    repeat = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
+    assert repeat == pcb
