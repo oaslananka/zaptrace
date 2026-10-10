@@ -59,6 +59,7 @@ checks:
         - "U1.VCC"
         - "U1.EN"
         - "U2.VDD"
+        - "U2.VDDIO"
         - "U2.CSB"
         - "C1.P1"
         - "C2.P1"

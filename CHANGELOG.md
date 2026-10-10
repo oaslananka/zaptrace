@@ -4,7 +4,9 @@
 
 ### Fixed
 
-- Removed the false physical-pad-completeness signal from KiCad netlist evidence: unresolved footprint definitions no longer count logical pin names as real PCB pads; schematic and physical-pad coverage are reported independently. Added regressions and documented the existing ESP32 example's 0/30 physical-pad mapping without loosening strict Proof Pack/KiCad gates.
+- Removed the false physical-pad-completeness signal from KiCad netlist evidence: unresolved footprint definitions no longer count logical pin names as real PCB pads; schematic and physical-pad coverage are reported independently. Added regressions; the ESP32 example initially had 0/30 physical-pad mapping, now 0/31 after explicit BME280 VDDIO supply mapping, without loosening strict Proof Pack/KiCad gates.
+- Respect explicit physical pad-to-logical pin maps when selecting routed pad escape positions; incomplete maps now remain conspicuous routing fallbacks rather than silently routing to a coincidentally same-named pad.
+- Correct ESP32-WROOM-32 and BME280 physical pin identities in the demo source; connect BME280 VDDIO pad 6 to 3.3 V and preserve fail-closed KiCad/Proof Pack review.
 
 ### Changed
 

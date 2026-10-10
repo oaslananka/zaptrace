@@ -78,15 +78,26 @@ be substituted for KiCad CLI acceptance.
 
 ## What's verified and what isn't
 
+The demo now explicitly maps ESP32-WROOM-32 module pads (including GPIO21
+physical pad 33 and GPIO22 physical pad 36) and the Bosch BME280 LGA-8 pads
+to their **logical** pin names, based on their respective official datasheets:
+[Espressif ESP32-WROOM-32](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
+and [Bosch BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
+BME280 VDDIO (physical pad 6) is now explicitly on the 3.3 V supply,
+rather than silently absent from the source schematic. This represents
+*logical mapping intent only*: manufacturer pad geometry, net continuity,
+complete USB-C CC handling, routing and vendor qualification still need
+professional review and KiCad evidence.
+
 The `power-nets-connected` and `gnd-connected` checks use the actual
 `VCC_3V3`/`GND` net names and component-qualified pin identities such as
 `U1.VCC` and `U2.GND`; unlike obsolete unqualified pin expectations,
 they cannot pass merely because a different component has a same-named pin.
 
-**Critical missing physical footprint evidence:** the source demo's 30
+**Critical missing physical footprint evidence:** the source demo's 31
 logical net nodes have **0 resolved physical pad geometries** in its
-current KiCad netlist evidence. The source schematic connectivity covers 30/30
-logical nodes, but PCB pad mapping covers **0/30**. That is a genuine unresolved
+current KiCad netlist evidence. The source schematic connectivity covers 31/31
+logical nodes, but PCB pad mapping covers **0/31**. That is a genuine unresolved
 footprint/package mapping deficiency, not a KiCad DRC pass. `pipeline`
 producing a `.kicad_pcb` file does **not** make its footprints real or
 its routed copper electrically connected. See

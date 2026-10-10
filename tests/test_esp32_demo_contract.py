@@ -13,6 +13,32 @@ ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "examples" / "esp32_i2c_sensor_node"
 
 
+def test_esp32_and_bme280_physical_pin_maps_match_documented_land_patterns() -> None:
+    design = parse_file(EXAMPLE / "design.yaml")
+    assert design.components["U1"].package_pin_map == {
+        "1": "GND",
+        "2": "VCC",
+        "3": "EN",
+        "15": "GND",
+        "33": "GPIO21",
+        "36": "GPIO22",
+        "38": "GND",
+        "39": "GND",
+    }
+    assert design.components["U2"].package_pin_map == {
+        "1": "GND",
+        "2": "CSB",
+        "3": "SDA",
+        "4": "SCK",
+        "5": "SDO",
+        "6": "VDDIO",
+        "7": "GND",
+        "8": "VDD",
+    }
+    assert design.components["U2"].pins["VDDIO"].net == "VCC_3V3"
+    assert "U2.VDDIO" in {f"{node.component_ref}.{node.pin_name}" for node in design.nets["VCC_3V3"].nodes}
+
+
 def test_example_proof_expectations_match_real_component_and_pin_identities() -> None:
     design = parse_file(EXAMPLE / "design.yaml")
     policy = yaml.safe_load((EXAMPLE / ".proof" / "proof.yaml").read_text(encoding="utf-8"))
@@ -35,8 +61,8 @@ def test_esp32_demo_does_not_claim_physical_pad_mapping_without_footprints(tmp_p
     artifact = export_kicad_netlist_evidence(design, tmp_path)
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
-    assert evidence["node_count"] == 30
-    assert evidence["missing_pcb_pad_node_count"] == 30
+    assert evidence["node_count"] == 31
+    assert evidence["missing_pcb_pad_node_count"] == 31
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
     assert evidence["fidelity"]["pcb_pad_coverage"] == 0.0
