@@ -153,20 +153,6 @@
       ]
     },
     {
-      "description": "Keep the Ruff Python package and pre-commit hook synchronized; require review because the repository enforces exact version parity.",
-      "matchPackageNames": [
-        "ruff",
-        "astral-sh/ruff-pre-commit"
-      ],
-      "groupName": "ruff toolchain",
-      "automerge": false,
-      "addLabels": [
-        "area/ci",
-        "status/needs-review"
-      ],
-      "minimumReleaseAge": "7 days"
-    },
-    {
       "description": "Group pre-commit hook updates; non-major changes may merge after required checks.",
       "matchManagers": [
         "pre-commit"
@@ -181,6 +167,20 @@
         "area/ci",
         "automerge:enabled"
       ]
+    },
+    {
+      "description": "Keep the Ruff Python package and pre-commit hook synchronized; require review because the repository enforces exact version parity.",
+      "matchPackageNames": [
+        "ruff",
+        "astral-sh/ruff-pre-commit"
+      ],
+      "groupName": "ruff toolchain",
+      "automerge": false,
+      "addLabels": [
+        "area/ci",
+        "status/needs-review"
+      ],
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Keep the published Python >=3.12 compatibility floor governed by intentional platform-support releases, not dependency automation.",

@@ -66,3 +66,17 @@ def test_renovate_config_validation_is_time_bounded_and_least_privileged() -> No
     assert install["run"] == "npm ci --ignore-scripts --no-audit --no-fund"
     validation = next(step for step in job["steps"] if step["name"] == "Validate Renovate configuration")
     assert validation["run"] == ".github/renovate-validation/node_modules/.bin/renovate-config-validator --strict"
+
+
+def test_ruff_toolchain_rule_overrides_generic_pre_commit_group() -> None:
+    """Both Ruff package and hook updates must share a branch and locked version."""
+    config = json.loads((ROOT / ".github/renovate.json").read_text(encoding="utf-8"))
+    rules = config["packageRules"]
+    generic = next(i for i, rule in enumerate(rules) if rule.get("groupName") == "pre-commit")
+    ruff = next(i for i, rule in enumerate(rules) if rule.get("groupName") == "ruff toolchain")
+    assert ruff > generic, "Renovate applies the last matching groupName rule"
+    assert rules[generic]["matchManagers"] == ["pre-commit"]
+    assert set(rules[ruff]["matchPackageNames"]) == {"ruff", "astral-sh/ruff-pre-commit"}
+    assert rules[ruff]["automerge"] is False
+    assert rules[ruff]["minimumReleaseAge"] == "7 days"
+    assert not any("groupName" in rule for rule in rules[ruff + 1 :] if "pre-commit" in rule.get("matchManagers", []))
