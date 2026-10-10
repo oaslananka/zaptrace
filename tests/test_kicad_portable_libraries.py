@@ -46,6 +46,15 @@ def test_portable_libraries_reject_symlinks_outside_workspace(tmp_path: Path, un
     assert not (external / "SOT-223-3_TabPin2.kicad_mod").exists()
 
 
+def test_library_member_resolution_does_not_create_workspace(tmp_path: Path) -> None:
+    """Export initializes the trusted root; path checking alone never writes."""
+    from zaptrace.export.path_policy import resolve_output_member
+
+    output = tmp_path / "not-created"
+    assert resolve_output_member(output, "sym-lib-table") == output / "sym-lib-table"
+    assert not output.exists()
+
+
 @pytest.mark.parametrize("bad_member", ["", ".", "..", "../outside", "a/b", "a\\b"])
 def test_portable_library_output_member_rejects_path_fragments(tmp_path: Path, bad_member: str) -> None:
     from zaptrace.export.path_policy import resolve_output_member
