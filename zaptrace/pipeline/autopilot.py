@@ -10,8 +10,9 @@ from typing import Any
 from zaptrace.algo.grid_router import GridRouter
 from zaptrace.algo.placer import place_components
 from zaptrace.algo.router import RoutingResult, route_design_smart
-from zaptrace.core.models import Design
+from zaptrace.core.models import Design, NetClass
 from zaptrace.core.parser import parse_file, parse_str
+from zaptrace.ee.classifier import get_net_class
 from zaptrace.erc.models import ERCResult
 from zaptrace.erc.patches import suggest_patches
 from zaptrace.erc.runner import ERCRunner
@@ -107,7 +108,7 @@ class Autopilot:
       2. SYNTHESIZE — Generate design from intent (if no design provided)
       3. VALIDATE   — Run all 29 ERC rules
       4. PLACE      — Component placement (grid + force-directed)
-      5. ROUTE      — Manhattan MST routing
+      5. ROUTE      — obstacle-aware A* or explicitly bounded legacy fallback
       6. BOM        — Generate bill of materials (CSV + JSON)
       7. REPORT     — Generate Markdown design report
       8. SVG        — Render schematic SVG
@@ -277,19 +278,38 @@ class Autopilot:
         if positions is None:
             raise PipelineHaltError("No placement data — run place stage first")
         # Prefer the obstacle-aware A* grid router so the pipeline emits
-        # collision-free, multi-layer, manufacturable traces. The MST/L-shape
+        # collision-aware, multi-layer traces (independent DRC is still required).
+        # The MST/L-shape
         # router (route_design_smart) ignores obstacles and overlaps freely, so
         # it is kept only as a fallback when A* routes nothing (e.g. a
         # degenerate board where every terminal collapses onto one grid cell).
         route_result = GridRouter().route(design, positions)
+        routed_net_ids = {trace.net_id for trace in route_result.traces}
+        unresolved_net_ids = [
+            net.id
+            for net in design.nets.values()
+            if len(net.nodes) > 1 and get_net_class(design, net.id) != NetClass.GROUND and net.id not in routed_net_ids
+        ]
         if route_result.routed_net_count > 0:
             ctx.routing = RoutingResult(
                 segments=[],
                 routed_nets=route_result.routed_net_count,
                 total_nets=route_result.net_count,
-                unrouted_nets=[],
+                unrouted_nets=unresolved_net_ids,
             )
             design.routing = route_result
+        elif any(component.footprint_asset for component in design.components.values()):
+            # Verified physical copper must never be replaced by Manhattan
+            # fallback traces when the obstacle-aware router found zero routes.
+            # Export real pads with zero synthetic tracks, leaving validation
+            # and the independent KiCad oracle to report the missing routes.
+            design.routing = route_result
+            ctx.routing = RoutingResult(
+                segments=[],
+                routed_nets=0,
+                total_nets=route_result.net_count,
+                unrouted_nets=unresolved_net_ids,
+            )
         else:
             ctx.routing, design.routing, _ = route_design_smart(design, positions)
         if ctx.routing.routed_nets > 0 and not design.routing.traces:

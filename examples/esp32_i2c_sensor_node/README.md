@@ -3,7 +3,11 @@
 This example is the existing ESP32-WROOM-32 + BME280 sensor-node source design.
 It is a **working generation-and-inspection demo**, **not a passed release
 candidate**. ZapTrace can generate placement, routing, KiCad project files,
-reviewable SVG/HTML, Gerber layers, and a manufacturing bundle. **Generating
+reviewable SVG/HTML, Gerber layers, and a manufacturing bundle. With
+verified physical copper pads, the obstacle-aware router currently cannot
+legally route this placement, so the PCB **intentionally contains no generated
+trace segments** instead of quietly falling back to unsafe straight-line
+copper. The bundled Gerbers are incomplete and must not be fabricated. **Generating
 files is not evidence that the board is safe to build.**
 
 ## Run from the repository root
@@ -39,8 +43,10 @@ uv run --no-sync zaptrace proof run \
 ```
 
 **The nonzero exit code is intentional for the present design.** The eight
-checks report five passes (ERC, routing-completeness, named footprint presence,
-3.3 V connections, and ground connections) and three blockers:
+checks report five passes (source-net assertions, ERC, named footprint
+presence, 3.3 V connections, and ground connections) and three blockers.
+The source-only routing-completeness check is **not proof that KiCad PCB traces
+were generated or all physical pads are electrically joined**:
 
 - `drc-clean`: copper clearance error between `VCC_3V3` and `I2C_SCL`
   plus right-angle routing warnings on `I2C_SDA`.
@@ -75,8 +81,10 @@ kicad-cli sch erc --exit-code-violations \
 
 Both commands currently **exit nonzero** because the generated KiCad
 project has additional errors. Independently tested with KiCad 10.0.6:
-**122 PCB DRC findings, 26 unconnected items, and 24 schematic ERC
-warnings**. These results may change with KiCad version, configuration,
+**36 PCB DRC findings, 27 unconnected items, and 24 schematic ERC
+warnings**. This reduced violation count is solely due to discarding all 78
+unsafe fallback segments, **not** successful routing. In particular, no
+physical continuity has been verified. These results may change with KiCad version, configuration,
 or routing changes. They are *not* the same rule set as the in-process
 ZapTrace ERC/DRC checks. A clean ZapTrace source ERC result must never
 be substituted for KiCad CLI acceptance.
@@ -114,7 +122,7 @@ identity evidence, not a full manufacturing/ERC/DRC pass. Binding
 actual pad geometries exposes copper-level clearance, pad-mask and routing
 problems which were invisible while the exported footprints had no pads. `pipeline`
 producing a `.kicad_pcb` file does **not** make its footprints real or
-its routed copper electrically connected. See
+its missing routed copper electrically connected. See
 [issue #91](https://github.com/oaslananka/zaptrace/issues/91).
 
 Passing source ERC or an automatically generated manufacturing ZIP is **not**
