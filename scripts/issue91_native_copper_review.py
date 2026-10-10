@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pwd
 import re
 import shutil
 import signal
@@ -195,14 +196,22 @@ def _run_kicad_cli(cli: Path, args: list[str]) -> str:
 
     with tempfile.TemporaryFile() as output:
         argv = (str(cli), *args)
-        # The executable path is verified, the command is strictly allowlisted,
-        # and file paths are absolute argv operands, never shell syntax.
-        # This precise Semgrep warning is a false positive after those checks.
+        # Never forward the caller's full environment to KiCad. In particular
+        # LD_PRELOAD, PYTHONPATH and other attacker-controlled injection hooks
+        # must not be inherited by this review subprocess.
+        system_user = pwd.getpwuid(os.getuid())
+        clean_env = {
+            "HOME": system_user.pw_dir,
+            "PATH": "/usr/bin:/bin",
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+        }
+        # The executable path is verified and argv subcommands are allowlisted.
         # nosemgrep: python.lang.security.dangerous-os-exec.dangerous-os-exec
         pid = os.posix_spawn(
             str(cli),
             argv,  # nosemgrep: python.lang.security.dangerous-os-exec.dangerous-os-exec
-            os.environ.copy(),
+            clean_env,
             file_actions=[(os.POSIX_SPAWN_DUP2, output.fileno(), 1)],
         )
         deadline = time.monotonic() + 120

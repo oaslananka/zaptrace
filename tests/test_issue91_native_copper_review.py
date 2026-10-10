@@ -84,6 +84,10 @@ def test_run_kicad_rejects_partial_binaries_and_shell_execution(
     def stub_spawn(executable: str, argv: tuple[str, ...], env: dict[str, str], **kwargs: object) -> int:
         calls.append((executable, argv, kwargs))
         assert "file_actions" in kwargs
+        assert set(env) == {"HOME", "PATH", "LANG", "LC_ALL"}
+        assert env["PATH"] == "/usr/bin:/bin"
+        assert "LD_PRELOAD" not in env
+        assert "PYTHONPATH" not in env
         return 43012
 
     monkeypatch.setattr("scripts.issue91_native_copper_review.os.posix_spawn", stub_spawn)
