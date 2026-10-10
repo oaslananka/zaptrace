@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add an opt-in, fail-closed KiCad 10 native *partial* physical PCB routing review for ESP32 Issue #91 with 14 F.Cu segments connecting six real pad pairs. Native DRC validates before/after without creating new violations, reducing unconnected copper 37→31 while 16 real manufacturer DRC blockers remain. Document JLCPCB, PCBWay and GCT published hole/slot capability and clearances separately from any order/DFM qualification; no DRC bypass or fabrication claim.
+
 ### Fixed
 
 - Preserve KiCad's unquoted thermal-pad enum `(property pad_prop_heatsink)` when embedding SHA-256-verified supplier footprints. KiCad 10 otherwise silently dropped all 13 ESP32 heatsink-pad properties upon loading the PCB. Exact commit `29847de` now reports **zero footprint-library mismatches**, **16 physical PCB DRC violations** (12 actual 0.20 mm ESP32 holes and four USB-C NPTH-to-contact clearances), **37 unconnected items** and **zero schematic ERC** on independent KiCad 10.0.6. Manufacturing acceptance remains blocked.
