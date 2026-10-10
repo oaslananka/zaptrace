@@ -2,7 +2,7 @@
 
 Requires system KiCad 10 pcbnew + kicad-cli. Runs *native* KiCad DRC both
 before and after routing and refuses to emit an accepted artifact if new
-violations appear or the expected six pad connections are not established.
+violations appear or the expected fourteen pad connections are not established.
 
 This is a review artifact, NOT complete board routing or fabrication signoff.
 """
@@ -28,7 +28,7 @@ class RoutedConnection:
 
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6.
 # These are only the paths KiCad independently proved physically connected.
-# Do NOT extrapolate success to the 31 remaining unconnected copper items.
+# Do NOT extrapolate success to the 23 remaining unconnected copper items.
 ROUTES: tuple[RoutedConnection, ...] = (
     RoutedConnection(
         "USB_CC1",
@@ -65,6 +65,54 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("U2", "1", (46.025, 58.975)),
         ("U2", "7", (46.675, 61.025)),
         ((46.025, 58.975), (46.675, 61.025)),
+    ),
+    RoutedConnection(
+        "I2C_SDA",
+        ("R1", "2", (54.51, 58.0)),
+        ("TP1", "1", (51.0, 66.0)),
+        ((54.51, 58.0), (51.0, 66.0)),
+    ),
+    RoutedConnection(
+        "I2C_SCL",
+        ("R2", "2", (58.51, 58.0)),
+        ("TP2", "1", (55.0, 66.0)),
+        ((58.51, 58.0), (55.0, 66.0)),
+    ),
+    RoutedConnection(
+        "I2C_SDA",
+        ("U2", "3", (47.325, 58.975)),
+        ("R1", "2", (54.51, 58.0)),
+        ((47.325, 58.975), (47.325, 57.0), (54.51, 57.0), (54.51, 58.0)),
+    ),
+    RoutedConnection(
+        "VCC_5V",
+        ("C3", "1", (67.52, 68.0)),
+        ("D1", "1", (60.95, 68.0)),
+        ((67.52, 68.0), (67.52, 66.0), (60.95, 66.0), (60.95, 68.0)),
+    ),
+    RoutedConnection(
+        "GND",
+        ("C3", "2", (68.48, 68.0)),
+        ("D1", "2", (63.05, 68.0)),
+        ((68.48, 68.0), (68.48, 70.0), (63.05, 70.0), (63.05, 68.0)),
+    ),
+    RoutedConnection(
+        "GND",
+        ("R3", "2", (72.51, 60.0)),
+        ("R4", "2", (77.51, 60.0)),
+        ((72.51, 60.0), (72.51, 58.8), (77.51, 58.8), (77.51, 60.0)),
+    ),
+    RoutedConnection(
+        "GND",
+        ("U1", "1", (21.25, 25.75)),
+        ("U1", "38", (38.75, 25.75)),
+        ((21.25, 25.75), (38.75, 25.75)),
+    ),
+    RoutedConnection(
+        "VCC_3V3",
+        ("U3", "2", (61.85, 36.0)),
+        ("U3", "2", (68.15, 36.0)),
+        ((61.85, 36.0), (68.15, 36.0)),
     ),
 )
 
@@ -165,7 +213,7 @@ def run_review(board_path: Path, output_path: Path) -> dict[str, object]:
         "traceSegments": sum(len(route.points) - 1 for route in ROUTES),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "31 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "23 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
     return evidence

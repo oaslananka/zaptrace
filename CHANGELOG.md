@@ -4,7 +4,7 @@
 
 ### Added
 
-- Add an opt-in, fail-closed KiCad 10 native *partial* physical PCB routing review for ESP32 Issue #91 with 14 F.Cu segments connecting six real pad pairs. Native DRC validates before/after without creating new violations, reducing unconnected copper 37→31 while 16 real manufacturer DRC blockers remain. Document JLCPCB, PCBWay and GCT published hole/slot capability and clearances separately from any order/DFM qualification; no DRC bypass or fabrication claim.
+- Add an opt-in, fail-closed KiCad 10 native *partial* physical PCB routing review for ESP32 Issue #91 with 30 F.Cu segments connecting fourteen real pad pairs. Native DRC validates before/after without creating new violations, reducing unconnected copper 37→23 while 16 real manufacturer DRC blockers remain. Document JLCPCB, PCBWay and GCT published hole/slot capability and clearances separately from any order/DFM qualification; no DRC bypass or fabrication claim.
 
 ### Fixed
 

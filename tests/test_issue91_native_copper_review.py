@@ -13,8 +13,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 6
-    assert sum(len(route.points) - 1 for route in ROUTES) == 14
+    assert len(ROUTES) == 14
+    assert sum(len(route.points) - 1 for route in ROUTES) == 30
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
