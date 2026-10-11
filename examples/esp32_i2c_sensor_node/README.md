@@ -99,6 +99,10 @@ unconnected; native DRC still 16) are documented in
 [MANUFACTURING_REVIEW.md](MANUFACTURING_REVIEW.md). The default pipeline
 remains fail-closed and exports **zero routed tracks**; the optional review PCB
 still has 12 missing native physical connections and is **not fabrication-ready**.
+For the twelve ESP32 thermal-pad drill errors and four USB-C locating-hole
+clearance errors, see the separate [fabrication DFM decision record](DFM_DECISION_91.md):
+written board-specific supplier confirmation versus a fully requalified
+footprint/component redesign, with neither path yet authorized.
 
 ### Independent KiCad checks (when KiCad 10 is installed)
 

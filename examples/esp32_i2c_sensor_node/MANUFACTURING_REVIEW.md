@@ -5,6 +5,12 @@ assessment, not a supplier order approval. The sample board outline and
 component placement are provisional; no PCB stackup, copper weight, thermal
 performance or order options have been signed off.
 
+**Technical decision record:** [DFM_DECISION_91.md](DFM_DECISION_91.md)
+compares a written, revision-specific manufacturing exception inquiry against
+a qualified geometry/footprint redesign. It records the exact sixteen DRC
+findings, supplier questions and explicit no-fabrication acceptance gates.
+Neither decision path is approved yet.
+
 ## Manufacturer evidence (reviewed 2026-10-11)
 
 Primary sources:
