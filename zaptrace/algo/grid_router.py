@@ -124,14 +124,34 @@ class ObstacleMap:
         self.layers = layers
         # cells[layer][row][col]
         self._cells: list[list[list[int]]] = [[[0] * width for _ in range(height)] for _ in range(layers)]
+        self._copper: dict[GridPos, str] = {}
+
+    def clone(self) -> ObstacleMap:
+        """Copy the entire occupancy transaction before routing a net."""
+        other = ObstacleMap(self.width, self.height, self.layers)
+        other._cells = [[row[:] for row in layer] for layer in self._cells]
+        other._copper = self._copper.copy()
+        return other
 
     # -- Query ------------------------------------------------------------
 
     def in_bounds(self, pos: GridPos) -> bool:
         return 0 <= pos.layer < self.layers and 0 <= pos.x < self.width and 0 <= pos.y < self.height
 
-    def is_free(self, pos: GridPos) -> bool:
-        return self.in_bounds(pos) and self._cells[pos.layer][pos.y][pos.x] == 0
+    def is_free(self, pos: GridPos, net_id: str | None = None) -> bool:
+        if not self.in_bounds(pos) or self._cells[pos.layer][pos.y][pos.x] != 0:
+            return False
+        owner = self._copper.get(pos)
+        return owner is None or (net_id is not None and owner == net_id)
+
+    def owner(self, pos: GridPos) -> str | None:
+        return self._copper.get(pos)
+
+    def open_for_net(self, pos: GridPos, net_id: str) -> None:
+        """Allow a footprint escape only for its owning electrical net."""
+        if self.in_bounds(pos) and self.owner(pos) in (None, net_id):
+            self.unblock(pos)
+            self._copper[pos] = net_id
 
     # -- Blocking primitives ----------------------------------------------
 
@@ -161,25 +181,28 @@ class ObstacleMap:
             for x in range(x0c, x1c + 1):
                 row[x] = 1
 
-    def block_line(self, p0: GridPos, p1: GridPos, radius: int = 0) -> None:
-        """Bresenham line. Optionally dilate by ``radius`` cells."""
+    def block_line(self, p0: GridPos, p1: GridPos, radius: int = 0, *, net_id: str | None = None) -> None:
+        """Reserve an optional net-owned dilated line using Bresenham."""
         dx = abs(p1.x - p0.x)
         sx = 1 if p0.x < p1.x else -1
         dy = -abs(p1.y - p0.y)
         sy = 1 if p0.y < p1.y else -1
         err = dx + dy
         x, y = p0.x, p0.y
+        reservations: set[GridPos] = set()
         while True:
             gp = GridPos(x, y, p0.layer)
-            self.block(gp)
-            if radius > 0:
-                self.block_rect(
-                    x - radius,
-                    y - radius,
-                    x + radius,
-                    y + radius,
-                    p0.layer,
-                )
+            if net_id is None:
+                self.block(gp)
+                if radius > 0:
+                    self.block_rect(x - radius, y - radius, x + radius, y + radius, p0.layer)
+            else:
+                for yy in range(y - radius, y + radius + 1):
+                    for xx in range(x - radius, x + radius + 1):
+                        point = GridPos(xx, yy, p0.layer)
+                        if not self.in_bounds(point):
+                            continue
+                        reservations.add(point)
             if x == p1.x and y == p1.y:
                 break
             e2 = 2 * err
@@ -189,6 +212,11 @@ class ObstacleMap:
             if e2 <= dx:
                 err += dx
                 y += sy
+
+        if net_id is not None:
+            if any(self.owner(point) not in (None, net_id) for point in reservations):
+                raise ValueError("Copper clearance is reserved by another net")
+            self._copper.update({point: net_id for point in reservations})
 
     def dilate(self, radius: int) -> None:
         """Expand every blocked cell by ``radius`` cells (Manhattan)."""
@@ -260,6 +288,10 @@ class GridRouter:
     max_iterations:
         Maximum A* expansions per path search.  Prevents runaway on
         impossible-to-route nets.
+    max_ripup_passes:
+        Optional bounded, deterministic whole-map net-order retries (0..2).
+        Disabled by default; never accepts fewer completed nets. Not
+        a full push-and-shove router.
     """
 
     def __init__(
@@ -268,7 +300,11 @@ class GridRouter:
         via_cost: float = 10.0,
         turn_penalty: float = 0.2,
         max_iterations: int = 200_000,
+        max_ripup_passes: int = 0,
     ) -> None:
+        if not 0 <= max_ripup_passes <= 2:
+            raise ValueError("max_ripup_passes must be in range 0..2")
+        self.max_ripup_passes = max_ripup_passes
         self.resolution = resolution_mm
         self.via_cost = via_cost
         self.turn_penalty = turn_penalty
@@ -332,18 +368,22 @@ class GridRouter:
         grid_positions: list[tuple[int, int]],
         layer: int,
         clear_cells: int,
+        net_id: str,
     ) -> list[list[GridPos]] | None:
         edge_paths: list[list[GridPos]] = []
         for first, second in self._mst(grid_positions):
             start = GridPos(*grid_positions[first], layer)
             goal = GridPos(*grid_positions[second], layer)
-            path = self._astar(context.obstacles, start, goal)
+            path = self._astar(context.obstacles, start, goal, net_id=net_id)
             if not path:
                 return None
             smooth = _simplify_path(path)
             edge_paths.append(smooth)
-            for index in range(len(smooth) - 1):
-                context.obstacles.block_line(smooth[index], smooth[index + 1], clear_cells)
+            try:
+                for index in range(len(smooth) - 1):
+                    context.obstacles.block_line(smooth[index], smooth[index + 1], clear_cells, net_id=net_id)
+            except ValueError:
+                return None
         return edge_paths
 
     def _plan_grid_net(
@@ -364,9 +404,24 @@ class GridRouter:
         rule = kb.get_rule(net_class)
         clear_cells = max(int(math.ceil(rule.clearance / self.resolution)), 1)
         grid_positions = [self._to_grid_point(point, context) for point in route_points]
+        # A failed later MST edge must not leave earlier edges, or cleared
+        # component cells, in the committed map.
+        staged = context.obstacles.clone()
+        staged_context = _GridRouteContext(
+            obstacles=staged,
+            grid_w=context.grid_w,
+            grid_h=context.grid_h,
+            num_layers=context.num_layers,
+            ref_positions=context.ref_positions,
+            component_by_ref=context.component_by_ref,
+            via_pad=context.via_pad,
+            via_hole=context.via_hole,
+        )
         for gx, gy in grid_positions:
-            self._unblock_endpoint(context.obstacles, GridPos(gx, gy, layer), max(clear_cells, 1))
-        edge_paths = self._route_mst_paths(context, grid_positions, layer, clear_cells)
+            self._unblock_endpoint(staged, GridPos(gx, gy, layer), max(clear_cells, 1), net_id=net.id)
+        edge_paths = self._route_mst_paths(staged_context, grid_positions, layer, clear_cells, net.id)
+        if edge_paths is not None:
+            context.obstacles = staged
         return _GridNetPlan(True, edge_paths is not None, net.id, rule.trace_width, edge_paths or [])
 
     def _append_grid_net_output(
@@ -396,47 +451,92 @@ class GridRouter:
                 if first.layer != second.layer:
                     state.vias.append((x0, y0, context.via_pad, context.via_hole, plan.net_id))
 
+    def _route_ordered_nets(
+        self,
+        design: Design,
+        positions: dict[str, tuple[float, float]],
+        kb: KnowledgeBase,
+        nets: list[Net],
+    ) -> tuple[RouteResult, list[str]]:
+        """Build a fresh occupancy model for each transactional route order."""
+        context = self._prepare_route_context(design, positions)
+        state = _GridRouteState(traces=[], vias=[], layers_used=set())
+        unsuccessful: list[str] = []
+        for net in nets:
+            plan = self._plan_grid_net(design, net, context, kb)
+            if not plan.routable:
+                continue
+            state.total_routable += 1
+            if not plan.success:
+                unsuccessful.append(net.id)
+                continue
+            state.routed_count += 1
+            self._append_grid_net_output(state, context, plan)
+
+        length = sum(math.dist(t.start, t.end) for t in state.traces)
+        return (
+            RouteResult(
+                traces=state.traces,
+                vias=state.vias,
+                layers_used=sorted(state.layers_used),
+                total_trace_length_mm=round(length, 3),
+                net_count=state.total_routable,
+                routed_net_count=state.routed_count,
+            ),
+            unsuccessful,
+        )
+
     def route(
         self,
         design: Design,
         positions: dict[str, tuple[float, float]],
         kb: KnowledgeBase | None = None,
     ) -> RouteResult:
-        """Route every net in *design* using A* grid pathfinding."""
+        """Route deterministically, optionally retrying fresh rip-up orders.
+
+        A candidate replaces the prior result only if *more entire nets*
+        route successfully. A failed or equal retry never degrades the
+        previous result. These grid results are not independent PCB DRC
+        or proof of manufacturable, pad-connected copper.
+        """
         knowledge = kb if kb is not None else KnowledgeBase()
         classify_design(design)
-        context = self._prepare_route_context(design, positions)
         sorted_nets = sorted(
             design.nets.values(),
             key=lambda net: knowledge.get_rule(get_net_class(design, net.id)).priority,
         )
-        state = _GridRouteState(traces=[], vias=[], layers_used=set())
-        for net in sorted_nets:
-            plan = self._plan_grid_net(design, net, context, knowledge)
-            if not plan.routable:
-                continue
-            state.total_routable += 1
-            if not plan.success:
-                continue
-            state.routed_count += 1
-            self._append_grid_net_output(state, context, plan)
+        best, missing = self._route_ordered_nets(design, positions, knowledge, sorted_nets)
+        if not missing or not self.max_ripup_passes:
+            return best
 
-        total_length = sum(math.dist(trace.start, trace.end) for trace in state.traces)
-        return RouteResult(
-            traces=state.traces,
-            vias=state.vias,
-            layers_used=sorted(state.layers_used),
-            total_trace_length_mm=round(total_length, 3),
-            net_count=state.total_routable,
-            routed_net_count=state.routed_count,
-        )
+        # A fresh board is used each time: previously routed nets are
+        # deliberately ripped from the tentative occupancy map, not the
+        # accepted result. This is order negotiation, not push-and-shove.
+        for index in range(self.max_ripup_passes):
+            first = set(missing)
+            order = [net for net in sorted_nets if net.id in first]
+            order += [net for net in sorted_nets if net.id not in first]
+            if index > 0:
+                order = list(reversed(order))
+            attempt, still_missing = self._route_ordered_nets(design, positions, knowledge, order)
+            if attempt.routed_net_count > best.routed_net_count:
+                best, missing = attempt, still_missing
+            if not missing:
+                break
+        return best
 
     # -- A* Pathfinding ---------------------------------------------------
 
-    def _resolve_astar_endpoint(self, obstacles: ObstacleMap, position: GridPos) -> GridPos | None:
-        if obstacles.is_free(position):
+    def _resolve_astar_endpoint(
+        self, obstacles: ObstacleMap, position: GridPos, net_id: str | None = None
+    ) -> GridPos | None:
+        if obstacles.is_free(position, net_id=net_id):
             return position
-        return self._nearest_free(obstacles, position)
+        # Routing to a moved nearest-free point would counterfeit actual
+        # connectivity when a foreign net owns the intended endpoint.
+        if obstacles.owner(position) not in (None, net_id):
+            return None
+        return self._nearest_free(obstacles, position, net_id=net_id)
 
     def _previous_direction(self, node: _Node) -> tuple[int, int]:
         if node.parent is None:
@@ -450,11 +550,12 @@ class GridRouter:
         obstacles: ObstacleMap,
         current: _Node,
         goal: GridPos,
+        net_id: str | None = None,
     ) -> None:
         previous_direction = self._previous_direction(current)
         for dx, dy, move_cost in DIRECTIONS_8:
             position = GridPos(current.pos.x + dx, current.pos.y + dy, current.pos.layer)
-            if not obstacles.is_free(position):
+            if not obstacles.is_free(position, net_id=net_id):
                 continue
             # The diagonal segment traverses the shared corners of adjacent
             # axis-aligned cells. Require both side cells to be clear so copper
@@ -463,8 +564,10 @@ class GridRouter:
                 dx
                 and dy
                 and (
-                    not obstacles.is_free(GridPos(current.pos.x + dx, current.pos.y, current.pos.layer))
-                    or not obstacles.is_free(GridPos(current.pos.x, current.pos.y + dy, current.pos.layer))
+                    not obstacles.is_free(GridPos(current.pos.x + dx, current.pos.y, current.pos.layer), net_id=net_id)
+                    or not obstacles.is_free(
+                        GridPos(current.pos.x, current.pos.y + dy, current.pos.layer), net_id=net_id
+                    )
                 )
             ):
                 continue
@@ -483,13 +586,14 @@ class GridRouter:
         obstacles: ObstacleMap,
         current: _Node,
         goal: GridPos,
+        net_id: str | None = None,
     ) -> None:
         for layer_delta in (-1, 1):
             layer = current.pos.layer + layer_delta
             if not 0 <= layer < obstacles.layers:
                 continue
             position = GridPos(current.pos.x, current.pos.y, layer)
-            if not obstacles.is_free(position):
+            if not obstacles.is_free(position, net_id=net_id):
                 continue
             key = (position.x, position.y, position.layer)
             if key in closed:
@@ -503,12 +607,14 @@ class GridRouter:
         obs: ObstacleMap,
         start: GridPos,
         goal: GridPos,
+        *,
+        net_id: str | None = None,
     ) -> list[GridPos] | None:
-        """Find lowest-cost path via A* with 8-direction movement + vias."""
-        resolved_start = self._resolve_astar_endpoint(obs, start)
+        """Find lowest-cost path with net-owned existing copper reuse."""
+        resolved_start = self._resolve_astar_endpoint(obs, start, net_id)
         if resolved_start is None:
             return None
-        resolved_goal = self._resolve_astar_endpoint(obs, goal)
+        resolved_goal = self._resolve_astar_endpoint(obs, goal, net_id)
         if resolved_goal is None:
             return None
 
@@ -529,8 +635,8 @@ class GridRouter:
             closed.add(key)
             if current.pos == resolved_goal:
                 return _reconstruct(current)
-            self._push_planar_neighbors(open_set, closed, obs, current, resolved_goal)
-            self._push_via_neighbors(open_set, closed, obs, current, resolved_goal)
+            self._push_planar_neighbors(open_set, closed, obs, current, resolved_goal, net_id)
+            self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id)
         return None
 
     @staticmethod
@@ -538,6 +644,8 @@ class GridRouter:
         obs: ObstacleMap,
         pos: GridPos,
         max_radius: int = 48,
+        *,
+        net_id: str | None = None,
     ) -> GridPos | None:
         """BFS for nearest free cell within *max_radius*.
 
@@ -549,7 +657,7 @@ class GridRouter:
         q: deque[tuple[GridPos, int]] = deque([(pos, 0)])
         while q:
             current, dist = q.popleft()
-            if obs.is_free(current):
+            if obs.is_free(current, net_id=net_id):
                 return current
             if dist >= max_radius:
                 continue
@@ -631,10 +739,15 @@ class GridRouter:
         return (edge_x + (edge_x - cx) / length * nudge, edge_y + (edge_y - cy) / length * nudge)
 
     @staticmethod
-    def _unblock_endpoint(obs: ObstacleMap, pos: GridPos, radius: int) -> None:
+    def _unblock_endpoint(obs: ObstacleMap, pos: GridPos, radius: int, *, net_id: str | None = None) -> None:
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
-                obs.unblock(GridPos(pos.x + dx, pos.y + dy, pos.layer))
+                probe = GridPos(pos.x + dx, pos.y + dy, pos.layer)
+                if 0 < probe.x < obs.width - 1 and 0 < probe.y < obs.height - 1:
+                    if net_id is not None:
+                        obs.open_for_net(probe, net_id)
+                    else:
+                        obs.unblock(probe)
 
     # -- MST decomposition ------------------------------------------------
 
