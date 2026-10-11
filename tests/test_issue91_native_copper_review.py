@@ -23,8 +23,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 19
-    assert sum(len(route.points) - 1 for route in ROUTES) == 41
+    assert len(ROUTES) == 20
+    assert sum(len(route.points) - 1 for route in ROUTES) == 45
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
@@ -43,6 +43,20 @@ def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints(
             )
             connected_pin = component.package_pin_map.get(pin_number, pin_number)
             assert component.pins[connected_pin].net == route.net
+
+
+def test_new_ground_connection_is_verified_pad_center_to_pad_center() -> None:
+    additional = [route for route in ROUTES if route.source[0:2] == ("R3", "2") and route.target[0:2] == ("C3", "2")]
+    assert len(additional) == 1
+    route = additional[0]
+    assert route.net == "GND"
+    assert route.points == (
+        (72.51, 60.0),
+        (72.51, 57.2),
+        (69.6, 57.2),
+        (69.6, 66.5),
+        (68.48, 68.0),
+    )
 
 
 def test_native_drc_result_cannot_hide_new_finding_classes() -> None:
@@ -122,7 +136,7 @@ def test_finalize_rejects_new_native_drc_class_without_publishing(tmp_path: Path
     (tmp_path / "review.review-drc.rpt").write_text(
         "[drill_out_of_range]: x\n" * 12
         + "[hole_clearance]: y\n" * 4
-        + "[unconnected_items]: z\n" * 18
+        + "[unconnected_items]: z\n" * 17
         + "[shorting_items]: new short\n",
         encoding="utf-8",
     )
@@ -167,11 +181,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 18
+    after += "[unconnected_items]: gap\n" * 17
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 18}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 17}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()

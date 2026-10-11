@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add a twentieth independently KiCad-verified review-only GND connection between R3.2 and C3.2 (four 0.20 mm F.Cu segments): opt-in partial PCB routing now reduces real unconnected items 37→17 without changing the original 16 physical DRC violations. Reject a separately tested unsafe I²C SCL route that introduced a track crossing. Default exported PCB, strict Proof Pack failures and manufacturer sign-off block remain unchanged.
 - Run opt-in physical PCB review through a fail-closed native KiCad 10 shell driver with separate pre-/post-route DRC and SHA-256-bound staged artifact, rather than dynamically spawning KiCad from Python. This prevents unaudited subprocess argument construction and leaves the default board exporter unchanged.
 - Add an opt-in, fail-closed KiCad 10 native *partial* physical PCB routing review for ESP32 Issue #91 with 41 F.Cu segments connecting nineteen real pad pairs. Native DRC validates before/after without creating new violations, reducing unconnected copper 37→18 while 16 real manufacturer DRC blockers remain. Document JLCPCB, PCBWay and GCT published hole/slot capability and clearances separately from any order/DFM qualification; no DRC bypass or fabrication claim.
 
