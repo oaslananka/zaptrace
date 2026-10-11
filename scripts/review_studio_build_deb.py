@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = "0.1.2"
+VERSION = "0.1.4"
 PACKAGE = "zaptrace-review-studio"
 APP_FILES = (
     "review_studio_app.py",

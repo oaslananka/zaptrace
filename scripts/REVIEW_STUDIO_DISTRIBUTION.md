@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.2 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.4 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.2_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.4_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -20,6 +20,25 @@ zaptrace-review-studio
 You may also open **ZapTrace Review Studio** from your desktop's app menu.
 The menu entry does not require a terminal. If the browser cannot be opened,
 run `zaptrace-review-studio --no-browser` in a terminal to read the local URL.
+
+## PCB, schematic and genuine KiCad 3D inspection
+
+The installed read-only engineering workspace contains a PCB copper/layers
+viewer, actual multi-sheet Eeschema SVG preview with source-rendered sheet
+thumbnails and safe cross-probing, and a third **3D** inspection mode with
+**KiCad 10 native isometric and top PNG renders** of the selected real PCB.
+This is an offscreen/local 3D model *preview*, not an interactive MCAD editor.
+The renderer uses only `.step` and `.wrl` geometry available in the user's
+installed KiCad libraries. **Missing models are not synthesized**, completeness
+and mechanical fit are not verified, and 3D rendering does not authorize DRC,
+DFM, assembly, fabrication, routing or enclosure fit. If graphics support is
+absent, 3D remains disabled without blocking PCB/ERC/DRC review. For a headless
+machine, optional `xvfb` and `xauth` with a software OpenGL driver may allow
+KiCad CLI rendering; desktop systems can use their existing graphical display.
+
+The viewer offers native PCB inspection, not geometry-authoring CAD. The native
+ERC/DRC findings and NOT FABRICATION APPROVED warning remain visible even in
+3D mode. The 3D images are local engineering data and stay private.
 
 ## First use and privacy
 
@@ -119,8 +138,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.2_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.2_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.4_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.4_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

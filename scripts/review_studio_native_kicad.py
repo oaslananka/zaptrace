@@ -925,12 +925,110 @@ def native_review_report_html(payload: dict) -> str:
     return matcher.sub(lambda match: tokens[match.group(0)[2:-2]], source)
 
 
+def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> dict:
+    """Optional read-only KiCad 10 OpenGL images, never fake part models.
+
+    Absent or unsupported render never counts as a native engineering error or
+    a DRC pass. The renderer output itself remains an unverified model preview.
+    """
+    status: dict = {
+        "state": "not_run" if not enabled else "unavailable",
+        "renderer": "KiCad 10 native pcb render",
+        "model_coverage": "not_verified",
+        "model_notice": "3D geometry uses only models actually available in local KiCad. "
+        "Completeness, enclosure fit, assembly and manufacturing are NOT verified.",
+        "views": [],
+    }
+    for stale in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
+        (output / stale).unlink(missing_ok=True)
+    if not enabled:
+        return status
+    base = [cli, "pcb", "render"]
+    # Render requires a GUI/OpenGL context. The app remains usable without one.
+    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+        xvfb = shutil.which("xvfb-run")
+        if xvfb is None:
+            status["reason"] = "No graphics display or supported offscreen renderer available"
+            return status
+        base = [xvfb, "-a", "-s", "-screen 0 1600x1000x24", "env", "LIBGL_ALWAYS_SOFTWARE=1", *base]
+    layouts = (
+        ("Isometric", "native-kicad-3d-isometric.png", ["--perspective", "--rotate", "-32,0,55"]),
+        ("Top", "native-kicad-3d-top.png", []),
+    )
+    original = hashlib.sha256(board.read_bytes()).hexdigest()
+    for label, filename, angle in layouts:
+        path = output / filename
+        path.unlink(missing_ok=True)
+        command = [
+            *base,
+            "--side",
+            "top",
+            "--width",
+            "1200",
+            "--height",
+            "800",
+            "--background",
+            "transparent",
+            "--quality",
+            "basic",
+            *angle,
+            "--output",
+            str(path),
+            str(board),
+        ]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=50, check=False)
+        except (OSError, subprocess.TimeoutExpired):
+            result = None
+        try:
+            data = path.read_bytes() if path.is_file() else b""
+            valid = bool(
+                result is not None
+                and result.returncode == 0
+                and 2000 < len(data) < 12_000_000
+                and data[:8] == b"\x89PNG\r\n\x1a\n"
+            )
+            if not valid:
+                for view_file in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
+                    (output / view_file).unlink(missing_ok=True)
+                status["views"].clear()
+                status["reason"] = "Native KiCad OpenGL rendering did not complete on this machine"
+                return status
+            width, height = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+            if not 300 <= width <= 2400 or not 300 <= height <= 2000:
+                for view_file in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
+                    (output / view_file).unlink(missing_ok=True)
+                status["views"].clear()
+                status["reason"] = "Native KiCad rendered image has unexpected geometry"
+                return status
+            status["views"].append(
+                {
+                    "label": label,
+                    "source": "data:image/png;base64," + base64.b64encode(data).decode("ascii"),
+                    "width": width,
+                    "height": height,
+                    "file": filename,
+                }
+            )
+        except OSError:
+            for view_file in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
+                (output / view_file).unlink(missing_ok=True)
+            status["views"].clear()
+            status["reason"] = "Native KiCad preview image unavailable"
+            return status
+    if hashlib.sha256(board.read_bytes()).hexdigest() != original:
+        raise RuntimeError("Native 3D render modified the source PCB; aborting preview")
+    status["state"] = "rendered"
+    return status
+
+
 def build(
     board: Path,
     output: Path,
     template: Path,
     *,
     with_drc: bool = True,
+    with_3d: bool = False,
     schematic: Path | None = None,
     design_source: Path | None = None,
     workspace_home: Path | None = None,
@@ -1120,6 +1218,10 @@ def build(
             "proof pack, thermal/RF, assembly or fabricator approval."
         ),
     }
+    # This optional source-linked visualization never changes the engineering
+    # verdict; render failure or incomplete local 3D models never imply safety.
+    render3d = render_native_3d(cli, board, output, enabled=with_3d)
+    payload["render3d"] = render3d
     # No third-party CSS/JS, all SVG plotted by KiCad as inert images.
     page = template.read_text(encoding="utf-8").replace("__NATIVE_DATA__", safe_inline_json(payload))
     if workspace_home is None:
@@ -1136,7 +1238,11 @@ def build(
         raise RuntimeError("Template injection failed")
     target = output / "index.html"
     target.write_text(page, encoding="utf-8")
-    summary = {k: v for k, v in payload.items() if k not in ("layers", "schematic")}
+    summary = {k: v for k, v in payload.items() if k not in ("layers", "schematic", "render3d")}
+    summary["render3d_meta"] = {
+        **{key: value for key, value in render3d.items() if key != "views"},
+        "views": [{key: value for key, value in view.items() if key != "source"} for view in render3d["views"]],
+    }
     if native_schematic is not None:
         summary["schematic_meta"] = {k: v for k, v in native_schematic.items() if k not in ("src", "pages")}
         summary["schematic_meta"]["pages"] = [
@@ -1154,6 +1260,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True, help="Separate local viewer build directory")
     parser.add_argument("--no-drc", action="store_true", help="Disable native DRC; must display NOT RUN")
     parser.add_argument(
+        "--no-3d", action="store_true", help="Skip optional KiCad 3D render (native ERC/DRC unaffected)"
+    )
+    parser.add_argument(
         "--workspace-home", type=Path, help="Optional local projects index for read-only back navigation"
     )
     parser.add_argument("--schematic", type=Path, help="Optional real KiCad schematic, read-only one-page view")
@@ -1166,6 +1275,7 @@ def main() -> int:
         args.output,
         Path(__file__).with_name("review_studio_native_template.html"),
         with_drc=not args.no_drc,
+        with_3d=not args.no_3d,
         schematic=args.schematic,
         design_source=args.design_source,
         workspace_home=args.workspace_home,

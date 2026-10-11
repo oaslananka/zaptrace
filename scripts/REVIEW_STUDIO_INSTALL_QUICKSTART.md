@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.2 — Ubuntu installation and acceptance kit
+# ZapTrace Review Studio 0.1.4 — Ubuntu installation and acceptance kit
 
 **Distribution status: local release candidate, unsigned. NOT public GA.**
 
@@ -32,13 +32,13 @@ automatically granted.
 2. Verify this kit's `.deb` before installation:
 
    ```sh
-   sha256sum -c zaptrace-review-studio_0.1.2_all.sha256
+   sha256sum -c zaptrace-review-studio_0.1.4_all.sha256
    ```
 
 3. Install in a terminal in the folder containing the `.deb`:
 
    ```sh
-   sudo apt install ./zaptrace-review-studio_0.1.2_all.deb
+   sudo apt install ./zaptrace-review-studio_0.1.4_all.deb
    zaptrace-review-studio --doctor
    ```
 
@@ -51,6 +51,15 @@ automatically granted.
    settings, root `.kicad_sch` and its nested sheets, and `.kicad_dru` when
    present. The software always reports DRC/ERC and explicit missing evidence;
    it never approves fabrication.
+
+## 3D board preview and feature limits
+
+Click **3D** inside a native KiCad PCB review to see locally rendered KiCad 10
+isometric and top views of the actual board. If the graphics context is absent,
+the button is disabled; PCB/Sch/ERC/DRC reviews still work. The 3D image is
+read-only, and some components may not have an installed STEP/WRL model.
+**3D model completeness, enclosure/assembly fit and fabrication approval are
+not verified.** The 3D preview is not an interactive 3D CAD editor.
 
 ## Backup, restore and deletion
 
@@ -76,10 +85,11 @@ user projects**. Those are normally at:
 
 - `RELEASE_MANIFEST.json` names the exact package SHA-256, its bundled files,
   real local release-gate status and any *unverified* launch requirements.
-- `CLEAN_UBUNTU_2404_012_QA.txt` records **real Ubuntu 24.04 APT installation
-  of 0.1.1 and in-place upgrade to 0.1.2**, native two-sheet KiCad ERC/DRC,
+- `CLEAN_UBUNTU_2404_014_QA.txt` records **real Ubuntu 24.04 APT installation
+  of 0.1.1 and in-place upgrade to 0.1.4**, native two-sheet KiCad ERC/DRC,
+  authentic offscreen KiCad 3D isometric/top renders,
   successful restore of an older ZIP, and `apt remove` preserving review data.
-- `zaptrace-review-studio_0.1.2_all.sha256` checks the exact `.deb` bytes.
+- `zaptrace-review-studio_0.1.4_all.sha256` checks the exact `.deb` bytes.
 
 **Unsigned:** A SHA-256 match is an integrity check, **not** a publisher
 signature. `PUBLISHER_PUBLIC_KEY.asc` and verified detached signatures are

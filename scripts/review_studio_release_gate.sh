@@ -14,6 +14,7 @@ echo '[1/9] Python integration and package lifecycle tests'
 PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -p no:cacheprovider \
   tests/test_kicad_export.py \
   tests/test_review_studio_native_kicad.py \
+  tests/test_review_studio_native_3d.py \
   tests/test_review_studio_workspace.py \
   tests/test_review_studio_local_server.py \
   tests/test_review_studio_library.py \
@@ -47,6 +48,7 @@ SOURCES=(
   tests/test_review_studio_library.py
   tests/test_review_studio_workspace.py
   tests/test_review_studio_native_kicad.py
+  tests/test_review_studio_native_3d.py
   tests/test_review_studio_desktop_entry.py
   zaptrace/export/kicad.py
   zaptrace/kicad/verified_vendor.py
@@ -74,18 +76,18 @@ sha256sum -c build/source-reference-readonly/checksums.sha256
 echo '[7/9] Build reproducible native local application'
 /usr/bin/python3 scripts/review_studio_build_deb.py
 /usr/bin/python3 scripts/review_studio_build_deb.py --output-dir build/distribution/repro
-cmp -s build/distribution/zaptrace-review-studio_0.1.2_all.deb \
-       build/distribution/repro/zaptrace-review-studio_0.1.2_all.deb
+cmp -s build/distribution/zaptrace-review-studio_0.1.4_all.deb \
+       build/distribution/repro/zaptrace-review-studio_0.1.4_all.deb
 (
  cd build/distribution
- sha256sum -c zaptrace-review-studio_0.1.2_all.sha256
+ sha256sum -c zaptrace-review-studio_0.1.4_all.sha256
 )
 
 echo '[8/9] Installation metadata and dependency gate'
 DESKTOP=build/Review\ Studio.desktop
 /usr/bin/python3 scripts/review_studio_desktop_entry.py >/dev/null
 /usr/bin/desktop-file-validate "$DESKTOP"
-dpkg-deb --field build/distribution/zaptrace-review-studio_0.1.2_all.deb
+dpkg-deb --field build/distribution/zaptrace-review-studio_0.1.4_all.deb
 echo '[9/9] Ubuntu APT dependency simulation for this exact package'
-apt-get -s install ./build/distribution/zaptrace-review-studio_0.1.2_all.deb >/dev/null
+apt-get -s install ./build/distribution/zaptrace-review-studio_0.1.4_all.deb >/dev/null
 printf '\nRELEASE GATE: PASS (Ubuntu 24.04 amd64 / KiCad 10 target; local unsigned distribution only)\n'

@@ -16,34 +16,13 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from review_studio_workspace import _read_projects, render_workspace
+from review_studio_workspace import _read_projects, managed_paths, render_workspace
 
 MAX_EXPORT_BYTES = 80 * 1024 * 1024
 MAX_EXPORT_FILES = 350
 CONFIRM = "DELETE_LOCAL_REVIEW_AND_STAGED_COPIES"
 HEX = re.compile(r"^[0-9a-f]{64}$")
 ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-FOLDER = re.compile(r"^[a-z0-9-]+-[0-9a-f]{12}-([0-9a-f]{32})$")
-
-
-def managed_paths(workspace: Path, review: Path) -> tuple[Path, Path] | None:
-    """Never trust a manifest path merely because it has a plausible name."""
-    home = workspace.resolve()
-    project_dir = home / "projects"
-    import_dir = home / "local-imports"
-    if project_dir.is_symlink() or import_dir.is_symlink() or review.is_symlink():
-        return None
-    if review.parent.resolve() != project_dir.resolve():
-        return None
-    match = FOLDER.fullmatch(review.name)
-    if match is None:
-        return None
-    staged = import_dir / match.group(1)
-    if staged.is_symlink() or staged.parent.resolve() != import_dir.resolve():
-        return None
-    if not review.is_dir() or not staged.is_dir():
-        return None
-    return review, staged
 
 
 def _record(workspace: Path, key: str, expected_sha: str) -> tuple[list[dict], dict, Path, Path]:

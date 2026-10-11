@@ -615,3 +615,28 @@ def test_native_multi_sheet_selector_shows_real_pages_without_child_pin_claims()
     assert "setSchematicPage(0)" in source
     assert "schematicPageIndex" in source
     assert "page:schematicPageIndex" in source
+
+
+def test_native_schematic_gallery_uses_only_real_kicad_svg_pages_and_refuses_child_crossprobe() -> None:
+    """Presentation-only controls cannot fabricate schematic or approval evidence."""
+    template = (Path(__file__).resolve().parents[1] / "scripts/review_studio_native_template.html").read_text()
+    for item in (
+        'id="schematicThumbnails"',
+        'id="schematicSheetDock" hidden',
+        'id="schematicPrevious"',
+        'id="schematicNext"',
+        'id="schematicFocusSymbols"',
+        'class="sheet-thumb"',
+    ):
+        # Class sheet-thumb is created at runtime from actual KiCad pages.
+        assert item in template if item != 'class="sheet-thumb"' else "node('button','sheet-thumb')" in template
+    assert "image.src=page.src" in template
+    assert "DATA.schematic.pages.forEach((page,index)" in template
+    assert "btn.hidden=index!==0" in template
+    assert "Root-only PCB cross-probe disabled on child pages." in template
+    assert "schematicFocusSymbols').disabled=index!==0" in template
+    assert "focusNativeRootSymbols()" in template
+    assert "DATA.schematic.symbols||[]" in template
+    assert "k===']'&&mode==='schematic'" in template
+    assert "k==='['&&mode==='schematic'" in template
+    assert "NOT FABRICATION APPROVED" in template

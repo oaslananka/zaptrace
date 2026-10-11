@@ -192,9 +192,30 @@ def _link(workspace: Path, target: Path) -> str:
     return "/".join(quote(segment) for segment in Path(rel).parts)
 
 
-def workspace_html(workspace: Path, items: list[dict]) -> str:
-    from review_studio_library import managed_paths
+FOLDER = re.compile(r"^[a-z0-9-]+-[0-9a-f]{12}-([0-9a-f]{32})$")
 
+
+def managed_paths(workspace: Path, review: Path) -> tuple[Path, Path] | None:
+    """Never trust a manifest path merely because it has a plausible name."""
+    home = workspace.resolve()
+    project_dir = home / "projects"
+    import_dir = home / "local-imports"
+    if project_dir.is_symlink() or import_dir.is_symlink() or review.is_symlink():
+        return None
+    if review.parent.resolve() != project_dir.resolve():
+        return None
+    match = FOLDER.fullmatch(review.name)
+    if match is None:
+        return None
+    staged = import_dir / match.group(1)
+    if staged.is_symlink() or staged.parent.resolve() != import_dir.resolve():
+        return None
+    if not review.is_dir() or not staged.is_dir():
+        return None
+    return review, staged
+
+
+def workspace_html(workspace: Path, items: list[dict]) -> str:
     cards = []
     for project in items:
         evidence, review = project["evidence"], project["review"]
@@ -326,6 +347,7 @@ def main() -> int:
     add.add_argument("--schematic", type=Path)
     add.add_argument("--design-source", type=Path)
     add.add_argument("--no-drc", action="store_true", help="Explicitly mark native DRC NOT RUN")
+    add.add_argument("--no-3d", action="store_true", help="Disable optional authentic local KiCad OpenGL previews")
     add.add_argument("--run-id", help="Internal local import isolation ID (UUID hex); creates a fresh output snapshot")
     sub.add_parser("render", help="Rebuild catalog against previously registered native evidence hashes")
     args = parser.parse_args()
@@ -353,6 +375,7 @@ def main() -> int:
             schematic=args.schematic,
             design_source=args.design_source,
             with_drc=not args.no_drc,
+            with_3d=not args.no_3d,
             workspace_home=workspace / "index.html",
         )
         _append_project(workspace, args.name, review_output)

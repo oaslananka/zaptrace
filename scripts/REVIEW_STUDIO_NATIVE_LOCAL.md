@@ -69,6 +69,55 @@ schematic files or project approval. Real Chrome regression coverage includes
 desktop and 390px mobile layouts, genuine source report links, category counts,
 clear-selection behavior and rejection of a third selected snapshot.
 
+## Native KiCad 3D source geometry — presentation-only (0.1.4)
+
+The read-only PCB inspector can optionally show **actual KiCad 10 `pcb render`**
+OpenGL PNGs of the loaded board from **isometric** and **top** viewpoints. The
+rendered PNGs are generated locally, embedded in the offline review HTML and
+bound to the original source PCB SHA-256. This is not generated or synthetic
+part geometry. Native KiCad resolves its *available* local `.step`/`.wrl`
+models. Some proprietary/custom part models may be missing, and **completeness
+of the 3D model library is explicitly not verified**. The viewer is NOT a
+mechanical fit, enclosure, thermal/EMC, DRC or fabrication-approval simulator.
+
+For GUI desktops KiCad 10 usually uses a running display; for CLI headless
+reviews, an optional `xvfb-run`/`xauth` and working OpenGL software drivers
+allow two offscreen renders. Rendering is bounded; if unavailable or explicitly
+suppressed with `--no-3d`, the **3D button is disabled** and the existing
+KiCad PCB/schematic inspection and ERC/DRC continue unchanged. 3D camera
+controls select between the two *original KiCad* screenshots; viewport
+pinch/pan/zoom affects only their display. PCB pads cannot be measured from
+pixel-based 3D imagery: the Measure button is disabled until back in 2D PCB.
+
+Native 3D QA checks valid real source images, 3D disabled/unavailable states,
+regression of the PCB safety indicators, source SHA immutability and real
+Chrome viewport at desktop and 390px mobile, including return to PCB.
+
+## Native schematic design workspace — visual page gallery (0.1.3)
+
+For native KiCad `.kicad_sch` sources, the viewer shows **original KiCad SVG
+plots** inside the same responsive three-pane engineering workspace used by
+PCB inspection. The schematic's left sidebar adds a visual **Drawing sheets**
+gallery with actual thumbnails of each exported KiCad page, source-backed sheet
+names, a synchronized dropdown and per-page root/child capability labels. An
+in-canvas **SHEET NN / NN** toolbar provides previous/next navigation;
+`[` / `]` also navigate using the keyboard when the schematic view is active.
+The selected page persists in the per-source UI session preferences.
+
+On a root page with real symbol anchors, **Focus root components** enlarges the
+region containing those *actual native coordinates* (it does not crop or edit
+the SVG file). A **Jump to component** palette lists only references with
+KiCad schematic symbols and authored native PCB counterpart references.
+Selecting a reference focuses its exact symbol, highlights it and opens the
+matched PCB component inspector with a safe PCB jump option. Child pages are
+plotted faithfully and keep root-only pin/symbol cross-probing disabled when
+there is no independently verified hierarchical pin/pad mapping.
+
+Nothing in this visual workflow changes source PCB/graph geometry, asserts
+physical electrical continuity, waives native DRC/ERC or approves fabrication.
+The new gallery has explicit real-Chrome single-sheet, multi-sheet and 390px
+mobile checks in `scripts/review_studio_schematic_gallery_browser_smoke.mjs`.
+
 ## Direct native GUI: open KiCad files without copying commands
 
 Launch the local workspace with **one command**:

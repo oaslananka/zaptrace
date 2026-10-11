@@ -194,6 +194,63 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 .schematic-page-nav{padding:11px;background:#122c3c;border:1px solid #366779;border-radius:9px;margin:4px 0 12px}.schematic-page-nav[hidden]{display:none}
 .schematic-page-nav label{display:block;color:#a9dbc9;font-size:10px;font-weight:850;letter-spacing:.04em;margin-bottom:8px}.schematic-page-nav select{width:100%;background:#0c1c2a;color:#e4f6ee;border:1px solid #4e7882;border-radius:7px;padding:10px;min-height:38px;font-size:12px}.schematic-page-nav p{color:#9cb9c5;font-size:10px;line-height:1.5;margin:9px 1px 0}
 .schstage .sch-hit[hidden],.schstage .sch-pin-hit[hidden]{display:none!important}
+
+/* Native KiCad sheet navigator. This is a viewport over original plotted SVG,
+   not newly invented connectivity or schematics. Review status is unchanged. */
+.schematic-page-nav{background:#112337;border:1px solid #335268;padding:14px;border-radius:11px;box-shadow:0 10px 25px #0002}
+.sheet-library-head{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.sheet-library-head h3{font-size:15px;letter-spacing:-.03em;color:#e7f7f6;margin:3px 0 0}
+.sheet-count{font:800 11px ui-monospace,monospace;color:#8ef1d8;background:#183b3c;border:1px solid #346d65;padding:5px 7px;border-radius:6px;white-space:nowrap}
+.sheet-nav-intro{color:#8eafc3;font-size:10px;margin:8px 0 13px;line-height:1.5}
+.sheet-thumbnails{display:grid;gap:9px;margin-bottom:14px}
+.sheet-thumb{width:100%;display:grid;grid-template-columns:81px minmax(0,1fr);gap:10px;align-items:center;padding:8px;border:1px solid #355065;border-radius:9px;background:#14283d;color:#d5eaf5;text-align:left;min-height:81px}
+.sheet-thumb:hover,.sheet-thumb:focus-visible{background:#1d3850;border-color:#67aa9a}
+.sheet-thumb[aria-current="page"]{background:#153c40;border-color:#71dec3;box-shadow:inset 3px 0 #66ebc8}
+.sheet-thumb-img{display:grid;place-items:center;background:#f8faf7;border:1px solid #d5e3da;border-radius:5px;width:81px;height:61px;overflow:hidden;position:relative}
+.sheet-thumb-img img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.sheet-thumb-copy{display:flex;flex-direction:column;min-width:0;gap:3px}
+.sheet-thumb-copy strong{font-size:11px;font-weight:820;color:#e6f9f2;overflow-wrap:anywhere;line-height:1.3}
+.sheet-thumb-copy em{font-size:9px;color:#9bb8c8;font-style:normal;line-height:1.3}
+.sheet-thumb-copy span{font:750 9px ui-monospace,monospace;color:#7ce7d2}
+.schematic-page-nav .sheet-picker-label{font-size:10px;color:#9ac2d3;margin:0 0 6px}
+.schematic-page-nav select{min-height:40px;color:#e6fcf6}
+.sheet-focus{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:40px;margin-top:11px;padding:9px 11px;background:#204b47;border:1px solid #4b9a86;border-radius:8px;color:#aff5e4;font-size:11px;font-weight:800;cursor:pointer}
+.sheet-focus:disabled{opacity:.38;cursor:not-allowed;background:#192e38;border-color:#426071}
+.sheet-focus:not(:disabled):hover{background:#306357}
+.schematic-sheet-dock{position:absolute;bottom:20px;right:20px;z-index:8;display:grid;grid-template-columns:43px minmax(0,220px) 43px;align-items:center;gap:7px;padding:7px;background:#111f30f5;border:1px solid #496b7b;border-radius:13px;box-shadow:0 15px 50px #0009;backdrop-filter:blur(16px)}
+.schematic-sheet-dock[hidden]{display:none}.schematic-sheet-dock>button{height:44px;min-width:40px;background:#1e394c;color:#b9fce8;border:1px solid #496b7c;border-radius:9px;font-size:23px;cursor:pointer}
+.schematic-sheet-dock>button:hover{background:#2b5b57}.schematic-sheet-dock>button:disabled{opacity:.32;cursor:not-allowed}
+.schematic-dock-context{display:flex;flex-direction:column;gap:2px;min-width:0;padding:1px 6px}
+.schematic-dock-context>span{font:800 9px ui-monospace,monospace;color:#76dcc4;letter-spacing:.08em}
+.schematic-dock-context>strong{font-size:12px;color:#e6f4fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schematic-dock-context>small{font-size:9px;color:#a2bfd0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:105px;max-width:340px}
+@media(min-width:751px) and (max-width:1450px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{max-width:220px}}
+@media(max-width:750px){.sheet-thumbnails{grid-template-columns:repeat(2,minmax(0,1fr))}.sheet-thumb{grid-template-columns:1fr;gap:7px;min-width:0}.sheet-thumb-img{width:100%;height:78px}.schematic-sheet-dock{bottom:84px;right:10px;left:10px;grid-template-columns:43px minmax(0,1fr) 43px}.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:10px;max-width:none}}
+@media(max-width:420px){.sheet-thumbnails{grid-template-columns:1fr}.sheet-thumb{grid-template-columns:70px 1fr}.sheet-thumb-img{height:54px;width:70px}}
+
+.sheet-reference-panel[hidden]{display:none}.sheet-reference-panel{margin-top:15px;padding-top:14px;border-top:1px solid #34536b}
+.sheet-reference-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.sheet-reference-head h4{margin:0;color:#dbf4e9;font-size:11px;font-weight:850}.sheet-reference-head span{font:750 10px ui-monospace,monospace;color:#74dac9}
+.sheet-reference-panel>p{font-size:10px;line-height:1.5;color:#91b2c3;margin:5px 0 10px}
+.sheet-reference-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.sheet-ref{min-width:0;min-height:34px;text-align:center;padding:5px 3px;border:1px solid #406274;border-radius:7px;background:#193147;color:#c4e1ed;font:850 11px ui-monospace,monospace;cursor:pointer;overflow:hidden;text-overflow:ellipsis}
+.sheet-ref:hover,.sheet-ref:focus-visible{background:#29525a;border-color:#70b5a9;color:#e8fff6}
+.sheet-ref[aria-pressed="true"]{background:#276457;color:#b8ffea;border-color:#72e9cd}
+@media(max-width:950px){.sheet-reference-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+/* Source-verifiable native KiCad camera render. This is still a 2D image of
+   KiCad's real 3D model geometry; no synthetic or independently qualified CAD. */
+.render3dstage{background:radial-gradient(ellipse at 50% 42%,#2c475c 0%,#0d202f 68%,#091724 100%);box-shadow:0 0 0 1px #486275,0 28px 85px #000b}
+.render3dstage img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.render3d-controls{position:absolute;right:19px;bottom:19px;z-index:9;padding:13px 16px 12px;background:#0e2234ee;border:1px solid #466d7c;border-radius:12px;box-shadow:0 20px 50px #000a;backdrop-filter:blur(12px);min-width:305px;max-width:calc(100% - 26px)}
+.render3d-controls[hidden]{display:none}.render3d-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:#c9e6ee;font-weight:850}
+.render3d-kicker span{font-size:9px;color:#ffd6a2;letter-spacing:.05em}
+.render3d-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
+.render3d-actions button{background:#203e4c;color:#c5dfeb;border:1px solid #3e6172;border-radius:7px;padding:8px 12px;min-height:38px;font-size:11px;font-weight:850}
+.render3d-actions button[aria-pressed="true"]{background:#226258;border-color:#7ce2cb;color:#cffded}
+.render3d-warning{font-size:9px;color:#aec5cf;flex:1 0 100%;line-height:1.4}
+.boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:130px;max-width:325px}
+@media(max-width:750px){.render3d-controls{bottom:82px;left:10px;right:10px;min-width:0;max-width:none;padding:10px 13px}.boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px;max-width:none}.render3d-kicker{flex-wrap:wrap}}
 </style></head><body>
 <div class="app">
 <header><div class="brand"><div class="brandmark" aria-hidden="true">Z</div><div><div class="brandname">Zap<em>Trace</em></div><div class="brandcaption">Design review workspace</div></div></div><div style="min-width:0"><div class="pathhead" id="boardName"></div><div class="pathmeta" id="boardMeta">Loading native board geometry…</div></div><div class="headside">__WORKSPACE_LINK__<span class="statuspill localpill"><span class="statusdot" aria-hidden="true"></span>Local workspace</span><span class="statuspill">NOT FABRICATION APPROVED</span><button class="command-trigger" id="searchWorkspace" type="button" title="Search native objects (Ctrl K)" aria-label="Search all native PCB and schematic objects">Search workspace <kbd>Ctrl K</kbd></button><button class="header-icon" id="showHelp" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button></div></header>
@@ -221,15 +278,35 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
   <label class="layer"><input type="checkbox" id="showFootprintMarkers" checked aria-label="Show footprint selection markers"/><span class="dot" style="background:#82adff"></span>Footprint origins</label>
  </div></section>
  <section class="section" id="schematicContext" hidden><h2 class="sectiontitle">Native schematic context</h2>
- <div id="schematicPageNav" class="schematic-page-nav" hidden><label for="schematicPagePicker">Native sheet page</label>
+ <div id="schematicPageNav" class="schematic-page-nav" hidden>
+  <div class="sheet-library-head"><div><span class="side-overline">SCHEMATIC WORKSPACE</span><h3>Drawing sheets</h3></div><span id="schematicSheetCount" class="sheet-count">—</span></div>
+  <p class="sheet-nav-intro">Native KiCad drawings · source-verified pages</p>
+  <div id="schematicThumbnails" class="sheet-thumbnails" role="group" aria-label="Navigate the original KiCad schematic sheets"></div>
+  <label class="sheet-picker-label" for="schematicPagePicker">Choose sheet</label>
   <select id="schematicPagePicker" aria-label="Choose a real KiCad schematic page"></select>
-  <p id="schematicPageNote" aria-live="polite">Root sheet · native schematic geometry</p></div><p class="small muted" id="schematicContextText">Schematic symbols and nets are read-only. Select a native symbol to inspect the matching PCB footprint; pin-to-pad parity is not yet proven.</p></section>
+  <p id="schematicPageNote" aria-live="polite">Root sheet · native schematic geometry</p>
+  <button type="button" class="sheet-focus" id="schematicFocusSymbols" title="Zoom in on actual native root schematic symbols, without changing the source" disabled>Focus root components <span>↗</span></button>
+  <div id="schematicReferencePanel" class="sheet-reference-panel" hidden>
+   <div class="sheet-reference-head"><h4>Jump to component</h4><span id="schematicReferenceCount">—</span></div>
+   <p>Source-linked root references · select to focus the original KiCad drawing</p>
+   <div id="schematicReferenceGrid" class="sheet-reference-grid" role="group" aria-label="Go to native schematic component reference"></div>
+  </div>
+ </div><p class="small muted" id="schematicContextText">Schematic symbols and nets are read-only. Select a native symbol to inspect the matching PCB footprint; pin-to-pad parity is not yet proven.</p></section>
  <section class="section"><h2 class="sectiontitle">Verification boundary</h2><p class="small muted">Native KiCad geometry with independent ERC/DRC. Net labels and pad mappings are checked separately. Even matching pad nets follow <b>the authored package-pin map, not independently qualified datasheets</b>. Unmapped pads are not validated. No physical continuity, RF, thermal, Proof Pack or fabrication sign-off.</p></section>
 </aside>
 <main class="boardspace" id="boardspace" aria-label="Native KiCad PCB inspection canvas">
  <div class="boardhud"><div class="eyebrow" id="modeKicker">Physical PCB / native plotted geometry</div><h1 id="canvasName"></h1><small id="canvasEvidence"></small></div>
- <div class="boardactions"><button class="plainbtn" id="searchCanvas" type="button" title="Search native board objects (Ctrl K)">Search</button><span class="toolbar-label">VIEW</span><button class="plainbtn" type="button" id="modePcb" aria-pressed="true">PCB</button><button class="plainbtn" type="button" id="modeSch" aria-pressed="false">Schematic</button><button class="plainbtn" type="button" id="measure" aria-pressed="false" title="True native pad center distance; not copper clearance">Measure</button><button class="plainbtn" type="button" id="clearMeasure">Clear</button><button class="plainbtn" type="button" id="fit">Fit view</button><button class="plainbtn" type="button" id="plus">+</button><button class="plainbtn" type="button" id="minus" aria-label="Zoom out">−</button><span class="toolbar-split" aria-hidden="true"></span><button class="plainbtn" type="button" id="focusMode" aria-pressed="false" title="Focus canvas (Q)">Focus</button></div>
+ <div class="boardactions"><button class="plainbtn" id="searchCanvas" type="button" title="Search native board objects (Ctrl K)">Search</button><span class="toolbar-label">VIEW</span><button class="plainbtn" type="button" id="modePcb" aria-pressed="true">PCB</button><button class="plainbtn" type="button" id="modeSch" aria-pressed="false">Schematic</button><button class="plainbtn" type="button" id="mode3D" aria-pressed="false" title="KiCad native 3D model view; source model completeness NOT verified">3D</button><button class="plainbtn" type="button" id="measure" aria-pressed="false" title="True native pad center distance; not copper clearance">Measure</button><button class="plainbtn" type="button" id="clearMeasure">Clear</button><button class="plainbtn" type="button" id="fit">Fit view</button><button class="plainbtn" type="button" id="plus">+</button><button class="plainbtn" type="button" id="minus" aria-label="Zoom out">−</button><span class="toolbar-split" aria-hidden="true"></span><button class="plainbtn" type="button" id="focusMode" aria-pressed="false" title="Focus canvas (Q)">Focus</button></div>
  <div class="stage" id="stage"></div>
+ <div class="render3d-controls" id="render3dControls" hidden aria-label="Native KiCad 3D view options">
+  <div class="render3d-kicker">KiCad 10 · actual PCB model render <span>MODEL COVERAGE UNVERIFIED</span></div>
+  <div class="render3d-actions"><button id="render3dIso" type="button" aria-pressed="true">Isometric</button><button id="render3dTop" type="button" aria-pressed="false">Top</button><span class="render3d-warning">Visual inspection only · not DRC, DFM or mechanical signoff</span></div>
+ </div>
+ <div class="schematic-sheet-dock" id="schematicSheetDock" hidden aria-label="Schematic sheet navigation">
+  <button type="button" id="schematicPrevious" aria-label="Previous native schematic sheet" title="Previous native sheet ([)">←</button>
+  <div class="schematic-dock-context"><span id="schematicDockIndex">SHEET — / —</span><strong id="schematicDockTitle">Original KiCad drawing</strong><small id="schematicDockScope">Source-linked native schematic</small></div>
+  <button type="button" id="schematicNext" aria-label="Next native schematic sheet" title="Next native sheet (])">→</button>
+ </div>
  <div class="measurement-panel" id="measurementPanel" hidden><h3>Pad-centre measurement</h3><div class="measure-status" id="measureReadout" aria-live="polite">Not started</div></div>
  <div class="boardfoot" id="boardFoot"><b>KiCad-rendered geometry, unmodified source.</b> Clicking pads, footprints or violations reveals source IDs. DRC != production approval.</div>
 </main>
@@ -252,7 +329,7 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  <section class="shortcut-sheet" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle" tabindex="-1">
   <div class="shortcut-head"><span class="side-overline">WORKSPACE GUIDE</span><button class="header-icon" id="closeHelp" type="button" aria-label="Close shortcuts">×</button></div>
   <h2 id="shortcutTitle">Navigate with confidence</h2><p>Fast read-only engineering inspection. Source files are never edited here.</p>
-  <div class="shortcut-list"><span>Find within inspector</span><kbd>/</kbd><span>Search all native objects</span><kbd>Ctrl K</kbd><span>Fit current view</span><kbd>F</kbd><span>PCB view</span><kbd>1</kbd><span>Schematic view</span><kbd>2</kbd><span>Measure pad centres</span><kbd>M</kbd><span>Focus canvas</span><kbd>Q</kbd><span>Next / previous native DRC</span><kbd>J / K</kbd><span>Clear / close</span><kbd>Esc</kbd><span>Shortcuts</span><kbd>?</kbd></div>
+  <div class="shortcut-list"><span>Next / previous schematic sheet</span><kbd>] / [</kbd><span>Focus real root symbols</span><kbd>Button</kbd><span>Find within inspector</span><kbd>/</kbd><span>Search all native objects</span><kbd>Ctrl K</kbd><span>Fit current view</span><kbd>F</kbd><span>PCB view</span><kbd>1</kbd><span>Schematic view</span><kbd>2</kbd><span>Measure pad centres</span><kbd>M</kbd><span>Focus canvas</span><kbd>Q</kbd><span>Next / previous native DRC</span><kbd>J / K</kbd><span>Clear / close</span><kbd>Esc</kbd><span>Shortcuts</span><kbd>?</kbd></div>
   <p class="shortcut-disclaimer">Native geometry is for inspection only. No routing, release or fabrication approval.</p>
  </section>
 </div>
@@ -263,8 +340,14 @@ const DATA=__NATIVE_DATA__;
 const $=id=>document.getElementById(id);
 const stage=$('stage'),viewport=$('boardspace');
 const SCALE=12, SW=DATA.viewbox[0]*SCALE, SH=DATA.viewbox[1]*SCALE;
-let schematicStage=null, mode='pcb';
-function activeSize(){return mode==='pcb'?[SW,SH]:DATA.schematic.viewbox.map(x=>x*SCALE);}
+let schematicStage=null, render3dStage=null, render3dIndex=0, mode='pcb';
+function activeSize(){
+ if(mode==='pcb')return [SW,SH];
+ if(mode==='3d'){
+  const view=DATA.render3d?.views?.[render3dIndex];return view?[view.width,view.height]:[1200,800];
+ }
+ return DATA.schematic.viewbox.map(x=>x*SCALE);
+}
 let zoom=1,panX=0,panY=0,selected=null,tab='issues',pointer=null;
 const activePointers=new Map();
 const visible={'F.Cu':true,'B.Cu':true,'F.Mask':false,'B.Mask':false,'F.SilkS':true,'B.SilkS':false,'Edge.Cuts':true};
@@ -291,13 +374,13 @@ function updateCursor(event){
  const rect=viewport.getBoundingClientRect(),size=activeSize();
  const localX=(event.clientX-rect.left-panX)/zoom;
  const localY=(event.clientY-rect.top-panY)/zoom;
- if(localX<0||localY<0||localX>size[0]||localY>size[1])cursorCoords=null;
+ if(mode==='3d'||localX<0||localY<0||localX>size[0]||localY>size[1])cursorCoords=null;
  else cursorCoords=mode==='pcb'?
   [localX/SCALE+DATA.plot_origin[0],localY/SCALE+DATA.plot_origin[1]]:
   [localX/SCALE,localY/SCALE];
  updateFooter();
 }
-function apply(){const current=mode==='pcb'?stage:schematicStage;
+function apply(){const current=mode==='pcb'?stage:mode==='3d'?render3dStage:schematicStage;
  current.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
  current.style.setProperty('--hit-scale',String(1/zoom));
  updateFooter();}
@@ -306,7 +389,7 @@ function fit(){const w=viewport.clientWidth,h=viewport.clientHeight;const top=11
  zoom=Math.min((w-48)/size[0],availableH/size[1],2.5);
  panX=(w-size[0]*zoom)/2;panY=top+(availableH-size[1]*zoom)/2;apply();}
 function center(x,y){if(!Number.isFinite(x)||!Number.isFinite(y))return;
- if(mode==='schematic')switchMode('pcb');
+ if(mode!=='pcb')switchMode('pcb');
  panX=viewport.clientWidth/2-(x-DATA.plot_origin[0])*SCALE*zoom;panY=viewport.clientHeight/2-(y-DATA.plot_origin[1])*SCALE*zoom;apply();}
 function place(btn,x,y){btn.style.left=((x-DATA.plot_origin[0])*SCALE)+'px';btn.style.top=((y-DATA.plot_origin[1])*SCALE)+'px';stage.appendChild(btn);}
 function focusSchematic(ref){
@@ -536,6 +619,24 @@ function selectNet(net){
  highlightCopper(net);renderList();
 }
 let schematicPageIndex=0;
+function focusNativeRootSymbols(){
+ if(mode!=='schematic'||schematicPageIndex!==0||!DATA.schematic)return false;
+ const symbols=(DATA.schematic.symbols||[]).filter(s=>Number.isFinite(s.x)&&Number.isFinite(s.y));
+ if(!symbols.length)return false;
+ // Actual KiCad schematic anchors; do not invent or alter geometry.
+ // This intentionally focuses SYMBOLS, not the entire wire graph or sheet.
+ const xmin=Math.min(...symbols.map(s=>s.x)),xmax=Math.max(...symbols.map(s=>s.x));
+ const ymin=Math.min(...symbols.map(s=>s.y)),ymax=Math.max(...symbols.map(s=>s.y));
+ const padding=20;const x0=Math.max(0,xmin-padding),x1=Math.min(DATA.schematic.viewbox[0],xmax+padding);
+ const y0=Math.max(0,ymin-padding),y1=Math.min(DATA.schematic.viewbox[1],ymax+padding);
+ const rectW=Math.max(1,(x1-x0)*SCALE),rectH=Math.max(1,(y1-y0)*SCALE);
+ const viewportW=viewport.clientWidth,viewportH=viewport.clientHeight;
+ const top=123,bottom=viewportW<=750?158:100;
+ zoom=Math.min(4.5,Math.max(.08,Math.min((viewportW-50)/rectW,(viewportH-top-bottom)/rectH)));
+ panX=viewportW/2-(x0+x1)*SCALE/2*zoom;
+ panY=top+(viewportH-top-bottom)/2-(y0+y1)*SCALE/2*zoom;
+ apply();updatePreferences();return true;
+}
 function setSchematicPage(index){
  if(!DATA.schematic||!schematicStage||!Array.isArray(DATA.schematic.pages))return;
  const pages=DATA.schematic.pages;
@@ -549,6 +650,18 @@ function setSchematicPage(index){
  schematicStage.style.height=(page.viewbox[1]*SCALE)+'px';
  schematicStage.querySelectorAll('.sch-hit,.sch-pin-hit').forEach(btn=>{btn.hidden=index!==0;});
  $('schematicPagePicker').value=String(index);
+ const count=pages.length;
+ $('schematicSheetCount').textContent=String(count).padStart(2,'0')+' SHEETS';
+ $('schematicDockIndex').textContent='SHEET '+String(index+1).padStart(2,'0')+' / '+String(count).padStart(2,'0');
+ $('schematicDockTitle').textContent=page.name;
+ $('schematicDockScope').textContent=index===0?'Root · source-linked navigation':'Child · plotted geometry only';
+ $('schematicPrevious').disabled=index===0;
+ $('schematicNext').disabled=index>=count-1;
+ $('schematicFocusSymbols').disabled=index!==0||!DATA.schematic.symbols?.length;
+ document.querySelectorAll('.sheet-thumb').forEach((btn,i)=>{
+  btn.setAttribute('aria-current',i===index?'page':'false');
+  btn.setAttribute('aria-pressed',String(i===index));
+ });
  $('schematicPageNote').textContent=index===0?
   'Root sheet · source-linked footprint/pin markers (not DRC certification)':
   'Child sheet · actual KiCad page plot. Root-only PCB cross-probe disabled on child pages.';
@@ -563,15 +676,56 @@ function setupSchematic(){const button=$('modeSch');if(!DATA.schematic){button.d
  schematicStage.style.height=(DATA.schematic.viewbox[1]*SCALE)+'px';
  const image=node('img');image.alt='Actual KiCad schematic plot — not an ERC check';image.src=DATA.schematic.src;
  schematicStage.appendChild(image);schematicStage.style.display='none';viewport.appendChild(schematicStage);
- if(DATA.schematic.pages?.length>1){
+ if(DATA.schematic.pages?.length){
   const nav=$('schematicPageNav'),select=$('schematicPagePicker');nav.hidden=false;
   DATA.schematic.pages.forEach((page,index)=>{
    const option=node('option','',String(index+1)+' · '+page.name);
    option.value=String(index);select.appendChild(option);
+   const button=node('button','sheet-thumb');button.type='button';
+   button.title='Open original KiCad schematic sheet '+(index+1)+' — '+page.name;
+   button.setAttribute('aria-label','Open native KiCad sheet '+(index+1)+' of '+DATA.schematic.pages.length+': '+page.name);
+   const preview=node('span','sheet-thumb-img');
+   const image=node('img');image.src=page.src;image.alt='Native KiCad plotted sheet '+page.name;
+   image.loading=index<4?'eager':'lazy';image.decoding='async';preview.append(image);
+   const description=node('span','sheet-thumb-copy');
+   description.append(node('span','',String(index+1).padStart(2,'0')+' / '+String(DATA.schematic.pages.length).padStart(2,'0')),
+    node('strong','',page.name),node('em','',index===0?'ROOT · symbol cross-probe':'CHILD · native plot only'));
+   button.append(preview,description);
+   button.addEventListener('click',()=>{if(mode!=='schematic')switchMode('schematic');setSchematicPage(index);});
+   $('schematicThumbnails').append(button);
   });
   select.addEventListener('change',()=>setSchematicPage(Number(select.value)));
+  $('schematicPrevious').addEventListener('click',()=>setSchematicPage(schematicPageIndex-1));
+  $('schematicNext').addEventListener('click',()=>setSchematicPage(schematicPageIndex+1));
+  $('schematicFocusSymbols').addEventListener('click',focusNativeRootSymbols);
+  setSchematicPage(0);
  }
  const common=new Set(DATA.schematic.crossprobe_refs);
+ const rootRefs=[...new Set(DATA.schematic.symbols.filter(x=>common.has(x.ref)).map(x=>x.ref))]
+  .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+ if(rootRefs.length){
+  $('schematicReferencePanel').hidden=false;
+  $('schematicReferenceCount').textContent=rootRefs.length+' mapped';
+  for(const ref of rootRefs){
+   const button=node('button','sheet-ref',ref);button.type='button';
+   button.dataset.ref=ref;
+   button.title='Zoom to real schematic symbol '+ref+' (authored PCB footprint mapping only)';
+   button.setAttribute('aria-label','Locate KiCad schematic reference '+ref);
+   button.addEventListener('click',()=>{
+    if(!focusSchematic(ref))return;
+    const index=boardRefToIndex.get(ref);
+    if(index!==undefined){
+     select({kind:'part',index},false);
+     const jump=node('button','crossnav','Go to native PCB footprint '+ref+' →');jump.type='button';
+     jump.onclick=()=>{switchMode('pcb');select({kind:'part',index},true);};
+     $('detail').append(jump);
+    }
+    const marker=focusButtons.symbols.get(ref);if(marker)marker.classList.add('selected');
+    document.querySelectorAll('.sheet-ref').forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
+   });
+   $('schematicReferenceGrid').append(button);
+  }
+ }
  for(const ref of DATA.schematic.symbols){
   if(!common.has(ref.ref))continue;
   const btn=node('button','sch-hit',ref.ref.replace(/[^A-Za-z]/g,'').slice(0,1));btn.type='button';
@@ -596,13 +750,55 @@ function setupSchematic(){const button=$('modeSch');if(!DATA.schematic){button.d
  }
 
 }
-function switchMode(next){if(next==='schematic'&&!DATA.schematic)return;mode=next;
- stage.style.display=mode==='pcb'?'block':'none';if(schematicStage)schematicStage.style.display=mode==='schematic'?'block':'none';
- $('modePcb').setAttribute('aria-pressed',String(mode==='pcb'));$('modeSch').setAttribute('aria-pressed',String(mode==='schematic'));
- $('copperControls').hidden=mode==='schematic';$('inspectionOverlays').hidden=mode==='schematic';$('schematicContext').hidden=mode!=='schematic';
- $('modeKicker').textContent=mode==='pcb'?'Physical PCB / native plotted geometry':'Electrical schematic / native Eeschema geometry';
+function set3DCamera(index){
+ const views=DATA.render3d?.views||[];
+ if(!render3dStage||!Number.isInteger(index)||index<0||index>=views.length)return;
+ render3dIndex=index;
+ const picture=views[index];
+ render3dStage.style.width=picture.width+'px';render3dStage.style.height=picture.height+'px';
+ const image=render3dStage.querySelector('img');
+ if(image){image.src=picture.source;image.alt='Actual KiCad 10 '+picture.label+' 3D PCB render. Component model completeness NOT verified.';}
+ $('render3dIso').setAttribute('aria-pressed',String(index===0));
+ $('render3dTop').setAttribute('aria-pressed',String(index===1));
+ if(mode==='3d'){fit();updatePreferences();}
+}
+function setupNative3D(){
+ const trigger=$('mode3D');
+ if(DATA.render3d?.state!=='rendered'||DATA.render3d.views?.length!==2){
+  trigger.disabled=true;
+  trigger.title=DATA.render3d?.state==='not_run'? 'Native KiCad 3D render was not requested':
+   'Native KiCad 3D unavailable on this computer; PCB and schematic review remain available';
+  return;
+ }
+ render3dStage=node('div','stage render3dstage');
+ const image=node('img');image.alt='Real native KiCad 3D model view';
+ render3dStage.append(image);render3dStage.style.display='none';viewport.append(render3dStage);
+ $('render3dIso').addEventListener('click',()=>set3DCamera(0));
+ $('render3dTop').addEventListener('click',()=>set3DCamera(1));
+ set3DCamera(0);
+}
+function switchMode(next){
+ if(next==='schematic'&&!DATA.schematic)return;
+ if(next==='3d'&&DATA.render3d?.state!=='rendered')return;
+ mode=next;
+ stage.style.display=mode==='pcb'?'block':'none';
+ if(schematicStage)schematicStage.style.display=mode==='schematic'?'block':'none';
+ if(render3dStage)render3dStage.style.display=mode==='3d'?'block':'none';
+ $('modePcb').setAttribute('aria-pressed',String(mode==='pcb'));
+ $('modeSch').setAttribute('aria-pressed',String(mode==='schematic'));
+ $('mode3D').setAttribute('aria-pressed',String(mode==='3d'));
+ $('copperControls').hidden=mode!=='pcb';$('inspectionOverlays').hidden=mode!=='pcb';
+ $('schematicContext').hidden=mode!=='schematic';
+ $('schematicSheetDock').hidden=mode!=='schematic';
+ $('render3dControls').hidden=mode!=='3d';
+ $('measure').disabled=mode!=='pcb';$('clearMeasure').disabled=mode!=='pcb';
+ if(mode!=='pcb'){measureOn=false;measurePoints=[];renderMeasure();}
+ cursorCoords=null;
+ $('modeKicker').textContent=mode==='pcb'?'Physical PCB / native plotted geometry':
+  mode==='3d'?'Physical PCB / actual KiCad 3D render':'Electrical schematic / native Eeschema geometry';
  $('boardFoot').textContent=mode==='pcb'
  ?'Unmodified KiCad PCB plot. Source pads, copper and native DRC can be inspected, but fabrication remains blocked.'
+ :mode==='3d'?'Original KiCad 3D render · missing/unresolved component models may be absent. Neither assembly fit nor manufacturing is approved.'
  :'Native Eeschema schematic plot. Symbol crossprobe matches actual references; optional pin-pad net agreement is not independent datasheet, continuity or electrical approval.';
  if(mode==='schematic')$('schematicContextText').textContent=DATA.schematic.symbols.length+
  ' native symbols · '+DATA.schematic.crossprobe_refs.length+' matched footprint references · '+DATA.schematic.net_names.length+
@@ -611,13 +807,16 @@ function switchMode(next){if(next==='schematic'&&!DATA.schematic)return;mode=nex
   DATA.pin_parity.unmapped_pad_instances+' unmapped pads; '+DATA.pin_parity.mismatch_count+
   ' discrepancies. Datasheet/pin qualification NOT established.');
  $('canvasName').textContent=mode==='pcb'?DATA.board_name.replaceAll('_',' '):
+  mode==='3d'?DATA.board_name.replaceAll('_',' ')+' · native 3D':
   DATA.schematic.filename.replaceAll('_',' ')+(DATA.schematic.pages?.length>1?' · '+DATA.schematic.pages[schematicPageIndex].name:'');
  $('canvasEvidence').textContent=mode==='pcb'
  ?'KiCad '+DATA.board.kicad+' · SHA-256 '+DATA.source_sha256.slice(0,12)+'…'
+ :mode==='3d'?'KiCad native OpenGL render · Source SHA-256 '+DATA.source_sha256.slice(0,12)+'… · 3D models NOT verified'
  :'Native Eeschema SVG · SHA-256 '+DATA.schematic.source_sha256.slice(0,12)+'… · ERC '+DATA.erc.count+' findings'+
  (DATA.schematic.display_page_expanded?' · DISPLAY-ONLY A2 PAGE':'');
  $('footleft').textContent=mode==='pcb'
  ?`READ-ONLY • ${DATA.board.size.join(' × ')} mm board bounds • source ${DATA.source_sha256.slice(0,16)}…`
+ :mode==='3d'?'READ-ONLY • native KiCad 3D view · component model completeness NOT checked'
  :'READ-ONLY • native KiCad schematic · original ERC '+DATA.erc.count+' enabled-rule findings'+
    (DATA.schematic.display_page_expanded?' · display-only A2 enlargement':'');fit();updatePreferences();
 }
@@ -678,6 +877,7 @@ function restorePreferences(){
   }
   if(['issues','opens','parts','nets','pins'].includes(p.tab))setTab(p.tab);
   if(p.mode==='schematic'&&DATA.schematic)switchMode('schematic');
+  if(p.mode==='3d'&&DATA.render3d?.state==='rendered')switchMode('3d');
   if(Number.isInteger(p.page)&&p.page>0)setSchematicPage(p.page);
  }
  prefsReady=true;
@@ -866,12 +1066,14 @@ function bindShortcuts(){
    event.target.matches('input,textarea,select')||event.target.isContentEditable);
   if(writing)return;
   const k=event.key.toLowerCase();
-  if(k==='/'||k==='f'||k==='1'||k==='2'||k==='m'||k==='q'||k==='j'||k==='k'||k==='?'){
+  if(k==='/'||k==='f'||k==='1'||k==='2'||k==='m'||k==='q'||k==='j'||k==='k'||k==='?'||(mode==='schematic'&&(k==='['||k===']'))){
    event.preventDefault();
    if(k==='/'){$('search').focus();$('search').select();}
    else if(k==='f')fit();
    else if(k==='1')switchMode('pcb');
    else if(k==='2'&&DATA.schematic)switchMode('schematic');
+   else if(k==='['&&mode==='schematic')setSchematicPage(schematicPageIndex-1);
+   else if(k===']'&&mode==='schematic')setSchematicPage(schematicPageIndex+1);
    else if(k==='m')activateMeasurement();
    else if(k==='q')setFocusMode(!document.querySelector('.app').classList.contains('focus-mode'));
    else if(k==='j'||k==='k')advanceReview(k==='j'?1:-1);
@@ -1205,15 +1407,16 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventLis
  });
  $('modePcb').addEventListener('click',()=>switchMode('pcb'));
  $('modeSch').addEventListener('click',()=>switchMode('schematic'));
+ $('mode3D').addEventListener('click',()=>switchMode('3d'));
  $('search').addEventListener('input',renderList);
  $('inspectIssues').addEventListener('click',()=>{setTab('issues');$('entrylist').focus();});
  $('inspectOpens').addEventListener('click',()=>{setTab('opens');$('entrylist').focus();});
  $('reviewPrev').addEventListener('click',()=>advanceReview(-1));
  $('reviewNext').addEventListener('click',()=>advanceReview(1));
  $('resetPreferences').addEventListener('click',resetPreferences);
- $('quickDrc').addEventListener('click',()=>{setFocusMode(false);setTab('issues');$('entrylist').focus();});
- $('quickOpen').addEventListener('click',()=>{setFocusMode(false);setTab('opens');$('entrylist').focus();});
- $('quickPins').addEventListener('click',()=>{setFocusMode(false);setTab('pins');$('entrylist').focus();});
+ $('quickDrc').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('issues');$('entrylist').focus();});
+ $('quickOpen').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('opens');$('entrylist').focus();});
+ $('quickPins').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('pins');$('entrylist').focus();});
  $('quickErc').addEventListener('click',()=>{if(DATA.schematic){setFocusMode(false);switchMode('schematic');}});
  $('focusMode').addEventListener('click',()=>setFocusMode(!document.querySelector('.app').classList.contains('focus-mode')));
  bindCommands();
@@ -1278,6 +1481,6 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventLis
    zoom=Math.min(12,Math.max(.08,zoom*(e.deltaY<0?1.12:.89)));panX=mx-(mx-panX)*zoom/prior;panY=my-(my-panY)*zoom/prior;apply();},{passive:false});
  window.addEventListener('resize',fit);
 }
-function boot(){summary();drawLayers();setupSchematic();makeHits();bind();renderMeasure();renderList();fit();restorePreferences();}
+function boot(){summary();drawLayers();setupSchematic();setupNative3D();makeHits();bind();renderMeasure();renderList();fit();restorePreferences();}
 boot();
 </script></body></html>

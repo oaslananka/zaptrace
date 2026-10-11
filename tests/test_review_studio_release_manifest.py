@@ -32,7 +32,7 @@ def test_audit_lists_real_files_and_always_discloses_unsigned_and_not_ga(
     tmp_path: Path,
 ) -> None:
     report = manifest(release_artifact, gate_log(tmp_path))
-    assert report["version"] == "0.1.2"
+    assert report["version"] == "0.1.4"
     assert report["package"]["sha256"] == sha256(release_artifact)
     assert report["target"]["native_kicad"] == "10.x"
     assert report["validation"]["nine_stage_release_gate"]
@@ -71,17 +71,20 @@ def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
     accepted = (
         "PACKAGE_SHA256=" + sha256(release_artifact) + "\n"
         "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.1 = 0\n"
-        "Real APT in-place upgrade to installed 0.1.2 passed\n"
+        "Real APT in-place upgrade to installed 0.1.4 passed\n"
+        "Installed 0.1.4 native KiCad two actual OpenGL 3D camera views: PASS\n"
         "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
         "Native localhost startup/shutdown after upgrade passed\n"
-        "Actual APT remove 0.1.2 passed\n"
+        "Actual APT remove 0.1.4 passed\n"
     )
     qa.write_text(accepted)
     good = manifest(release_artifact, log, qa)
     assert good["validation"]["clean_ubuntu_disposable_container_real_apt_install"] is True
     assert good["validation"]["clean_ubuntu_container_native_erc_drc"] is True
+    assert good["validation"]["clean_ubuntu_container_native_3d_isometric_and_top"] is True
+    assert good["validation"]["native_3d_model_coverage_independently_verified"] is False
     assert good["validation"]["clean_ubuntu_container_apt_remove_preserves_user_data"] is True
-    assert good["validation"]["clean_ubuntu_container_inplace_011_to_012_upgrade"] is True
+    assert good["validation"]["clean_ubuntu_container_inplace_011_to_014_upgrade"] is True
     assert good["validation"]["clean_ubuntu_container_legacy_zip_restored_using_fresh_kicad"] is True
     assert good["validation"]["independent_clean_machine_real_apt_install"] is False
     assert good["validation"]["code_signed"] is False

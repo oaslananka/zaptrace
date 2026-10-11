@@ -32,10 +32,11 @@ def qa_material(tmp_path: Path) -> tuple[Path, Path, Path, str]:
     qa.write_text(
         f"PACKAGE_SHA256={sha256(package)}\n"
         "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.1 = 0\n"
-        "Real APT in-place upgrade to installed 0.1.2 passed\n"
+        "Real APT in-place upgrade to installed 0.1.4 passed\n"
+        "Installed 0.1.4 native KiCad two actual OpenGL 3D camera views: PASS\n"
         "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
         "Native localhost startup/shutdown after upgrade passed\n"
-        "Actual APT remove 0.1.2 passed\n"
+        "Actual APT remove 0.1.4 passed\n"
     )
     release = tmp_path / "RELEASE_MANIFEST.json"
     release.write_text(json.dumps(manifest(package, gate, qa), indent=2) + "\n")
