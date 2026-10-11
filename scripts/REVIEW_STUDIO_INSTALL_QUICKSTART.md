@@ -10,11 +10,25 @@ automatically granted.
 
 ## Installation
 
-1. Install **KiCad 10.x**, preferably from the *KiCad team's trusted KiCad 10
-   Ubuntu Noble releases* repository. Ubuntu 24.04's default KiCad can be 7.x,
-   which **cannot** satisfy this package. Review the repository publisher,
-   key fingerprint and apt configuration before adding any third-party source.
-   Never disable APT signature validation.
+1. Install **KiCad 10.x** from the KiCad team's Ubuntu Noble release
+   repository. Ubuntu 24.04's default repositories can supply KiCad 7.x,
+   which **cannot** satisfy this application. Verify the Launchpad publisher
+   and the repository signing key shown by `add-apt-repository` before consenting
+   to add any third-party software source. On Ubuntu 24.04 the tested setup is:
+
+   ```sh
+   sudo apt update
+   sudo apt install software-properties-common
+   sudo add-apt-repository ppa:kicad/kicad-10.0-releases
+   sudo apt update
+   sudo apt install kicad
+   kicad-cli version
+   ```
+
+   The final command must report **KiCad 10.x**. Do not disable APT signature
+   checking or change the dependency requirement to make KiCad 7/11 appear
+   compatible. These commands require user approval; Review Studio does not
+   silently add external repositories or install system packages.
 2. Verify this kit's `.deb` before installation:
 
    ```sh
