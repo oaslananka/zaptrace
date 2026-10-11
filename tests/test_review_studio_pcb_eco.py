@@ -224,6 +224,7 @@ def test_project_drc_sidecar_is_preserved_and_hashed(tmp_path: Path) -> None:
         "project_sha256": original[project],
         "custom_rules_sha256": None,
         "effective_rules_independently_verified": False,
+        "custom_rule_loader_probe_passed": False,
     }
     for path in (pcb, project):
         assert hashlib.sha256(path.read_bytes()).hexdigest() == original[path]
@@ -304,3 +305,49 @@ p.SaveBoard(sys.argv[2],b)
     assert result.returncode == 0, result.stderr + result.stdout
     assert (target / "source.kicad_pcb").is_file()
     assert hashlib.sha256(pcb.read_bytes()).hexdigest() == sha_before
+
+
+def test_native_kicad_valid_custom_dru_is_loaded_and_saved_with_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "input"
+    source.mkdir()
+    board = source / "native.kicad_pcb"
+    board.write_bytes(CLEAN.read_bytes())
+    project = board.with_suffix(".kicad_pro")
+    project.write_bytes((SOURCE / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes())
+    rules = board.with_suffix(".kicad_dru")
+    rules.write_text('(version 1)\n(rule "ALLOW_FOOTPRINT_COURTYARD" (constraint courtyard_clearance (min 0.1mm)))\n')
+    digests = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in (board, project, rules)}
+    target = tmp_path / "native-custom-rule"
+    done = run_eco(board, target)
+    assert done.returncode == 0, done.stderr + done.stdout
+    report = json.loads((target / "ECO_EVIDENCE.json").read_text())
+    assert report["rule_context"] == {
+        "mode": "project_with_custom_rules",
+        "project_sha256": digests[project],
+        "custom_rules_sha256": digests[rules],
+        "custom_rule_loader_probe_passed": True,
+        "effective_rules_independently_verified": False,
+    }
+    assert (target / "source.kicad_pro").read_bytes() == project.read_bytes()
+    assert (target / "source.kicad_dru").read_bytes() == rules.read_bytes()
+    assert report["native_drc"]["new_drc_rules"] == 0
+    assert all(hashlib.sha256(p.read_bytes()).hexdigest() == value for p, value in digests.items())
+    assert not (target / "loader-probe-drc.json").exists()
+
+
+def test_custom_rule_existing_violation_getting_worse_is_rejected(tmp_path: Path) -> None:
+    """Identical violating UUIDs are insufficient if actual clearance worsens."""
+    source = tmp_path / "input"
+    source.mkdir()
+    board = source / "native.kicad_pcb"
+    board.write_bytes(CLEAN.read_bytes())
+    board.with_suffix(".kicad_pro").write_bytes((SOURCE / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes())
+    board.with_suffix(".kicad_dru").write_text(
+        '(version 1)\n(rule "RESTRICTIVE_COURTYARD" (constraint courtyard_clearance (min 100mm)))\n'
+    )
+    digest = hashlib.sha256(board.read_bytes()).hexdigest()
+    result = run_eco(board, tmp_path / "must-block-worsening")
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "DRC violation" in result.stderr
+    assert not (tmp_path / "must-block-worsening").exists()
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == digest

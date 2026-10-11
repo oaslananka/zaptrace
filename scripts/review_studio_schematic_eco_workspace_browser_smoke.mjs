@@ -80,7 +80,7 @@ await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScal
 const mobile=await js(`(()=>{const rect=document.getElementById('ecoLab').getBoundingClientRect();return {
  width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,
  lab:{left:rect.left,right:rect.right},preview:document.getElementById('ecoPreview').getBoundingClientRect().toJSON(),
- controls:[...document.querySelectorAll('.eco-result-actions button')].map(x=>x.getBoundingClientRect().width)}})()`);
+ controls:[...document.querySelectorAll('#ecoResult .eco-result-actions button')].map(x=>x.getBoundingClientRect().width)}})()`);
 console.log('MOBILE LIVE ECO AUTHORING 390',mobile);
 check(mobile.width<=390&&mobile.scroll<=390&&mobile.lab.left>=0&&mobile.lab.right<=390&&
  mobile.preview.right<=390&&mobile.controls.every(x=>x>=80),

@@ -3,6 +3,7 @@ import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const fixture=process.env.ZAPTRACE_PCB_ECO_SOURCE;
 const project=process.env.ZAPTRACE_PCB_ECO_PROJECT;
+const rules=process.env.ZAPTRACE_PCB_ECO_RULES;
 const shots=process.env.ZAPTRACE_PCB_ECO_SHOTS;
 if(!port||!fixture||!shots)throw Error('Real Chrome port, native PCB source and screenshot path required');
 let pages=[];
@@ -37,6 +38,12 @@ if(project){
  check(!!projectInput.nodeId,'matching native KiCad project selector exists');
  await command('DOM.setFileInputFiles',{nodeId:projectInput.nodeId,files:[project]});
 }
+if(rules){
+ check(!!project,'custom rules have a matching KiCad project file');
+ const rulesInput=await command('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'#pcbEcoRules'});
+ check(!!rulesInput.nodeId,'native KiCad custom DRC rule selector exists');
+ await command('DOM.setFileInputFiles',{nodeId:rulesInput.nodeId,files:[rules]});
+}
 const chosen=await js(`(()=>{document.getElementById('pcbEcoRef').value='R1';document.getElementById('pcbEcoDx').value='1';
  document.getElementById('pcbEcoDy').value='.5';document.getElementById('pcbEcoForm').requestSubmit();
  return document.getElementById('pcbEcoSource').files?.[0]?.name})()`);
@@ -62,7 +69,8 @@ check(result.visible&&result.ready==='true'&&result.id?.length===32&&result.ifra
  result.title.includes('DRC verified'),'full Chrome native KiCad footprint R1 (20,20) -> (21,20.5) passed real DRC');
 const context=await js(`(()=>({bundleLabel:document.getElementById('pcbEcoDownload').textContent,
   status:document.getElementById('pcbEcoStatus').textContent}))()`);
-check(project ? context.bundleLabel.includes('ZIP')&&context.status.includes('selected project') :
+check(rules ? context.bundleLabel.includes('ZIP')&&context.status.includes('loader probe passed') :
+ project ? context.bundleLabel.includes('ZIP')&&context.status.includes('selected project') :
   !context.bundleLabel.includes('ZIP')&&context.status.includes('defaults only'),
   'native KiCad browser distinguishes supplied project rules from default-only DRC');
 const preview=await js(`(()=>{const x=document.getElementById('pcbEcoPreview');return {

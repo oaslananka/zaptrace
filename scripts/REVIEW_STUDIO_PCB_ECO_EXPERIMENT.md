@@ -103,30 +103,50 @@ custom-rule-aware browser editing, native route-aware footprint drag and
 full source-to-layout ECO synchronization. Keep immutable source hashes and
 manufacturer DFM gates.
 
-## Post-0.1.7 local hardening (not part of the SHA-bound 0.1.7 package)
+## 0.1.8 source branch · custom DRC loader probe and guarded PCB ECO
 
-The isolated local branch now rejects copper overlap even when **both track
-endpoints lie outside the pad**, and rejects a moved pad landing on existing
-copper (including native KiCad arc/via bounding boxes). Native KiCad integration
-tests cover original and destination overlaps and check that failed drafts
-never write an output or alter the original. The CLI additionally preserves
-and SHA-binds the matching local .kicad_pro sidecar, preserving the exact
-validated project snapshot. Native .kicad_dru rule-file application was not
-proven by a deliberately invalid-rule test: **all custom-rule sidecar inputs
-are therefore rejected fail-closed**, including otherwise well-paired files.
+The 0.1.7 Debian package and offline kit listed above remain unchanged.
+The new local 0.1.8 version has passed its complete nine-stage local release
+gate, deterministic .deb build and disposable Ubuntu 24.04.1 real APT
+0.1.1→0.1.8 upgrade, native KiCad 10.0.7 custom-rule/PCB/schematic/3D,
+genuine 0.1.1 private ZIP restore and apt remove with source protection.
+The exact .deb extraction passed live Chrome desktop/390px PCB+SCH ECO and
+authenticated ZIP/download/discard, but **the browser ran on MSI**, not as a
+GUI browser inside the Docker container. This is a locally qualified unsigned
+release candidate, not independent physical user-machine GA acceptance.
+Exact 0.1.8 .deb SHA-256:
+`e78cf78c6cba3829aa3335793c5dba1ca4c77a311a9b9ae26a4e5f356953e1ec`.
+Offline local RC ZIP SHA-256:
+`a90ceaf9132af00bdfc3f4e7f571d485dc061aed3fc7d7ed488e74e69819f9d3`.
 
-**Browser support on the local branch:** optional matching `.kicad_pro` is
-base64/SHA-256 checked, validated for KiCad project JSON shape and staged as an
-isolated `source.kicad_pro` in both native DRC workspaces. Successful drafts
-produce an authenticated private ZIP containing `source.kicad_pcb`,
-`source.kicad_pro` and ECO evidence, removable by explicit discard. Default-
-only comparison remains available but is labeled as such. A selected
-`.kicad_dru` is blocked, not silently discarded. Negative HTTP tests cover
-filename/path mismatches, tampered digests and invalid encodings. Actual Chrome
-tested both default-only and matching-project contexts, authenticated ZIP
-download, dual native KiCad SVG, desktop/390px responsive layout, and no JS
-exceptions. These tests exercised **local source, not an installed new package**.
+Native KiCad 10.0.7 confirmed a measurable rule-loading differential:
+a two-footprint PCB has 0 courtyard violations without a special rule, and
+a named 100 mm custom courtyard constraint yields 1 named violation.
+A deliberately invalid custom file instead produced a misleading successful
+CLI exit with no evidence that the invalid rule was enforced. Therefore, every
+PCB ECO with a matching `.kicad_dru` runs an isolated **loader probe**:
+a uniquely named 1000 mm courtyard rule is appended to a temporary copy only,
+then native DRC must explicitly report its violation. The original rules are
+never edited. Missing/ignored/invalid rule loads fail closed. This requires
+an observable courtyard pair, and may reject otherwise valid small projects.
+The probe does **not** certify all supplied rule semantics, GUI/CLI parity,
+electrical adequacy or fabrication readiness. The evidence retains
+`effective_rules_independently_verified=false` while separately recording
+`custom_rule_loader_probe_passed=true` when observed.
 
-Existing SHA-bound 0.1.7 Debian/ZIP packages remain unchanged. Re-run the
-exact-package clean Ubuntu/Chromium/restore tests and give the changed binary
-a distinct version before describing it as a release candidate.
+The local PCB engine rejects track/arc/via geometry intersecting source or
+destination pad bounding boxes. DRC comparisons also include violation
+descriptions, not only type/severity/UUID, so an existing clearance violation
+getting worse is rejected. Source, project, rules and KiCad plots use separate
+copy-on-write folders and SHA-256. Unrouted footprint placement is still the
+only PCB authoring operation; routed copper movement, zones, MCAD, schematic-
+PCB synchronization and manufacturing signoff remain blocked.
+
+The authenticated localhost editor accepts the original PCB and optional
+same-basename project and custom-rule files, validates names, sizes and SHA
+checksums, and returns a downloadable private ZIP containing exactly the
+native PCB, supplied project/rules and evidence. The browser explicitly
+distinguishes KiCad defaults, project context and verified custom loader
+probe, with warnings about unverified effective rules. Native HTTP, actual
+Chrome desktop/390px and browser discard tests were run in the local source
+working tree. A verified SHA-bound packaged Ubuntu release needs separate QA.

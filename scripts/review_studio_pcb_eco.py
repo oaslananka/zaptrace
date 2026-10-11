@@ -113,7 +113,7 @@ def command(args: list[str], timeout: int = 65) -> None:
 
 
 def drc(cli: str, source: Path, report: Path) -> dict:
-    command([cli, "pcb", "drc", "--format", "json", "--output", str(report), str(source)], 95)
+    command([cli, "pcb", "drc", "--format", "json", "--severity-all", "--output", str(report), str(source)], 95)
     result = json.loads(report.read_text())
     if (
         not isinstance(result.get("violations"), list)
@@ -125,11 +125,48 @@ def drc(cli: str, source: Path, report: Path) -> dict:
     return result
 
 
+def attest_custom_rule_loading(cli: str, root: Path, board: Path, rules: Path, source_sha: str) -> bool:
+    """Prove a disposable sentinel rule reaches native KiCad DRC.
+
+    This checks loader execution, NOT the semantics of every supplied rule,
+    cross-editor parity, or fabrication suitability. If a sentinel cannot
+    create a distinguishable KiCad finding, fail closed.
+    """
+    probe = root / "rule-loader-probe"
+    probe.mkdir()
+    test_board = probe / board.name
+    shutil.copyfile(board, test_board)
+    project = board.with_suffix(".kicad_pro")
+    if not project.is_file():
+        raise RuntimeError("Custom KiCad rules require their matching project")
+    shutil.copyfile(project, probe / project.name)
+    name = "ZAPTRACE_RULE_LOADER_PROBE_" + source_sha[:16]
+    original_rules = rules.read_bytes()
+    if name.encode() in original_rules:
+        raise RuntimeError("Custom rule test marker collides with source rules")
+    sentinel = '\n(rule "' + name + '"\n  (constraint courtyard_clearance (min 1000mm)))\n'
+    (probe / rules.name).write_bytes(original_rules + sentinel.encode("ascii"))
+    output = drc(cli, test_board, root / "loader-probe-drc.json")
+    matches = [
+        v
+        for v in output["violations"]
+        if v.get("type") == "courtyards_overlap" and name in str(v.get("description", ""))
+    ]
+    if not matches:
+        raise RuntimeError("Native KiCad did not prove custom .kicad_dru loading; ECO blocked")
+    return True
+
+
 def signature(item: dict) -> tuple:
     items = item.get("items")
     if not isinstance(items, list) or any(not isinstance(x.get("uuid"), str) for x in items):
         raise RuntimeError("Native KiCad DRC item identities unavailable; editing blocked")
-    return item.get("severity"), item.get("type"), tuple(sorted(x["uuid"] for x in items))
+    return (
+        item.get("severity"),
+        item.get("type"),
+        item.get("description"),
+        tuple(sorted(x["uuid"] for x in items)),
+    )
 
 
 def compare_drc(before: dict, after: dict) -> dict:
@@ -244,8 +281,6 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
                 context[suffix] = path, sha(path)
         if ".kicad_dru" in context and ".kicad_pro" not in context:
             raise ValueError("Custom KiCad DRC rules without their project context are blocked")
-        if ".kicad_dru" in context:
-            raise ValueError("KiCad custom DRC rule loading is unverified; ECO blocked")
         for folder in (first, second):
             for path, _digest in context.values():
                 shutil.copyfile(path, folder / path.name)
@@ -264,6 +299,11 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
             raise RuntimeError("Cannot reopen authored KiCad PCB")
         verify_roundtrip(before, state(reopened), reference, dx, dy)
         drc_original = drc(cli, raw, root / "before-drc.json")
+        rule_loader_verified = (
+            attest_custom_rule_loading(cli, root, raw, first / raw.with_suffix(".kicad_dru").name, original_sha)
+            if ".kicad_dru" in context
+            else False
+        )
         drc_modified = drc(cli, changed, root / "after-drc.json")
         summary = compare_drc(drc_original, drc_modified)
         before_svg = plot(cli, raw, root / "before.svg")
@@ -293,9 +333,16 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
                 "working_sha256": sha(copy),
                 "native_drc": summary,
                 "rule_context": {
-                    "mode": "project" if ".kicad_pro" in context else "defaults_without_project",
+                    "mode": (
+                        "project_with_custom_rules"
+                        if ".kicad_dru" in context
+                        else "project"
+                        if ".kicad_pro" in context
+                        else "defaults_without_project"
+                    ),
                     "project_sha256": context[".kicad_pro"][1] if ".kicad_pro" in context else None,
                     "custom_rules_sha256": context[".kicad_dru"][1] if ".kicad_dru" in context else None,
+                    "custom_rule_loader_probe_passed": rule_loader_verified,
                     "effective_rules_independently_verified": False,
                 },
                 "fabApproved": False,

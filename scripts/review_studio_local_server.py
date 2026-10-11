@@ -454,7 +454,9 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
                 expected = {"source_base64", "original_sha256", "reference", "dx", "dy"}
                 project_fields = {"source_filename", "project_filename", "project_base64", "project_sha256"}
-                if not isinstance(payload, dict) or set(payload) not in (expected, expected | project_fields):
+                rules_fields = {"rules_filename", "rules_base64", "rules_sha256"}
+                allowed = (expected, expected | project_fields, expected | project_fields | rules_fields)
+                if not isinstance(payload, dict) or set(payload) not in allowed:
                     raise ValueError("Expected native PCB SHA, movement, and optional matched KiCad project context")
                 ref, digest = payload["reference"], payload["original_sha256"]
                 if (
@@ -486,6 +488,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 if hashlib.sha256(raw).hexdigest() != digest:
                     raise ValueError("Source PCB SHA-256 differs from selected browser file")
                 project_raw = None
+                rules_raw = None
                 if project_fields <= payload.keys():
                     board_name, project_name = payload["source_filename"], payload["project_filename"]
                     if (
@@ -518,12 +521,37 @@ class ReviewHandler(BaseHTTPRequestHandler):
                         raise ValueError("KiCad project data must be valid JSON") from exc
                     if not isinstance(metadata, dict) or not any(key in metadata for key in ("board", "pcb")):
                         raise ValueError("Native KiCad project board settings missing")
+                    if rules_fields <= payload.keys():
+                        filename = payload["rules_filename"]
+                        encoded, digest_rules = payload["rules_base64"], payload["rules_sha256"]
+                        if (
+                            not checked_name(filename, ".kicad_dru")
+                            or not filename.endswith(".kicad_dru")
+                            or Path(filename).stem != Path(board_name).stem
+                            or not isinstance(encoded, str)
+                            or not isinstance(digest_rules, str)
+                            or not re.fullmatch(r"[a-f0-9]{64}", digest_rules)
+                        ):
+                            raise ValueError("Custom KiCad rule file name or SHA mismatch")
+                        try:
+                            rules_raw = base64.b64decode(encoded, validate=True)
+                        except (binascii.Error, ValueError) as exc:
+                            raise ValueError("Invalid native KiCad custom rule encoding") from exc
+                        if (
+                            not 10 < len(rules_raw) <= MAX_CUSTOM_RULES
+                            or hashlib.sha256(rules_raw).hexdigest() != digest_rules
+                        ):
+                            raise ValueError("Custom KiCad DRC rule data or checksum invalid")
+                        if not rules_raw.lstrip().startswith(b"(version 1)"):
+                            raise ValueError("KiCad .kicad_dru version header missing")
                 job_id = uuid.uuid4().hex
                 staged = self.review_server.workspace / "pcb-eco-working" / job_id
                 staged.mkdir(parents=True, exist_ok=False)
                 (staged / "source.kicad_pcb").write_bytes(raw)
                 if project_raw is not None:
                     (staged / "source.kicad_pro").write_bytes(project_raw)
+                if rules_raw is not None:
+                    (staged / "source.kicad_dru").write_bytes(rules_raw)
                 output = self.review_server.workspace / "pcb-eco-results" / job_id
                 output.parent.mkdir(parents=True, exist_ok=True)
                 job = {
@@ -932,7 +960,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 if manifest["working_sha256"] != hashlib.sha256((output / "source.kicad_pcb").read_bytes()).hexdigest():
                     raise RuntimeError("KiCad PCB ECO copy SHA differs from native evidence")
                 with zipfile.ZipFile(output / "source.project.zip", "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-                    for name in ("source.kicad_pcb", "source.kicad_pro", "ECO_EVIDENCE.json"):
+                    for name in ("source.kicad_pcb", "source.kicad_pro", "source.kicad_dru", "ECO_EVIDENCE.json"):
                         artifact = output / name
                         if artifact.is_file():
                             bundle.write(artifact, arcname=name)
@@ -946,6 +974,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                         "new_mm": manifest["new_mm"],
                         "fabApproved": False,
                         "rule_context": manifest["rule_context"]["mode"],
+                        "custom_rule_loader_probe_passed": manifest["rule_context"]["custom_rule_loader_probe_passed"],
                     },
                 }
             elif "pad-adjacent copper" in run.stderr:

@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.7 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.8 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.7_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.8_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -177,8 +177,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.7_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.7_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.8_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.8_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

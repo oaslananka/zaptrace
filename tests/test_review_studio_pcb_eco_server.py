@@ -182,3 +182,70 @@ def test_project_rule_upload_mismatch_and_tampering_fail_closed(tmp_path: Path) 
             code, _ = fetch(url + "/api/pcb-eco", server.secret, data=bad)
             assert code == 400, bad.keys()
         assert not list((tmp_path / "workspace/pcb-eco-results").glob("*/source.kicad_pcb"))
+
+
+def test_custom_kicad_rules_browser_probe_preserves_original_and_downloads_bundle(tmp_path: Path) -> None:
+    import io
+    import zipfile
+
+    project = (Path(__file__).resolve().parents[1] / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes()
+    rules = b'(version 1)\n(rule "ALLOW_FOOTPRINT_COURTYARD" (constraint courtyard_clearance (min 0.1mm)))\n'
+    payload = {
+        **make_payload(),
+        "source_filename": "sensor.kicad_pcb",
+        "project_filename": "sensor.kicad_pro",
+        "project_base64": base64.b64encode(project).decode(),
+        "project_sha256": hashlib.sha256(project).hexdigest(),
+        "rules_filename": "sensor.kicad_dru",
+        "rules_base64": base64.b64encode(rules).decode(),
+        "rules_sha256": hashlib.sha256(rules).hexdigest(),
+    }
+    with local_studio(tmp_path) as (server, url):
+        status, start = fetch(url + "/api/pcb-eco", server.secret, data=payload)
+        assert status == 202, start
+        job = json.loads(start)
+        done = await_job(url, server.secret, job["id"])
+        assert done["state"] == "complete", done
+        assert done["pcb_eco"]["rule_context"] == "project_with_custom_rules"
+        assert done["pcb_eco"]["custom_rule_loader_probe_passed"] is True
+        route = url + "/api/pcb-eco/result/" + job["id"]
+        code, packed = fetch(route + "/source.project.zip", server.secret)
+        assert code == 200
+        with zipfile.ZipFile(io.BytesIO(packed)) as archive:
+            assert set(archive.namelist()) == {
+                "source.kicad_pcb",
+                "source.kicad_pro",
+                "source.kicad_dru",
+                "ECO_EVIDENCE.json",
+            }
+            assert archive.read("source.kicad_dru") == rules
+            assert archive.read("source.kicad_pro") == project
+            evidence = json.loads(archive.read("ECO_EVIDENCE.json"))
+            assert evidence["rule_context"]["effective_rules_independently_verified"] is False
+            assert evidence["rule_context"]["custom_rules_sha256"] == hashlib.sha256(rules).hexdigest()
+        status, _ = fetch(url + "/api/pcb-eco/discard", server.secret, data={"id": job["id"]})
+        assert status == 200
+    assert CLEAN.is_file()
+
+
+def test_invalid_custom_kicad_rules_fail_closed_after_async_native_probe(tmp_path: Path) -> None:
+    project = (Path(__file__).resolve().parents[1] / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes()
+    rules = b"(version 1)\n(rule broken (constraint clearance (min INVALID)))\n"
+    payload = {
+        **make_payload(),
+        "source_filename": "sensor.kicad_pcb",
+        "project_filename": "sensor.kicad_pro",
+        "project_base64": base64.b64encode(project).decode(),
+        "project_sha256": hashlib.sha256(project).hexdigest(),
+        "rules_filename": "sensor.kicad_dru",
+        "rules_base64": base64.b64encode(rules).decode(),
+        "rules_sha256": hashlib.sha256(rules).hexdigest(),
+    }
+    with local_studio(tmp_path) as (server, url):
+        code, start = fetch(url + "/api/pcb-eco", server.secret, data=payload)
+        assert code == 202, start
+        job = json.loads(start)
+        status = await_job(url, server.secret, job["id"])
+        assert status["state"] == "failed"
+        assert not list((tmp_path / "workspace/pcb-eco-results").glob("*/source.kicad_pcb"))
+        assert not list((tmp_path / "workspace/pcb-eco-working").glob("*/source.kicad_pcb"))

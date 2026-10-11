@@ -47,7 +47,7 @@ See `REVIEW_STUDIO_PCB_ECO_EXPERIMENT.md` for the exact SHA-bound proof, safety
 gaps and engineering acceptance plan. `fabApproved` and full EDA signoff remain
 false; the release is still unsigned and local only.
 
-## Post-0.1.7 isolated local engineering hardening (not packaged)
+## 0.1.8 native engineering hardening (exact-package local QA completed)
 
 A guarded PCB placement follow-up uses native KiCad track/arc/via bounding
 geometry at both the source and destination pad positions; this blocks
@@ -59,16 +59,29 @@ The browser can now optionally import a same-basename, SHA-256-verified
 that project file present in both validation workspaces, and download a
 private ZIP with the checked PCB, project snapshot and evidence. The live
 Chrome flow was tested with and without that sidecar, including a 390px
-viewport and explicit deletion. Custom `.kicad_dru` rules are **blocked**
-because a deliberately invalid rule file was observed passing KiCad CLI
-without proving application. A present project file **does not attest** all
-effective rules; evidence records
+viewport and explicit deletion. For custom `.kicad_dru`, a disposable
+sentinel rule is appended to a temporary copy and must produce a specifically
+named native KiCad courtyard violation. Missing/invalid rule loads fail closed.
+Verified loader execution is **not** an independent proof of all user-rule
+semantics or KiCad GUI parity; evidence retains
 `effective_rules_independently_verified=false`.
+Actual custom-rule browser and source-copy ZIP scenarios were exercised locally.
 
-This branch is **not** an installed 0.1.8 release candidate. The previously
-tested 0.1.7 artifact hashes remain untouched; all clean-install, migration,
-restore, uninstall and signed-package gates must be re-run on a new,
-independently versioned package before claiming its acceptance.
+This is now a separately versioned **0.1.8 unsigned local release candidate**.
+The precise new package passed the nine-stage source/build/DRC gate and real
+APT 0.1.1→0.1.8 upgrade in disposable Ubuntu 24.04.1/KiCad 10.0.7. The exact
+package contents (extracted from the SHA-matched .deb) passed live MSI Chrome
+PCB/schematic ECO, SVG, download/discard and 390px mobile scenarios. Native
+installed 0.1.8 independently generated ten real KiCad 3D PNGs, and the
+restored genuine 0.1.1 review ZIP was rerun through KiCad with source SHA
+preserved. Actual apt remove preserved three review records, the original
+source/report hashes and the legacy private ZIP; KiCad remained installed.
+Release: `build/distribution/CLEAN_UBUNTU_2404_018_QA.txt`.
+Package SHA-256:
+`e78cf78c6cba3829aa3335793c5dba1ca4c77a311a9b9ae26a4e5f356953e1ec`.
+Older 0.1.7 package bytes remain unchanged. **Full EDA, every custom-rule
+semantic, real continuous 3D CAD, independent physical host acceptance,
+publisher signing, commercial rights and fab approval are still unverified.**
 
 ## Required milestones for full-featured EDA
 
