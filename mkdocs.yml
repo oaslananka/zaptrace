@@ -96,6 +96,7 @@ nav:
       - Commit Conventions: development/commit-conventions.md
       - Validation Environment: development/validation-environment.md
       - Test Lanes: development/test-lanes.md
+      - Grid Router Copper Occupancy and KiCad Oracle: development/grid-router-native-occupancy.md
 
   - Security Assurance:
       - Threat Model: security/threat-model.md
