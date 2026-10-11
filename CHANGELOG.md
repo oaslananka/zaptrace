@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Add opt-in conservative GridRouter pad-owned F.Cu/B.Cu/through-hole copper projection for rotated rectangular, oval and circular pads, with immutable foreign-net mask, NC/NPTH drill keepout, net ownership, grid-anchored terminals, fail-closed unsupported custom shapes and unverified via transfers. Expand independent KiCad 10 oracle with a 90-degree-rotated SMD footprint and a deliberately shorted negative control; keep existing routing defaults unchanged and avoid physical manufacturing claims.
+
 - Make GridRouter copper occupancy net-owned and route each complete multi-pad net transactionally; failed A*/MST edges roll back tentative copper and endpoint clearing. Add bounded, deterministic optional reroute ordering without replacing a better route, plus a KiCad 10 native pad-center connectivity oracle. The physical candidate now truthfully reports GND and SCL as unrouted rather than counting invalid copper; full multi-layer pad/via/zone geometry is still future #35 work.
 
 - Add separate 5.1 kΩ USB-C sink CC pull-downs (R3/R4) with distinct CC1/CC2 nets and verified resistor pad assignments in the ESP32 example. Source ERC021 is clean but J1's four logical nodes remain physically unmapped (33/37 covered); the KiCad 10.0.6 demo still fails 78 DRC violations, 31 unconnected items and one J1 ERC. No PD, slot manufacturing, copper connectivity, or fabrication approval is claimed.

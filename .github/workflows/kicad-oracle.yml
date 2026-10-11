@@ -11,6 +11,9 @@ on:
       - "scripts/ci_kicad_oracle.py"
       - "scripts/ci_kicad_jobset_oracle.py"
       - "zaptrace/algo/grid_router.py"
+      - "zaptrace/algo/pad_copper.py"
+      - "tests/test_pad_copper.py"
+      - "scripts/issue35_smd_native_plan.py"
       - "scripts/issue35_grid_native_plan.py"
       - "scripts/issue35_native_grid_fixture.py"
       - "scripts/issue35_native_grid_oracle.sh"
@@ -28,6 +31,9 @@ on:
       - "scripts/ci_kicad_oracle.py"
       - "scripts/ci_kicad_jobset_oracle.py"
       - "zaptrace/algo/grid_router.py"
+      - "zaptrace/algo/pad_copper.py"
+      - "tests/test_pad_copper.py"
+      - "scripts/issue35_smd_native_plan.py"
       - "scripts/issue35_grid_native_plan.py"
       - "scripts/issue35_native_grid_fixture.py"
       - "scripts/issue35_native_grid_oracle.sh"
@@ -75,6 +81,10 @@ jobs:
         shell: bash
         run: bash scripts/issue35_native_grid_oracle.sh build/issue35-native-grid-oracle
 
+      - name: Verify rotated SMD pad occupancy and reject a real short with KiCad 10 DRC
+        shell: bash
+        run: bash scripts/issue35_native_grid_oracle.sh build/issue35-smd-pad-oracle --smd
+
       - name: Upload KiCad oracle evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -85,4 +95,5 @@ jobs:
             kicad-jobset-oracle-summary.json
             kicad-review-exports/
             build/issue35-native-grid-oracle/
+            build/issue35-smd-pad-oracle/
           if-no-files-found: error

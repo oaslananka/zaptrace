@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Independent, real KiCad 10 DRC: two unrouted PTH nets -> routed zero violations.
 set -euo pipefail
-if (( $# > 1 )); then
-  echo "Usage: $0 [output-dir]" >&2
+if (( $# > 2 )); then
+  echo "Usage: $0 [output-dir] [--smd]" >&2
   exit 2
 fi
 readonly CLI=/usr/bin/kicad-cli
@@ -36,7 +36,17 @@ run_python() {
 }
 readonly UV_PYTHON="$ROOT/.venv/bin/python"
 test -x "$UV_PYTHON" || { echo "Use uv sync --locked --all-extras --all-groups first" >&2; exit 2; }
-"$UV_PYTHON" -B "$SCRIPT_DIR/issue35_grid_native_plan.py" "$TEMP"
+if [[ "${2:-}" == "--smd" ]]; then
+  readonly PLAN_SCRIPT="$SCRIPT_DIR/issue35_smd_native_plan.py"
+  readonly EXPECTED_BEFORE=1
+elif [[ -z "${2:-}" ]]; then
+  readonly PLAN_SCRIPT="$SCRIPT_DIR/issue35_grid_native_plan.py"
+  readonly EXPECTED_BEFORE=2
+else
+  echo "Unknown fixture mode: $2" >&2
+  exit 2
+fi
+"$UV_PYTHON" -B "$PLAN_SCRIPT" "$TEMP"
 run_python prepare
 for board in baseline routed; do
   rc=0
@@ -51,9 +61,21 @@ for board in baseline routed; do
     exit 1
   fi
 done
+if [[ "${2:-}" == "--smd" ]]; then
+  unsafe_rc=0
+  "$TIMEOUT" 75 "$ENV_BIN" -i HOME="$HOME_DIR" PATH=/usr/bin:/bin LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+    "$CLI" pcb drc --exit-code-violations --output "$TEMP/unsafe.rpt" "$TEMP/unsafe.kicad_pcb" || unsafe_rc=$?
+  if [[ "$unsafe_rc" != 5 ]]; then
+    echo "Deliberately shorted SMD negative control must fail native KiCad DRC (exit 5): $unsafe_rc" >&2
+    exit 1
+  fi
+fi
 run_python verify
 # Commit evidence only after both independent native DRC passes.
 for item in baseline.kicad_pcb routed.kicad_pcb baseline.rpt routed.rpt manifest.json route-plan.json; do
   cp -- "$TEMP/$item" "$DEST/$item"
 done
-echo "Independent KiCad $KICAD_VERSION: 2 -> 0 unconnected, 0 new DRC violations"
+if [[ "${2:-}" == "--smd" ]]; then
+  cp -- "$TEMP/unsafe.kicad_pcb" "$TEMP/unsafe.rpt" "$DEST/"
+fi
+echo "Independent KiCad $KICAD_VERSION: $EXPECTED_BEFORE -> 0 unconnected, 0 new DRC violations"

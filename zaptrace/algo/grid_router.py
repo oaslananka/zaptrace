@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from functools import total_ordering
 from typing import Any
 
+from zaptrace.algo.pad_copper import copper_layers, finished_hole_cells, pad_cells, rotated_offset
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Component, Design, Net, NetClass, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import classify_design, get_net_class
@@ -125,12 +126,20 @@ class ObstacleMap:
         # cells[layer][row][col]
         self._cells: list[list[list[int]]] = [[[0] * width for _ in range(height)] for _ in range(layers)]
         self._copper: dict[GridPos, str] = {}
+        # Pad copper masks are immutable obstacles, independently owned from
+        # mutable trace reservations. None is unassigned copper, never free.
+        self._pads: dict[GridPos, str | None] = {}
+        self._pad_conflicts: set[GridPos] = set()
+        self.enforce_static_clearance = False
 
     def clone(self) -> ObstacleMap:
         """Copy the entire occupancy transaction before routing a net."""
         other = ObstacleMap(self.width, self.height, self.layers)
         other._cells = [[row[:] for row in layer] for layer in self._cells]
         other._copper = self._copper.copy()
+        other._pads = self._pads.copy()
+        other._pad_conflicts = self._pad_conflicts.copy()
+        other.enforce_static_clearance = self.enforce_static_clearance
         return other
 
     # -- Query ------------------------------------------------------------
@@ -141,15 +150,58 @@ class ObstacleMap:
     def is_free(self, pos: GridPos, net_id: str | None = None) -> bool:
         if not self.in_bounds(pos) or self._cells[pos.layer][pos.y][pos.x] != 0:
             return False
+        if pos in self._pad_conflicts:
+            return False
+        if pos in self._pads and (net_id is None or self._pads[pos] != net_id):
+            return False
         owner = self._copper.get(pos)
         return owner is None or (net_id is not None and owner == net_id)
+
+    def is_corridor_free(self, pos: GridPos, net_id: str | None, radius: int) -> bool:
+        """Require every cell covered by a track clearance envelope to be free."""
+        if radius < 0:
+            return False
+        return all(
+            self.is_free(GridPos(pos.x + dx, pos.y + dy, pos.layer), net_id)
+            for dy in range(-radius, radius + 1)
+            for dx in range(-radius, radius + 1)
+        )
+
+    def mark_pad(self, point: GridPos, net_id: str | None) -> None:
+        """Reserve immutable foreign-pad copper, fail closed on overlapping nets."""
+        if point in self._pads and self._pads[point] != net_id:
+            self._pad_conflicts.add(point)
+        self._pads[point] = net_id
+
+    def can_place_through_via(self, at: GridPos, net_id: str, radius_cells: int) -> bool:
+        """Conservative through-via aperture across every layer.
+
+        A grid-layer change is NOT enabled merely because this predicate
+        returns true: it must be emitted and verified as real copper/via
+        geometry by a separate routing backend.
+        """
+        if radius_cells < 0 or not self.in_bounds(at):
+            return False
+        for layer in range(self.layers):
+            for dy in range(-radius_cells, radius_cells + 1):
+                for dx in range(-radius_cells, radius_cells + 1):
+                    if dx * dx + dy * dy > radius_cells * radius_cells:
+                        continue
+                    if not self.is_free(GridPos(at.x + dx, at.y + dy, layer), net_id=net_id):
+                        return False
+        return True
 
     def owner(self, pos: GridPos) -> str | None:
         return self._copper.get(pos)
 
     def open_for_net(self, pos: GridPos, net_id: str) -> None:
         """Allow a footprint escape only for its owning electrical net."""
-        if self.in_bounds(pos) and self.owner(pos) in (None, net_id):
+        if (
+            self.in_bounds(pos)
+            and pos not in self._pad_conflicts
+            and (pos not in self._pads or self._pads[pos] == net_id)
+            and self.owner(pos) in (None, net_id)
+        ):
             self.unblock(pos)
             self._copper[pos] = net_id
 
@@ -214,8 +266,14 @@ class ObstacleMap:
                 y += sy
 
         if net_id is not None:
-            if any(self.owner(point) not in (None, net_id) for point in reservations):
-                raise ValueError("Copper clearance is reserved by another net")
+            if any(
+                self.owner(point) not in (None, net_id)
+                or point in self._pad_conflicts
+                or (point in self._pads and self._pads[point] != net_id)
+                or (self.enforce_static_clearance and self._cells[point.layer][point.y][point.x])
+                for point in reservations
+            ):
+                raise ValueError("Copper clearance is reserved by another net or a static obstacle")
             self._copper.update({point: net_id for point in reservations})
 
     def dilate(self, radius: int) -> None:
@@ -246,6 +304,7 @@ class _GridRouteContext:
     component_by_ref: dict[str, Component]
     via_pad: float
     via_hole: float
+    rotation_by_ref: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -292,6 +351,11 @@ class GridRouter:
         Optional bounded, deterministic whole-map net-order retries (0..2).
         Disabled by default; never accepts fewer completed nets. Not
         a full push-and-shove router.
+    pad_aware:
+        Opt-in conservative RECT/CIRCLE/OVAL pad copper masks by net and layer.
+        Requires all exact physical pad centres to align to routing grid and
+        a shared accessible copper layer. Vias remain disabled until their
+        physical emission/copper drill clearance is separately verified.
     """
 
     def __init__(
@@ -301,10 +365,12 @@ class GridRouter:
         turn_penalty: float = 0.2,
         max_iterations: int = 200_000,
         max_ripup_passes: int = 0,
+        pad_aware: bool = False,
     ) -> None:
         if not 0 <= max_ripup_passes <= 2:
             raise ValueError("max_ripup_passes must be in range 0..2")
         self.max_ripup_passes = max_ripup_passes
+        self.pad_aware = pad_aware
         self.resolution = resolution_mm
         self.via_cost = via_cost
         self.turn_penalty = turn_penalty
@@ -323,12 +389,18 @@ class GridRouter:
         grid_h = max(int(math.ceil(board.height / self.resolution)), 1)
         obstacles = ObstacleMap(grid_w, grid_h, num_layers)
         self._block_board_edges(obstacles, grid_w, grid_h, num_layers)
-        self._block_components(obstacles, design, positions, self.resolution)
+        if self.pad_aware:
+            self._block_pad_copper(obstacles, design, positions)
+        else:
+            self._block_components(obstacles, design, positions, self.resolution)
 
         ref_positions: dict[str, tuple[float, float]] = {}
+        rotation_by_ref: dict[str, float] = {}
         component_by_ref: dict[str, Component] = {}
         for component in design.components.values():
             component_by_ref[component.ref] = component
+            if self.pad_aware:
+                rotation_by_ref[component.ref] = self._footprint_rotation(design, component)
             if component.id in positions:
                 ref_positions[component.ref] = positions[component.id]
             if component.ref in positions:
@@ -344,7 +416,92 @@ class GridRouter:
             component_by_ref=component_by_ref,
             via_pad=DEFAULT_VIA_SPECS.get("pad_diameter", 0.45),
             via_hole=DEFAULT_VIA_SPECS.get("hole_diameter", 0.2),
+            rotation_by_ref=rotation_by_ref,
         )
+
+    @staticmethod
+    def _footprint_rotation(design: Design, component: Component) -> float:
+        placements = design.placement or {}
+        placement = placements.get(component.id) or placements.get(component.ref)
+        rotation = (
+            float(placement[2])
+            if placement is not None and len(placement) >= 3
+            else float(component.properties.get("rotation", 0.0))
+        )
+        if not math.isfinite(rotation):
+            raise ValueError(f"Non-finite footprint rotation for {component.ref}")
+        return rotation
+
+    def _block_pad_copper(
+        self,
+        obstacles: ObstacleMap,
+        design: Design,
+        positions: dict[str, tuple[float, float]],
+    ) -> None:
+        """Project footprint copper by electrical net and real copper layer.
+
+        This conservative opt-in requires actual RECT/CIRCLE/OVAL geometry,
+        physical placement, and unambiguous package pin mapping. It cannot
+        silently treat missing footprints or custom pads as free corridors.
+        """
+        board = canonical_board_definition(design)
+        keepout = (
+            board.constraints.min_clearance
+            + max(
+                board.constraints.default_trace_signal,
+                board.constraints.default_trace_power,
+                board.constraints.min_trace_power,
+            )
+            / 2
+        )
+        nets_by_pad: dict[tuple[str, str], str] = {}
+        components = {comp.ref: comp for comp in design.components.values()}
+        for net in design.nets.values():
+            for node in net.nodes:
+                comp = components.get(node.component_ref)
+                if comp is None:
+                    continue
+                pad = self._pad_for_pin(comp, node.pin_name)
+                if pad is None:
+                    continue
+                key = (comp.ref, str(pad.id))
+                if key in nets_by_pad and nets_by_pad[key] != net.id:
+                    raise ValueError(f"Pad {key} assigned to multiple electrical nets")
+                nets_by_pad[key] = net.id
+
+        obstacles.enforce_static_clearance = True
+        for comp in design.components.values():
+            # Even DNP footprints retain copper pads and drill holes.
+            fp = comp.footprint_def
+            pos = positions.get(comp.id) or positions.get(comp.ref) or comp.position
+            if pos is None or fp is None or not fp.pads:
+                raise ValueError(f"Pad-aware routing requires explicit footprint and placement: {comp.ref}")
+            rotation = self._footprint_rotation(design, comp)
+            for pad in fp.pads:
+                if pad.drill and not pad.plated:
+                    # Physical NPTH openings exclude copper on ALL layers.
+                    for gx, gy in finished_hole_cells(
+                        pad, pos, rotation, self.resolution, obstacles.width, obstacles.height, keepout
+                    ):
+                        for layer in range(obstacles.layers):
+                            obstacles.block(GridPos(gx, gy, layer))
+                    continue
+                layers = copper_layers(pad, obstacles.layers)
+                if not layers:
+                    raise ValueError(f"Pad {comp.ref}/{pad.id} has no copper on this stackup")
+                projected = pad_cells(
+                    pad,
+                    pos,
+                    rotation,
+                    self.resolution,
+                    obstacles.width,
+                    obstacles.height,
+                    keepout,
+                )
+                owner = nets_by_pad.get((comp.ref, str(pad.id)))
+                for gx, gy in projected:
+                    for layer in layers:
+                        obstacles.mark_pad(GridPos(gx, gy, layer), owner)
 
     def _to_grid_point(self, point: tuple[float, float], context: _GridRouteContext) -> tuple[int, int]:
         return (
@@ -359,7 +516,18 @@ class GridRouter:
             component_position = context.ref_positions.get(node.component_ref)
             if component is None or component_position is None:
                 continue
-            route_points.append(self._route_point_for_node(component, node.pin_name, component_position))
+            if self.pad_aware:
+                pad = self._pad_for_pin(component, node.pin_name)
+                if pad is None or component.footprint_def is None:
+                    continue
+                dx, dy = rotated_offset(
+                    float(pad.position[0]),
+                    float(pad.position[1]),
+                    context.rotation_by_ref[node.component_ref],
+                )
+                route_points.append((component_position[0] + dx, component_position[1] + dy))
+            else:
+                route_points.append(self._route_point_for_node(component, node.pin_name, component_position))
         return route_points
 
     def _route_mst_paths(
@@ -374,7 +542,13 @@ class GridRouter:
         for first, second in self._mst(grid_positions):
             start = GridPos(*grid_positions[first], layer)
             goal = GridPos(*grid_positions[second], layer)
-            path = self._astar(context.obstacles, start, goal, net_id=net_id)
+            path = self._astar(
+                context.obstacles,
+                start,
+                goal,
+                net_id=net_id,
+                clear_cells=clear_cells if self.pad_aware else 0,
+            )
             if not path:
                 return None
             smooth = _simplify_path(path)
@@ -399,11 +573,32 @@ class GridRouter:
             return _GridNetPlan(False, False, net.id)
         route_points = self._collect_net_route_points(net, context)
         if len(route_points) < 2:
-            return _GridNetPlan(False, False, net.id)
+            # Missing physical geometry for a real multi-pad net is unrouted,
+            # not silently excluded from the routing completeness denominator.
+            return _GridNetPlan(self.pad_aware and len(net.nodes) >= 2, False, net.id)
 
         rule = kb.get_rule(net_class)
         clear_cells = max(int(math.ceil(rule.clearance / self.resolution)), 1)
         grid_positions = [self._to_grid_point(point, context) for point in route_points]
+        if self.pad_aware:
+            # Never call an off-pad grid approximation electrically connected.
+            if len(route_points) != len(net.nodes) or any(
+                abs(point[0] - gx * self.resolution) > 1e-6 or abs(point[1] - gy * self.resolution) > 1e-6
+                for point, (gx, gy) in zip(route_points, grid_positions, strict=True)
+            ):
+                return _GridNetPlan(True, False, net.id)
+            accessible: set[int] = set(range(context.num_layers))
+            for node in net.nodes:
+                comp = context.component_by_ref.get(node.component_ref)
+                pad = self._pad_for_pin(comp, node.pin_name) if comp else None
+                if pad is None:
+                    return _GridNetPlan(True, False, net.id)
+                accessible.intersection_update(copper_layers(pad, context.num_layers))
+            if not accessible:
+                # A top-only and bottom-only SMD pair requires a validated via.
+                return _GridNetPlan(True, False, net.id)
+            if layer not in accessible:
+                layer = min(accessible)
         # A failed later MST edge must not leave earlier edges, or cleared
         # component cells, in the committed map.
         staged = context.obstacles.clone()
@@ -416,9 +611,11 @@ class GridRouter:
             component_by_ref=context.component_by_ref,
             via_pad=context.via_pad,
             via_hole=context.via_hole,
+            rotation_by_ref=context.rotation_by_ref,
         )
-        for gx, gy in grid_positions:
-            self._unblock_endpoint(staged, GridPos(gx, gy, layer), max(clear_cells, 1), net_id=net.id)
+        if not self.pad_aware:
+            for gx, gy in grid_positions:
+                self._unblock_endpoint(staged, GridPos(gx, gy, layer), max(clear_cells, 1), net_id=net.id)
         edge_paths = self._route_mst_paths(staged_context, grid_positions, layer, clear_cells, net.id)
         if edge_paths is not None:
             context.obstacles = staged
@@ -551,11 +748,12 @@ class GridRouter:
         current: _Node,
         goal: GridPos,
         net_id: str | None = None,
+        clear_cells: int = 0,
     ) -> None:
         previous_direction = self._previous_direction(current)
         for dx, dy, move_cost in DIRECTIONS_8:
             position = GridPos(current.pos.x + dx, current.pos.y + dy, current.pos.layer)
-            if not obstacles.is_free(position, net_id=net_id):
+            if not obstacles.is_corridor_free(position, net_id, clear_cells):
                 continue
             # The diagonal segment traverses the shared corners of adjacent
             # axis-aligned cells. Require both side cells to be clear so copper
@@ -564,9 +762,11 @@ class GridRouter:
                 dx
                 and dy
                 and (
-                    not obstacles.is_free(GridPos(current.pos.x + dx, current.pos.y, current.pos.layer), net_id=net_id)
-                    or not obstacles.is_free(
-                        GridPos(current.pos.x, current.pos.y + dy, current.pos.layer), net_id=net_id
+                    not obstacles.is_corridor_free(
+                        GridPos(current.pos.x + dx, current.pos.y, current.pos.layer), net_id, clear_cells
+                    )
+                    or not obstacles.is_corridor_free(
+                        GridPos(current.pos.x, current.pos.y + dy, current.pos.layer), net_id, clear_cells
                     )
                 )
             ):
@@ -609,8 +809,13 @@ class GridRouter:
         goal: GridPos,
         *,
         net_id: str | None = None,
+        clear_cells: int = 0,
     ) -> list[GridPos] | None:
         """Find lowest-cost path with net-owned existing copper reuse."""
+        if self.pad_aware and (not obs.is_free(start, net_id) or not obs.is_free(goal, net_id)):
+            # Nearest-free relocation is never a valid replacement for a
+            # physically blocked or conflicting copper-pad anchor.
+            return None
         resolved_start = self._resolve_astar_endpoint(obs, start, net_id)
         if resolved_start is None:
             return None
@@ -635,8 +840,9 @@ class GridRouter:
             closed.add(key)
             if current.pos == resolved_goal:
                 return _reconstruct(current)
-            self._push_planar_neighbors(open_set, closed, obs, current, resolved_goal, net_id)
-            self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id)
+            self._push_planar_neighbors(open_set, closed, obs, current, resolved_goal, net_id, clear_cells)
+            if not self.pad_aware:
+                self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id)
         return None
 
     @staticmethod
