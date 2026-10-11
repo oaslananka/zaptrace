@@ -145,13 +145,61 @@ class TestAdversarialPluginIsolation:
         assert res.status_code == -3
         assert "path traversal" in (res.denial_reason or "").lower()
 
-    def test_environment_sanitization(self, valid_plugin_dir: Path, monkeypatch) -> None:
+    def test_environment_sanitization(self, valid_plugin_dir: Path, tmp_path: Path, monkeypatch) -> None:
         monkeypatch.setenv("HOST_SECRET", "super-secret-key")
-        code = """import os, json
-print(json.dumps({"has_secret": "HOST_SECRET" in os.environ}))
-"""
+        outside_imports = tmp_path / "host-controlled-imports"
+        outside_imports.mkdir()
+        (outside_imports / "untrusted_host_module.py").write_text("marker = True\n", encoding="utf-8")
+        monkeypatch.setenv("PYTHONPATH", str(outside_imports))
+        code = """import importlib.util, json, os, sys
+print(json.dumps({
+    "has_secret": "HOST_SECRET" in os.environ,
+    "has_pythonpath": "PYTHONPATH" in os.environ,
+    "outside_imports": HOST_IMPORT_ROOT in sys.path,
+    "host_module_found": importlib.util.find_spec("untrusted_host_module") is not None,
+}))
+""".replace("HOST_IMPORT_ROOT", json.dumps(str(outside_imports)))
         (valid_plugin_dir / "main.py").write_text(code, encoding="utf-8")
         runtime = HardenedPluginRuntime(PluginRuntimeConfig(allow_unverified_signatures=True))
         res = runtime.run_plugin(valid_plugin_dir)
-        assert res.success
-        assert res.output_data.get("has_secret") is False
+        assert res.success, res.stderr
+        assert res.output_data == {
+            "has_secret": False,
+            "has_pythonpath": False,
+            "outside_imports": False,
+            "host_module_found": False,
+        }
+
+
+def test_wasm_entry_never_runs_as_native_executable(valid_plugin_dir: Path, tmp_path: Path) -> None:
+    """A WASM entry declaration cannot dispatch a native shebang script."""
+    manifest_path = valid_plugin_dir / "zaptrace-plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["entry"] = {"type": "wasm", "path": "entry.wasm"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    marker = tmp_path / "wasm-executed.txt"
+    executable = valid_plugin_dir / "entry.wasm"
+    executable.write_text(
+        "#!/usr/bin/env python3\nfrom pathlib import Path\nPath(" + repr(str(marker)) + ").write_text('executed')\n",
+        encoding="utf-8",
+    )
+    executable.chmod(0o755)
+
+    runtime = HardenedPluginRuntime(PluginRuntimeConfig(allow_unverified_signatures=True))
+    result = runtime.run_plugin(valid_plugin_dir)
+    assert not result.success
+    assert result.status_code == -7
+    assert "WASI" in (result.denial_reason or "")
+    assert not marker.exists()
+
+
+def test_plugin_entry_directory_is_denied(valid_plugin_dir: Path) -> None:
+    manifest_path = valid_plugin_dir / "zaptrace-plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["entry"] = {"type": "python_module", "path": "subdir"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (valid_plugin_dir / "subdir").mkdir()
+    result = HardenedPluginRuntime(PluginRuntimeConfig(allow_unverified_signatures=True)).run_plugin(valid_plugin_dir)
+    assert not result.success
+    assert result.status_code == -4
+    assert "regular file" in (result.denial_reason or "")

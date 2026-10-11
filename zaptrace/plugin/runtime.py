@@ -48,7 +48,9 @@ class PluginRuntimeConfig:
     max_execution_seconds: float = 15.0
     allow_unverified_signatures: bool = False
     sandbox_workspace: Path | None = None
-    allowed_env_vars: set[str] = field(default_factory=lambda: {"PATH", "SYSTEMROOT", "TEMP", "TMP", "PYTHONPATH"})
+    # The host interpreter's import-search path can inject modules into a
+    # plugin process and must not be inherited by default.
+    allowed_env_vars: set[str] = field(default_factory=lambda: {"PATH", "SYSTEMROOT", "TEMP", "TMP"})
 
 
 class HardenedPluginRuntime:
@@ -121,12 +123,22 @@ class HardenedPluginRuntime:
                 denial_reason="Entry point attempts path traversal outside plugin directory",
             )
 
-        if not entry_path.exists():
+        if not entry_path.is_file():
             return PluginExecutionResult(
                 plugin_id=plugin_id,
                 success=False,
                 status_code=-4,
-                denial_reason=f"Plugin entry point file not found: {entry_path}",
+                denial_reason=f"Plugin entry point is not a regular file: {entry_path}",
+            )
+
+        # The WASM manifest type is reserved until a real WASI sandbox is
+        # available: it must never execute as a native binary.
+        if manifest.entry.type == "wasm":
+            return PluginExecutionResult(
+                plugin_id=plugin_id,
+                success=False,
+                status_code=-7,
+                denial_reason="WASM plugin execution requires a dedicated sandboxed WASI runtime",
             )
 
         # 4. Prepare sanitized environment
