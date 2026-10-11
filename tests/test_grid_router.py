@@ -693,3 +693,154 @@ def test_package_pin_map_resolves_logical_pin_to_physical_pad() -> None:
 
     assert pad is not None
     assert pad.id == "12"
+
+
+def test_copper_occupancy_is_owned_by_net_and_survives_endpoint_carving() -> None:
+    obstacles = ObstacleMap(30, 20, 2)
+    a = GridPos(8, 8, 0)
+    b = GridPos(14, 8, 0)
+    obstacles.block_line(a, b, radius=1, net_id="SIG_A")
+    assert obstacles.owner(GridPos(10, 9, 0)) == "SIG_A"
+    assert not obstacles.is_free(GridPos(10, 9, 0))
+    assert not obstacles.is_free(GridPos(10, 9, 0), net_id="SIG_B")
+    assert obstacles.is_free(GridPos(10, 9, 0), net_id="SIG_A")
+    GridRouter._unblock_endpoint(obstacles, GridPos(10, 8, 0), radius=2)
+    assert not obstacles.is_free(GridPos(10, 8, 0), net_id="SIG_B")
+    assert (
+        GridRouter(resolution_mm=0.5)._astar(obstacles, GridPos(10, 8, 0), GridPos(20, 10, 0), net_id="SIG_B") is None
+    )
+    with pytest.raises(ValueError, match="reserved"):
+        obstacles.block_line(GridPos(10, 8, 0), GridPos(10, 8, 0), net_id="SIG_B")
+    assert obstacles.owner(GridPos(10, 8, 0)) == "SIG_A"
+
+
+def test_endpoint_escape_reservations_cannot_be_carved_for_foreign_net() -> None:
+    obstacles = ObstacleMap(25, 25, 1)
+    obstacles.block_rect(10, 10, 16, 16)
+    GridRouter._unblock_endpoint(obstacles, GridPos(13, 13), radius=1, net_id="A")
+    center = GridPos(13, 13)
+    assert obstacles.is_free(center, net_id="A")
+    assert not obstacles.is_free(center, net_id="B")
+    assert obstacles.owner(center) == "A"
+    GridRouter._unblock_endpoint(obstacles, GridPos(14, 13), radius=1, net_id="B")
+    assert obstacles.owner(center) == "A"
+    assert not obstacles.is_free(center, net_id="B")
+
+
+def test_failed_copper_reservation_is_atomic_even_without_outer_transaction() -> None:
+    obs = ObstacleMap(25, 25, 1)
+    obs.block_line(GridPos(12, 3), GridPos(12, 17), radius=1, net_id="KEEP")
+    original = obs._copper.copy()
+    with pytest.raises(ValueError, match="reserved"):
+        obs.block_line(GridPos(4, 10), GridPos(20, 10), radius=1, net_id="REJECT")
+    assert obs._copper == original
+    assert all(owner == "KEEP" for owner in obs._copper.values())
+
+
+def test_same_net_reuses_copper_and_clone_is_independent() -> None:
+    original = ObstacleMap(20, 20, 1)
+    original.block_line(GridPos(3, 3), GridPos(8, 3), radius=1, net_id="N1")
+    clone = original.clone()
+    path = GridRouter()._astar(clone, GridPos(4, 3), GridPos(8, 3), net_id="N1")
+    assert path is not None
+    assert path[0] == GridPos(4, 3) and path[-1] == GridPos(8, 3)
+    clone.block_line(GridPos(8, 3), GridPos(8, 8), radius=1, net_id="N1")
+    assert original.owner(GridPos(8, 8)) is None
+    assert clone.owner(GridPos(8, 8)) == "N1"
+
+
+def test_failed_three_pad_mst_rolls_back_all_copper_and_endpoint_changes(monkeypatch) -> None:
+    design = Design(meta=DesignMeta(name="rollback"), board=BoardConfig(width_mm=40, height_mm=30))
+    for key in ("a", "b", "c"):
+        design.components[key] = Component(id=key, ref=key.upper(), type="resistor")
+    net = Net(
+        id="sig",
+        name="SIG",
+        nodes=[
+            NetNode(component_ref="A", pin_name="p1"),
+            NetNode(component_ref="B", pin_name="p1"),
+            NetNode(component_ref="C", pin_name="p1"),
+        ],
+    )
+    design.nets[net.id] = net
+    positions = {"a": (8.0, 15.0), "b": (15.0, 15.0), "c": (24.0, 15.0)}
+    router = GridRouter(resolution_mm=1.0)
+    ctx = router._prepare_route_context(design, positions)
+    before_cells = [[row[:] for row in layer] for layer in ctx.obstacles._cells]
+    before_copper = ctx.obstacles._copper.copy()
+    real_astar = router._astar
+    calls = 0
+
+    def fail_second(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return real_astar(*args, **kwargs) if calls == 1 else None
+
+    monkeypatch.setattr(router, "_astar", fail_second)
+    plan = router._plan_grid_net(design, net, ctx, KnowledgeBase())
+    assert plan.routable and not plan.success
+    assert calls == 2
+    assert ctx.obstacles._cells == before_cells
+    assert ctx.obstacles._copper == before_copper
+
+
+def test_ripup_order_retry_is_bounded_deterministic_and_non_degrading(simple_design: Design, monkeypatch) -> None:
+    positions = {"c1": (8.0, 9.0), "c2": (25.0, 15.0)}
+    router = GridRouter(resolution_mm=0.5, max_ripup_passes=2)
+    first = router.route(simple_design, positions)
+    assert first.routed_net_count == 1
+    assert first.model_dump() == router.route(simple_design, positions).model_dump()
+    with pytest.raises(ValueError, match="0..2"):
+        GridRouter(max_ripup_passes=3)
+
+    # Deliberately make every attempt unroutable; reordering must not
+    # manufacture routes or mutate the first accepted result.
+    plan_calls = 0
+
+    def always_fail(*args, **kwargs):
+        from zaptrace.algo.grid_router import _GridNetPlan
+
+        nonlocal plan_calls
+        plan_calls += 1
+        return _GridNetPlan(True, False, "n1")
+
+    monkeypatch.setattr(router, "_plan_grid_net", always_fail)
+    result = router.route(simple_design, positions)
+    assert result.routed_net_count == 0
+    assert result.traces == []
+    assert plan_calls == 3  # baseline + two bounded full-board retries
+
+
+def test_ripup_reordering_accepts_a_strictly_better_complete_net_set(monkeypatch) -> None:
+    """A new ordering can rescue blocked nets without leaking old copper."""
+    from zaptrace.algo.grid_router import _GridNetPlan
+
+    design = Design(meta=DesignMeta(name="ripup-order"), board=BoardConfig(width_mm=30, height_mm=20))
+    design.nets["a"] = Net(id="a", name="SIG_A", nodes=[])
+    design.nets["b"] = Net(id="b", name="SIG_B", nodes=[])
+    router = GridRouter(resolution_mm=1.0, max_ripup_passes=1)
+    marker = GridPos(5, 5, 0)
+    orders: list[str] = []
+
+    def constrained_route(_design, net, context, _kb):
+        orders.append(net.id)
+        prior = context.obstacles.owner(marker)
+        # First pass A succeeds and B is blocked. On retry B leads; A
+        # can use another corridor, so both nets become routeable.
+        accepted = not (net.id == "b" and prior == "a")
+        if accepted and prior is None:
+            context.obstacles.open_for_net(marker, net.id)
+        return _GridNetPlan(
+            True,
+            accepted,
+            net.id,
+            width_mm=0.2,
+            edge_paths=[[GridPos(2, 2), GridPos(3, 2)]] if accepted else [],
+        )
+
+    monkeypatch.setattr(router, "_plan_grid_net", constrained_route)
+    result = router.route(design, {})
+    assert result.net_count == 2
+    assert result.routed_net_count == 2
+    assert len(result.traces) == 2
+    assert orders == ["a", "b", "b", "a"]
