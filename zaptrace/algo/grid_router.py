@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from functools import total_ordering
 from typing import Any
 
+from zaptrace.algo.board_keepout import blocked_profile_cells
 from zaptrace.algo.pad_copper import copper_layers, finished_hole_cells, pad_cells, rotated_offset
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Component, Design, Net, NetClass, RouteResult, TraceSegment, Via
@@ -391,6 +392,9 @@ class GridRouter:
         self._block_board_edges(obstacles, grid_w, grid_h, num_layers)
         if self.pad_aware:
             self._block_pad_copper(obstacles, design, positions)
+            for gx, gy in blocked_profile_cells(canonical_board_definition(design), self.resolution, grid_w, grid_h):
+                for layer in range(num_layers):
+                    obstacles.block(GridPos(gx, gy, layer))
         else:
             self._block_components(obstacles, design, positions, self.resolution)
 

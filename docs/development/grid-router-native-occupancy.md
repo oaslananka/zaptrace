@@ -30,6 +30,14 @@ for existing flows without verified physical pad geometry.
   net. Cross-layer transitions are rejected rather than producing geometrically
   unverified via tracks. can_place_through_via() is a conservative multi-layer
   occupancy query, **not** a finished via padstack or via router.
+- The physical **board outline**, rectangular default boundary, polygonal
+  internal cutouts and mounting holes are conservatively blocked on **every
+  copper layer**, including trace-clearance and grid-sampling margins. Simple
+  polygons are supported (convex or concave); self-intersecting, zero-area,
+  degenerate and non-finite outlines fail closed. A plated mounting hole that
+  lacks a trusted electrical net is *not* treated as safe routing copper.
+  This occupancy check remains an estimate until KiCad native DRC validates
+  the full board profile and true copper-to-edge rules.
 - This remains a reference-engine, grid-based estimate. KiCad native DRC is
   independent and mandatory. No DRC waiver or manufacturing approval is implied.
 
