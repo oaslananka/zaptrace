@@ -1,0 +1,131 @@
+# SYNTHETIC UX FIXTURE ONLY. Not a validated electronic design or physical PCB.
+# Geometry, nets, routes and DRC findings are fictional to exercise a viewer.
+meta:
+  name: "Review Studio · synthetic sensor-board UX fixture"
+  version: "0.0.0"
+  description: "Fictional display-only board for testing the read-only UX; no native ERC/DRC or fabrication evidence"
+  tags: ["ui-fixture", "synthetic", "not-for-fabrication"]
+board:
+  width_mm: 80
+  height_mm: 55
+  layers: 2
+  copper_pour_gnd: false
+components:
+  U1:
+    ref: U1
+    type: mcu
+    value: "Example MCU"
+    footprint: "DEMO-ONLY"
+    pins:
+      VCC: {type: power, net: rail}
+      GND: {type: power, net: gnd}
+      SDA: {type: bidirectional, net: sda}
+      SCL: {type: bidirectional, net: scl}
+  U2:
+    ref: U2
+    type: sensor
+    value: "Example sensor"
+    footprint: "DEMO-ONLY"
+    pins:
+      VCC: {type: power, net: rail}
+      GND: {type: power, net: gnd}
+      SDA: {type: bidirectional, net: sda}
+      SCL: {type: input, net: scl}
+  U3:
+    ref: U3
+    type: regulator
+    value: "3.3V DEMO"
+    footprint: "DEMO-ONLY"
+    pins:
+      IN: {type: power, net: vbus}
+      OUT: {type: output, net: rail}
+      GND: {type: power, net: gnd}
+  J1:
+    ref: J1
+    type: connector
+    value: "USB-C DEMO"
+    footprint: "DEMO-ONLY"
+    pins:
+      VBUS: {type: power, net: vbus}
+      GND: {type: power, net: gnd}
+  R1:
+    ref: R1
+    type: resistor
+    value: 4.7k
+    footprint: "DEMO-ONLY"
+    pins:
+      "1": {type: passive, net: rail}
+      "2": {type: passive, net: sda}
+  R2:
+    ref: R2
+    type: resistor
+    value: 4.7k
+    footprint: "DEMO-ONLY"
+    pins:
+      "1": {type: passive, net: rail}
+      "2": {type: passive, net: scl}
+  C1:
+    ref: C1
+    type: capacitor
+    value: 100nF
+    footprint: "DEMO-ONLY"
+    pins:
+      "1": {type: passive, net: rail}
+      "2": {type: passive, net: gnd}
+  D1:
+    ref: D1
+    type: diode
+    value: "ESD DEMO"
+    footprint: "DEMO-ONLY"
+    pins:
+      "1": {type: passive, net: vbus}
+      "2": {type: passive, net: gnd}
+nets:
+  rail: {name: VCC_3V3, type: power, nodes: [U1.VCC, U2.VCC, U3.OUT, R1.1, R2.1, C1.1]}
+  gnd: {name: GND, type: power, nodes: [U1.GND, U2.GND, U3.GND, J1.GND, C1.2, D1.2]}
+  sda: {name: I2C_SDA, nodes: [U1.SDA, U2.SDA, R1.2]}
+  scl: {name: I2C_SCL, nodes: [U1.SCL, U2.SCL, R2.2]}
+  vbus: {name: USB_5V, type: power, nodes: [J1.VBUS, U3.IN, D1.1]}
+placement:
+  U1: [16, 18]
+  U2: [44, 17]
+  U3: [51, 39]
+  J1: [69, 35]
+  R1: [35, 37]
+  R2: [43, 37]
+  C1: [18, 38]
+  D1: [68, 45]
+routing:
+  traces:
+    - {net_id: rail, layer: F.Cu, start: [20, 22], end: [31, 22], width: 0.25}
+    - {net_id: rail, layer: F.Cu, start: [31, 22], end: [31, 33], width: 0.25}
+    - {net_id: rail, layer: F.Cu, start: [31, 33], end: [45, 33], width: 0.25}
+    - {net_id: rail, layer: F.Cu, start: [45, 33], end: [55, 39], width: 0.25}
+    - {net_id: sda, layer: F.Cu, start: [22, 20], end: [38, 20], width: 0.2}
+    - {net_id: sda, layer: F.Cu, start: [38, 20], end: [44, 23], width: 0.2}
+    - {net_id: scl, layer: B.Cu, start: [22, 28], end: [38, 28], width: 0.2}
+    - {net_id: scl, layer: B.Cu, start: [38, 28], end: [44, 25], width: 0.2}
+    - {net_id: vbus, layer: F.Cu, start: [69, 40], end: [55, 43], width: 0.3}
+  layers_used: [F.Cu, B.Cu]
+  net_count: 5
+  routed_net_count: 0 # illustrative segments do not establish routed-net continuity
+  vias: []
+drc_result:
+  design_name: "Review Studio · synthetic sensor-board UX fixture"
+  total_violations: 2
+  errors: 1
+  warnings: 1
+  passed: false
+  violations:
+    - rule_id: "UX-EXAMPLE-01"
+      severity: error
+      message: "Synthetic display-only clearance conflict; NOT a native KiCad DRC result"
+      location: "(36, 29)"
+      net_id: rail
+      component_id: R1
+    - rule_id: "UX-EXAMPLE-02"
+      severity: warning
+      message: "Synthetic display-only return-path risk; NOT a native KiCad DRC result"
+      location: "(59, 42)"
+      net_id: gnd
+      component_id: U3

@@ -4,6 +4,8 @@
 
 ### Added
 
+- Turn the local viewer into a responsive inspection workspace with a real browser-rendered, clearly synthetic UX fixture; improve keyboard inspection, protect embedded user-supplied JSON, and distinguish missing component placement from actual `(0,0)` geometry. The viewer remains read-only, does not verify fabrication and never treats a proof manifest as executed evidence.
+
 - Add a fail-closed, inspection-only Review Studio readiness summary to the offline interactive PCB viewer: embedded DRC findings, distinct proof-manifest-vs-executed-proof status, fabrication human-review requirement and accessible navigation to recorded findings. Missing evidence is never interpreted as a pass; no actual PCB approval is implied.
 
 ### Fixed

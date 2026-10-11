@@ -50,6 +50,7 @@ class ViewerComponent(BaseModel):
     footprint: str
     x: float = 0.0
     y: float = 0.0
+    placed: bool = False
     rotation: float = 0.0
     layer: str = "F.Cu"
     pins: list[dict[str, Any]] = Field(default_factory=list)
@@ -169,6 +170,7 @@ def _extract_components(design: Design) -> list[ViewerComponent]:
     placement = design.placement or {}
     components: list[ViewerComponent] = []
     for comp in design.components.values():
+        has_placement = comp.id in placement or comp.position is not None
         pos = placement.get(comp.id, comp.position or (0.0, 0.0))
         pins = [{"name": p.name, "type": p.type, "net": p.net or ""} for p in comp.pins.values()]
         components.append(
@@ -180,6 +182,7 @@ def _extract_components(design: Design) -> list[ViewerComponent]:
                 footprint=comp.footprint,
                 x=float(pos[0]),
                 y=float(pos[1]),
+                placed=has_placement,
                 pins=pins,
                 mpn=comp.mpn or "",
                 manufacturer=comp.manufacturer or "",
@@ -436,49 +439,131 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: v
 .bom-table th:hover { color: var(--accent); }
 .bom-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .bom-table tr:hover td { background: var(--bg-hover); }
+/* Review Studio design system — local, dependency-free, inspection-only. */
+:root { --bg-primary:#0b121c; --bg-card:#141e2b; --bg-hover:#213143; --border:#2c3e51; --text-primary:#edf5fa; --text-secondary:#9eafbf; --accent:#63e2c5; --accent-hover:#84f0d9; --success:#63e2c5; --warning:#ffd08c; --error:#ff8a98; --info:#96b8ff; --highlight-color:#55e8e7; --panel:#1b2a39; --board-fill:#194237; --board-stroke:#73b69a; --component-fill:#2b3f51; --component-stroke:#a4b9c8; --shadow:rgba(0,0,0,.25); }
+[data-theme="light"] { --bg-primary:#f0f5f8; --bg-card:#fff; --bg-hover:#e8f1f5; --border:#d5dfe7; --text-primary:#213448; --text-secondary:#52697a; --accent:#087a68; --accent-hover:#065e51; --success:#0b8069; --warning:#9b5c10; --error:#b5293e; --info:#295ab4; --panel:#f1f8fa; --board-fill:#deefe5; --board-stroke:#47876e; --component-fill:#d9e6ef; --component-stroke:#487991; --shadow:rgba(20,40,60,.13); }
+html,body {margin:0;padding:0;}
+body {font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+button,input {font:inherit;}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible {outline:2px solid var(--accent);outline-offset:3px;}
+.app {grid-template-columns:minmax(308px,330px) minmax(0,1fr);grid-template-rows:82px minmax(0,1fr);height:100vh;height:100dvh;}
+.header {padding:12px 28px;gap:16px;}
+.brand {display:flex;gap:13px;align-items:center;min-width:0;flex-shrink:0;}
+.brand-mark {display:grid;place-items:center;width:43px;height:43px;flex:none;border:1px solid #3c9383;border-radius:13px;background:linear-gradient(140deg,#123e38,#152938);color:#95ffe8;font-size:23px;font-weight:900;box-shadow:inset 0 0 15px #194c43;}
+.brand-title {font-size:17px;font-weight:840;letter-spacing:-.55px;line-height:1.15;}
+.brand-title span {color:var(--accent);}
+.brand-subtitle {font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-secondary);font-weight:750;margin-top:5px;}
+.header-meta {max-width:35vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.local-badge {border:1px solid var(--accent);border-radius:24px;padding:6px 11px;color:var(--accent);font-size:11px;font-weight:780;white-space:nowrap;}
+.local-badge::before {content:"";display:inline-block;width:6px;height:6px;background:var(--accent);border-radius:50%;margin-right:8px;vertical-align:1px;}
+.header-actions {gap:8px;}
+.btn {display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:8px 12px;border-radius:9px;font-weight:680;font-size:12px;transition:background .12s,border-color .12s;}
+.btn-primary {background:var(--accent);color:#082b26;border-color:var(--accent);font-weight:840;}
+.btn-primary:hover {background:var(--accent-hover);color:#082b26;}
+.sidebar {padding:23px 20px 30px;scrollbar-color:var(--border) transparent;}
+.sidebar-section {margin-bottom:23px;}
+.sidebar-title {font-size:10px;letter-spacing:.12em;font-weight:850;margin-bottom:11px;display:block;}
+.review-status {border-radius:15px;background:linear-gradient(155deg,var(--panel),var(--bg-card));padding:18px;margin-bottom:24px;box-shadow:0 10px 24px var(--shadow);}
+.review-eyebrow {font-size:10px;font-weight:850;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;}
+.review-heading {font-size:21px;letter-spacing:-.7px;margin:4px 0 3px;line-height:1.3;}
+.review-subtitle {font-size:12px;color:var(--text-secondary);margin:0 0 16px;}
+.review-evidence {display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid var(--warning);border-radius:8px;color:var(--warning);font-size:11px;font-weight:820;letter-spacing:.015em;margin-bottom:10px;}
+.review-evidence::before {content:"!";display:grid;place-items:center;border:1px solid currentColor;border-radius:50%;width:17px;height:17px;flex:none;}
+.review-item {border-bottom:1px solid var(--border);padding:11px 0;align-items:center;}
+.review-item > span {color:var(--text-secondary);}
+.review-item strong {font-size:11px;font-weight:780;max-width:170px;}
+.review-item strong[data-state="blocking"] {color:var(--error);}
+.review-item strong[data-state="warning"],.review-item strong[data-state="not_checked"] {color:var(--warning);}
+.review-item strong[data-state="no_recorded_findings"] {color:var(--accent);}
+.review-note {line-height:1.65;margin:15px 0 16px;}
+.search-label {display:block;}
+.search-input {border-radius:9px;min-height:42px;padding:9px 12px;}
+.layer-toggle {position:relative;border-radius:8px;padding:9px;}
+.layer-toggle:hover,.layer-toggle:focus-within {background:var(--bg-hover);}
+.layer-toggle:focus-within {outline:2px solid var(--accent);outline-offset:1px;}
+.layer-dot {width:10px;height:10px;border-radius:3px;flex:none;}
+.layer-toggle input {position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
+.tab-bar {gap:4px;padding-bottom:9px;border-bottom:1px solid var(--border);}
+.tab {background:transparent;border:0;font-weight:780;font-size:11px;padding:8px 12px;}
+.tab.active {background:var(--bg-hover);color:var(--accent);}
+.comp-item {display:flex;width:100%;align-items:center;text-align:left;border:0;background:transparent;color:var(--text-primary);padding:10px;border-radius:8px;}
+.comp-item:hover,.comp-item:focus-visible {background:var(--bg-hover);}
+.comp-item.selected {color:#062e23;background:var(--accent);}
+.comp-item.selected .comp-val {color:#225348;}
+.violation-item {display:block;width:100%;text-align:left;color:var(--text-primary);background:transparent;border-top:0;border-bottom:0;border-right:0;padding:10px;margin-bottom:6px;border-radius:6px;}
+.empty-evidence {border:1px dashed var(--border);color:var(--text-secondary);padding:14px;border-radius:9px;font-size:12px;}
+.canvas-area {min-width:0;background-color:var(--bg-primary);background-image:radial-gradient(circle,var(--border) .65px,transparent 1px);background-size:23px 23px;}
+.canvas-head {position:absolute;top:26px;left:30px;z-index:22;pointer-events:none;max-width:calc(100% - 55px);}
+.canvas-kicker {font-size:10px;text-transform:uppercase;letter-spacing:.16em;font-weight:850;color:var(--accent);}
+.canvas-title {font-size:22px;font-weight:850;letter-spacing:-.55px;margin:4px 0;}
+.canvas-note {display:inline-block;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text-secondary);padding:7px 10px;font-size:11px;}
+.canvas-bottom {position:absolute;left:30px;bottom:48px;max-width:380px;z-index:22;pointer-events:none;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);font-size:11px;}
+.canvas-bottom strong {color:var(--text-primary);}
+.info-panel {top:24px;right:24px;width:min(340px,calc(100% - 48px));padding:21px;box-shadow:0 16px 40px var(--shadow);}
+.info-panel h3 {margin:0 0 14px;}
+.info-panel .field {margin-bottom:9px;}
+.info-close {border:0;background:transparent;cursor:pointer;position:absolute;top:7px;right:7px;width:32px;height:32px;border-radius:6px;}
+.info-close:hover {background:var(--bg-hover);}
+.status-bar {height:32px;}
+.bom-panel {bottom:32px;height:min(330px,52%);}
+@media(max-width:1000px) {.local-badge{display:none;}.header-meta{max-width:22vw;}.app{grid-template-columns:286px minmax(0,1fr);}.sidebar{padding:16px 12px;}.canvas-head{top:14px;left:16px;}.canvas-bottom{left:16px;}}
+@media(max-width:650px) {.app{display:flex;flex-direction:column;height:auto;min-height:100dvh;overflow:visible;}.header{position:sticky;top:0;padding:10px 12px;flex-wrap:wrap;}.brand-mark{width:34px;height:34px;}.brand-title{font-size:14px;}.brand-subtitle{font-size:9px;}.header-meta{display:none;}.header-actions{gap:3px;}.header-actions .btn{padding:6px;font-size:11px;min-height:34px;}.sidebar{border-right:0;border-bottom:1px solid var(--border);overflow:visible;}.review-status{padding:14px;}.canvas-area{height:60vh;min-height:450px;}.canvas-title{font-size:18px;}.canvas-bottom{left:12px;right:12px;bottom:48px;}.info-panel{top:10px;right:10px;}}
+@media(prefers-reduced-motion:reduce) {*{transition-duration:0s!important;}}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <header class="header">
-    <div>
-      <h1>⚡ <span>ZapTrace</span> Interactive Viewer</h1>
-      <div class="header-meta" id="headerMeta"></div>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">Z</div>
+      <div><div class="brand-title">Zap<span>Trace</span></div><div class="brand-subtitle">Review Studio / local viewer</div></div>
     </div>
+    <div class="header-meta" id="headerMeta"></div>
     <div class="header-actions">
-      <button class="btn" id="btnMeasure" title="Measurement tool">📏 Measure</button>
-      <button class="btn" id="btnBom" title="Toggle BOM panel">📋 BOM</button>
-      <button class="btn" id="btnFitAll" title="Fit all">⊞ Fit</button>
-      <button class="btn" id="btnTheme" title="Toggle theme">🌙</button>
+      <span class="local-badge">LOCAL · READ-ONLY</span>
+      <button class="btn" id="btnMeasure" type="button" title="Measure two points">Measure</button>
+      <button class="btn" id="btnBom" type="button" title="View bill of materials">BOM</button>
+      <button class="btn" id="btnFitAll" type="button" title="Fit entire board">Fit board</button>
+      <button class="btn" id="btnTheme" type="button" aria-label="Toggle light or dark theme">Theme</button>
     </div>
   </header>
   <aside class="sidebar" id="sidebar">
     <section class="review-status" aria-label="Review readiness" id="reviewStatus">
-      <div class="sidebar-title">Review readiness</div>
+      <div class="review-eyebrow">Evidence workspace / 01</div>
+      <h2 class="review-heading">Review readiness</h2>
+      <p class="review-subtitle">What is known, and what still needs checking.</p>
+      <div class="review-evidence" id="reviewBadge">VALIDATION INCOMPLETE</div>
       <div class="review-item"><span>Embedded DRC</span><strong id="reviewDrc">Not checked</strong></div>
       <div class="review-item"><span>Proof evidence</span><strong id="reviewProof">Not provided</strong></div>
       <div class="review-item"><span>Fabrication</span><strong id="reviewFabrication">Human review required</strong></div>
       <p class="review-note" id="reviewNextAction">This viewer does not verify native KiCad DRC, physical continuity or manufacturing approval.</p>
-      <button class="btn" type="button" id="btnReviewFindings">Inspect DRC findings</button>
+      <button class="btn btn-primary" type="button" id="btnReviewFindings">Inspect DRC findings →</button>
     </section>
     <div class="sidebar-section">
-      <div class="sidebar-title">Search</div>
-      <input class="search-input" id="searchInput" placeholder="Component ref or net name…" />
+      <label class="sidebar-title search-label" for="searchInput">Find a component or net</label>
+      <input class="search-input" id="searchInput" type="search" placeholder="Search U1, GND, I2C…" autocomplete="off" />
     </div>
     <div class="sidebar-section" id="layerSection"></div>
     <div class="sidebar-section">
-      <div class="tab-bar">
-        <div class="tab active" data-tab="components">Components</div>
-        <div class="tab" data-tab="nets">Nets</div>
-        <div class="tab" data-tab="violations">DRC</div>
+      <div class="sidebar-title">Board inspector</div>
+      <div class="tab-bar" role="tablist" aria-label="Board inspector">
+        <button class="tab active" type="button" role="tab" aria-selected="true" data-tab="components">Parts</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nets">Nets</button>
+        <button class="tab" type="button" role="tab" aria-selected="false" data-tab="violations">DRC</button>
       </div>
-      <div id="tabContent"></div>
+      <div id="tabContent" role="tabpanel" tabindex="0"></div>
     </div>
   </aside>
-  <div class="canvas-area" id="canvasArea">
-    <svg id="boardSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <main class="canvas-area" id="canvasArea" aria-label="Interactive board preview">
+    <div class="canvas-head">
+      <div class="canvas-kicker">Board inspection / preview</div>
+      <div class="canvas-title" id="canvasDesignName"></div>
+      <div class="canvas-note" id="canvasTraceState"></div>
+    </div>
+    <svg id="boardSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Board geometry preview"></svg>
+    <div class="canvas-bottom"><strong>Engineering preview, not fabrication geometry.</strong> External native KiCad, full connectivity and assembly remain unchecked here.</div>
     <div class="info-panel" id="infoPanel">
-      <span class="info-close" id="infoClose">✕</span>
+      <button class="info-close" id="infoClose" type="button" aria-label="Close details">×</button>
       <div id="infoPanelContent"></div>
     </div>
     <div class="status-bar" id="statusBar">
@@ -488,7 +573,7 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: v
       <span class="sep">|</span>
       <span id="statusInfo"></span>
     </div>
-  </div>
+  </main>
   <div class="bom-panel" id="bomPanel"></div>
 </div>
 <script>
@@ -504,11 +589,18 @@ var layerVis = {"F.Cu":true,"B.Cu":true,"F.SilkS":true,"B.SilkS":true,"drill":tr
 var LC = {"F.Cu":"#e74c3c","B.Cu":"#2980b9","F.SilkS":"#f1c40f","B.SilkS":"#1abc9c","drill":"#bdc3c7"};
 
 function esc(s) { var d = document.createElement("div"); d.textContent = s||""; return d.innerHTML; }
+function escAttr(s) { return esc(s).replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 
 function init() {
   document.getElementById("headerMeta").textContent =
     DATA.design_name + " \u2014 " + DATA.components.length + " components, " +
     DATA.nets.length + " nets, " + DATA.board.layers + "-layer";
+  document.getElementById("canvasDesignName").textContent = DATA.design_name;
+  var placedCount = DATA.components.filter(function(c){ return c.placed; }).length;
+  document.getElementById("canvasTraceState").textContent = DATA.traces.length
+    ? "Design-data preview · " + DATA.traces.length + " segments · not KiCad-verified"
+    : placedCount ? "Provisional placement · no routed traces provided"
+    : "No placement or routing coordinates in source — outline only";
   buildLayers(); buildTabs(); buildBom(); renderReviewStatus(); renderBoard(); fitAll(); bindEvents();
 }
 
@@ -526,6 +618,9 @@ function renderReviewStatus() {
   document.getElementById("reviewProof").textContent = review.proof_state === "manifest_only"
     ? "Manifest only — not verified" : "Not provided";
   document.getElementById("reviewFabrication").textContent = "Human review required";
+  document.getElementById("reviewDrc").dataset.state = review.drc_state;
+  document.getElementById("reviewBadge").textContent = review.drc_state === "blocking"
+    ? "RECORDED DRC BLOCKERS" : "VALIDATION INCOMPLETE";
   document.getElementById("reviewNextAction").textContent = review.drc_state === "blocking"
     ? "Inspect the recorded DRC blockers. External KiCad, connectivity, proof execution and fabrication approval are not verified here."
     : "Check the recorded DRC evidence and run external validation. This viewer cannot establish production readiness.";
@@ -538,15 +633,15 @@ function buildLayers() {
     var off = layerVis[layer] ? "" : " off";
     h += '<label class="layer-toggle' + off + '" data-layer="' + layer + '">' +
       '<span class="layer-dot" style="background:' + LC[layer] + '"></span>' +
-      '<input type="checkbox" ' + (layerVis[layer] ? 'checked' : '') + '/>' + layer + '</label>';
+      '<input type="checkbox" data-layer="' + layer + '" aria-label="Toggle ' + layer + '" ' +
+      (layerVis[layer] ? 'checked' : '') + '/>' + layer + '</label>';
   }
   sec.innerHTML = h;
-  sec.querySelectorAll(".layer-toggle").forEach(function(el) {
-    el.addEventListener("click", function() {
-      var l = this.dataset.layer;
-      layerVis[l] = !layerVis[l];
-      this.classList.toggle("off", !layerVis[l]);
-      this.querySelector("input").checked = layerVis[l];
+  sec.querySelectorAll(".layer-toggle input").forEach(function(input) {
+    input.addEventListener("change", function() {
+      var layer = this.dataset.layer;
+      layerVis[layer] = this.checked;
+      this.closest(".layer-toggle").classList.toggle("off", !this.checked);
       renderBoard();
     });
   });
@@ -555,8 +650,10 @@ function buildLayers() {
 function buildTabs() {
   document.querySelectorAll(".tab").forEach(function(t) {
     t.addEventListener("click", function() {
-      document.querySelectorAll(".tab").forEach(function(x){ x.classList.remove("active"); });
-      this.classList.add("active");
+      document.querySelectorAll(".tab").forEach(function(x){
+        x.classList.remove("active"); x.setAttribute("aria-selected", "false");
+      });
+      this.classList.add("active"); this.setAttribute("aria-selected", "true");
       activeTab = this.dataset.tab;
       renderTab();
     });
@@ -571,22 +668,22 @@ function renderTab() {
     var items = DATA.components;
     if (q) items = items.filter(function(x){ return x.ref.toLowerCase().indexOf(q)>=0 || (x.value||"").toLowerCase().indexOf(q)>=0; });
     c.innerHTML = items.map(function(x){
-      return '<div class="comp-item' + (selectedComp===x.id?' selected':'') +
-        '" data-id="'+x.id+'"><span class="comp-ref">'+esc(x.ref)+'</span><span class="comp-val">'+esc(x.value)+'</span></div>';
+      return '<button type="button" class="comp-item' + (selectedComp===x.id?' selected':'') +
+        '" data-id="'+escAttr(x.id)+'"><span class="comp-ref">'+esc(x.ref)+'</span><span class="comp-val">'+esc(x.value)+'</span></button>';
     }).join("");
     c.querySelectorAll(".comp-item").forEach(function(el){ el.addEventListener("click", function(){ selComp(this.dataset.id); }); });
   } else if (activeTab === "nets") {
     var ni = DATA.nets;
     if (q) ni = ni.filter(function(n){ return n.name.toLowerCase().indexOf(q)>=0; });
     c.innerHTML = ni.map(function(n){
-      return '<div class="comp-item' + (highlightedNet===n.id?' selected':'') +
-        '" data-id="'+n.id+'"><span class="comp-ref">'+esc(n.name)+'</span><span class="comp-val">'+n.type+' ('+n.nodes.length+')</span></div>';
+      return '<button type="button" class="comp-item' + (highlightedNet===n.id?' selected':'') +
+        '" data-id="'+escAttr(n.id)+'"><span class="comp-ref">'+esc(n.name)+'</span><span class="comp-val">'+esc(n.type)+' ('+n.nodes.length+')</span></button>';
     }).join("");
     c.querySelectorAll(".comp-item").forEach(function(el){ el.addEventListener("click", function(){ hlNet(this.dataset.id); }); });
   } else {
     c.innerHTML = DATA.violations.map(function(v,i){
-      return '<div class="violation-item '+v.severity+'" data-idx="'+i+'"><strong>'+esc(v.rule_id)+'</strong>: '+esc(v.message)+'</div>';
-    }).join("") || '<div style="padding:8px;color:var(--text-secondary)">No violations</div>';
+      return '<button type="button" class="violation-item '+esc(v.severity)+'" data-idx="'+i+'"><strong>'+esc(v.rule_id)+'</strong>: '+esc(v.message)+'</button>';
+    }).join("") || '<div class="empty-evidence">No embedded DRC findings. Run independent validation before a clearance or fabrication decision.</div>';
     c.querySelectorAll(".violation-item").forEach(function(el){
       el.addEventListener("click", function(){
         var v = DATA.violations[parseInt(this.dataset.idx)];
@@ -610,16 +707,18 @@ function renderBoard() {
     var col = (highlightedNet && t.net_id===highlightedNet) ? "var(--highlight-color)" : (LC[t.layer]||"var(--trace-color)");
     var op = (highlightedNet && t.net_id!==highlightedNet) ? 0.15 : 0.85;
     var w = Math.max(1, t.width*scl);
-    p.push('<line data-net="'+esc(t.net_id)+'" data-layer="'+esc(t.layer)+'" x1="'+(30+t.start_x*scl)+'" y1="'+(40+t.start_y*scl)+'" x2="'+(30+t.end_x*scl)+'" y2="'+(40+t.end_y*scl)+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round" opacity="'+op+'"/>');
+    p.push('<line data-net="'+escAttr(t.net_id)+'" data-layer="'+esc(t.layer)+'" x1="'+(30+t.start_x*scl)+'" y1="'+(40+t.start_y*scl)+'" x2="'+(30+t.end_x*scl)+'" y2="'+(40+t.end_y*scl)+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round" opacity="'+op+'"/>');
   });
   if (layerVis["drill"]) {
     DATA.vias.forEach(function(v){
       var cx=30+v.x*scl, cy=40+v.y*scl, r=(v.diameter/2)*scl;
       var col = (highlightedNet && v.net_id===highlightedNet) ? "var(--highlight-color)" : "#bdc3c7";
-      p.push('<circle data-net="'+esc(v.net_id)+'" cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+col+'" stroke="#333" stroke-width="1" opacity="0.9"><title>Via '+esc(v.net_id)+'</title></circle>');
+      p.push('<circle data-net="'+escAttr(v.net_id)+'" cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+col+'" stroke="#333" stroke-width="1" opacity="0.9"><title>Via '+esc(v.net_id)+'</title></circle>');
     });
   }
   DATA.components.forEach(function(c){
+    // Unknown component position is not (0,0) evidence. Do not draw it.
+    if (!c.placed) return;
     var layer = c.layer||"F.Cu";
     if (!layerVis[layer]) return;
     var x=30+c.x*scl, y=40+c.y*scl;
@@ -628,7 +727,7 @@ function renderBoard() {
     var op = (highlightedNet && !hasNet) ? 0.2 : 1;
     var fill = isSel?"var(--accent)":"var(--component-fill)";
     var stroke = isSel?"var(--accent-hover)":"var(--component-stroke)";
-    p.push('<g data-ref="'+esc(c.ref)+'" data-id="'+esc(c.id)+'" class="cg" style="cursor:pointer;opacity:'+op+'">' +
+    p.push('<g data-ref="'+escAttr(c.ref)+'" data-id="'+escAttr(c.id)+'" class="cg" style="cursor:pointer;opacity:'+op+'">' +
       '<rect x="'+x+'" y="'+y+'" width="42" height="24" rx="4" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.2"/>' +
       '<text x="'+(x+5)+'" y="'+(y+11)+'" fill="var(--text-primary)" font-size="10" font-weight="600">'+esc(c.ref)+'</text>' +
       '<text x="'+(x+5)+'" y="'+(y+20)+'" fill="var(--text-secondary)" font-size="8">'+esc(c.value).substring(0,8)+'</text></g>');
@@ -664,7 +763,10 @@ function applyTx() {
 function selComp(id) {
   selectedComp = (selectedComp===id)?null:id;
   var comp = DATA.components.find(function(c){ return c.id===id; });
-  if (comp && selectedComp) { showCompInfo(comp); panTo(comp.x, comp.y); } else hideInfo();
+  if (comp && selectedComp) {
+    showCompInfo(comp);
+    if (comp.placed) panTo(comp.x, comp.y);
+  } else hideInfo();
   renderBoard(); renderTab();
 }
 
@@ -685,21 +787,26 @@ function panTo(x, y) {
 function fitAll() {
   var area = document.getElementById("canvasArea");
   var bw=DATA.board.width_mm*scl+80, bh=DATA.board.height_mm*scl+100;
-  zoom = Math.min(area.clientWidth/bw, (area.clientHeight-28)/bh, 3);
+  // Reserve space for the evidence title and the non-fabrication notice.
+  var topSafe = Math.min(108, area.clientHeight*0.23);
+  var bottomSafe = Math.min(56, area.clientHeight*0.12);
+  var usableHeight = Math.max(120, area.clientHeight-topSafe-bottomSafe);
+  zoom = Math.max(0.1, Math.min(area.clientWidth/bw, usableHeight/bh, 3));
   panX = (area.clientWidth-bw*zoom)/2;
-  panY = (area.clientHeight-28-bh*zoom)/2;
+  panY = topSafe+(usableHeight-bh*zoom)/2;
   applyTx();
 }
 
 function showCompInfo(c) {
-  var pins = c.pins.map(function(p){ return '<div class="field"><span class="field-label">'+esc(p.name)+'</span> \u2192 <span class="field-value">'+(p.net||"NC")+'</span> ('+p.type+')</div>'; }).join("");
+  var pins = c.pins.map(function(p){ return '<div class="field"><span class="field-label">'+esc(p.name)+'</span> \u2192 <span class="field-value">'+esc(p.net||"NC")+'</span> ('+esc(p.type)+')</div>'; }).join("");
   document.getElementById("infoPanelContent").innerHTML =
-    '<h3>\ud83d\udce6 '+esc(c.ref)+'</h3>'+
+    '<h3>Part · '+esc(c.ref)+'</h3>'+
     '<div class="field"><span class="field-label">Value: </span><span class="field-value">'+esc(c.value)+'</span></div>'+
     '<div class="field"><span class="field-label">Footprint: </span><span class="field-value">'+esc(c.footprint)+'</span></div>'+
     '<div class="field"><span class="field-label">MPN: </span><span class="field-value">'+esc(c.mpn||"\u2014")+'</span></div>'+
     '<div class="field"><span class="field-label">Manufacturer: </span><span class="field-value">'+esc(c.manufacturer||"\u2014")+'</span></div>'+
-    '<div class="field"><span class="field-label">Position: </span><span class="field-value">'+c.x.toFixed(2)+', '+c.y.toFixed(2)+' mm</span></div>'+
+    '<div class="field"><span class="field-label">Position: </span><span class="field-value">'+
+      (c.placed ? c.x.toFixed(2)+', '+c.y.toFixed(2)+' mm' : 'Not provided')+'</span></div>'+
     (c.dnp?'<div class="field" style="color:var(--warning)">\u26a0\ufe0f Do Not Populate</div>':'')+
     '<div class="sidebar-title" style="margin-top:12px">Pins ('+c.pins.length+')</div>'+pins;
   document.getElementById("infoPanel").classList.add("visible");
@@ -709,9 +816,9 @@ function showNetInfo(n) {
   var nodes = n.nodes.map(function(nd){ return '<div class="field">'+esc(nd.ref)+'.'+esc(nd.pin)+'</div>'; }).join("");
   var tc = DATA.traces.filter(function(t){ return t.net_id===n.id; }).length;
   document.getElementById("infoPanelContent").innerHTML =
-    '<h3>\ud83d\udd0c '+esc(n.name)+'</h3>'+
-    '<div class="field"><span class="field-label">Type: </span><span class="field-value">'+n.type+'</span></div>'+
-    '<div class="field"><span class="field-label">Class: </span><span class="field-value">'+(n.net_class||"\u2014")+'</span></div>'+
+    '<h3>Net · '+esc(n.name)+'</h3>'+
+    '<div class="field"><span class="field-label">Type: </span><span class="field-value">'+esc(n.type)+'</span></div>'+
+    '<div class="field"><span class="field-label">Class: </span><span class="field-value">'+esc(n.net_class||"\u2014")+'</span></div>'+
     '<div class="field"><span class="field-label">Traces: </span><span class="field-value">'+tc+'</span></div>'+
     '<div class="sidebar-title" style="margin-top:12px">Connections ('+n.nodes.length+')</div>'+nodes;
   document.getElementById("infoPanel").classList.add("visible");
@@ -719,7 +826,7 @@ function showNetInfo(n) {
 
 function showViol(v) {
   document.getElementById("infoPanelContent").innerHTML =
-    '<h3>\u26a0\ufe0f '+esc(v.rule_id)+'</h3>'+
+    '<h3>Finding · '+esc(v.rule_id)+'</h3>'+
     '<div class="field"><span class="field-label">Severity: </span><span class="field-value" style="color:var(--'+v.severity+')">'+v.severity+'</span></div>'+
     '<div class="field"><span class="field-label">Message: </span><span class="field-value">'+esc(v.message)+'</span></div>'+
     (v.component_ref?'<div class="field"><span class="field-label">Component: </span><span class="field-value">'+esc(v.component_ref)+'</span></div>':'')+
@@ -793,6 +900,7 @@ function bindEvents() {
     document.getElementById("searchInput").value = "";
     document.querySelectorAll(".tab").forEach(function(tab) {
       tab.classList.toggle("active", tab.dataset.tab === "violations");
+      tab.setAttribute("aria-selected", tab.dataset.tab === "violations" ? "true" : "false");
     });
     renderTab();
     document.getElementById("tabContent").setAttribute("tabindex", "-1");
@@ -803,7 +911,7 @@ function bindEvents() {
   document.getElementById("btnTheme").addEventListener("click", function(){
     darkTheme=!darkTheme;
     document.documentElement.setAttribute("data-theme",darkTheme?"":"light");
-    this.textContent=darkTheme?"\ud83c\udf19":"\u2600\ufe0f";
+    this.textContent=darkTheme?"Theme":"Theme";
   });
   document.getElementById("btnMeasure").addEventListener("click", function(){
     measureMode=!measureMode; this.classList.toggle("active",measureMode);
@@ -878,7 +986,13 @@ def generate_interactive_viewer(
         viewer_data.review.proof_state = "manifest_only"
 
     data_json = viewer_data.model_dump(mode="json")
-    data_json_str = json.dumps(data_json, separators=(",", ":"))
+    # User-supplied design strings must not terminate the inline script element.
+    data_json_str = (
+        json.dumps(data_json, separators=(",", ":"), ensure_ascii=True)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
 
     html_content = _build_interactive_html(design_obj.meta.name, data_json_str)
 

@@ -208,6 +208,14 @@ class TestViewerDataExtraction:
         assert review.drc_state == "no_recorded_findings"
         assert review.fabrication_state == "human_review_required"
 
+    def test_missing_component_placement_is_not_a_real_origin_location(self, simple_design: Design) -> None:
+        simple_design.placement = None
+        for component in simple_design.components.values():
+            component.position = None
+        data = _extract_viewer_data(simple_design)
+        assert all(not component.placed for component in data.components)
+        assert all(component.x == 0.0 and component.y == 0.0 for component in data.components)
+
     def test_schema_version(self, simple_design: Design) -> None:
         data = _extract_viewer_data(simple_design)
         assert data.schema_version == "2.0"
@@ -307,6 +315,48 @@ class TestInteractiveViewerGeneration:
         # Data is embedded as JSON
         assert '"schema_version":"2.0"' in html_content
         assert '"zaptrace-interactive-viewer"' in html_content
+
+    def test_visual_demo_fixture_reports_embedded_blockers_only(self, tmp_path: Path) -> None:
+        path = Path(__file__).resolve().parents[1] / "examples/review_studio_ux_fixture/design.yaml"
+        proof = path.with_name("proof.yaml")
+        result = generate_interactive_viewer(path, tmp_path, proof_path=proof)
+        data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
+        assert len(data["components"]) == 8
+        assert all(component["placed"] for component in data["components"])
+        assert len(data["traces"]) == 9
+        assert len(data["violations"]) == 2
+        assert data["review"] == {
+            "drc_state": "blocking",
+            "drc_findings": 2,
+            "proof_state": "manifest_only",
+            "fabrication_state": "human_review_required",
+        }
+        assert all(v["rule_id"].startswith("UX-EXAMPLE-") for v in data["violations"])
+
+    def test_untrusted_design_names_cannot_end_embedded_script(self, simple_design: Design, tmp_path: Path) -> None:
+        payload = '</script><script id="malicious">alert(1)</script>'
+        simple_design.meta.name = payload
+        simple_design.components["u1"].ref = 'U" onfocus="alert(1)'
+        result = generate_interactive_viewer(simple_design, tmp_path)
+        content = Path(result.index_path).read_text(encoding="utf-8")
+        assert content.count("<script>") == 1
+        assert content.count("</script>") == 1
+        assert '<script id="malicious">' not in content
+        assert "\\u003c/script\\u003e" in content
+        assert "function escAttr(s)" in content
+
+    def test_studio_has_responsive_keyboard_controls(self, simple_design: Design, tmp_path: Path) -> None:
+        result = generate_interactive_viewer(simple_design, tmp_path)
+        content = Path(result.index_path).read_text(encoding="utf-8")
+        assert 'role="tablist"' in content
+        assert 'role="tabpanel"' in content
+        assert 'aria-selected="true"' in content
+        assert "data-layer=" in content
+        assert "btnReviewFindings" in content
+        assert 'role="img"' in content
+        assert "@media(max-width:650px)" in content
+        assert "if (!c.placed) return;" in content
+        assert "var topSafe =" in content
 
     def test_non_claims_propagated(self, simple_design: Design, tmp_path: Path) -> None:
         result = generate_interactive_viewer(simple_design, tmp_path)

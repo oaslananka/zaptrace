@@ -1,0 +1,4 @@
+# SYNTHETIC CONFIGURATION ONLY. This file has never been executed as a proof run.
+name: "Review Studio visual-only UX fixture"
+checks: []
+status: pass # intentionally misleading: the viewer MUST NOT treat this as executed proof.
