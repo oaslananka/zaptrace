@@ -25,6 +25,17 @@ def test_renovate_stability_check_can_unblock_pr_creation_only() -> None:
             assert rule["automerge"] is False
 
 
+def test_renovate_commit_throttle_limits_ci_churn_without_weakening_gates() -> None:
+    """Both new branches and automatic rebases consume the bounded commit rate."""
+    config = json.loads((ROOT / ".github/renovate.json").read_text(encoding="utf-8"))
+
+    assert config["commitHourlyLimit"] == 2
+    assert config["prHourlyLimit"] == 2
+    # Strict up-to-date checks still require real current-base CI.
+    assert config["rebaseWhen"] == "behind-base-branch"
+    assert config["vulnerabilityAlerts"]["enabled"] is True
+
+
 def test_python_support_floor_is_not_automatically_raised_by_renovate() -> None:
     import tomllib
 

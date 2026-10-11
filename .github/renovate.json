@@ -11,6 +11,7 @@
   "prConcurrentLimit": 4,
   "branchConcurrentLimit": 6,
   "prHourlyLimit": 2,
+  "commitHourlyLimit": 2,
   "minimumReleaseAge": "5 days",
   "internalChecksFilter": "strict",
   "internalChecksAsSuccess": true,
