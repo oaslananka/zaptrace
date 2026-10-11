@@ -99,6 +99,12 @@ supplier-specific exception, if one is ever signed, needs a separately reviewed
 controlled process-profile decision and traceable evidence; it is **not**
 authorization to suppress a native DRC or overwrite the strict Proof Pack.
 
+**Supplier-ready, unsent engineering questionnaire:**
+[DFM_SUPPLIER_INQUIRY_91.md](DFM_SUPPLIER_INQUIRY_91.md) includes all sixteen
+native KiCad finding coordinates, a copyable English feasibility request,
+JLCPCB/PCBWay-specific clarifications, response log and controlled disclosure
+gates. It has not been sent to any manufacturer.
+
 ## Precise non-production DFM questions (not sent)
 
 1. For **the stated 2-layer board revision**, what stackup, copper weight,

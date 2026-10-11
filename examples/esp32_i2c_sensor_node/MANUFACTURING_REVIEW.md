@@ -10,6 +10,9 @@ compares a written, revision-specific manufacturing exception inquiry against
 a qualified geometry/footprint redesign. It records the exact sixteen DRC
 findings, supplier questions and explicit no-fabrication acceptance gates.
 Neither decision path is approved yet.
+The [unsent supplier DFM inquiry packet](DFM_SUPPLIER_INQUIRY_91.md)
+contains exact KiCad defect coordinates and process-specific questions for
+a human-approved, non-ordering feasibility review. No vendor has been contacted.
 
 ## Manufacturer evidence (reviewed 2026-10-11)
 
