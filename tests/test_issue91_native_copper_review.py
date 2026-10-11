@@ -8,6 +8,7 @@ import pytest
 
 from scripts.issue91_native_copper_review import (
     ROUTES,
+    _blocking_finding_signatures,
     _file_sha256,
     _read_native_report,
     _require_paths,
@@ -127,4 +128,50 @@ def test_finalize_rejects_new_native_drc_class_without_publishing(tmp_path: Path
     )
     with pytest.raises(RuntimeError, match="rejected"):
         finalize_review(source, output, "10.0.6")
+    assert not output.exists()
+
+
+def test_blocking_findings_detect_replaced_defect_with_unchanged_category_count() -> None:
+    before = (
+        "[hole_clearance]: Hole spacing 0.1944 mm\n"
+        "    Rule: board setup hole; error\n"
+        "    @(1.0000 mm, 2.0000 mm): Pad J1.A1 [GND]\n"
+        "[unconnected_items]: First unrouted net\n"
+    )
+    after = (
+        "[unconnected_items]: Remaining unrouted net\n"
+        "[hole_clearance]: Hole spacing 0.1944 mm\n"
+        "    Rule: board setup hole; error\n"
+        "    @(9.0000 mm, 2.0000 mm): Pad J1.A1 [GND]\n"
+    )
+    assert _violations(before) == _violations(after)
+    assert _blocking_finding_signatures(before) != _blocking_finding_signatures(after)
+    assert _blocking_finding_signatures(before) == _blocking_finding_signatures(before.split("[unconnected_items]")[0])
+
+
+def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path) -> None:
+    """A newly introduced physical DRC finding cannot replace an old one."""
+    import json
+
+    source = tmp_path / "source.kicad_pcb"
+    source.write_text("source content", encoding="utf-8")
+    output = tmp_path / "review.kicad_pcb"
+    candidate = tmp_path / "review.candidate.kicad_pcb"
+    candidate.write_text("candidate", encoding="utf-8")
+    (tmp_path / "review.candidate-evidence.json").write_text(
+        json.dumps({"sourceSha256": _file_sha256(source), "candidateSha256": _file_sha256(candidate)}),
+        encoding="utf-8",
+    )
+    drills = "[drill_out_of_range]: undersized\n    @(1, 1): U1 pad 39\n" * 12
+    holes = "[hole_clearance]: too close\n    @(1, 2): J1 peg\n" * 4
+    before = drills + holes + "[unconnected_items]: gap\n" * 37
+    after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
+    # One report entry changes, but the category counts remain exactly equal.
+    after += "[unconnected_items]: gap\n" * 18
+    (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
+    (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
+    assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 18}
+    with pytest.raises(RuntimeError, match="changed physical defect"):
+        finalize_review(source, output, "10.0.7")
     assert not output.exists()

@@ -154,6 +154,38 @@ def _violations(text: str) -> Counter[str]:
     return Counter(re.findall(r"^\[([^]]+)\]:", text, re.MULTILINE))
 
 
+def _blocking_finding_signatures(text: str) -> Counter[tuple[str, tuple[str, ...]]]:
+    """Identify each physical DRC defect, not only its class-level count.
+
+    Native KiCad may reorder the report when tracks are added. Header timestamps,
+    source board filenames, and the intentionally reduced unconnected-item list
+    do not identify a persistent manufacturability defect. Rule text, severity,
+    offending object identities and absolute locations do.
+    """
+    signatures: Counter[tuple[str, tuple[str, ...]]] = Counter()
+    kind: str | None = None
+    details: list[str] = []
+
+    def record() -> None:
+        if kind is not None and kind != "unconnected_items":
+            signatures[(kind, tuple(details))] += 1
+
+    for line in text.splitlines():
+        header = re.fullmatch(r"\[([^]]+)\]:\s*(.*)", line)
+        if header is not None:
+            record()
+            kind = header.group(1)
+            details = [header.group(2).strip()]
+        elif kind is not None and line.startswith((" ", "\t")) and line.strip():
+            details.append(line.strip())
+        else:
+            record()
+            kind = None
+            details = []
+    record()
+    return signatures
+
+
 def _evidence_paths(output: Path) -> tuple[Path, Path, Path, Path]:
     return (
         output.with_suffix(".candidate.kicad_pcb"),
@@ -266,6 +298,10 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 18}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
+    before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
+    after_blockers = _blocking_finding_signatures(after_path.read_text(encoding="utf-8"))
+    if sum(before_blockers.values()) != 16 or before_blockers != after_blockers:
+        raise RuntimeError("Native KiCad DRC rejected new or changed physical defect locations/details")
 
     pcbnew = _require_native_pcbnew()
     routed = pcbnew.LoadBoard(str(candidate))

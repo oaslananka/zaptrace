@@ -49,8 +49,12 @@ The shell driver invokes *only* the system KiCad 10 CLI for independent
 DRC before and after Python generates a staged candidate. Python itself
 does not spawn processes; a source/candidate SHA-256 manifest, unchanged
 physical pad contracts and the two full native DRC reports must validate
-before the review PCB is published. This avoids tainted arbitrary subprocess
-arguments and preserves fail-closed hardware evidence.
+before the review PCB is published. In addition to exact DRC finding counts,
+the driver compares the unchanged physical blocker **rule, severity, object and
+location signatures** before/after; replacing one violation with a new violation
+of the same class is rejected even if the category totals stay constant. This
+avoids tainted arbitrary subprocess arguments and preserves fail-closed hardware
+evidence.
 
 The opt-in review emits **41 real 0.20 mm F.Cu segments joining 19 pairs**
 of actual, pinned physical pad centers across USB-CC1/CC2, I²C, VCC_3V3,
