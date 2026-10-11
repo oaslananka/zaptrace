@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.4 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.5 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.4_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.5_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -26,7 +26,10 @@ run `zaptrace-review-studio --no-browser` in a terminal to read the local URL.
 The installed read-only engineering workspace contains a PCB copper/layers
 viewer, actual multi-sheet Eeschema SVG preview with source-rendered sheet
 thumbnails and safe cross-probing, and a third **3D** inspection mode with
-**KiCad 10 native isometric and top PNG renders** of the selected real PCB.
+**KiCad 10 native isometric and top PNG renders** of the selected real PCB,
+plus **eight 45-degree native camera images** for source-bounded drag-to-orbit
+and keyboard-focusable turn controls. This is a finite eight-view turntable,
+NOT a continuously rendered editable 3D CAD model.
 This is an offscreen/local 3D model *preview*, not an interactive MCAD editor.
 The renderer uses only `.step` and `.wrl` geometry available in the user's
 installed KiCad libraries. **Missing models are not synthesized**, completeness
@@ -138,8 +141,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.4_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.4_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.5_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.5_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

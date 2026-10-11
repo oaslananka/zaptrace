@@ -938,9 +938,12 @@ def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> d
         "model_notice": "3D geometry uses only models actually available in local KiCad. "
         "Completeness, enclosure fit, assembly and manufacturing are NOT verified.",
         "views": [],
+        "orbit_frames": [],
     }
-    for stale in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
-        (output / stale).unlink(missing_ok=True)
+    for stale in output.glob("native-kicad-3d-*.png"):
+        if stale.is_symlink():
+            raise RuntimeError("Unsafe symlink in local 3D review output")
+        stale.unlink()
     if not enabled:
         return status
     base = [cli, "pcb", "render"]
@@ -952,11 +955,22 @@ def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> d
             return status
         base = [xvfb, "-a", "-s", "-screen 0 1600x1000x24", "env", "LIBGL_ALWAYS_SOFTWARE=1", *base]
     layouts = (
-        ("Isometric", "native-kicad-3d-isometric.png", ["--perspective", "--rotate", "-32,0,55"]),
-        ("Top", "native-kicad-3d-top.png", []),
+        ("Isometric", "native-kicad-3d-isometric.png", ["--perspective", "--rotate", "-32,0,55"], "views"),
+        ("Top", "native-kicad-3d-top.png", [], "views"),
+        # Eight genuine KiCad OpenGL camera renders. UI rotates through native
+        # snapshots; this is NOT continuous OpenCascade geometry editing.
+        *(
+            (
+                f"Orbit {angle}°",
+                f"native-kicad-3d-orbit-{angle:03}.png",
+                ["--perspective", "--rotate", f"-32,0,{angle}"],
+                "orbit_frames",
+            )
+            for angle in range(0, 360, 45)
+        ),
     )
     original = hashlib.sha256(board.read_bytes()).hexdigest()
-    for label, filename, angle in layouts:
+    for label, filename, angle, channel in layouts:
         path = output / filename
         path.unlink(missing_ok=True)
         command = [
@@ -989,19 +1003,21 @@ def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> d
                 and data[:8] == b"\x89PNG\r\n\x1a\n"
             )
             if not valid:
-                for view_file in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
-                    (output / view_file).unlink(missing_ok=True)
+                for view_file in output.glob("native-kicad-3d-*.png"):
+                    view_file.unlink()
                 status["views"].clear()
+                status["orbit_frames"].clear()
                 status["reason"] = "Native KiCad OpenGL rendering did not complete on this machine"
                 return status
             width, height = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
             if not 300 <= width <= 2400 or not 300 <= height <= 2000:
-                for view_file in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
-                    (output / view_file).unlink(missing_ok=True)
+                for view_file in output.glob("native-kicad-3d-*.png"):
+                    view_file.unlink()
                 status["views"].clear()
+                status["orbit_frames"].clear()
                 status["reason"] = "Native KiCad rendered image has unexpected geometry"
                 return status
-            status["views"].append(
+            status[channel].append(
                 {
                     "label": label,
                     "source": "data:image/png;base64," + base64.b64encode(data).decode("ascii"),
@@ -1011,9 +1027,10 @@ def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> d
                 }
             )
         except OSError:
-            for view_file in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
-                (output / view_file).unlink(missing_ok=True)
+            for view_file in output.glob("native-kicad-3d-*.png"):
+                view_file.unlink()
             status["views"].clear()
+            status["orbit_frames"].clear()
             status["reason"] = "Native KiCad preview image unavailable"
             return status
     if hashlib.sha256(board.read_bytes()).hexdigest() != original:
@@ -1242,6 +1259,9 @@ def build(
     summary["render3d_meta"] = {
         **{key: value for key, value in render3d.items() if key != "views"},
         "views": [{key: value for key, value in view.items() if key != "source"} for view in render3d["views"]],
+        "orbit_frames": [
+            {key: value for key, value in frame.items() if key != "source"} for frame in render3d["orbit_frames"]
+        ],
     }
     if native_schematic is not None:
         summary["schematic_meta"] = {k: v for k, v in native_schematic.items() if k not in ("src", "pages")}

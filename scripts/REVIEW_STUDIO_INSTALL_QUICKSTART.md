@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.4 — Ubuntu installation and acceptance kit
+# ZapTrace Review Studio 0.1.5 — Ubuntu installation and acceptance kit
 
 **Distribution status: local release candidate, unsigned. NOT public GA.**
 
@@ -32,13 +32,13 @@ automatically granted.
 2. Verify this kit's `.deb` before installation:
 
    ```sh
-   sha256sum -c zaptrace-review-studio_0.1.4_all.sha256
+   sha256sum -c zaptrace-review-studio_0.1.5_all.sha256
    ```
 
 3. Install in a terminal in the folder containing the `.deb`:
 
    ```sh
-   sudo apt install ./zaptrace-review-studio_0.1.4_all.deb
+   sudo apt install ./zaptrace-review-studio_0.1.5_all.deb
    zaptrace-review-studio --doctor
    ```
 
@@ -55,7 +55,11 @@ automatically granted.
 ## 3D board preview and feature limits
 
 Click **3D** inside a native KiCad PCB review to see locally rendered KiCad 10
-isometric and top views of the actual board. If the graphics context is absent,
+isometric and top views of the actual board, plus **eight 45-degree source-rendered camera views**.
+Drag sideways on the 3D canvas or use the rotation buttons to turn the board
+through these actual KiCad views; Shift+drag pans the image and pinch/wheel
+zooms. This is an interactive **camera turntable**, not a freely editable 3D
+CAD mesh. If the graphics context is absent,
 the button is disabled; PCB/Sch/ERC/DRC reviews still work. The 3D image is
 read-only, and some components may not have an installed STEP/WRL model.
 **3D model completeness, enclosure/assembly fit and fabrication approval are
@@ -85,11 +89,11 @@ user projects**. Those are normally at:
 
 - `RELEASE_MANIFEST.json` names the exact package SHA-256, its bundled files,
   real local release-gate status and any *unverified* launch requirements.
-- `CLEAN_UBUNTU_2404_014_QA.txt` records **real Ubuntu 24.04 APT installation
-  of 0.1.1 and in-place upgrade to 0.1.4**, native two-sheet KiCad ERC/DRC,
+- `CLEAN_UBUNTU_2404_015_QA.txt` records **real Ubuntu 24.04 APT installation
+  of 0.1.1 and in-place upgrade to 0.1.5**, native two-sheet KiCad ERC/DRC,
   authentic offscreen KiCad 3D isometric/top renders,
   successful restore of an older ZIP, and `apt remove` preserving review data.
-- `zaptrace-review-studio_0.1.4_all.sha256` checks the exact `.deb` bytes.
+- `zaptrace-review-studio_0.1.5_all.sha256` checks the exact `.deb` bytes.
 
 **Unsigned:** A SHA-256 match is an integrity check, **not** a publisher
 signature. `PUBLISHER_PUBLIC_KEY.asc` and verified detached signatures are

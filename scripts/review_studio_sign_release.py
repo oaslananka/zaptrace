@@ -52,7 +52,7 @@ def sign_release(
     package, release_manifest = package.resolve(), release_manifest.resolve()
     if not package.is_file() or not release_manifest.is_file():
         raise ValueError("Exact .deb package and version-matched release manifest are required")
-    if not re.fullmatch(r"zaptrace-review-studio_0\.1\.4_all\.deb", package.name):
+    if not re.fullmatch(r"zaptrace-review-studio_0\.1\.5_all\.deb", package.name):
         raise ValueError("Unexpected unsigned release package version")
     data = json.loads(release_manifest.read_text(encoding="utf-8"))
     source = data.get("package", {})
@@ -60,7 +60,7 @@ def sign_release(
     if (
         source.get("filename") != package.name
         or source.get("sha256") != digest(package)
-        or data.get("version") != "0.1.4"
+        or data.get("version") != "0.1.5"
         or data.get("schema") != "zaptrace.review-studio.local-distribution.v1"
         or not validation.get("nine_stage_release_gate")
         or not validation.get("clean_ubuntu_disposable_container_real_apt_install")
@@ -143,7 +143,7 @@ def sign_release(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--package", type=Path, default=Path("build/distribution/zaptrace-review-studio_0.1.4_all.deb"))
+    parser.add_argument("--package", type=Path, default=Path("build/distribution/zaptrace-review-studio_0.1.5_all.deb"))
     parser.add_argument("--manifest", type=Path, default=Path("build/distribution/RELEASE_MANIFEST.json"))
     parser.add_argument("--fingerprint", required=True, help="Existing exact uppercase publisher GPG full fingerprint")
     parser.add_argument(

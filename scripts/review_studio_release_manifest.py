@@ -29,7 +29,7 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
         raise ValueError("Complete nine-stage local engineering release gate was not verified")
     if "0 errors, 0 warnings, 0 informations" not in evidence:
         raise ValueError("Release gate did not record clean static type checks")
-    if "Original KiCad" in package.name or not re.fullmatch(r"zaptrace-review-studio_0\.1\.4_all\.deb", package.name):
+    if "Original KiCad" in package.name or not re.fullmatch(r"zaptrace-review-studio_0\.1\.5_all\.deb", package.name):
         raise ValueError("Unexpected package name or version for release manifest")
     recorded_sha = package.with_suffix(".sha256")
     if (
@@ -42,7 +42,7 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
         fields[field] = subprocess.run(
             ["dpkg-deb", "-f", str(package), field], check=True, capture_output=True, text=True, timeout=12
         ).stdout.strip()
-    if fields["Package"] != "zaptrace-review-studio" or fields["Version"] != "0.1.4":
+    if fields["Package"] != "zaptrace-review-studio" or fields["Version"] != "0.1.5":
         raise ValueError("Versioned metadata mismatch")
     container_verified = False
     if container_qa is not None:
@@ -52,11 +52,11 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
         markers = (
             "PACKAGE_SHA256=" + sha256(package),
             "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.1 = 0",
-            "Real APT in-place upgrade to installed 0.1.4 passed",
-            "Installed 0.1.4 native KiCad two actual OpenGL 3D camera views: PASS",
+            "Real APT in-place upgrade to installed 0.1.5 passed",
+            "Installed 0.1.5 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS",
             "Legacy 0.1.1 private ZIP restore: approved by source SHA",
             "Native localhost startup/shutdown after upgrade passed",
-            "Actual APT remove 0.1.4 passed",
+            "Actual APT remove 0.1.5 passed",
         )
         if not all(marker in log for marker in markers):
             raise ValueError("Real clean Ubuntu container QA report is missing required evidence")
@@ -115,9 +115,10 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
             "clean_ubuntu_disposable_container_real_apt_install": container_verified,
             "clean_ubuntu_container_native_erc_drc": container_verified,
             "clean_ubuntu_container_native_3d_isometric_and_top": container_verified,
+            "clean_ubuntu_container_native_3d_eight_camera_orbit_frames": container_verified,
             "native_3d_model_coverage_independently_verified": False,
             "clean_ubuntu_container_apt_remove_preserves_user_data": container_verified,
-            "clean_ubuntu_container_inplace_011_to_014_upgrade": container_verified,
+            "clean_ubuntu_container_inplace_011_to_015_upgrade": container_verified,
             "clean_ubuntu_container_legacy_zip_restored_using_fresh_kicad": container_verified,
             "independent_clean_machine_real_apt_install": False,
             "unassisted_external_user_acceptance": False,
@@ -138,7 +139,7 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--package", type=Path, default=Path("build/distribution/zaptrace-review-studio_0.1.4_all.deb"))
+    parser.add_argument("--package", type=Path, default=Path("build/distribution/zaptrace-review-studio_0.1.5_all.deb"))
     parser.add_argument("--gate-log", type=Path, required=True)
     parser.add_argument("--container-qa-log", type=Path, help="Optional exact-package clean Ubuntu container QA record")
     parser.add_argument("--output", type=Path, default=Path("build/distribution/RELEASE_MANIFEST.json"))

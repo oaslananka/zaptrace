@@ -33,7 +33,9 @@ def test_native_kicad_3d_two_views_from_unmodified_board(tmp_path: Path) -> None
     assert result["model_coverage"] == "not_verified"
     assert len(result["views"]) == 2
     assert [v["label"] for v in result["views"]] == ["Isometric", "Top"]
-    for view in result["views"]:
+    assert len(result["orbit_frames"]) == 8
+    assert [v["label"] for v in result["orbit_frames"]] == [f"Orbit {i}°" for i in range(0, 360, 45)]
+    for view in [*result["views"], *result["orbit_frames"]]:
         assert view["source"].startswith("data:image/png;base64,")
         assert view["width"] >= 1000 and view["height"] >= 750
         assert (tmp_path / view["file"]).read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
@@ -41,11 +43,11 @@ def test_native_kicad_3d_two_views_from_unmodified_board(tmp_path: Path) -> None
 
 
 def test_disabled_3d_removes_stale_native_model_outputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png"):
+    for name in ("native-kicad-3d-isometric.png", "native-kicad-3d-top.png", "native-kicad-3d-orbit-270.png"):
         (tmp_path / name).write_bytes(b"stale previously rendered image")
     monkeypatch.setattr(native.subprocess, "run", lambda *a, **k: pytest.fail("3D not requested"))
     result = native.render_native_3d("kicad-cli", SOURCE, tmp_path, enabled=False)
-    assert result["state"] == "not_run" and result["views"] == []
+    assert result["state"] == "not_run" and result["views"] == [] and result["orbit_frames"] == []
     assert not list(tmp_path.glob("native-kicad-3d-*.png"))
 
 
@@ -90,6 +92,17 @@ def test_native_3d_ui_never_claims_mechanics_continuity_or_manufacturing_approva
     assert "$('measure').disabled=mode!=='pcb'" in template
     assert "if(mode!=='pcb')switchMode('pcb')" in template
     assert "model completeness NOT" in template or "models NOT verified" in template
+    for anchor in (
+        "render3dPrevious",
+        "render3dNext",
+        "orbitFrameIndex",
+        "step3DOrbit",
+        "kind:'orbit'",
+        "render3dFrameCount",
+        "DATA.render3d?.orbit_frames?.length===8",
+    ):
+        assert anchor in template
+    assert "set3DOrbitFrame(pointer.index+delta)" in template
 
 
 def test_user_facing_workspace_import_builds_real_optional_3d_by_default(tmp_path: Path) -> None:

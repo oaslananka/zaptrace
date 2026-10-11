@@ -65,6 +65,42 @@ if(unavailable){
  sha:DATA.source_sha256,active:document.getElementById('mode3D').getAttribute('aria-pressed')}})()`);
  check(top.index===1&&top.mode==='3d'&&top.image&&top.top==='true'&&top.iso==='false'&&top.sha===oracle.pcbSource&&top.active==='true',
  'native top camera swaps to a second authentic KiCad-generated PNG with unchanged source integrity');
+ // A real native orbit must never synthesize geometry: every snapshot is a
+ // separate KiCad-supplied base64 PNG, source-bound and finite (45° per frame).
+ const orbit=await js(`(()=>({count:DATA.render3d.orbit_frames?.length,
+  allPng:DATA.render3d.orbit_frames?.every(x=>x.source.startsWith('data:image/png;base64,')&&x.width>900&&x.height>700),
+  labels:DATA.render3d.orbit_frames?.map(x=>x.label),
+  noAccess:document.getElementById('render3dNext').disabled,
+  initial:orbitFrameIndex,
+  sha:DATA.source_sha256}))()`);
+ check(orbit.count===8&&orbit.allPng&&!orbit.noAccess&&orbit.initial===-1&&orbit.sha===oracle.pcbSource&&
+  orbit.labels.join('|')===[0,45,90,135,180,225,270,315].map(v=>'Orbit '+v+'°').join('|'),
+  '8 orbit steps are actual original KiCad camera PNGs at 45° intervals, not fake 3D meshes');
+ const step=await js(`(()=>{document.getElementById('render3dNext').click();return {
+  index:orbitFrameIndex,src:render3dStage.querySelector('img').src===DATA.render3d.orbit_frames[2].source,
+  label:document.getElementById('render3dAngle').textContent,
+  counter:document.getElementById('render3dFrameCount').textContent,
+  iso:document.getElementById('render3dIso').getAttribute('aria-pressed'),
+  top:document.getElementById('render3dTop').getAttribute('aria-pressed')}})()`);
+ check(step.index===2&&step.src&&step.label==='ORBIT 090°'&&step.counter==='03 / 08'&&step.iso==='false'&&step.top==='false',
+  'Orbit control selects exactly a KiCad 90° image and updates live camera angle/counter, disabling fixed-camera toggles');
+ const position=await js(`(()=>{const r=viewport.getBoundingClientRect();return {x:r.left+r.width*.51,y:r.top+r.height*.34}})()`);
+ await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:position.x,y:position.y});
+ await call('Input.dispatchMouseEvent',{type:'mousePressed',x:position.x,y:position.y,button:'left',clickCount:1,buttons:1});
+ await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:position.x+91,y:position.y,button:'left',buttons:1});
+ await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:position.x+91,y:position.y,button:'left',clickCount:1,buttons:0});
+ const dragged=await js(`(()=>({index:orbitFrameIndex,
+  source:render3dStage.querySelector('img').src===DATA.render3d.orbit_frames[orbitFrameIndex]?.source,
+  label:document.getElementById('render3dAngle').textContent,
+  sourceSHA:DATA.source_sha256}))()`);
+ console.log('REAL CHROME MOUSE 3D TURNTABLE',dragged);
+ check(dragged.index!==step.index&&dragged.index>=0&&dragged.index<8&&dragged.source&&dragged.sourceSHA===oracle.pcbSource,
+  'trusted real Chrome pointer drag rotates authentic KiCad camera snapshots while preserving board SHA');
+ const cycle=await js(`(()=>{const btn=document.getElementById('render3dPrevious');for(let i=0;i<9;i++)btn.click();
+ return {index:orbitFrameIndex,source:render3dStage.querySelector('img').src===DATA.render3d.orbit_frames[orbitFrameIndex].source,
+  displayed:document.getElementById('render3dAngle').textContent}})()`);
+ check(cycle.index===(dragged.index+7)%8&&cycle.source&&cycle.displayed.includes('ORBIT'),
+  'previous camera control wraps safely through finite actual native KiCad frames');
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  const mobile=await js(`(()=>({viewport:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,
  controls:document.getElementById('render3dControls').getBoundingClientRect().toJSON(),

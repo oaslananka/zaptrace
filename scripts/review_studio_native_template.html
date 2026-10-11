@@ -251,6 +251,30 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 .render3d-warning{font-size:9px;color:#aec5cf;flex:1 0 100%;line-height:1.4}
 .boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:130px;max-width:325px}
 @media(max-width:750px){.render3d-controls{bottom:82px;left:10px;right:10px;min-width:0;max-width:none;padding:10px 13px}.boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px;max-width:none}.render3d-kicker{flex-wrap:wrap}}
+
+/* Real KiCad camera turntable. Eight finite source-backed renders are selected
+   on drag/tap; no impostor continuous 3D geometry or external JS dependency. */
+.render3d-angle{min-width:125px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 6px;border:1px solid #345666;border-radius:7px;background:#112d3a}
+.render3d-angle span:first-child{font:850 10px ui-monospace,monospace;letter-spacing:.07em;color:#bdfce5}
+.render3d-angle span:last-child{font:650 9px ui-monospace,monospace;color:#91b9c5}
+.render3d-actions button:disabled{opacity:.4;cursor:not-allowed}
+.render3d-actions button:focus-visible{outline:2px solid #75f5d2;outline-offset:2px}
+.render3d-controls{width:min(480px,calc(100% - 30px))}
+.render3d-controls .render3d-warning{max-width:440px}
+.render3dstage{cursor:ew-resize}
+@media(max-width:750px){
+ .render3d-controls{width:auto;bottom:80px;padding:9px 10px;left:10px;right:10px}
+ .render3d-kicker{font-size:9px;line-height:1.25;gap:6px}
+ .render3d-kicker span{font-size:8px}
+ .render3d-actions{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.7fr) minmax(0,1fr) minmax(0,1.42fr) minmax(0,1fr);gap:5px;margin-top:8px}
+ .render3d-actions button{min-width:0;min-height:39px;white-space:nowrap;font-size:10px;padding:6px 2px}
+ .render3d-angle{min-width:0;min-height:39px;padding:4px 1px;gap:0}
+ .render3d-angle span:first-child{font-size:9px;white-space:nowrap}
+ .render3d-angle span:last-child{font-size:8px}
+ .render3d-warning{display:none}
+ .boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px}
+}
+@media(max-width:380px){.render3d-actions{gap:3px}.render3d-actions button{font-size:9px}}
 </style></head><body>
 <div class="app">
 <header><div class="brand"><div class="brandmark" aria-hidden="true">Z</div><div><div class="brandname">Zap<em>Trace</em></div><div class="brandcaption">Design review workspace</div></div></div><div style="min-width:0"><div class="pathhead" id="boardName"></div><div class="pathmeta" id="boardMeta">Loading native board geometry…</div></div><div class="headside">__WORKSPACE_LINK__<span class="statuspill localpill"><span class="statusdot" aria-hidden="true"></span>Local workspace</span><span class="statuspill">NOT FABRICATION APPROVED</span><button class="command-trigger" id="searchWorkspace" type="button" title="Search native objects (Ctrl K)" aria-label="Search all native PCB and schematic objects">Search workspace <kbd>Ctrl K</kbd></button><button class="header-icon" id="showHelp" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button></div></header>
@@ -300,7 +324,11 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  <div class="stage" id="stage"></div>
  <div class="render3d-controls" id="render3dControls" hidden aria-label="Native KiCad 3D view options">
   <div class="render3d-kicker">KiCad 10 · actual PCB model render <span>MODEL COVERAGE UNVERIFIED</span></div>
-  <div class="render3d-actions"><button id="render3dIso" type="button" aria-pressed="true">Isometric</button><button id="render3dTop" type="button" aria-pressed="false">Top</button><span class="render3d-warning">Visual inspection only · not DRC, DFM or mechanical signoff</span></div>
+  <div class="render3d-actions"><button id="render3dIso" type="button" aria-pressed="true">Isometric</button><button id="render3dTop" type="button" aria-pressed="false">Top</button>
+  <button id="render3dPrevious" type="button" title="Rotate previous 45° view" aria-label="Rotate native KiCad camera 45 degrees left">↶ 45°</button>
+  <div class="render3d-angle" aria-live="polite"><span id="render3dAngle">PRESENTATION VIEW</span><span id="render3dFrameCount">—</span></div>
+  <button id="render3dNext" type="button" title="Rotate next 45° view" aria-label="Rotate native KiCad camera 45 degrees right">45° ↷</button>
+  <span class="render3d-warning">Drag the board sideways to rotate through real KiCad camera frames · Shift+drag pans · no synthetic CAD geometry · no DFM, assembly or fabrication signoff</span></div>
  </div>
  <div class="schematic-sheet-dock" id="schematicSheetDock" hidden aria-label="Schematic sheet navigation">
   <button type="button" id="schematicPrevious" aria-label="Previous native schematic sheet" title="Previous native sheet ([)">←</button>
@@ -340,11 +368,12 @@ const DATA=__NATIVE_DATA__;
 const $=id=>document.getElementById(id);
 const stage=$('stage'),viewport=$('boardspace');
 const SCALE=12, SW=DATA.viewbox[0]*SCALE, SH=DATA.viewbox[1]*SCALE;
-let schematicStage=null, render3dStage=null, render3dIndex=0, mode='pcb';
+let schematicStage=null, render3dStage=null, render3dIndex=0, orbitFrameIndex=-1, mode='pcb';
 function activeSize(){
  if(mode==='pcb')return [SW,SH];
  if(mode==='3d'){
-  const view=DATA.render3d?.views?.[render3dIndex];return view?[view.width,view.height]:[1200,800];
+  const view=orbitFrameIndex>=0?DATA.render3d?.orbit_frames?.[orbitFrameIndex]:DATA.render3d?.views?.[render3dIndex];
+  return view?[view.width,view.height]:[1200,800];
  }
  return DATA.schematic.viewbox.map(x=>x*SCALE);
 }
@@ -750,10 +779,33 @@ function setupSchematic(){const button=$('modeSch');if(!DATA.schematic){button.d
  }
 
 }
+function set3DOrbitFrame(index,doFit=false){
+ const frames=DATA.render3d?.orbit_frames||[];
+ if(!render3dStage||frames.length!==8||!Number.isInteger(index))return false;
+ orbitFrameIndex=((index%frames.length)+frames.length)%frames.length;
+ const frame=frames[orbitFrameIndex];
+ const image=render3dStage.querySelector('img');
+ image.src=frame.source;
+ image.alt='Actual KiCad 10 3D camera orbit frame '+(orbitFrameIndex*45)+' degrees · not continuous 3D CAD';
+ render3dStage.style.width=frame.width+'px';render3dStage.style.height=frame.height+'px';
+ $('render3dAngle').textContent='ORBIT '+String(orbitFrameIndex*45).padStart(3,'0')+'°';
+ $('render3dFrameCount').textContent=String(orbitFrameIndex+1).padStart(2,'0')+' / 08';
+ $('render3dIso').setAttribute('aria-pressed','false');
+ $('render3dTop').setAttribute('aria-pressed','false');
+ if(doFit&&mode==='3d')fit();else apply();
+ if(mode==='3d')updatePreferences();
+ return true;
+}
+function step3DOrbit(delta){
+ return set3DOrbitFrame((orbitFrameIndex<0?1:orbitFrameIndex)+delta);
+}
 function set3DCamera(index){
  const views=DATA.render3d?.views||[];
  if(!render3dStage||!Number.isInteger(index)||index<0||index>=views.length)return;
  render3dIndex=index;
+ orbitFrameIndex=-1;
+ $('render3dAngle').textContent=index===0?'ISOMETRIC':'TOP ORTHOGRAPHIC';
+ $('render3dFrameCount').textContent='NATIVE KICAD';
  const picture=views[index];
  render3dStage.style.width=picture.width+'px';render3dStage.style.height=picture.height+'px';
  const image=render3dStage.querySelector('img');
@@ -775,6 +827,12 @@ function setupNative3D(){
  render3dStage.append(image);render3dStage.style.display='none';viewport.append(render3dStage);
  $('render3dIso').addEventListener('click',()=>set3DCamera(0));
  $('render3dTop').addEventListener('click',()=>set3DCamera(1));
+  $('render3dPrevious').addEventListener('click',()=>step3DOrbit(-1));
+  $('render3dNext').addEventListener('click',()=>step3DOrbit(1));
+  const hasOrbit=DATA.render3d.orbit_frames?.length===8;
+  $('render3dPrevious').disabled=!hasOrbit;
+  $('render3dNext').disabled=!hasOrbit;
+  if(!hasOrbit){$('render3dNext').title='Real KiCad orbit camera frames unavailable on this device';}
  set3DCamera(0);
 }
 function switchMode(next){
@@ -1434,7 +1492,11 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventLis
  $('minus').addEventListener('click',()=>zoomCentered(1/1.25));
  function initializeGesture(){
   const pts=[...activePointers.values()];
-  if(pts.length===1){const pos=pts[0];pointer={kind:'pan',x:pos.x,y:pos.y,panX,panY};}
+  if(pts.length===1){const pos=pts[0];
+   pointer=(mode==='3d'&&!pos.shiftKey&&DATA.render3d?.orbit_frames?.length===8)
+    ?{kind:'orbit',x:pos.x,index:orbitFrameIndex<0?1:orbitFrameIndex}
+    :{kind:'pan',x:pos.x,y:pos.y,panX,panY};
+  }
   else if(pts.length>=2){
    const midX=(pts[0].x+pts[1].x)/2,midY=(pts[0].y+pts[1].y)/2;
    const rect=viewport.getBoundingClientRect();
@@ -1446,7 +1508,7 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventLis
   if(e.target.closest('.boardactions,.measurement-panel'))return;
   const onObject=e.target.closest('button');
   if(onObject&&e.pointerType!=='touch')return;
-  activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,shiftKey:e.shiftKey});
   // Native pad buttons must retain their own click lifecycle for one-finger
   // selection. The second finger still participates in viewport pinch.
   if(e.isTrusted&&!onObject)viewport.setPointerCapture(e.pointerId);
@@ -1454,8 +1516,11 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventLis
  });
  viewport.addEventListener('pointermove',e=>{
   if(activePointers.has(e.pointerId)){
-   activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-   if(pointer?.kind==='pan'&&activePointers.size===1){
+   activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,shiftKey:e.shiftKey});
+   if(pointer?.kind==='orbit'&&activePointers.size===1){
+    const delta=Math.trunc((e.clientX-pointer.x)/26);
+    if(delta!==0)set3DOrbitFrame(pointer.index+delta);
+   }else if(pointer?.kind==='pan'&&activePointers.size===1){
     panX=pointer.panX+e.clientX-pointer.x;panY=pointer.panY+e.clientY-pointer.y;apply();
    }else if(pointer?.kind==='pinch'&&activePointers.size>=2){
     const pts=[...activePointers.values()];

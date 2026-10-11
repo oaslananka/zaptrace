@@ -146,3 +146,34 @@ scoped Issue #91 design review had reported 16. Chrome tests check the
 actual native DRC source data rather than assuming either context is
 interchangeable. The package is still unsigned, not public GA, and has not
 passed independent physical-device or unassisted external-user acceptance.
+
+## Ubuntu clean-install / real 3D orbit acceptance for 0.1.5
+
+Exact package SHA-256:
+`138acff992665ed8168584ab2c8f6dfb61491cfd93c69c66c8b97304b09aaae1`.
+Exact local QA kit SHA-256:
+`5292a2ce6a600c13c0f2773a5279978ca97836c567afefc9c63258dda3e15d1a`.
+
+A separately created clean Ubuntu 24.04.1 LTS disposable Docker container
+started without KiCad or Review Studio. Actual APT installed KiCad 10.0.7,
+`xvfb`/`xauth`, and legacy Review Studio 0.1.1. A native two-sheet KiCad
+review with real DRC/ERC was generated and its original report hashes frozen.
+Actual APT upgraded the very same environment to the SHA-pinned 0.1.5 `.deb`.
+The pre-existing review/evidence SHA-256 values were unchanged.
+
+The **installed 0.1.5** generated original Eeschema plots and **ten real KiCad
+OpenGL PNG camera views**: two fixed angles plus eight 45-degree frames.
+Chromium tested real pointer drag, camera angle indicator, source-bound PNG
+selection, 390px mobile single-row camera controls, no horizontal overflow,
+and return to source PCB with DRC unchanged. Through installed localhost
+backup restoration, a legacy 0.1.1 ZIP was restored to a new separate project:
+actual KiCad 10 ERC/DRC, two source sheets and all ten 3D camera images were
+regenerated. A second real Chrome run tested the final recovered user's HTML.
+Actual `apt remove` deleted app files but preserved both user reviews, native
+ERC/DRC reports, backup ZIP and original PCB inputs; KiCad remained installed.
+
+This is a finite source-backed camera turntable, **not** continuous 3D CAD,
+not a proof of complete vendor models, not production approval. See
+`REVIEW_STUDIO_FULL_EDA_ACCEPTANCE.md` for missing full-editor capabilities.
+No signing identity, independent physical-machine acceptance or public GA
+approval has been represented as passing.

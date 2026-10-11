@@ -69,10 +69,15 @@ schematic files or project approval. Real Chrome regression coverage includes
 desktop and 390px mobile layouts, genuine source report links, category counts,
 clear-selection behavior and rejection of a third selected snapshot.
 
-## Native KiCad 3D source geometry — presentation-only (0.1.4)
+## Native KiCad 3D source geometry — presentation-only (0.1.5)
 
 The read-only PCB inspector can optionally show **actual KiCad 10 `pcb render`**
-OpenGL PNGs of the loaded board from **isometric** and **top** viewpoints. The
+OpenGL PNGs of the loaded board from **isometric** and **top** viewpoints,
+plus **eight 45-degree orbit angle captures** of the same authentic KiCad
+model. Users drag horizontally in 3D mode to switch source-backed orbit frames,
+use accessible left/right turn buttons or choose either fixed view. Pinch and
+wheel zoom the presentation; Shift+drag pans the image. The turntable uses ten
+fixed-source screenshots, not continuously editable 3D scene geometry. The
 rendered PNGs are generated locally, embedded in the offline review HTML and
 bound to the original source PCB SHA-256. This is not generated or synthetic
 part geometry. Native KiCad resolves its *available* local `.step`/`.wrl`
