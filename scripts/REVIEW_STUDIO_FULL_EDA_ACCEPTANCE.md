@@ -17,6 +17,22 @@ scope/acceptance document; it is **not** a promise of GA or fabrication safety.
 | Project library and private backup | Authenticated localhost import/export/restore/delete | No overwrite; fresh ERC/DRC; preserve originals |
 | Ubuntu 24.04 package | Exact .deb, true legacy upgrade/restore/uninstall QA | Unsigned local candidate, noncommercial license |
 
+## First KiCad-authored ECO milestone (tested locally in 0.1.6; not full EDA)
+
+A tightly scoped KiCad-verified **single-component-value ECO** has now been
+implemented in `review_studio_schematic_eco.py` and exposed behind an
+explicitly experimental, authenticated localhost authoring panel. It writes an entirely separate
+native `.kicad_sch` copy and shows before/after KiCad schematic SVG views in a
+responsive synchronized zoom-and-pan comparison. ERC and net topology are
+checked independently on real native KiCad 10 before any new edit copy is
+issued. It does not edit the main workspace source, PCB, BOM or libraries.
+Hierarchy, multi-unit symbols, complete EDA object editing and full design
+sync **remain blocked**. This is a value-only browser editor, not full CAD.
+See `REVIEW_STUDIO_SCHEMATIC_ECO_EXPERIMENT.md` for reproducible local and
+installed-package native KiCad acceptance evidence. The tested 0.1.6 release
+introduces a *value-only* authoring surface; earlier 0.1.5 package artifacts
+remain byte-for-byte unchanged. This does not certify arbitrary wire/PCB edits.
+
 ## Required milestones for full-featured EDA
 
 1. **Authentic schematic authoring.** Real component/library selection, net and

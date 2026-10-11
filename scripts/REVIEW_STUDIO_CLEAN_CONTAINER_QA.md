@@ -177,3 +177,40 @@ not a proof of complete vendor models, not production approval. See
 `REVIEW_STUDIO_FULL_EDA_ACCEPTANCE.md` for missing full-editor capabilities.
 No signing identity, independent physical-machine acceptance or public GA
 approval has been represented as passing.
+
+## Ubuntu 24.04 real APT / native schematic ECO acceptance 0.1.6
+
+The reproducible, unsigned local 0.1.6 package is SHA-256
+`fd3f89e2c770b413d9fb94c92a003d6af460377695a014abb2d663bc683da983`.
+The five-file offline installer/evidence kit is SHA-256
+`bf40305b042039bd54b04c197d2cbe3731be096c468b7e1d3aed3293cf77f25e`.
+These are different artifacts; acceptance **must not** transfer to other bytes.
+
+New disposable Ubuntu 24.04.1 started with no KiCad/Review Studio installed;
+APT update, KiCad 10.0.7, `xvfb` and legacy app 0.1.1 succeeded. The installed
+0.1.1 generated an actual native two-sheet Eeschema/PCB review and its user
+manifest and ERC/DRC report SHA-256 values were frozen. Real APT upgraded this
+same environment to 0.1.6 using **the identical .deb** to the nine-stage
+release-gate output. The pre-existing user review reports remained byte
+identical. The installed localhost app accepted actual KiCad schematic ECO
+`R1: 4.7k → 10k`; KiCad preserved component inventory and net connectivity,
+native ERC was unchanged, two genuine KiCad SVGs were displayed and the private
+edited `.kicad_sch` was downloaded. A verified discard deleted this isolated
+draft without modifying the original schematic or project library. A separate
+real Chromium test used **the package-extracted installed Python and HTML**, not
+only the developer source, and passed end-to-end file selection, authenticated
+ECO upload, iframe preview, source download, discard and 390px mobile.
+
+Installed 0.1.6 localhost restored the old 0.1.1 private ZIP, regenerated real
+native ERC/DRC, both schematic sheets, two fixed and eight true KiCad 3D orbit
+frames. Its output was also tested in real Chrome for 3D drag controls and
+hierarchical SVG navigation. Real `apt remove` left both review folders and
+old reports, input KiCad sources and the private ZIP untouched. The disposable
+container was removed. The separate system source checkout was never changed.
+
+**Not equivalent to a full EDA product or a manufacturing signoff.**
+Editing is a single safe Value property per one-unit, one-page KiCad schematic
+copy. Electrical effects, BOM/PCB synchronization, complex hierarchy and
+vendor part qualification require independent review. 3D vendor model coverage,
+physical device user acceptance, authorized publisher signing, and public GA
+have not been verified or asserted.

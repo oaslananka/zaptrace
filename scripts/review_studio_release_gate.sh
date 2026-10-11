@@ -15,6 +15,8 @@ PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -p no:cacheprovider \
   tests/test_kicad_export.py \
   tests/test_review_studio_native_kicad.py \
   tests/test_review_studio_native_3d.py \
+  tests/test_review_studio_schematic_eco.py \
+  tests/test_review_studio_schematic_eco_server.py \
   tests/test_review_studio_workspace.py \
   tests/test_review_studio_local_server.py \
   tests/test_review_studio_library.py \
@@ -39,6 +41,7 @@ SOURCES=(
   scripts/review_studio_library.py
   scripts/review_studio_workspace.py
   scripts/review_studio_native_kicad.py
+  scripts/review_studio_schematic_eco.py
   scripts/review_studio_desktop_entry.py
   tests/test_review_studio_distribution.py
   tests/test_review_studio_release_manifest.py
@@ -49,6 +52,8 @@ SOURCES=(
   tests/test_review_studio_workspace.py
   tests/test_review_studio_native_kicad.py
   tests/test_review_studio_native_3d.py
+  tests/test_review_studio_schematic_eco.py
+  tests/test_review_studio_schematic_eco_server.py
   tests/test_review_studio_desktop_entry.py
   zaptrace/export/kicad.py
   zaptrace/kicad/verified_vendor.py
@@ -60,7 +65,8 @@ echo '[3/9] Type safety'
 "$PYRIGHT" scripts/review_studio_app.py scripts/review_studio_build_deb.py \
   scripts/review_studio_release_manifest.py scripts/review_studio_sign_release.py \
   scripts/review_studio_release_kit.py scripts/review_studio_local_server.py scripts/review_studio_library.py \
-  scripts/review_studio_workspace.py scripts/review_studio_native_kicad.py scripts/review_studio_desktop_entry.py \
+  scripts/review_studio_workspace.py scripts/review_studio_native_kicad.py \
+  scripts/review_studio_schematic_eco.py scripts/review_studio_desktop_entry.py \
   zaptrace/export/kicad.py
 
 echo '[4/9] Real native KiCad baseline/copper evidence regeneration'
@@ -76,18 +82,18 @@ sha256sum -c build/source-reference-readonly/checksums.sha256
 echo '[7/9] Build reproducible native local application'
 /usr/bin/python3 scripts/review_studio_build_deb.py
 /usr/bin/python3 scripts/review_studio_build_deb.py --output-dir build/distribution/repro
-cmp -s build/distribution/zaptrace-review-studio_0.1.5_all.deb \
-       build/distribution/repro/zaptrace-review-studio_0.1.5_all.deb
+cmp -s build/distribution/zaptrace-review-studio_0.1.6_all.deb \
+       build/distribution/repro/zaptrace-review-studio_0.1.6_all.deb
 (
  cd build/distribution
- sha256sum -c zaptrace-review-studio_0.1.5_all.sha256
+ sha256sum -c zaptrace-review-studio_0.1.6_all.sha256
 )
 
 echo '[8/9] Installation metadata and dependency gate'
 DESKTOP=build/Review\ Studio.desktop
 /usr/bin/python3 scripts/review_studio_desktop_entry.py >/dev/null
 /usr/bin/desktop-file-validate "$DESKTOP"
-dpkg-deb --field build/distribution/zaptrace-review-studio_0.1.5_all.deb
+dpkg-deb --field build/distribution/zaptrace-review-studio_0.1.6_all.deb
 echo '[9/9] Ubuntu APT dependency simulation for this exact package'
-apt-get -s install ./build/distribution/zaptrace-review-studio_0.1.5_all.deb >/dev/null
+apt-get -s install ./build/distribution/zaptrace-review-studio_0.1.6_all.deb >/dev/null
 printf '\nRELEASE GATE: PASS (Ubuntu 24.04 amd64 / KiCad 10 target; local unsigned distribution only)\n'

@@ -67,10 +67,34 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 
 .restore-section[hidden]{display:none}.restore-section{display:grid;grid-template-columns:1fr;gap:8px;margin:28px 0 5px;padding:22px;border:1px solid #547d81;border-radius:13px;background:linear-gradient(130deg,#162f40,#101f30)}.restore-section h2{font-size:19px;letter-spacing:-.04em;margin:5px 0 8px}.restore-section p{font-size:11px;line-height:1.6;color:#aac8cf;max-width:860px;margin:0}.restore-section p strong{color:#e4fff5}.restore-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:11px}.restore-form label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:750;color:#c9ebdd;min-width:0}.restore-form input{background:#091b2a;border:1px solid #486674;border-radius:8px;color:#e6f7fa;padding:11px;min-height:43px;width:100%;min-width:0;font-size:11px}.restore-form button{background:#244e4a;border:1px solid #70a6a0;border-radius:8px;color:#ddffef;min-height:43px;padding:9px 12px;font-size:11px;font-weight:850;cursor:pointer}.restore-form button:disabled{opacity:.5;cursor:wait}#nativeRestoreStatus{padding:11px;border:1px solid #47626c;border-radius:9px;background:#132b3a}#nativeRestoreStatus[hidden]{display:none}
 @media(max-width:900px){.restore-form{grid-template-columns:1fr 1fr}.restore-form button{grid-column:1/-1}}@media(max-width:580px){.restore-form{grid-template-columns:1fr}.restore-section{padding:16px}}
+
+/* Explicit localhost-only copy-on-write ECO authoring, no source overwrites. */
+.eco-launch{border-color:#5c9a8b!important;color:#c5fae9!important;background:#183a3c!important}
+.eco-launch:hover,.eco-launch:focus-visible{background:#285957!important}
+.eco-launch[hidden]{display:none}
+.eco-lab[hidden],.eco-result[hidden]{display:none}
+.eco-lab{margin:25px 0;padding:24px;border:1px solid #508a80;border-radius:15px;background:linear-gradient(135deg,#153a3b,#0e2639 58%,#112537);box-shadow:0 18px 50px #0003}
+.eco-lab h2{font-size:23px;letter-spacing:-.04em;margin:6px 0}.eco-lab p{color:#a8cdd1;font-size:11px;line-height:1.65;max-width:910px}
+.eco-label{font:850 10px ui-monospace,monospace;color:#9cf6dc;letter-spacing:.1em}
+.eco-fields{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(100px,.65fr) minmax(100px,.7fr) auto;gap:11px;align-items:end;margin-top:15px}
+.eco-fields label{display:flex;flex-direction:column;gap:7px;color:#bde6dd;font-size:11px;font-weight:820;min-width:0}
+.eco-fields input{width:100%;min-height:44px;min-width:0;padding:9px 11px;color:#e4fcf5;background:#091d2b;border:1px solid #4c7780;border-radius:8px;font:12px ui-monospace,monospace}
+.eco-fields input:focus-visible{outline:2px solid #72ebcb;outline-offset:2px}
+.eco-fields button,.eco-result button{min-height:44px;padding:10px 13px;background:#70dfc3;border:1px solid #93f1da;border-radius:8px;color:#123c39;font-size:11px;font-weight:850;cursor:pointer}
+.eco-fields button:disabled,.eco-result button:disabled{opacity:.45;cursor:wait}
+.eco-status{padding:11px 14px;background:#122e36;border:1px solid #406f76;border-radius:8px;font-size:11px;color:#c6f4e8;margin:13px 0}
+.eco-status[hidden]{display:none}.eco-result{margin-top:14px;border:1px solid #537d80;border-radius:12px;overflow:hidden;background:#0e2133}
+.eco-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px;background:#193744}
+.eco-result-head strong{font-size:12px;color:#d4fff1}.eco-result-actions{display:flex;gap:8px;flex-wrap:wrap}
+.eco-result button{background:#204d4b;border-color:#65a395;color:#bef9e7;min-height:38px}.eco-result button:hover{background:#346b61}
+.eco-result iframe{display:block;width:100%;height:min(780px,82vh);border:0;background:#081522}
+.eco-warning{border:1px solid #776259!important;background:#302a31;color:#f5d6b9!important;padding:10px 13px;border-radius:8px;margin-top:14px!important}
+@media(max-width:870px){.eco-fields{grid-template-columns:1fr 1fr}.eco-fields label:first-child{grid-column:1/-1}.eco-fields>button{grid-column:1/-1}}
+@media(max-width:600px){.eco-lab{padding:14px}.eco-fields{grid-template-columns:1fr}.eco-fields label:first-child,.eco-fields>button{grid-column:auto}.eco-result iframe{height:75vh}.eco-result-head{align-items:flex-start}}
 </style></head><body>
 <header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local">OFFLINE · READ-ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
 <main><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
-<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a></div>
+<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a></div>
 <div class="compare-toolbar"><div><span class="overline">NATIVE EVIDENCE COMPARISON</span><p>Select exactly two source snapshots to compare observable evidence. Counts are never fabrication approval.</p></div><span id="compareSelection" role="status" aria-live="polite">__COMPARE_HINT__</span></div>
 <section class="compare-panel" id="comparePanel" hidden aria-label="Native snapshot comparison">
  <div class="compare-heading"><div><span class="overline">SIDE-BY-SIDE / INSPECTION ONLY</span><h2>Evidence delta</h2></div><button id="compareClear" type="button">Clear selection</button></div>
@@ -90,6 +114,26 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <button id="nativeRestoreRun" type="submit">Restore and rerun KiCad checks</button>
  </form>
  <p id="nativeRestoreStatus" role="status" aria-live="polite" hidden></p>
+</section>
+<section class="eco-lab" id="ecoLab" hidden aria-label="Experimental KiCad schematic component value editor">
+ <span class="eco-label">LOCAL EDA AUTHORING / CONTROLLED ECO EXPERIMENT</span>
+ <h2>Prepare a native schematic change</h2>
+ <p>Author one component <strong>Value</strong> as a separate KiCad working copy. Only single-sheet one-unit schematics are supported. KiCad validates the actual net graph and native ERC first. No source overwrite, PCB/BOM synchronization, or fabrication approval.</p>
+ <form id="ecoForm" class="eco-fields">
+  <label>Actual KiCad schematic<input type="file" required id="ecoSource" accept=".kicad_sch" aria-label="Select local native schematic source for ECO"/></label>
+  <label>Component reference<input id="ecoRef" type="text" required maxlength="11" value="R1" autocomplete="off" spellcheck="false"/></label>
+  <label>New component value<input id="ecoValue" type="text" required maxlength="63" placeholder="10k" autocomplete="off" spellcheck="false"/></label>
+  <button type="submit" id="ecoCreate">Verify &amp; preview</button>
+ </form>
+ <p class="eco-warning">Engineering change may affect circuit function even when ERC and connectivity are unchanged. The PCB, BOM and vendor models are NOT synchronized. This local ECO draft is not an electrical or manufacturing signoff.</p>
+ <p id="ecoStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
+ <div class="eco-result" id="ecoResult" hidden>
+  <div class="eco-result-head"><strong id="ecoResultTitle">Verified change copy · not approved</strong><div class="eco-result-actions">
+   <button type="button" id="ecoDownload">Download edited KiCad copy</button>
+   <button type="button" id="ecoDiscard">Discard local ECO draft</button>
+  </div></div>
+  <iframe id="ecoPreview" title="Independent KiCad source and edited working copy visual comparison" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+ </div>
 </section>
 <section class="onboarding" id="import"><span class="overline">BRING YOUR OWN DESIGN</span><h2>Open another native KiCad board</h2><p id="desktopOnboarding" hidden>Select your KiCad files using the controls below. Your original board is never changed; the local engine stores a separate evidence snapshot. There are no simulated example projects and no cloud upload.</p><p id="staticOnboarding">Import uses native KiCad installed on your computer. In static offline mode, run the terminal command shown below from the ZapTrace source directory, then refresh the project library. Disabled or unavailable checks remain explicitly unverified.</p>
 <div class="onboarding-steps" id="desktopOnboardingSteps" hidden><div><span>01</span><strong>Select a real PCB</strong><small>Choose .kicad_pcb and the original .kicad_pro for the project's true DRC rules</small></div><div><span>02</span><strong>Run native KiCad</strong><small>Add the schematic and sub-sheet folder if available, then start local analysis</small></div><div><span>03</span><strong>Inspect evidence</strong><small>Open the new review card, inspect findings or compare two snapshots</small></div></div>
@@ -153,7 +197,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
  <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
  <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
- <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.5 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.6 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
 </section>
 <dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
  <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
@@ -166,7 +210,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 </dialog>
 <div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
 <div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
-<div class="foot">ZapTrace Review Studio 0.1.5 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<div class="foot">ZapTrace Review Studio 0.1.6 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
 <script>
 // Direct native review is enabled only by the explicit localhost server.
 if(window.__REVIEW_LOCAL__?.token){
@@ -175,10 +219,93 @@ if(window.__REVIEW_LOCAL__?.token){
  document.getElementById('desktopOnboardingSteps').hidden=false;
  document.getElementById('staticOnboarding').hidden=true;
  document.getElementById('nativeRestore').hidden=false;
+ document.getElementById('ecoLab').hidden=false;
+ document.getElementById('ecoLaunch').hidden=false;
  document.getElementById('nativeImport').hidden=false;
  document.getElementById('cliFallback').hidden=true;
  const $=id=>document.getElementById(id),token=window.__REVIEW_LOCAL__.token;
  const board=$('nativeBoardFile'),sch=$('nativeSchFile'),project=$('nativeProjectFile'),rules=$('nativeRulesFile'),sheetFolder=$('nativeSheetFolder'),name=$('nativeImportName');
+ let lastEcoId=null;
+ const ecoStatus=$('ecoStatus'),ecoCreate=$('ecoCreate'),ecoResult=$('ecoResult');
+ function ecoMessage(note){ecoStatus.hidden=false;ecoStatus.textContent=note;}
+ async function ecoFile(id,filename){
+  const res=await fetch('/api/eco/result/'+encodeURIComponent(id)+'/'+filename,
+   {headers:{'X-Review-Token':token},cache:'no-store'});
+  if(!res.ok)throw Error('Verified ECO draft no longer available');
+  return res;
+ }
+ async function ecoUploadBase64(file){
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let encoded='';
+  for(let i=0;i<bytes.length;i+=8192)encoded+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  const hash=await crypto.subtle.digest('SHA-256',bytes);
+  const sha=[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return {source_base64:btoa(encoded),original_sha256:sha};
+ }
+ $('ecoForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(lastEcoId){ecoMessage('Discard the current local ECO draft before authoring another.');return;}
+  const file=$('ecoSource').files?.[0];
+  const reference=$('ecoRef').value.trim(),value=$('ecoValue').value.trim();
+  if(!file||!file.name.endsWith('.kicad_sch')||file.size>4*1024*1024||file.size<100||
+     !/^[A-Za-z]{1,5}[1-9][0-9]{0,5}$/.test(reference)||
+     !/^[A-Za-z0-9][A-Za-z0-9 .,_+/%Ωµμ°()-]{0,62}$/.test(value)){
+   ecoMessage('Choose a native .kicad_sch under 4 MB, an exact component reference (R1) and a safe value.');return;
+  }
+  ecoCreate.disabled=true;
+  try{
+   ecoMessage('Preparing local source hash and validating the native KiCad schematic…');
+   const payload={...await ecoUploadBase64(file),reference,value};
+   const res=await fetch('/api/eco',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload),cache:'no-store'});
+   const start=await res.json();
+   if(!res.ok||start.state!=='running'||!start.id)throw Error(start.error||'Native KiCad ECO rejected');
+   for(let i=0;i<300;i++){
+    await new Promise(r=>setTimeout(r,500));
+    const poll=await fetch('/api/jobs/'+encodeURIComponent(start.id),{headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!poll.ok)throw Error('Local KiCad validation status unavailable');
+    const job=await poll.json();
+    if(job.state==='failed')throw Error(job.message||'Native KiCad ECO validation blocked');
+    if(job.state==='complete'){
+     const preview=await (await ecoFile(start.id,'PREVIEW.html')).text();
+     ecoResult.dataset.frameReady='false';
+     $('ecoPreview').addEventListener('load',()=>{ecoResult.dataset.frameReady='true';},{once:true});
+     $('ecoPreview').srcdoc=preview;
+     $('ecoResultTitle').textContent=job.eco.reference+' · '+job.eco.old_value+' → '+job.eco.new_value+
+      ' · KiCad verified copy · PCB NOT synchronized';
+     lastEcoId=start.id;ecoResult.dataset.id=start.id;ecoResult.hidden=false;
+     ecoMessage('KiCad native netlist + ERC validated. Examine the visual diff before downloading a separate draft.');
+     ecoResult.scrollIntoView({behavior:'smooth',block:'nearest'});
+     return;
+    }
+   }
+   throw Error('KiCad ECO validation timed out; no approval or source overwrite');
+  }catch(err){ecoMessage(err?.message||'KiCad ECO failed; source unchanged.');}
+  finally{ecoCreate.disabled=false;}
+ });
+ $('ecoDownload').addEventListener('click',async()=>{
+  if(!lastEcoId)return;
+  try{
+   const result=await ecoFile(lastEcoId,'source.kicad_sch');
+   const blob=await result.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+   a.href=url;a.download='source-edited-ECO.kicad_sch';document.body.append(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),2500);
+   ecoMessage('Downloaded a separate KiCad ECO copy. Original PCB, source and BOM remain unchanged.');
+  }catch(err){ecoMessage(err?.message||'KiCad edited copy unavailable.');}
+ });
+ $('ecoDiscard').addEventListener('click',async()=>{
+  if(!lastEcoId)return;
+  const id=lastEcoId;$('ecoDiscard').disabled=true;
+  try{
+   const res=await fetch('/api/eco/discard',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({id}),cache:'no-store'});
+   const result=await res.json();if(!res.ok||result.state!=='discarded')throw Error(result.error||'Could not discard draft');
+   lastEcoId=null;delete ecoResult.dataset.id;delete ecoResult.dataset.frameReady;
+   ecoResult.hidden=true;$('ecoPreview').removeAttribute('srcdoc');
+   ecoMessage('Local ECO draft discarded; no original source file was modified.');
+  }catch(err){ecoMessage(err?.message||'Could not discard local ECO draft.');}
+  finally{$('ecoDiscard').disabled=false;}
+ });
  for(const [field,caption] of [[board,$('nativeBoardName')],[sch,$('nativeSchName')],[project,$('nativeProName')],[rules,$('nativeDruName')]]){
   field.addEventListener('change',()=>{caption.textContent=field.files?.[0]?.name||'No file selected';});
  }

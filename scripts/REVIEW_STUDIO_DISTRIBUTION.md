@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.5 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.6 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.5_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.6_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -42,6 +42,26 @@ KiCad CLI rendering; desktop systems can use their existing graphical display.
 The viewer offers native PCB inspection, not geometry-authoring CAD. The native
 ERC/DRC findings and NOT FABRICATION APPROVED warning remain visible even in
 3D mode. The 3D images are local engineering data and stay private.
+
+## Experimental native schematic value editing — controlled ECO
+
+The source-protected local workspace now includes an opt-in **Draft a schematic
+ECO** action. It accepts a single-sheet, one-unit original `.kicad_sch` via
+local file picker and edits only an existing component's `Value` in a **separate
+working copy**. KiCad 10 verifies the component inventory, all electrical net
+memberships, component metadata and native ERC before the edited copy can be
+downloaded. A modern before/after KiCad SVG preview opens in a sandboxed,
+opaque-origin iframe; it supports linked zoom/pan. The output draft is stored
+privately until explicitly discarded. Original PCB, schematic and BOM are
+never overwritten. OAuth, cloud accounts and internet upload are not involved.
+
+This is **not** general schematic layout editing, PCB routing, complete
+hierarchical ECO, electrical performance validation or component sourcing.
+Changing a resistance/capacitance/value can be unsafe even when ERC does not
+change. No automatic PCB/BOM synchronization or fabrication approval is made.
+Only the experimental subset of safe native component value strings is
+accepted; unsupported projects fail closed. Source copies stay private on
+localhost and protected by origin + an ephemeral session token.
 
 ## First use and privacy
 
@@ -141,8 +161,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.5_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.5_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.6_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.6_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

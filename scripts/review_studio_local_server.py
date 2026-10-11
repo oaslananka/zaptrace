@@ -10,6 +10,8 @@ allowlist of public review outputs gate the localhost interface.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import hashlib
 import json
 import re
@@ -41,6 +43,7 @@ MAX_SHEETS = 32
 MAX_TOTAL_SHEETS = 16 * 1024 * 1024
 MAX_PCB = 10 * 1024 * 1024
 MAX_SCHEMATIC = 4 * 1024 * 1024
+MAX_ECO_REQUEST = 6 * 1024 * 1024
 MAX_PROJECT = 3 * 1024 * 1024
 MAX_CUSTOM_RULES = 512 * 1024
 MIMES = {
@@ -99,6 +102,7 @@ class ReviewLocalServer(ThreadingHTTPServer):
         self.secret = secrets.token_urlsafe(32)
         self.jobs: dict[str, dict] = {}
         self.job_outputs: dict[str, Path] = {}
+        self.eco_outputs: dict[str, Path] = {}
         self.lock = threading.Lock()
         self.worker_lock = threading.Lock()
         super().__init__(address, ReviewHandler)
@@ -256,6 +260,39 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+        if url.path.startswith("/api/eco/result/"):
+            if not self._authorize():
+                return
+            match = re.fullmatch(
+                r"/api/eco/result/([0-9a-f]{32})/(PREVIEW\.html|ECO_EVIDENCE\.json|source\.kicad_sch)", url.path
+            )
+            if not match:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Unknown ECO file"})
+                return
+            job_id, filename = match.groups()
+            with self.review_server.lock:
+                output = self.review_server.eco_outputs.get(job_id)
+                job = self.review_server.jobs.get(job_id)
+            if output is None or job is None or job.get("state") != "complete":
+                self._json(HTTPStatus.NOT_FOUND, {"error": "No completed local ECO with this ID"})
+                return
+            file = output / filename
+            if not file.is_file() or file.is_symlink() or file.stat().st_size > 3_000_000:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "ECO source artifact unavailable"})
+                return
+            if filename == "source.kicad_sch":
+                data = file.read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", 'attachment; filename="source-edited-ECO.kicad_sch"')
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self._serve_bytes(file.read_bytes(), file.suffix)
+            return
         if url.path.startswith("/api/jobs/"):
             if not self._authorize():
                 return
@@ -326,6 +363,107 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 return
             self._json(HTTPStatus.OK, {"state": "stopping", "message": "Local Review Studio is stopping"})
             threading.Thread(target=self.review_server.shutdown, daemon=True).start()
+            return
+        if self.path == "/api/eco/discard":
+            if not self._authorize():
+                return
+            length = self.headers.get("Content-Length", "")
+            if not length.isdecimal() or not 0 < int(length) <= 96:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid ECO discard request"})
+                return
+            try:
+                payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                if (
+                    not isinstance(payload, dict)
+                    or set(payload) != {"id"}
+                    or not isinstance(payload["id"], str)
+                    or not re.fullmatch(r"[0-9a-f]{32}", payload["id"])
+                ):
+                    raise ValueError("Invalid isolated ECO identifier")
+                with self.review_server.lock:
+                    job = self.review_server.jobs.get(payload["id"])
+                    if job is None or job.get("state") == "running":
+                        raise ValueError("No removable completed ECO")
+                    output = self.review_server.eco_outputs.pop(payload["id"], None)
+                    self.review_server.jobs.pop(payload["id"], None)
+                if output is not None:
+                    shutil.rmtree(output)
+                self._json(HTTPStatus.OK, {"state": "discarded", "message": "Only locally owned ECO draft removed"})
+            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:180]})
+            return
+        if self.path == "/api/eco":
+            if not self._authorize():
+                return
+            length = self.headers.get("Content-Length", "")
+            if (
+                self.headers.get("Content-Type") != "application/json"
+                or not length.isdecimal()
+                or not 10 < int(length) <= MAX_ECO_REQUEST
+            ):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Provide one native KiCad schematic ECO JSON under 6 MB"})
+                return
+            if not self.review_server.worker_lock.acquire(blocking=False):
+                self._json(HTTPStatus.CONFLICT, {"error": "Wait for active KiCad analysis to finish"})
+                return
+            staged = None
+            handed_off = False
+            try:
+                payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                if not isinstance(payload, dict) or set(payload) != {
+                    "source_base64",
+                    "reference",
+                    "value",
+                    "original_sha256",
+                }:
+                    raise ValueError("Expected exact KiCad source, reference, value and SHA-256")
+                if any(not isinstance(v, str) for v in payload.values()):
+                    raise ValueError("Invalid KiCad value ECO properties")
+                from review_studio_schematic_eco import REF, VALUE
+
+                if not REF.fullmatch(payload["reference"]) or not VALUE.fullmatch(payload["value"]):
+                    raise ValueError("Unsafe component reference or ECO value")
+                if not re.fullmatch(r"[a-f0-9]{64}", payload["original_sha256"]):
+                    raise ValueError("Invalid original schematic SHA-256")
+                try:
+                    raw = base64.b64decode(payload["source_base64"], validate=True)
+                except (binascii.Error, ValueError) as exc:
+                    raise ValueError("Invalid schematic file contents") from exc
+                if not 100 < len(raw) <= MAX_SCHEMATIC or not raw.lstrip().startswith(b"(kicad_sch"):
+                    raise ValueError("Only actual native .kicad_sch sources under 4 MB are allowed")
+                if hashlib.sha256(raw).hexdigest() != payload["original_sha256"]:
+                    raise ValueError("Source file SHA-256 changed during browser upload")
+                job_id = uuid.uuid4().hex
+                staged = self.review_server.workspace / "eco-working" / job_id
+                staged.mkdir(parents=True, exist_ok=False)
+                (staged / "source.kicad_sch").write_bytes(raw)
+                output = self.review_server.workspace / "eco-results" / job_id
+                output.parent.mkdir(parents=True, exist_ok=True)
+                job = {
+                    "id": job_id,
+                    "state": "running",
+                    "phase": "native_validation",
+                    "message": (
+                        "Checking native component inventory, net topology and KiCad ERC. Original schematic untouched."
+                    ),
+                }
+                with self.review_server.lock:
+                    self.review_server.jobs[job_id] = job
+                    self.review_server.eco_outputs[job_id] = output
+                worker = threading.Thread(
+                    target=self._run_eco_job,
+                    args=(job_id, staged / "source.kicad_sch", output, payload["reference"], payload["value"]),
+                    daemon=True,
+                )
+                worker.start()
+                handed_off = True
+                self._json(HTTPStatus.ACCEPTED, job)
+            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError, OSError) as exc:
+                if not handed_off:
+                    if staged is not None:
+                        shutil.rmtree(staged, ignore_errors=True)
+                    self.review_server.worker_lock.release()
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:230]})
             return
         if urlparse(self.path).path == "/api/projects/restore":
             if not self._authorize():
@@ -577,6 +715,37 @@ class ReviewHandler(BaseHTTPRequestHandler):
             # An already started worker remains responsible for finishing the
             # local analysis, even if the browser disconnects mid-response.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Local import preparation failed"})
+
+    def _run_eco_job(self, job_id: str, source: Path, output: Path, ref: str, value: str) -> None:
+        result: dict = {"state": "failed", "message": "Native KiCad authoring validation failed; no change approved"}
+        try:
+            from review_studio_schematic_eco import create
+
+            evidence = create(source, output, ref, value)
+            result = {
+                "state": "complete",
+                "message": "New independent KiCad schematic copy verified; no PCB/BOM synchronization",
+                "eco": {
+                    "id": job_id,
+                    "reference": evidence["reference"],
+                    "old_value": evidence["old_value"],
+                    "new_value": evidence["new_value"],
+                    "fabApproved": False,
+                    "pcbSynchronized": False,
+                },
+            }
+        except ValueError as exc:
+            result = {"state": "failed", "message": "Native schematic ECO blocked: " + str(exc)[:175]}
+            shutil.rmtree(output, ignore_errors=True)
+        except (OSError, RuntimeError, subprocess.TimeoutExpired, UnicodeError):
+            shutil.rmtree(output, ignore_errors=True)
+        finally:
+            shutil.rmtree(source.parent, ignore_errors=True)
+            with self.review_server.lock:
+                self.review_server.jobs[job_id].update(result)
+                if result["state"] == "failed":
+                    self.review_server.eco_outputs.pop(job_id, None)
+            self.review_server.worker_lock.release()
 
     def _run_analysis(self, job_id: str, name: str, board: Path, schematic: Path | None) -> None:
         result: dict[str, str] = {"state": "failed", "message": "Native review did not complete"}

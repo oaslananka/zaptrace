@@ -10,12 +10,12 @@ import zipfile
 from pathlib import Path
 
 FILES = (
-    "zaptrace-review-studio_0.1.5_all.deb",
-    "zaptrace-review-studio_0.1.5_all.sha256",
+    "zaptrace-review-studio_0.1.6_all.deb",
+    "zaptrace-review-studio_0.1.6_all.sha256",
     "RELEASE_MANIFEST.json",
-    "CLEAN_UBUNTU_2404_015_QA.txt",
+    "CLEAN_UBUNTU_2404_016_QA.txt",
 )
-VERSIONED_KIT = "zaptrace-review-studio_0.1.5_ubuntu24.04-local-RC.zip"
+VERSIONED_KIT = "zaptrace-review-studio_0.1.6_ubuntu24.04-local-RC.zip"
 TIMESTAMP = (2023, 11, 15, 1, 13, 20)
 
 
@@ -34,7 +34,7 @@ def create(distribution: Path, quickstart: Path) -> Path:
     if mapped[FILES[1]].decode("ascii").strip() != actual + "  " + FILES[0]:
         raise ValueError("Current .deb hash is not proven by the provided SHA manifest")
     metadata = json.loads(mapped[FILES[2]])
-    if metadata.get("package", {}).get("sha256") != actual or metadata.get("version") != "0.1.5":
+    if metadata.get("package", {}).get("sha256") != actual or metadata.get("version") != "0.1.6":
         raise ValueError("Release manifest does not match this exact .deb")
     verified = metadata.get("validation", {})
     required = (
@@ -42,7 +42,8 @@ def create(distribution: Path, quickstart: Path) -> Path:
         "clean_ubuntu_disposable_container_real_apt_install",
         "clean_ubuntu_container_native_3d_isometric_and_top",
         "clean_ubuntu_container_native_3d_eight_camera_orbit_frames",
-        "clean_ubuntu_container_inplace_011_to_015_upgrade",
+        "clean_ubuntu_localhost_schematic_value_eco_native_validation",
+        "clean_ubuntu_container_inplace_011_to_016_upgrade",
         "clean_ubuntu_container_legacy_zip_restored_using_fresh_kicad",
     )
     if not all(verified.get(x) is True for x in required):
@@ -50,7 +51,7 @@ def create(distribution: Path, quickstart: Path) -> Path:
     if any(verified.get(x) is not False for x in ("code_signed", "fabrication_approved")):
         raise ValueError("Release is not allowed to imply trusted signing or fabrication approval")
     qa = mapped[FILES[3]].decode("utf-8")
-    if f"PACKAGE_SHA256={actual}" not in qa or "Actual APT remove 0.1.5 passed" not in qa:
+    if f"PACKAGE_SHA256={actual}" not in qa or "Actual APT remove 0.1.6 passed" not in qa:
         raise ValueError("Clean Ubuntu QA does not belong to this package")
     readme = quickstart.read_bytes()
     if (

@@ -151,7 +151,7 @@ def serve(workspace: Path, session: Path, no_browser: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", action="version", version="ZapTrace Review Studio 0.1.5")
+    parser.add_argument("--version", action="version", version="ZapTrace Review Studio 0.1.6")
     parser.add_argument(
         "--doctor", action="store_true", help="Check KiCad 10 and desktop dependencies without starting"
     )
