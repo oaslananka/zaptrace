@@ -131,6 +131,25 @@ Read-only plugins are significantly safer — they can audit, analyse, and repor
 
 ## 5. Sandbox Model
 
+### Current implementation boundary (0.3.x)
+
+The implemented HardenedPluginRuntime offers admission checks, process
+separation, a timeout, an explicit environment-variable allowlist, and
+entrypoint path validation. **It is not an OS-enforced filesystem or network
+sandbox:** declared capabilities alone do not isolate arbitrary Python or
+native code. Use trusted, explicitly admitted plugins only until a dedicated
+restricted-identity/container runtime is implemented.
+
+For Python plugins, the host PYTHONPATH is **not inherited by default**,
+to avoid importing modules from arbitrary host-controlled directories. An
+operator can explicitly add it to PluginRuntimeConfig.allowed_env_vars,
+which weakens that safeguard and should not be used for untrusted plugins.
+
+The manifest v1 schema reserves entry.type = "wasm" for future use.
+The current runtime **fails closed** for that entry type rather than
+executing a .wasm path as a native binary. A real capability-restricted
+WASI runner is required before WASM execution can be enabled.
+
 ### Phase 1 (this design) — Process-Level Isolation
 
 No sandbox enforcement yet. This design defines the security contract.
