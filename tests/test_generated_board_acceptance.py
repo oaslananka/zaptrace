@@ -24,6 +24,10 @@ def test_esp32_usb_sensor_generated_board_end_to_end_acceptance(tmp_path: Path) 
     assert "not-fabrication-ready" in compiled.design.meta.tags
 
     expected_files = {
+        # Portable KiCad symbol library must accompany any generated schematic;
+        # preserve these as real files instead of relaxing the exact file set.
+        "ZapTrace.kicad_sym",
+        "sym-lib-table",
         "board-generation-intent.json",
         "esp32_usb_sensor_generated_v1.design_ir_compilation.json",
         "esp32_usb_sensor_generated_v1.kicad_pro",
@@ -36,6 +40,8 @@ def test_esp32_usb_sensor_generated_board_end_to_end_acceptance(tmp_path: Path) 
         "esp32_usb_sensor_generated_v1.generated_project_evidence.json",
     }
     assert expected_files == {path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*") if path.is_file()}
+    assert "(kicad_symbol_lib" in (tmp_path / "ZapTrace.kicad_sym").read_text(encoding="utf-8")
+    assert "ZapTrace.kicad_sym" in (tmp_path / "sym-lib-table").read_text(encoding="utf-8")
 
     bundle = result.bundle
     assert bundle.passed is True

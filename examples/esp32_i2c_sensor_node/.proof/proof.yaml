@@ -89,6 +89,8 @@ checks:
         - "C2.P2"
         - "C3.P2"
         - "D1.GND"
+        - "R3.P2"
+        - "R4.P2"
 
 author: "ZapTrace Core Team"
 tags: ["esp32", "sensor", "jlcpcb", "example"]

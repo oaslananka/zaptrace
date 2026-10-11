@@ -170,8 +170,17 @@ def test_physical_demo_does_not_emit_fallback_copper_when_grid_cannot_route(tmp_
     assert ctx.routing is not None
     assert ctx.routing.routed_nets == 0
     assert ctx.routing.total_nets > 0
-    assert set(ctx.routing.unrouted_nets) == {"VCC_5V", "VCC_3V3", "I2C_SDA", "I2C_SCL"}
-    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 4
+    # Both USB-C CC termination paths are now explicit source nets.
+    # All six nets must remain visibly unrouted instead of unsafe fallback copper.
+    assert set(ctx.routing.unrouted_nets) == {
+        "VCC_5V",
+        "VCC_3V3",
+        "I2C_SDA",
+        "I2C_SCL",
+        "USB_CC1",
+        "USB_CC2",
+    }
+    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 6
     assert design.routing is not None
     assert not design.routing.traces
     pilot.run_stage(ctx, PipelineStage.KICAD)

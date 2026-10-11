@@ -45,23 +45,36 @@ _PINNED_FOOTPRINTS: dict[str, tuple[str, str]] = {
         "SOT-223-3_TabPin2.kicad_mod",
         "8ae5f03e2c16377abed15e51af6864e23a934e1457b97fb7ea930e17fa99f11d",
     ),
+    "pesd5v0s1ba-sod323": (
+        "D_SOD-323.kicad_mod",
+        "03669ee95335b8ad49c3458e5262e7c2fd7ace6fe481bfd00f46b6f2f32abc8a",
+    ),
 }
+
+
+def verified_footprint_bytes(asset_id: str) -> tuple[str, bytes]:
+    """Return trusted footprint filename and verified, immutable bytes.
+
+    Callers may write these exact bytes into a portable KiCad .pretty
+    library. Arbitrary filenames and modified vendored data fail closed.
+    """
+    if asset_id not in _PINNED_FOOTPRINTS:
+        raise ValueError(f"Unknown verified footprint asset: {asset_id!r}")
+    filename, expected_digest = _PINNED_FOOTPRINTS[asset_id]
+    source = Path(__file__).resolve().parents[2] / "data" / "footprints" / "vendor" / filename
+    try:
+        content = source.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"Verified footprint asset unavailable: {asset_id!r}") from exc
+    if hashlib.sha256(content).hexdigest() != expected_digest:
+        raise ValueError(f"Verified footprint SHA-256 mismatch: {asset_id!r}")
+    return filename, content
 
 
 def resolve_verified_footprint(asset_id: str) -> FootprintDef:
     """Load a pinned checked-in footprint or fail closed on unknown/modified data."""
-    if asset_id not in _PINNED_FOOTPRINTS:
-        raise ValueError(f"Unknown verified footprint asset: {asset_id!r}")
-    filename, expected_digest = _PINNED_FOOTPRINTS[asset_id]
-    # `data/` is included beside `zaptrace/` in source and built wheels.
-    vendored_dir = Path(__file__).resolve().parents[2] / "data" / "footprints" / "vendor"
-    source = vendored_dir / filename
-    try:
-        actual_digest = hashlib.sha256(source.read_bytes()).hexdigest()
-    except OSError as exc:
-        raise ValueError(f"Verified footprint asset unavailable: {asset_id!r}") from exc
-    if actual_digest != expected_digest:
-        raise ValueError(f"Verified footprint SHA-256 mismatch: {asset_id!r}")
+    filename, _checked_bytes = verified_footprint_bytes(asset_id)
+    source = Path(__file__).resolve().parents[2] / "data" / "footprints" / "vendor" / filename
     footprint = load_kicad_footprint(source)
     if footprint is None or not footprint.pads:
         raise ValueError(f"Verified footprint has no parseable pads: {asset_id!r}")

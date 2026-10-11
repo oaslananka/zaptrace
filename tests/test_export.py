@@ -205,7 +205,11 @@ class TestKiCad:
     def test_empty_design(self, tmp_path: Path) -> None:
         d = Design(meta=DesignMeta(name="empty"))
         files = export_kicad_schematic(d, tmp_path)
-        assert len(files) == 2
+        assert set(files) == {"schematic", "project", "symbol_library", "symbol_library_table"}
+        assert all(path.is_file() for path in files.values())
+        # Empty designs still need a loadable project-local symbol library.
+        assert "(kicad_symbol_lib" in files["symbol_library"].read_text(encoding="utf-8")
+        assert "ZapTrace.kicad_sym" in files["symbol_library_table"].read_text(encoding="utf-8")
 
     # ------------------------------------------------------------------
     # PCB export (export_kicad_pcb)
