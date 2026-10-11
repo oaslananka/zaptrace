@@ -24,7 +24,7 @@ import contextlib
 import html
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -131,6 +131,15 @@ class InteractiveViewerBundle(BaseModel):
     non_claims: list[str] = Field(default_factory=list)
 
 
+class ViewerReviewSummary(BaseModel):
+    """Evidence-limited status for inspection, never fabrication approval."""
+
+    drc_state: Literal["not_checked", "blocking", "warning", "no_recorded_findings"] = "not_checked"
+    drc_findings: int = 0
+    proof_state: Literal["not_provided", "manifest_only"] = "not_provided"
+    fabrication_state: Literal["human_review_required"] = "human_review_required"
+
+
 class ViewerData(BaseModel):
     """Complete viewer data bundle for JSON serialization."""
 
@@ -147,6 +156,7 @@ class ViewerData(BaseModel):
     violations: list[ViewerViolation] = Field(default_factory=list)
     bom: list[dict[str, Any]] = Field(default_factory=list)
     proof_pack: dict[str, Any] = Field(default_factory=dict)
+    review: ViewerReviewSummary = Field(default_factory=ViewerReviewSummary)
     non_claims: list[str] = Field(default_factory=list)
 
 
@@ -261,6 +271,23 @@ def _extract_bom_items(design: Design) -> list[dict[str, Any]]:
     return []
 
 
+def _review_drc_summary(design: Design) -> ViewerReviewSummary:
+    """Report *embedded* DRC only; absence of evidence is never a pass."""
+    result = design.drc_result
+    if result is None:
+        return ViewerReviewSummary()
+    count = max(result.total_violations, len(result.violations))
+    errors = max(result.errors, sum(v.severity == "error" for v in result.violations))
+    warnings = max(result.warnings, sum(v.severity == "warning" for v in result.violations))
+    if not result.passed or errors:
+        state = "blocking"
+    elif warnings or count:
+        state = "warning"
+    else:
+        state = "no_recorded_findings"
+    return ViewerReviewSummary(drc_state=state, drc_findings=count)
+
+
 def _extract_viewer_data(design: Design) -> ViewerData:
     """Convert a Design to a ViewerData bundle."""
     board_def = canonical_board_definition(design)
@@ -280,6 +307,7 @@ def _extract_viewer_data(design: Design) -> ViewerData:
         vias=vias,
         violations=_extract_violations(design),
         bom=_extract_bom_items(design),
+        review=_review_drc_summary(design),
         non_claims=[
             "interactive local review artifact, not cloud upload",
             "viewer is inspection-only and does not mutate designs",
@@ -361,6 +389,11 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: v
 .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 .sidebar { background: var(--bg-card); border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; }
 .sidebar-section { margin-bottom: 16px; }
+.review-status { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+.review-item { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; font-size: 12px; }
+.review-item strong { text-align: right; }
+.review-note { font-size: 11px; color: var(--text-secondary); line-height: 1.5; margin: 8px 0 10px; }
+.review-status .btn { width: 100%; }
 .sidebar-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 8px; }
 .search-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 13px; outline: none; }
 .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
@@ -420,6 +453,14 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: v
     </div>
   </header>
   <aside class="sidebar" id="sidebar">
+    <section class="review-status" aria-label="Review readiness" id="reviewStatus">
+      <div class="sidebar-title">Review readiness</div>
+      <div class="review-item"><span>Embedded DRC</span><strong id="reviewDrc">Not checked</strong></div>
+      <div class="review-item"><span>Proof evidence</span><strong id="reviewProof">Not provided</strong></div>
+      <div class="review-item"><span>Fabrication</span><strong id="reviewFabrication">Human review required</strong></div>
+      <p class="review-note" id="reviewNextAction">This viewer does not verify native KiCad DRC, physical continuity or manufacturing approval.</p>
+      <button class="btn" type="button" id="btnReviewFindings">Inspect DRC findings</button>
+    </section>
     <div class="sidebar-section">
       <div class="sidebar-title">Search</div>
       <input class="search-input" id="searchInput" placeholder="Component ref or net name…" />
@@ -468,7 +509,26 @@ function init() {
   document.getElementById("headerMeta").textContent =
     DATA.design_name + " \u2014 " + DATA.components.length + " components, " +
     DATA.nets.length + " nets, " + DATA.board.layers + "-layer";
-  buildLayers(); buildTabs(); buildBom(); renderBoard(); fitAll(); bindEvents();
+  buildLayers(); buildTabs(); buildBom(); renderReviewStatus(); renderBoard(); fitAll(); bindEvents();
+}
+
+function renderReviewStatus() {
+  var review = DATA.review;
+  var messages = {
+    not_checked: "Not checked",
+    blocking: "Blocking findings",
+    warning: "Findings need review",
+    no_recorded_findings: "No embedded findings"
+  };
+  document.getElementById("reviewDrc").textContent =
+    messages[review.drc_state] +
+    (review.drc_state === "not_checked" ? "" : " (" + review.drc_findings + ")");
+  document.getElementById("reviewProof").textContent = review.proof_state === "manifest_only"
+    ? "Manifest only — not verified" : "Not provided";
+  document.getElementById("reviewFabrication").textContent = "Human review required";
+  document.getElementById("reviewNextAction").textContent = review.drc_state === "blocking"
+    ? "Inspect the recorded DRC blockers. External KiCad, connectivity, proof execution and fabrication approval are not verified here."
+    : "Check the recorded DRC evidence and run external validation. This viewer cannot establish production readiness.";
 }
 
 function buildLayers() {
@@ -728,6 +788,16 @@ function bindEvents() {
     panX=mx-(mx-panX)*(zoom/old); panY=my-(my-panY)*(zoom/old);
     applyTx();
   }, {passive:false});
+  document.getElementById("btnReviewFindings").addEventListener("click", function() {
+    activeTab = "violations";
+    document.getElementById("searchInput").value = "";
+    document.querySelectorAll(".tab").forEach(function(tab) {
+      tab.classList.toggle("active", tab.dataset.tab === "violations");
+    });
+    renderTab();
+    document.getElementById("tabContent").setAttribute("tabindex", "-1");
+    document.getElementById("tabContent").focus();
+  });
   document.getElementById("searchInput").addEventListener("input", renderTab);
   document.getElementById("btnFitAll").addEventListener("click", fitAll);
   document.getElementById("btnTheme").addEventListener("click", function(){
@@ -803,6 +873,9 @@ def generate_interactive_viewer(
 
     viewer_data = _extract_viewer_data(design_obj)
     viewer_data.proof_pack = proof_summary
+    # proof.yaml is a manifest/configuration, never an executed proof verdict.
+    if proof_summary.get("present"):
+        viewer_data.review.proof_state = "manifest_only"
 
     data_json = viewer_data.model_dump(mode="json")
     data_json_str = json.dumps(data_json, separators=(",", ":"))

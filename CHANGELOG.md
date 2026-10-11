@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add a fail-closed, inspection-only Review Studio readiness summary to the offline interactive PCB viewer: embedded DRC findings, distinct proof-manifest-vs-executed-proof status, fabrication human-review requirement and accessible navigation to recorded findings. Missing evidence is never interpreted as a pass; no actual PCB approval is implied.
+
 ### Fixed
 
 - Correct Renovate package-rule precedence so the Ruff Python package and ruff-pre-commit hook share one update group, preserving their exact lockfile/pre-commit version-parity test rather than creating independently failing PRs.

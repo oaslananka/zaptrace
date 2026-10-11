@@ -303,6 +303,19 @@ Scenario: ESP32 sensor board release review.
 10. Commit and release-export controls become enabled because permission scope, validation gates, and approval evidence are present.
 11. CI publishes a static review bundle attached to the pull request.
 
+## Review-first viewer increment (October 2026)
+
+The current **local interactive browser viewer** now starts with an inspection-only
+**Review readiness** summary and a keyboard-focusable **Inspect DRC findings** action.
+The summary deliberately distinguishes the design's *embedded* DRC report from
+external native KiCad validation: missing embedded DRC reports show **Not checked**,
+recorded warnings/errors remain visible, and zero embedded findings are **not**
+labeled as production readiness. Supplying a `proof.yaml` config shows **Manifest
+only — not verified**, never an executed proof verdict; **Human review required**
+is always visible for fabrication. This is a small, tested usability improvement,
+**not** the planned authenticated Review Studio approval workflow or a complete
+end-user design app. User studies and visual-diff interactions remain future work.
+
 ## First Implementation Slice
 
 Build static proof-pack/design review bundle generation before building an interactive app.

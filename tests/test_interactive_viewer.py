@@ -177,6 +177,37 @@ class TestViewerDataExtraction:
         assert len(data.non_claims) >= 1
         assert any("human review" in nc for nc in data.non_claims)
 
+    def test_review_summary_preserves_warning_without_implying_fab_approval(self, simple_design: Design) -> None:
+        review = _extract_viewer_data(simple_design).review
+        assert review.drc_state == "warning"
+        assert review.drc_findings == 1
+        assert review.proof_state == "not_provided"
+        assert review.fabrication_state == "human_review_required"
+
+    def test_review_summary_does_not_treat_missing_drc_as_success(self, simple_design: Design) -> None:
+        simple_design.drc_result = None
+        review = _extract_viewer_data(simple_design).review
+        assert review.drc_state == "not_checked"
+        assert review.drc_findings == 0
+
+    def test_review_summary_respects_failed_gate_with_no_violation_entries(self, simple_design: Design) -> None:
+        assert simple_design.drc_result is not None
+        simple_design.drc_result.passed = False
+        simple_design.drc_result.violations = []
+        simple_design.drc_result.total_violations = 0
+        simple_design.drc_result.errors = 0
+        simple_design.drc_result.warnings = 0
+        assert _extract_viewer_data(simple_design).review.drc_state == "blocking"
+
+    def test_review_summary_zero_findings_only_describes_embedded_drc(self, simple_design: Design) -> None:
+        assert simple_design.drc_result is not None
+        simple_design.drc_result.violations = []
+        simple_design.drc_result.total_violations = 0
+        simple_design.drc_result.warnings = 0
+        review = _extract_viewer_data(simple_design).review
+        assert review.drc_state == "no_recorded_findings"
+        assert review.fabrication_state == "human_review_required"
+
     def test_schema_version(self, simple_design: Design) -> None:
         data = _extract_viewer_data(simple_design)
         assert data.schema_version == "2.0"
@@ -246,6 +277,29 @@ class TestInteractiveViewerGeneration:
         assert "layerSection" in html_content
         assert "infoPanel" in html_content
         assert "statusBar" in html_content
+
+    def test_readiness_ui_has_nonclaims_and_navigation(self, simple_design: Design, tmp_path: Path) -> None:
+        result = generate_interactive_viewer(simple_design, tmp_path)
+        page = Path(result.index_path).read_text(encoding="utf-8")
+        data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
+        assert 'aria-label="Review readiness"' in page
+        assert 'id="reviewDrc"' in page
+        assert 'id="reviewProof"' in page
+        assert 'id="reviewFabrication"' in page
+        assert 'id="btnReviewFindings"' in page
+        assert 'activeTab = "violations"' in page
+        assert 'document.getElementById("tabContent").focus()' in page
+        assert "native KiCad" in page
+        assert data["review"]["drc_state"] == "warning"
+        assert data["review"]["fabrication_state"] == "human_review_required"
+
+    def test_proof_manifest_not_mistaken_for_executed_result(self, simple_design: Design, tmp_path: Path) -> None:
+        proof = tmp_path / "proof.yaml"
+        proof.write_text("name: sample\nchecks: []\nstatus: pass\n", encoding="utf-8")
+        result = generate_interactive_viewer(simple_design, tmp_path / "review", proof_path=proof)
+        data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
+        assert data["review"]["proof_state"] == "manifest_only"
+        assert data["review"]["fabrication_state"] == "human_review_required"
 
     def test_html_contains_viewer_data(self, simple_design: Design, tmp_path: Path) -> None:
         result = generate_interactive_viewer(simple_design, tmp_path)
