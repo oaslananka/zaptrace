@@ -344,7 +344,7 @@ Milestone slice:
 The existing local/offline viewer has a **review-first dashboard**, responsive
 board preview, component/net search, layer visibility, DRC inspection,
 provenance-limited status, part details and keyboard focus controls. A
-reproducible [synthetic UX fixture](../../examples/review_studio_ux_fixture/README.md)
+reproducible [synthetic UX fixture](https://github.com/oaslananka/zaptrace/tree/main/examples/review_studio_ux_fixture)
 contains eight displayed components, five nets, nine illustrative segments and
 two **synthetic** blocking/warning markers to make the interactions visible.
 

@@ -11,7 +11,7 @@ locally, without accounts, network requests, or cloud uploads:
 
 ```bash
 zaptrace view examples/review_studio_ux_fixture/design.yaml \
-  --proof examples/review_studio_ux_fixture/proof.yaml \
+  --proof examples/review_studio_ux_fixture/synthetic-proof-manifest.yaml \
   --output build/review-studio-demo --open
 ```
 

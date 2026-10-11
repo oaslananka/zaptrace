@@ -318,7 +318,7 @@ class TestInteractiveViewerGeneration:
 
     def test_visual_demo_fixture_reports_embedded_blockers_only(self, tmp_path: Path) -> None:
         path = Path(__file__).resolve().parents[1] / "examples/review_studio_ux_fixture/design.yaml"
-        proof = path.with_name("proof.yaml")
+        proof = path.with_name("synthetic-proof-manifest.yaml")
         result = generate_interactive_viewer(path, tmp_path, proof_path=proof)
         data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
         assert len(data["components"]) == 8
