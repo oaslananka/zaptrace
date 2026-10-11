@@ -100,3 +100,49 @@ container verification record without modifying the already APT-tested package:
   --gate-log build/distribution/RELEASE_GATE.log \
   --container-qa-log build/distribution/CLEAN_UBUNTU_2404_012_QA.txt
 ```
+
+## 0.1.4 — end-to-end native KiCad 3D acceptance (local, unsigned)
+
+The **exact** local 0.1.4 package SHA-256 is
+`dc1a93cd2f4c6f0fb647ac0d857fb70462060c68ea74b6f982d3da3a2dabd025`.
+The offline kit SHA-256 is
+`33afdb05df4ceae36d5adddc9e9c7ea25b1f81f9eaf67506ffa30b6c6764aaea`.
+Those two checksums are independent; do not reuse this acceptance report for a
+changed `.deb`. The local artifact receipt is
+`build/distribution/CLEAN_UBUNTU_2404_014_QA.txt`, with the SHA-bound
+`RELEASE_MANIFEST.json` and `zaptrace-review-studio_0.1.4_ubuntu24.04-local-RC.zip`.
+
+In the disposable Ubuntu 24.04 / KiCad 10.0.7 environment, actual system APT
+reinstalled legacy **0.1.1** and upgraded to the exact **0.1.4**. Hashes of
+all previously saved ERC, DRC, evidence and project-manifest files were
+checked byte-for-byte. Local headless `xvfb`/`xauth` was installed explicitly
+for native OpenGL; its availability is **optional**, and the application
+shows an unavailable 3D state when not configured.
+
+The installed 0.1.4 generated **two authentic KiCad 10 camera PNG renders**
+(isometric, top) and two native Eeschema hierarchy page previews without
+editing the source PCB. Its source PCB SHA was verified. After discovering
+that the first 0.1.4 candidate enabled 3D for the direct CLI but **not** for
+native project imports, the `review_studio_workspace.py add` flow was fixed.
+The corrected package was rebuilt, all tests rerun and a new SHA generated;
+**only the corrected package** passed the final local release manifest gate.
+
+The final corrected package restored a legacy 0.1.1 backup via the actual
+localhost import endpoint. The restored review regenerated KiCad ERC, DRC,
+two genuine schematic SVG sheets and both 3D images. Real Chromium desktop
+and 390px-mobile inspection of **that restored review's HTML** tested the
+camera switch, schematic sheet navigation, source-linked placeholders and
+fabrication warnings. A true `apt remove` afterward preserved four user
+review directories and their native ERC/DRC, the backup ZIP and original
+sources; the installed app executables were removed. The disposable Ubuntu
+container was then removed.
+
+**Important:** The 3D view is a real KiCad-rendered *image*, not full
+interactive 3D CAD. Component 3D model availability/completeness, enclosure
+fit, mechanical clearance and fabrication signoff are NOT verified. Native
+DRC counts change with supplied project/rule context: a deliberately
+incomplete context reported 30 rule findings where the separate fully
+scoped Issue #91 design review had reported 16. Chrome tests check the
+actual native DRC source data rather than assuming either context is
+interchangeable. The package is still unsigned, not public GA, and has not
+passed independent physical-device or unassisted external-user acceptance.
