@@ -100,8 +100,10 @@ def test_physical_candidate_uses_collision_aware_grid_routing() -> None:
 
     assert design.routing is not None
     assert design.routing.net_count == 6
-    assert design.routing.routed_net_count == 6
-    assert {trace.net_id for trace in design.routing.traces} == {"CC1", "CC2", "VBUS", "VDD_3V3", "SDA", "SCL"}
+    # Transactional, net-owned copper refuses SCL's conflicting tentative
+    # geometry instead of claiming a physically connected net.
+    assert design.routing.routed_net_count == 5
+    assert {trace.net_id for trace in design.routing.traces} == {"CC1", "CC2", "VBUS", "VDD_3V3", "SDA"}
     assert "F.Cu_GND" in design.copper_pours
     pour = design.copper_pours["F.Cu_GND"]
 
@@ -131,6 +133,6 @@ def test_physical_candidate_uses_collision_aware_grid_routing() -> None:
 
     drc = DRCEngine().run(design)
     blocking = [violation for violation in drc.violations if violation.severity.value == "error"]
-    assert len(blocking) == 1
-    assert blocking[0].rule_id == "DRC-005"
-    assert blocking[0].net_id == "GND"
+    assert len(blocking) == 2
+    assert {item.rule_id for item in blocking} == {"DRC-005"}
+    assert {item.net_id for item in blocking} == {"GND", "SCL"}
