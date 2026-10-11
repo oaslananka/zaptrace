@@ -1,0 +1,649 @@
+#!/usr/bin/env python3
+"""Localhost-only KiCad Review Studio GUI bridge, no cloud or shell execution.
+
+The explicitly selected KiCad files are copied into the local workspace,
+independently analysed by the installed native KiCad binaries, never edited.
+A random bearer capability, strict HTTP origin checks, body limits and an
+allowlist of public review outputs gate the localhost interface.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import threading
+import uuid
+import zipfile
+from email.parser import BytesParser
+from email.policy import default
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
+
+from review_studio_library import delete_review, export_review, validate_restore_backup
+from review_studio_workspace import (
+    _read_projects,
+    _slug,
+    render_workspace,
+    safe_sheet_path,
+    validate_schematic_hierarchy,
+)
+
+MAX_UPLOAD = 34 * 1024 * 1024
+MAX_SHEETS = 32
+MAX_TOTAL_SHEETS = 16 * 1024 * 1024
+MAX_PCB = 10 * 1024 * 1024
+MAX_SCHEMATIC = 4 * 1024 * 1024
+MAX_PROJECT = 3 * 1024 * 1024
+MAX_CUSTOM_RULES = 512 * 1024
+MIMES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".rpt": "text/plain; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+}
+
+
+def checked_name(filename: str, extension: str) -> bool:
+    return (
+        isinstance(filename, str)
+        and filename.lower().endswith(extension)
+        and Path(filename).name == filename
+        and len(filename) <= 180
+        and not any(c in filename for c in ("\x00", "/", "\\", "\n", "\r"))
+    )
+
+
+def parse_multipart(content_type: str, data: bytes) -> dict[str, tuple[str, bytes]]:
+    if not content_type.startswith("multipart/form-data;") or "boundary=" not in content_type:
+        raise ValueError("Expected multipart/form-data file submission")
+    mime = b"MIME-Version: 1.0\r\nContent-Type: " + content_type.encode("ascii", "strict") + b"\r\n\r\n" + data
+    message = BytesParser(policy=default).parsebytes(mime)
+    if not message.is_multipart():
+        raise ValueError("Invalid multipart file submission")
+    fields: dict[str, tuple[str, bytes]] = {}
+    for part in message.iter_parts():
+        field = part.get_param("name", header="content-disposition")
+        if (
+            field not in ("name", "board", "schematic", "project", "rules", "sheet_paths")
+            and not (isinstance(field, str) and re.fullmatch(r"sheet\d{3}", field))
+        ) or field in fields:
+            raise ValueError("Unexpected or duplicate upload field")
+        filename = part.get_filename() or ""
+        payload = part.get_payload(decode=True)
+        if not isinstance(payload, bytes):
+            raise ValueError("Malformed file payload")
+        fields[field] = (filename, payload)
+    if not all(k in fields for k in ("name", "board")):
+        raise ValueError("Project name and native KiCad PCB are required")
+    return fields
+
+
+class ReviewLocalServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self, address: tuple[str, int], workspace: Path) -> None:
+        self.workspace = workspace.resolve()
+        self.secret = secrets.token_urlsafe(32)
+        self.jobs: dict[str, dict] = {}
+        self.job_outputs: dict[str, Path] = {}
+        self.lock = threading.Lock()
+        self.worker_lock = threading.Lock()
+        super().__init__(address, ReviewHandler)
+
+
+NATIVE_ARTIFACTS = {
+    "geometry": "plot-F.Cu.svg",
+    "drc": "native-drc.rpt",
+    "netlist": "native-schematic-netlist.xml",
+    "erc": "native-erc.rpt",
+}
+
+
+def observed_native_artifacts(output: Path) -> list[str]:
+    """Read only real output files from this one UUID-isolated KiCad run.
+
+    Schematic reports do not exist for a board-only import and must never be
+    displayed as completed merely because the review was registered.
+    """
+    return [name for name, filename in NATIVE_ARTIFACTS.items() if (output / filename).is_file()]
+
+
+def observed_native_phase(output: Path) -> tuple[str, str]:
+    """Report the furthest observed native phase, not success or percent."""
+    evidence = observed_native_artifacts(output)
+    descriptions = {
+        "erc": "KiCad schematic ERC report recorded; findings may remain",
+        "netlist": "Native schematic netlist recorded; cross-check not yet finished",
+        "drc": "KiCad PCB DRC report recorded; this does not mean DRC passed",
+        "geometry": "KiCad copper plot recorded; design-rule analysis still pending",
+    }
+    if evidence:
+        phase = evidence[-1]
+        return phase, descriptions[phase]
+    return "preparing", "Local input files staged; native KiCad review starting"
+
+
+def native_failure_reason(stderr: str) -> str:
+    """Surface actionable native failure categories without disclosing paths or board contents."""
+    checks = (
+        ("Edge.Cuts board outline", "Native board outline is missing or invalid on Edge.Cuts."),
+        ("Native KiCad DRC counters disagree", "KiCad DRC output did not validate; review is blocked."),
+        (
+            "Missing subordinate KiCad schematic",
+            "A referenced hierarchical schematic is missing; select the complete folder.",
+        ),
+        (
+            "Native netlist and schematic references differ",
+            "Schematic references disagree with the native netlist; check project libraries.",
+        ),
+        (
+            "No single-sheet schematic symbol instances",
+            "The root schematic contains no supported symbols; verify KiCad input and page hierarchy.",
+        ),
+        ("Native schematic SVG page dimensions missing", "KiCad could not render a readable schematic page."),
+        ("Native pcbnew unavailable", "KiCad 10 Python bindings unavailable; run the dependency diagnostic."),
+    )
+    for signature, explanation in checks:
+        if signature in stderr:
+            return explanation
+    return "Native KiCad import failed. Check the PCB, project settings, original library context and schematic files."
+
+
+class ReviewHandler(BaseHTTPRequestHandler):
+    @property
+    def review_server(self) -> ReviewLocalServer:
+        return self.server  # type: ignore[return-value]
+
+    def log_message(self, format: str, *args: object) -> None:
+        # Never log user-selected paths or file bodies.
+        pass
+
+    def _json(self, status: int, item: dict) -> None:
+        raw = json.dumps(item, ensure_ascii=True).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _authorize(self) -> bool:
+        # Origin protection includes literal IPv4 loopback + exact ephemeral port.
+        origin = self.headers.get("Origin")
+        expected = f"http://127.0.0.1:{self.review_server.server_port}"
+        if (
+            (origin is not None and origin != expected)
+            or (self.command == "POST" and origin != expected)
+            or self.headers.get("X-Review-Token") != self.review_server.secret
+        ):
+            self._json(HTTPStatus.FORBIDDEN, {"error": "Local workspace capability/origin mismatch"})
+            return False
+        return True
+
+    def _is_known_file(self, path: Path) -> bool:
+        workspace = self.review_server.workspace
+        permitted = {workspace / "index.html"}
+        try:
+            for project in _read_projects(workspace):
+                permitted.add(project["review"])
+        except (ValueError, RuntimeError, OSError, json.JSONDecodeError):
+            return False
+        resolved = path.resolve()
+        if resolved in permitted:
+            return resolved.is_file()
+        # Only rendered assets. Never expose source PCB/upload staging copies.
+        if path.suffix.lower() not in MIMES or path.name.startswith("."):
+            return False
+        for directory in permitted:
+            if directory.is_dir() and resolved.is_relative_to(directory.resolve()):
+                return resolved.is_file()
+        return False
+
+    def _host_permitted(self) -> bool:
+        if self.headers.get("Host") != f"127.0.0.1:{self.review_server.server_port}":
+            self._json(HTTPStatus.FORBIDDEN, {"error": "Invalid localhost host header"})
+            return False
+        return True
+
+    def do_GET(self) -> None:
+        if not self._host_permitted():
+            return
+        url = urlparse(self.path)
+        if url.path == "/api/health":
+            self._json(
+                HTTPStatus.OK, {"mode": "local-read-only", "service": "KiCad native review", "fabApproved": False}
+            )
+            return
+        if url.path == "/api/projects/export":
+            if not self._authorize():
+                return
+            params = parse_qs(url.query, keep_blank_values=True)
+            if set(params) != {"key", "sha"} or len(params["key"]) != 1 or len(params["sha"]) != 1:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Expected one review ID and source checksum"})
+                return
+            if not self.review_server.worker_lock.acquire(blocking=False):
+                self._json(HTTPStatus.CONFLICT, {"error": "Wait for the active KiCad analysis to finish"})
+                return
+            try:
+                key, sha = params["key"][0], params["sha"][0]
+                payload = export_review(self.review_server.workspace, key, sha)
+            except (ValueError, OSError, RuntimeError, json.JSONDecodeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:220]})
+                return
+            finally:
+                self.review_server.worker_lock.release()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="zaptrace-review-{key}.zip"')
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+        if url.path.startswith("/api/jobs/"):
+            if not self._authorize():
+                return
+            job = url.path.removeprefix("/api/jobs/")
+            with self.review_server.lock:
+                item = self.review_server.jobs.get(job)
+                result = dict(item) if item else None
+                output = self.review_server.job_outputs.get(job)
+            if result and output is not None:
+                result["observed"] = observed_native_artifacts(output)
+                if result.get("state") == "running":
+                    phase, message = observed_native_phase(output)
+                    result["phase"], result["message"] = phase, message
+            self._json(HTTPStatus.OK if result else HTTPStatus.NOT_FOUND, result or {"error": "Unknown local job"})
+            return
+        if url.path == "/" or url.path == "/index.html":
+            try:
+                path = render_workspace(self.review_server.workspace)
+                source = path.read_text(encoding="utf-8")
+                # Bridge capability is only delivered from the bound localhost server;
+                # file:// keeps the standalone command-generation fallback.
+                bridge = (
+                    "<script>window.__REVIEW_LOCAL__={token:" + json.dumps(self.review_server.secret) + "};</script>"
+                )
+                source = source.replace("</head>", bridge + "</head>", 1)
+                self._serve_bytes(source.encode("utf-8"), ".html")
+            except (ValueError, OSError, RuntimeError) as exc:
+                self._json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"error": "Failed to render verified project library", "detail": str(exc)[:170]},
+                )
+            return
+        # Existing relative links from /<workspace>/index.html can contain ../
+        # and original review cards point to build/native-review/index.html.
+        path_text = unquote(url.path).lstrip("/")
+        if "\x00" in path_text or "\\" in path_text or ".." in Path(path_text).parts:
+            self.send_error(HTTPStatus.FORBIDDEN)
+            return
+        candidate = (self.review_server.workspace.parent / path_text).resolve()
+        if not self._is_known_file(candidate):
+            candidate = (self.review_server.workspace / path_text).resolve()
+        if not self._is_known_file(candidate):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        self._serve_bytes(candidate.read_bytes(), candidate.suffix.lower())
+
+    def _serve_bytes(self, body: bytes, ext: str) -> None:
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", MIMES.get(ext, "application/octet-stream"))
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self) -> None:
+        if not self._host_permitted():
+            return
+        if self.path == "/api/shutdown":
+            if not self._authorize():
+                return
+            if self.review_server.worker_lock.locked():
+                self._json(
+                    HTTPStatus.CONFLICT,
+                    {"error": "A native KiCad analysis is still running. Wait for the result before stopping."},
+                )
+                return
+            self._json(HTTPStatus.OK, {"state": "stopping", "message": "Local Review Studio is stopping"})
+            threading.Thread(target=self.review_server.shutdown, daemon=True).start()
+            return
+        if urlparse(self.path).path == "/api/projects/restore":
+            if not self._authorize():
+                return
+            query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
+            if set(query) != {"name"} or len(query["name"]) != 1:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "A new review display name is required"})
+                return
+            name = query["name"][0].strip()
+            if not name or len(name) > 90 or any(ch in name for ch in ("\n", "\r", "\x00")):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Choose a valid local review name"})
+                return
+            length_text = self.headers.get("Content-Length", "")
+            if (
+                self.headers.get("Content-Type") != "application/zip"
+                or not length_text.isdecimal()
+                or not 500 <= int(length_text) <= MAX_UPLOAD
+            ):
+                self._json(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    {"error": "Select a genuine Review Studio ZIP backup up to 34 MB"},
+                )
+                return
+            if not self.review_server.worker_lock.acquire(blocking=False):
+                self._json(HTTPStatus.CONFLICT, {"error": "Wait until the active KiCad analysis finishes"})
+                return
+            staged: Path | None = None
+            handed_off = False
+            try:
+                name_id = _slug(name)
+                if any(_slug(row["name"]) == name_id for row in _read_projects(self.review_server.workspace)):
+                    raise ValueError("A review with this name already exists. Choose another name to preserve it.")
+                sources = validate_restore_backup(self.rfile.read(int(length_text)))
+                job_id = uuid.uuid4().hex
+                staged = self.review_server.workspace / "local-imports" / job_id
+                staged.mkdir(parents=True, exist_ok=False)
+                for relative, raw in sources.items():
+                    dest = staged / relative
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(raw)
+                sch = staged / "source.kicad_sch" if "source.kicad_sch" in sources else None
+                if sch is not None:
+                    validate_schematic_hierarchy(sch)
+                board = staged / "source.kicad_pcb"
+                output = (
+                    self.review_server.workspace
+                    / "projects"
+                    / (_slug(name) + "-" + hashlib.sha256(sources["source.kicad_pcb"]).hexdigest()[:12] + "-" + job_id)
+                )
+                result = {
+                    "id": job_id,
+                    "state": "running",
+                    "phase": "preparing",
+                    "name": name,
+                    "message": "Restoring copied KiCad sources; independently rerunning native DRC/ERC. "
+                    "Archived reports are not trusted or used. NOT fabrication approved.",
+                }
+                with self.review_server.lock:
+                    self.review_server.jobs[job_id] = result
+                    self.review_server.job_outputs[job_id] = output
+                thread = threading.Thread(target=self._run_analysis, args=(job_id, name, board, sch), daemon=True)
+                thread.start()
+                handed_off = True
+                self._json(HTTPStatus.ACCEPTED, result)
+            except (ValueError, UnicodeError, zipfile.BadZipFile) as exc:
+                if not handed_off:
+                    if staged is not None:
+                        shutil.rmtree(staged, ignore_errors=True)
+                    self.review_server.worker_lock.release()
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:230]})
+            except Exception:
+                if not handed_off:
+                    if staged is not None:
+                        shutil.rmtree(staged, ignore_errors=True)
+                    self.review_server.worker_lock.release()
+                self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Native KiCad backup preparation failed"})
+            return
+        if self.path == "/api/projects/delete":
+            if not self._authorize():
+                return
+            length = self.headers.get("Content-Length", "")
+            if not length.isdecimal() or not 0 < int(length) <= 2048:
+                self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"error": "Invalid deletion confirmation size"})
+                return
+            if not self.review_server.worker_lock.acquire(blocking=False):
+                self._json(HTTPStatus.CONFLICT, {"error": "Wait until the active KiCad analysis finishes"})
+                return
+            try:
+                payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                if not isinstance(payload, dict) or set(payload) != {"key", "sha", "confirmation"}:
+                    raise ValueError("Review, checksum, and explicit deletion confirmation are required")
+                outcome = delete_review(
+                    self.review_server.workspace, payload["key"], payload["sha"], payload["confirmation"]
+                )
+                self._json(HTTPStatus.OK, outcome)
+            except (ValueError, OSError, RuntimeError, json.JSONDecodeError, TypeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:220]})
+            finally:
+                self.review_server.worker_lock.release()
+            return
+        if self.path != "/api/import":
+            self._json(HTTPStatus.NOT_FOUND, {"error": "Unknown command"})
+            return
+        if not self._authorize():
+            return
+        length_text = self.headers.get("Content-Length", "")
+        if not length_text.isdecimal() or not 0 < int(length_text) <= MAX_UPLOAD:
+            self._json(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                {"error": "Upload must be a local KiCad PCB under 10 MB, plus optional schematic under 4 MB"},
+            )
+            return
+        if not self.review_server.worker_lock.acquire(blocking=False):
+            self._json(HTTPStatus.CONFLICT, {"error": "Native KiCad review is already running"})
+            return
+        staged: Path | None = None
+        handed_off = False
+        try:
+            fields = parse_multipart(self.headers.get("Content-Type", ""), self.rfile.read(int(length_text)))
+            name_bytes = fields["name"][1]
+            if len(name_bytes) > 240:
+                raise ValueError("Project name too long")
+            name = name_bytes.decode("utf-8").strip()
+            if not name or len(name) > 90 or any(ch in name for ch in ("\n", "\r", "\x00")):
+                raise ValueError("Enter a valid project display name")
+            filename, pcb_bytes = fields["board"]
+            if not checked_name(filename, ".kicad_pcb") or not (100 < len(pcb_bytes) <= MAX_PCB):
+                raise ValueError("Choose an actual KiCad .kicad_pcb file up to 10 MB")
+            if not pcb_bytes.lstrip().startswith(b"(kicad_pcb"):
+                raise ValueError("Selected file is not a native KiCad PCB")
+            sch_bytes: bytes | None = None
+            if "schematic" in fields:
+                sch_file, sch_bytes = fields["schematic"]
+                if not checked_name(sch_file, ".kicad_sch") or not (100 < len(sch_bytes) <= MAX_SCHEMATIC):
+                    raise ValueError("Optional schematic must be a native .kicad_sch file under 4 MB")
+                if not sch_bytes.lstrip().startswith(b"(kicad_sch"):
+                    raise ValueError("Selected schematic is not a native KiCad schematic")
+            # Copy selected optional KiCad project settings and custom rules
+            # next to the PCB with the identical basename for native KiCad CLI.
+            other_files: dict[str, bytes] = {}
+            for key, extension, cap in (
+                ("project", ".kicad_pro", MAX_PROJECT),
+                ("rules", ".kicad_dru", MAX_CUSTOM_RULES),
+            ):
+                if key not in fields:
+                    continue
+                filename, raw = fields[key]
+                if not checked_name(filename, extension) or not (5 < len(raw) <= cap):
+                    raise ValueError(f"Choose a native {extension} file within supported size limits")
+                if key == "project":
+                    try:
+                        if not isinstance(json.loads(raw.decode("utf-8")), dict):
+                            raise ValueError("KiCad project settings must be a JSON object")
+                    except (UnicodeError, json.JSONDecodeError) as exc:
+                        raise ValueError("Invalid KiCad project settings file") from exc
+                other_files[key] = raw
+            sheet_files: list[tuple[Path, bytes]] = []
+            names = {k for k in fields if re.fullmatch(r"sheet\d{3}", k)}
+            if names or "sheet_paths" in fields:
+                if "sheet_paths" not in fields or sch_bytes is None or len(names) > MAX_SHEETS:
+                    raise ValueError("Root schematic and a complete folder of up to 32 sub-sheets are required")
+                try:
+                    paths = json.loads(fields["sheet_paths"][1].decode("utf-8"))
+                except (UnicodeError, json.JSONDecodeError) as exc:
+                    raise ValueError("Invalid local schematic sheet manifest") from exc
+                if not isinstance(paths, list) or len(paths) != len(names):
+                    raise ValueError("Incomplete list of hierarchical schematic files")
+                seen: set[Path] = set()
+                total_bytes = 0
+                for entry in paths:
+                    if not isinstance(entry, dict) or not isinstance(entry.get("key"), str):
+                        raise ValueError("Invalid subordinate sheet manifest entry")
+                    key = entry["key"]
+                    if key not in names or not isinstance(entry.get("path"), str):
+                        raise ValueError("Missing selected hierarchical schematic file")
+                    path = safe_sheet_path(entry["path"])
+                    if path in seen or path == Path("source.kicad_sch"):
+                        raise ValueError("Duplicate or colliding hierarchical sheet path")
+                    seen.add(path)
+                    file_name, raw = fields[key]
+                    # Browser folder inputs may transmit their relative
+                    # directory path in the multipart filename. Only the
+                    # manifest's independently validated relative path is
+                    # used for writes; compare the leaf filename here.
+                    file_name = Path(file_name.replace("\\", "/")).name
+                    total_bytes += len(raw)
+                    if (
+                        not checked_name(file_name, ".kicad_sch")
+                        or file_name != path.name
+                        or len(raw) < 100
+                        or total_bytes > MAX_TOTAL_SHEETS
+                        or not raw.lstrip().startswith(b"(kicad_sch")
+                    ):
+                        raise ValueError("Invalid native subordinate schematic sheet file")
+                    sheet_files.append((path, raw))
+                if len(seen) != len(names):
+                    raise ValueError("Sub-sheet manifest contains duplicates")
+            # Content is staged only inside the user-chosen local review area.
+            # No caller-supplied path is used in filesystem writes.
+            job_id = uuid.uuid4().hex
+            staged = self.review_server.workspace / "local-imports" / job_id
+            staged.mkdir(parents=True, exist_ok=False)
+            board = staged / "source.kicad_pcb"
+            board.write_bytes(pcb_bytes)
+            sch = None
+            if sch_bytes is not None:
+                sch = staged / "source.kicad_sch"
+                sch.write_bytes(sch_bytes)
+            for relative, raw in sheet_files:
+                dest = staged / relative
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(raw)
+            if sch is not None:
+                validate_schematic_hierarchy(sch)
+            if "project" in other_files:
+                (staged / "source.kicad_pro").write_bytes(other_files["project"])
+            if "rules" in other_files:
+                (staged / "source.kicad_dru").write_bytes(other_files["rules"])
+            output = (
+                self.review_server.workspace
+                / "projects"
+                / (_slug(name) + "-" + hashlib.sha256(pcb_bytes).hexdigest()[:12] + "-" + job_id)
+            )
+            result = {
+                "id": job_id,
+                "phase": "preparing",
+                "state": "running",
+                "name": name,
+                "message": "Native KiCad geometry, DRC and ERC are being checked. Manufacturing remains blocked.",
+            }
+            with self.review_server.lock:
+                self.review_server.jobs[job_id] = result
+                self.review_server.job_outputs[job_id] = output
+            thread = threading.Thread(target=self._run_analysis, args=(job_id, name, board, sch), daemon=True)
+            thread.start()
+            handed_off = True
+            self._json(HTTPStatus.ACCEPTED, result)
+        except (ValueError, UnicodeError) as exc:
+            if not handed_off:
+                if staged is not None:
+                    shutil.rmtree(staged, ignore_errors=True)
+                self.review_server.worker_lock.release()
+            self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:210]})
+        except Exception:
+            if not handed_off:
+                if staged is not None:
+                    shutil.rmtree(staged, ignore_errors=True)
+                self.review_server.worker_lock.release()
+            # An already started worker remains responsible for finishing the
+            # local analysis, even if the browser disconnects mid-response.
+            self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Local import preparation failed"})
+
+    def _run_analysis(self, job_id: str, name: str, board: Path, schematic: Path | None) -> None:
+        result: dict[str, str] = {"state": "failed", "message": "Native review did not complete"}
+        try:
+            tool = Path(__file__).with_name("review_studio_workspace.py")
+            args = [
+                sys.executable,
+                "-B",
+                str(tool),
+                "--workspace",
+                str(self.review_server.workspace),
+                "add",
+                "--run-id",
+                job_id,
+                "--name",
+                name,
+                "--board",
+                str(board),
+            ]
+            if schematic:
+                args += ["--schematic", str(schematic)]
+            done = subprocess.run(args, text=True, capture_output=True, timeout=200, check=False)
+            if done.returncode:
+                result = {"state": "failed", "message": native_failure_reason(done.stderr)}
+                return
+            # Avoid implying production status even when checks pass.
+            result = {
+                "state": "complete",
+                "message": "Native KiCad review created; NOT fabrication approved",
+                "openUrl": "/",
+            }
+        except (OSError, RuntimeError, subprocess.TimeoutExpired):
+            result = {
+                "state": "failed",
+                "message": "Import failed native validation. No project approved or published.",
+            }
+        finally:
+            if result["state"] == "failed":
+                # A bad or incomplete native import never leaves a publicly
+                # selectable card or lingering staged source-copy directory.
+                shutil.rmtree(board.parent, ignore_errors=True)
+                output = self.review_server.job_outputs.get(job_id)
+                if output is not None:
+                    shutil.rmtree(output, ignore_errors=True)
+            with self.review_server.lock:
+                self.review_server.jobs[job_id].update(result)
+            self.review_server.worker_lock.release()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--workspace", type=Path, default=Path("build/review-studio-workspace"))
+    parser.add_argument("--port", type=int, default=0, help="Ephemeral by default; loopback only")
+    args = parser.parse_args()
+    if not (0 <= args.port < 65536):
+        parser.error("Invalid port")
+    server = ReviewLocalServer(("127.0.0.1", args.port), args.workspace)
+    print(f"LOCAL REVIEW STUDIO: http://127.0.0.1:{server.server_port}/", flush=True)
+    print("LOCAL DEVICE ONLY · NO INTERNET · ORIGINAL KICAD FILES UNMODIFIED · FABRICATION BLOCKED", flush=True)
+    try:
+        server.serve_forever(poll_interval=0.3)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

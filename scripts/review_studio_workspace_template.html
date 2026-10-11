@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'"/>
+<title>ZapTrace — Review Studio Workspace</title>
+<style>
+:root{color-scheme:dark;--bg:#080f19;--surface:#0f1c2c;--raised:#17293b;--line:#2e4459;--white:#edf6fc;--muted:#8da8bd;--green:#79e8d5;--red:#ff9aab}
+*{box-sizing:border-box}body{margin:0;color:var(--white);background:var(--bg);font:14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}button,input,a{font:inherit}a{color:inherit;text-decoration:none}
+header{min-height:76px;display:flex;justify-content:space-between;align-items:center;padding:12px max(4vw,20px);gap:17px;background:#0e1a29;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:13px}.logo{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#76efd8,#4fbbc0);color:#0a2430;font-size:23px;font-weight:900}
+.brand strong{display:block;font-size:17px;letter-spacing:-.045em}.brand small{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);font-weight:800;text-transform:uppercase}
+.header-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.local{padding:8px 11px;background:#16392f;border:1px solid #286251;border-radius:8px;color:#9cf4dd;font-size:10px;font-weight:850;letter-spacing:.05em}.gate{padding:8px 11px;background:#392530;border:1px solid #754751;border-radius:8px;color:#ffc1c6;font-size:10px;font-weight:850;letter-spacing:.04em}
+main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-weight:850;font-size:10px;letter-spacing:.18em;color:var(--green)}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:25px;margin-bottom:28px}.hero h1{font-size:clamp(30px,4vw,48px);line-height:1.1;letter-spacing:-.06em;margin:10px 0}.hero p{max-width:650px;color:#a4bacd;font-size:13px;margin:9px 0 0}.hero-count{border:1px solid #35506b;background:#13283b;border-radius:12px;padding:13px 22px;text-align:center;white-space:nowrap}.hero-count strong{display:block;font:850 32px/1.12 ui-monospace,monospace;color:#9ef9e5}.hero-count span{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.1em}
+.tools{display:flex;gap:12px;align-items:center;margin:24px 0 20px}.searchbox{position:relative;flex:1;max-width:540px}.searchbox:before{content:'⌕';position:absolute;left:15px;top:8px;font-size:21px;color:#7ee9d3}.searchbox input{width:100%;background:#122439;border:1px solid #35516b;border-radius:10px;padding:13px 18px 13px 44px;color:var(--white);outline:none}.searchbox input:focus{border-color:var(--green);box-shadow:0 0 0 3px #7de3d01a}.searchbox input::placeholder{color:#809eb4}.meta-note{font-size:11px;color:#819bb1}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.project{border:1px solid #2d4359;background:#112032;overflow:hidden;border-radius:16px;box-shadow:0 15px 30px #01070e29;transition:border-color .15s ease,transform .15s ease}.project:hover{border-color:#4d8b87;transform:translateY(-2px)}.project[hidden]{display:none}.art{position:relative;height:232px;background:linear-gradient(145deg,#123831,#101e30);overflow:hidden}.art:before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#427468 0.6px,transparent 1px);background-size:19px 19px;opacity:.38}.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 38%;filter:saturate(.9) contrast(1.05)}.read-only{position:absolute;left:18px;top:16px;border:1px solid #3f7b72;background:#102a2ee8;color:#a8f7e4;padding:7px 10px;border-radius:7px;font-size:9px;font-weight:900;letter-spacing:.1em}.unavailable{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}.unavailable span{font:900 67px/1 ui-monospace,monospace;letter-spacing:-.1em;color:#65bfa6}.unavailable strong{font-size:14px}.unavailable small{color:var(--muted);font-size:11px}.content{padding:22px}.ref{display:flex;justify-content:space-between;align-items:center;gap:15px;color:#99b4c6;font:800 10px ui-monospace,monospace}.source-type{font:900 10px system-ui,sans-serif;letter-spacing:.13em;color:var(--green)}h3{font-size:22px;line-height:1.3;letter-spacing:-.03em;margin:11px 0 6px}.board-name{color:#91aabd;font:11px ui-monospace,monospace;overflow-wrap:anywhere;margin:0 0 20px}.mini-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:17px 0;border-top:1px solid #283c50;border-bottom:1px solid #283c50}.mini-metrics span{display:block;font-size:9px;letter-spacing:.1em;color:#91a9bd;font-weight:800;white-space:nowrap}.mini-metrics strong{display:block;font:820 25px/1.2 ui-monospace,monospace;margin-top:6px;color:#a5f6e5}.mini-metrics strong.danger{color:var(--red)}.counts{font-size:11px;color:#8fa8bc;margin:14px 0 19px}.actions{display:flex;gap:9px}.actions a{display:flex;justify-content:center;align-items:center;gap:16px;border-radius:8px;padding:12px 10px;font-size:11px;font-weight:850;min-height:42px}.primary{flex:1;background:linear-gradient(120deg,#78eed9,#5ccbb9);color:#0a2c2e}.primary:hover{filter:brightness(1.1)}.secondary{border:1px solid #3f6376;color:#add7de;background:#162c3c}.secondary:hover{background:#244254}
+.empty{padding:44px 25px;border:1px dashed #4b6881;background:#112138;color:#aec2d5;border-radius:13px;grid-column:1/-1;text-align:center}.onboarding{margin-top:36px;border:1px solid #294359;background:linear-gradient(115deg,#142a3c,#112031);border-radius:14px;padding:25px}.onboarding h2{font-size:19px;letter-spacing:-.03em;margin:5px 0 9px}.onboarding p{font-size:12px;color:#a7c0d1;margin:0 0 16px;max-width:860px}.onboarding code{font:11px ui-monospace,monospace;color:#bbf6e6}.terminal{overflow-x:auto;background:#091623;border:1px solid #294359;border-radius:10px;padding:16px;white-space:pre;color:#b5e6dd;font:11px/1.75 ui-monospace,monospace}.foot{padding-top:28px;margin-top:30px;border-top:1px solid #263d51;color:#7894a9;font-size:11px}.foot b{color:#d8f4e7}
+@media(max-width:1050px){.grid{grid-template-columns:1fr}.art{height:255px}.content{padding:18px}main{margin-top:27px}}@media(max-width:650px){main{width:calc(100% - 22px)}header{padding:11px}.header-right .local{display:none}.hero{display:block}.hero-count{display:inline-block;margin:18px 0 0}.meta-note{display:none}.art{height:190px}.mini-metrics strong{font-size:22px}.actions{flex-wrap:wrap}.secondary{flex:1}.onboarding{padding:17px}.terminal{font-size:9px}.gate{font-size:9px;padding:7px}}
+@media(prefers-reduced-motion:reduce){.project{transition:none}}
+
+.add-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 13px;border-radius:9px;background:#23574e;border:1px solid #448b7c;font-weight:840;font-size:11px;color:#d0fff3;white-space:nowrap}.add-link:hover{background:#2c7162}
+.import-form{border:1px solid #3a566c;background:#0e1e2e;border-radius:12px;padding:15px;margin:16px 0 10px}.import-fields{display:grid;grid-template-columns:1fr 1.5fr;gap:13px}.import-fields label{display:flex;flex-direction:column;gap:7px;color:#a7ccce;font-size:10px;font-weight:820;letter-spacing:.025em}.import-fields label:last-child{grid-column:1/-1}
+.import-fields input{padding:11px 12px;background:#091725;color:#ecf7ff;border:1px solid #35536a;border-radius:7px;outline:none;font:12px ui-monospace,monospace;min-width:0}.import-fields input:focus{border-color:#83e9ce;box-shadow:0 0 0 3px #8be5cf1b}.import-fields input::placeholder{color:#6689a0}
+#importForm button{margin-top:13px;background:#72e2c9;border:1px solid #a0f1df;color:#093530;font-weight:850;border-radius:8px;padding:11px 14px;font-size:11px}#importForm button:hover{background:#a2f8e7}
+.import-error{font-size:11px;color:#ffc3b2;min-height:0}.import-error:not(:empty){margin:9px 0;padding:9px 13px;background:#382331;border:1px solid #815063;border-radius:7px}
+.prepared{border:1px solid #4b7e73;background:#112d33;border-radius:9px;overflow:hidden;margin:13px 0}.prepared[hidden]{display:none}.prepared-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #3b706a}.prepared-head strong{font-size:12px}.prepared-head button{font-size:11px;font-weight:850;color:#a8f9e3;border:1px solid #508c81;background:#204c47;padding:6px 12px;border-radius:7px}.prepared-head button:hover{background:#327166}.prepared pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 16px;font:11px/1.7 ui-monospace,monospace;color:#bbf6e8;margin:0}.import-note{padding:10px 14px;border-top:1px solid #3a6965;color:#9ec6c2;font-size:11px}.import-fallback{margin-top:20px!important}
+@media(max-width:750px){.import-fields{grid-template-columns:1fr}.import-fields label:last-child{grid-column:auto}.add-link{padding:10px}.tools{flex-wrap:wrap}.searchbox{min-width:100%}}
+
+.native-import{background:linear-gradient(120deg,#122b36,#152736);border:1px solid #41766e;border-radius:13px;padding:22px;margin:17px 0}
+.native-import[hidden]{display:none}.native-import-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.direct-badge{color:#a0f9e1;font-size:10px;font-weight:850;letter-spacing:.1em}.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:#6bf0cc;box-shadow:0 0 10px #65edbbaa;margin-right:6px}.small-shield{font-size:10px;color:#8ec5b8}
+.native-import h3{font-size:22px;letter-spacing:-.03em;margin:13px 0 4px}.native-import p{font-size:12px;line-height:1.6;max-width:850px;color:#aed0d0}
+.native-field{display:flex;flex-direction:column;gap:8px;color:#b4d7d7;font-size:11px;font-weight:780;margin:18px 0}
+.native-field input{max-width:650px;padding:12px 13px;color:#eaf9f5;font-size:13px;background:#0b1927;border:1px solid #43677a;border-radius:9px;outline:none}.native-field input:focus{border-color:#7af5d8;box-shadow:0 0 0 3px #69e3c322}
+.native-files{display:grid;grid-template-columns:1fr 1fr;gap:13px}.file-select{position:relative;display:flex;align-items:center;gap:12px;padding:17px 15px;border:1px dashed #5e8b91;border-radius:11px;background:#102b39;min-width:0;cursor:pointer;transition:background .15s ease,border-color .15s ease}.file-select:hover,.file-select:focus-within{border-color:#84e8d1;background:#1c3d47}.file-select:focus-within{outline:2px solid #8fe9d6;outline-offset:2px}
+.file-select input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer}.file-symbol{flex:none;display:grid;place-items:center;width:46px;height:44px;border-radius:9px;border:1px solid #48736e;background:#1d4949;color:#a8fce8;font:850 11px ui-monospace,monospace;letter-spacing:-.02em}.optional .file-symbol{background:#253951;border-color:#436782;color:#bed4ff}.file-copy{min-width:0;display:flex;flex:1;flex-direction:column;gap:3px}.file-copy strong{font-size:13px}.file-copy em{color:#9cb9bd;font-size:10px;font-weight:500;font-style:normal}.file-copy small{color:#a4bec8;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.file-picker{flex:none;padding:8px 10px;background:#244d54;border:1px solid #508a88;border-radius:7px;color:#c3f6e8;font-weight:850;font-size:10px}
+.native-run{margin:19px 0 3px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-radius:9px;border:1px solid #9bf9e1;background:linear-gradient(105deg,#79ead1,#61d8c2);color:#073a35;font-size:13px;font-weight:870;padding:13px 18px;min-width:250px}.native-run:hover{filter:brightness(1.06)}.native-run:disabled{filter:grayscale(.5);opacity:.6;cursor:wait}
+.native-job{display:flex;align-items:flex-start;gap:12px;margin-top:15px;padding:13px 15px;background:#192e39;border:1px solid #456b71;border-radius:9px;color:#cee8eb;font-size:12px}.native-job[hidden]{display:none}.native-job.error{color:#ffb5be;border-color:#885561;background:#34232e}.native-job.success{border-color:#5ca794;color:#9ef9e5}.native-job-dot{flex:none;margin-top:5px;width:8px;height:8px;background:#7fe9d3;border-radius:50%;box-shadow:0 0 0 3px #85ffd526}.native-job.error .native-job-dot{background:#ff8899}.native-import-note{font-size:10px;line-height:1.5;margin-top:16px;color:#90b7b3;border-top:1px solid #3b646b;padding-top:12px}.native-import-note code{color:#b5fae6}
+#cliFallback{margin-top:20px}#cliFallback[hidden]{display:none}@media(max-width:790px){.native-files{grid-template-columns:1fr}.native-import{padding:15px}.file-picker{padding:7px}.native-run{width:100%}}
+
+.settings-files{margin-top:12px}.settings-files .file-select{background:#132a3d;border-color:#41617d}.settings-files .file-symbol{color:#c5d5ff;background:#293853;border-color:#506588}.native-warning{font-size:11px!important;color:#ffd8a8!important;background:#382f2b;padding:10px 14px;border:1px solid #80634a;border-radius:8px;margin-top:12px!important}
+.rules-breakdown{margin:-8px 0 14px;font-size:11px;font-weight:770;color:#b4d3da}.rules-source{font-size:10px;color:#edcaa0;padding:8px 10px;border:1px solid #5c4d41;background:#2e292d;border-radius:7px;margin:-8px 0 16px;line-height:1.4}
+
+.native-board-thumb{position:absolute;inset:7px 14px;background:#143d33;border:1px solid #478575;border-radius:12px;overflow:hidden;box-shadow:0 0 40px #5dbba321 inset}.native-board-thumb img{position:absolute;inset:0;object-fit:contain;object-position:center;width:100%;height:100%;filter:none}.native-board-thumb .copper-thumb{opacity:.94}.native-board-thumb .outline-thumb{opacity:.96}
+
+.sheet-folder{margin-top:12px;grid-template-columns:minmax(0,1.15fr) 1fr;gap:15px;align-items:center}.sheet-folder p{font-size:11px!important;margin:0!important;line-height:1.5;color:#a9c6d2!important}
+@media(max-width:790px){.sheet-folder{grid-template-columns:1fr}.sheet-folder p{padding:0 4px}}
+
+.native-stages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0;margin:13px 0 0;list-style:none}
+.native-stages[hidden]{display:none}.native-stages li{display:flex;align-items:center;gap:8px;min-width:0;padding:11px 9px;border:1px solid #314c5f;border-radius:8px;background:#0e2231;color:#859dac;font-size:10px;font-weight:770}
+.native-stages li span{display:grid;place-items:center;flex:none;width:23px;height:23px;border-radius:6px;background:#1d3444;color:#789ab0;font:800 10px ui-monospace,monospace}
+.native-stages li.observed{border-color:#52746e;color:#b4dbd5;background:#183239}.native-stages li.observed span{color:#b1fae4;background:#285a4d}.native-stages li.current{border-color:#83dbbb;box-shadow:0 0 0 2px #6adbbb16}
+.native-progress-disclaimer{font-size:10px!important;color:#8baeb5!important;margin:9px 2px!important}
+@media(max-width:850px){.native-stages{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:390px){.native-stages{grid-template-columns:1fr 1fr}.native-stages li{font-size:9px;padding:9px 5px}}
+
+.compare-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px;color:#9bb8ca}.compare-toolbar p{margin:5px 0 0;font-size:11px;color:#91aec0}.compare-toolbar #compareSelection{color:#b5f5df;background:#152c39;border:1px solid #37576b;padding:8px 12px;border-radius:8px;font:750 11px system-ui;white-space:normal;max-width:100%;overflow-wrap:anywhere}
+.project{position:relative}.project.compare-active{border-color:#79e8ce;box-shadow:0 0 0 2px #59cfae37}.compare-select{position:absolute;right:17px;top:15px;z-index:4;display:flex;align-items:center;gap:7px;background:#0d2734f2;color:#d6fff3;border:1px solid #487c75;border-radius:8px;padding:7px 10px;font-size:10px;font-weight:840;cursor:pointer;min-height:37px}.compare-select[hidden]{display:none}.compare-select input{accent-color:#77e6c9;width:17px;height:17px;margin:0;cursor:pointer}.compare-select:focus-within{outline:2px solid #caffee;outline-offset:2px}
+.compare-panel{margin:0 0 25px;background:linear-gradient(135deg,#152c3c,#101d2e);border:1px solid #598578;border-radius:16px;padding:22px;box-shadow:0 18px 55px #0004}.compare-panel[hidden]{display:none}.compare-heading{display:flex;justify-content:space-between;align-items:center;gap:15px}.compare-heading h2{font-size:27px;letter-spacing:-.045em;margin:3px 0 16px}.compare-heading button{padding:10px 14px;color:#c8f7e8;border:1px solid #46796e;background:#244a48;border-radius:8px;font-size:11px;font-weight:820;cursor:pointer;min-height:40px}
+.compare-context{padding:13px 15px;margin:0 0 18px;border:1px solid #4a6573;border-radius:10px;background:#142c3d}.compare-context.caution{border-color:#916e49;background:#352d26}.compare-context strong{display:block;color:#ffe4aa;font-size:10px;letter-spacing:.07em}.compare-context.neutral strong{color:#b3e2eb}.compare-context p{color:#d6d1c9;font-size:11px;margin:6px 0 0;line-height:1.6}
+.compare-designs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.compare-side{border:1px solid #36536b;background:#102537;padding:15px 17px;border-radius:11px;min-width:0}.compare-letter{display:block;font-size:10px;font-weight:850;letter-spacing:.1em;color:#8debd4}.compare-side h3{font-size:17px;margin:6px 0 5px;overflow-wrap:anywhere}.compare-side p{font-size:10px;color:#96aebf;margin:0 0 13px}.compare-links{display:flex;gap:8px;flex-wrap:wrap}.compare-links a{color:#a8f0e0;font-weight:750;font-size:10px;padding:8px 10px;border:1px solid #396b64;background:#20413e;border-radius:7px;min-height:34px}.compare-links a:hover{border-color:#91e9d1}
+.compare-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}.compare-metric{background:#0d1f30;border:1px solid #304a5f;border-radius:11px;padding:15px;min-width:0}.compare-metric-title{font-size:11px;color:#cce3eb;font-weight:800}.compare-metric-values{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;margin:10px 0}.compare-metric-values strong{font:820 23px ui-monospace,monospace;color:#dffdf0;overflow-wrap:anywhere}.compare-metric-values strong:last-child{text-align:right}.compare-metric-values span{font:750 10px system-ui;color:#9fc4d4;text-align:center}.compare-metric p{font-size:10px;line-height:1.5;color:#92aebe;margin:0}.compare-footnote{color:#b3bcca;font-size:10px;line-height:1.6;margin:15px 0 0}
+@media(max-width:800px){.compare-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.compare-toolbar{align-items:flex-start;flex-wrap:wrap}.compare-panel{padding:15px}.compare-designs{grid-template-columns:1fr}.compare-metrics{grid-template-columns:1fr}.compare-select{font-size:9px;right:10px;top:10px}.compare-metric-values strong{font-size:21px}}
+
+.app-session{display:flex;justify-content:space-between;gap:20px;align-items:center;margin:26px 0 0;border:1px solid #415d67;padding:16px 19px;background:#132536;border-radius:12px}.app-session[hidden],.app-shutdown[hidden]{display:none}.app-session div{display:flex;flex-direction:column;gap:5px}.app-session strong{font-size:12px;color:#c6e8dd}.app-session span{font-size:11px;color:#91aebf}.app-session button{cursor:pointer;flex:none;border:1px solid #9e6675;border-radius:8px;color:#ffccd3;font-weight:800;font-size:11px;padding:11px 14px;background:#392a37;min-height:42px}.app-session button:disabled{opacity:.55;cursor:wait}.app-shutdown{margin-top:16px;border:1px solid #5a9989;background:#162f2b;color:#c1f8e7;padding:15px;border-radius:9px;font-size:12px}
+@media(max-width:620px){.app-session{flex-direction:column;align-items:stretch}.app-session button{width:100%}}
+
+.header-help{font-weight:800;font-size:11px;color:#b7eadd;padding:8px;border-radius:7px}.header-help:hover,.header-help:focus-visible{background:#22454a;outline:2px solid #79e8d5;outline-offset:1px}.onboarding-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:17px 0 9px}.onboarding-steps[hidden],#desktopOnboarding[hidden],#staticOnboarding[hidden]{display:none}.onboarding-steps>div{padding:13px 14px;background:#0c2030;border:1px solid #375c69;border-radius:9px;min-width:0;display:flex;flex-direction:column;gap:5px}.onboarding-steps span{font:850 12px ui-monospace,monospace;color:#89e8d3}.onboarding-steps strong{font-size:12px;color:#e2faf5}.onboarding-steps small{font-size:10px;color:#97b6c4;line-height:1.5}.help-center{margin-top:25px;border:1px solid #2d4c5d;border-radius:12px;padding:21px;background:#101f2f}.help-center h2{font-size:20px;letter-spacing:-.04em;margin:6px 0 14px}.help-center details{border-top:1px solid #2c4558;padding:13px 3px}.help-center summary{font-size:12px;font-weight:850;cursor:pointer;color:#daf7ea;min-height:26px}.help-center summary:focus-visible{outline:2px solid #7de8d5;outline-offset:3px}.help-center p{font-size:11px;line-height:1.7;color:#acc5d0;max-width:900px;margin:10px 0 5px}.help-center code{color:#a7f5dc}.foot a{text-decoration:underline;color:#b5e9d8}
+@media(max-width:700px){.onboarding-steps{grid-template-columns:1fr}.header-help{font-size:10px;padding:6px}.help-center{padding:14px}}
+
+.data-actions[hidden]{display:none}.data-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid #365065}.data-actions button{background:#163142;border:1px solid #426376;border-radius:7px;padding:9px 10px;min-height:38px;font-size:10px;font-weight:790;color:#c7f0e5;cursor:pointer}.data-actions button:hover{border-color:#86e1c6}.data-actions .delete-review{color:#efc4ce;border-color:#725966}.delete-modal{background:#0e2130;color:#e5f8ef;border:1px solid #6b8992;border-radius:14px;padding:24px;width:min(480px,calc(100vw - 26px));max-height:90vh;box-shadow:0 28px 90px #000b}.delete-modal::backdrop{background:#000b}.delete-modal h2{font-size:24px;letter-spacing:-.04em;margin:7px 0 11px}.delete-modal p{font-size:12px;line-height:1.6;color:#adc4d1}.delete-reference{background:#182f41;border:1px solid #3b5768;border-radius:8px;padding:10px;overflow-wrap:anywhere}.delete-phrase{font-size:11px;font-weight:750;display:flex;flex-direction:column;gap:9px;margin:17px 0}.delete-phrase strong{color:#ffbabb}.delete-phrase input{background:#091827;border:1px solid #5e7b88;color:#f1fff8;border-radius:8px;padding:12px;font-size:13px;min-height:43px}.delete-controls{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px}.delete-controls button{border:1px solid #53717b;border-radius:8px;background:#1a3543;padding:12px 14px;color:#e4f7ed;cursor:pointer;min-height:44px;font-weight:800;font-size:11px}.delete-controls #reviewDeleteConfirm{background:#642e41;border-color:#bd7586}.delete-controls button:disabled{opacity:.38;cursor:not-allowed}.delete-error{color:#ffb8c0!important}
+
+.restore-section[hidden]{display:none}.restore-section{display:grid;grid-template-columns:1fr;gap:8px;margin:28px 0 5px;padding:22px;border:1px solid #547d81;border-radius:13px;background:linear-gradient(130deg,#162f40,#101f30)}.restore-section h2{font-size:19px;letter-spacing:-.04em;margin:5px 0 8px}.restore-section p{font-size:11px;line-height:1.6;color:#aac8cf;max-width:860px;margin:0}.restore-section p strong{color:#e4fff5}.restore-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:11px}.restore-form label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:750;color:#c9ebdd;min-width:0}.restore-form input{background:#091b2a;border:1px solid #486674;border-radius:8px;color:#e6f7fa;padding:11px;min-height:43px;width:100%;min-width:0;font-size:11px}.restore-form button{background:#244e4a;border:1px solid #70a6a0;border-radius:8px;color:#ddffef;min-height:43px;padding:9px 12px;font-size:11px;font-weight:850;cursor:pointer}.restore-form button:disabled{opacity:.5;cursor:wait}#nativeRestoreStatus{padding:11px;border:1px solid #47626c;border-radius:9px;background:#132b3a}#nativeRestoreStatus[hidden]{display:none}
+@media(max-width:900px){.restore-form{grid-template-columns:1fr 1fr}.restore-form button{grid-column:1/-1}}@media(max-width:580px){.restore-form{grid-template-columns:1fr}.restore-section{padding:16px}}
+</style></head><body>
+<header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local">OFFLINE · READ-ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
+<main><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
+<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a></div>
+<div class="compare-toolbar"><div><span class="overline">NATIVE EVIDENCE COMPARISON</span><p>Select exactly two source snapshots to compare observable evidence. Counts are never fabrication approval.</p></div><span id="compareSelection" role="status" aria-live="polite">__COMPARE_HINT__</span></div>
+<section class="compare-panel" id="comparePanel" hidden aria-label="Native snapshot comparison">
+ <div class="compare-heading"><div><span class="overline">SIDE-BY-SIDE / INSPECTION ONLY</span><h2>Evidence delta</h2></div><button id="compareClear" type="button">Clear selection</button></div>
+ <div class="compare-context" id="compareContext" role="status" aria-live="polite"></div>
+ <div class="compare-designs" id="compareDesigns"></div>
+ <div class="compare-metrics" id="compareMetrics"></div>
+ <p class="compare-footnote">All values are source-specific native KiCad findings. A difference in counts is not proof of an engineering improvement, DFM acceptance, safe routing or manufacturing readiness. Source geometry, design intent, active DRC rules and external libraries require independent validation.</p>
+</section>
+<div class="grid" id="workspaceProjects">__PROJECT_CARDS__</div><div class="empty" id="emptyFilter" hidden>No registered review matches that search. Clear the filter to see available projects.</div>
+<section class="restore-section" id="nativeRestore" hidden aria-label="Restore private KiCad backup">
+ <div><span class="overline">PRIVATE BACKUP / FRESH NATIVE VERIFICATION</span>
+ <h2>Restore a Review Studio ZIP</h2>
+ <p>Select a ZIP backup previously exported by Review Studio. Only copied KiCad sources are imported: stored HTML and DRC/ERC reports are <strong>not trusted</strong>. Your installed KiCad runs a new independent engineering review. Existing reviews are never replaced.</p></div>
+ <form id="nativeRestoreForm" class="restore-form">
+ <label>New review name<input id="nativeRestoreName" maxlength="90" type="text" required autocomplete="off" placeholder="Recovered sensor board · new review"/></label>
+ <label>Review Studio backup ZIP<input id="nativeRestoreZip" type="file" accept=".zip,application/zip" required/></label>
+ <button id="nativeRestoreRun" type="submit">Restore and rerun KiCad checks</button>
+ </form>
+ <p id="nativeRestoreStatus" role="status" aria-live="polite" hidden></p>
+</section>
+<section class="onboarding" id="import"><span class="overline">BRING YOUR OWN DESIGN</span><h2>Open another native KiCad board</h2><p id="desktopOnboarding" hidden>Select your KiCad files using the controls below. Your original board is never changed; the local engine stores a separate evidence snapshot. There are no simulated example projects and no cloud upload.</p><p id="staticOnboarding">Import uses native KiCad installed on your computer. In static offline mode, run the terminal command shown below from the ZapTrace source directory, then refresh the project library. Disabled or unavailable checks remain explicitly unverified.</p>
+<div class="onboarding-steps" id="desktopOnboardingSteps" hidden><div><span>01</span><strong>Select a real PCB</strong><small>Choose .kicad_pcb and the original .kicad_pro for the project's true DRC rules</small></div><div><span>02</span><strong>Run native KiCad</strong><small>Add the schematic and sub-sheet folder if available, then start local analysis</small></div><div><span>03</span><strong>Inspect evidence</strong><small>Open the new review card, inspect findings or compare two snapshots</small></div></div>
+<section class="native-import" id="nativeImport" hidden aria-label="Direct native KiCad file import">
+ <div class="native-import-head"><span class="direct-badge"><span class="pulse"></span> NATIVE KICAD ENGINE · LOCAL DEVICE</span><span class="small-shield">No cloud · source read-only</span></div>
+ <h3>Choose a board to inspect</h3><p>Select your KiCad PCB file. Include its schematic if available for native ERC and cross-probing. For comparable DRC results, also select your original .kicad_pro project settings (and .kicad_dru custom rules when used). The local engine runs actual KiCad checks on separate copies and adds the result to Projects. No fabrication approval is issued.</p>
+ <form id="nativeImportForm"><label class="native-field">Project name
+   <input type="text" required id="nativeImportName" maxlength="90" autocomplete="off" placeholder="Sensor node · revision A"/></label>
+  <div class="native-files"><label class="file-select"> <span class="file-symbol">PCB</span>
+   <span class="file-copy"><strong>KiCad board</strong><small id="nativeBoardName">Choose a .kicad_pcb file</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeBoardFile" type="file" required accept=".kicad_pcb" aria-label="Select native KiCad PCB file"/></label>
+   <label class="file-select optional"><span class="file-symbol">SCH</span>
+    <span class="file-copy"><strong>Schematic <em>optional</em></strong><small id="nativeSchName">Choose a .kicad_sch file</small></span>
+    <span class="file-picker">Browse…</span><input id="nativeSchFile" type="file" accept=".kicad_sch" aria-label="Select optional KiCad schematic file"/></label></div>
+  <div class="native-files sheet-folder"><label class="file-select optional"><span class="file-symbol">DIR</span>
+   <span class="file-copy"><strong>Hierarchical schematic folder <em>if used</em></strong><small id="nativeSheetName">Choose the project folder containing child sheets</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeSheetFolder" type="file" webkitdirectory multiple aria-label="Select full schematic hierarchy directory"/></label>
+   <p>For hierarchical schematics, choose the folder containing the root sheet and all referenced children. Only native .kicad_sch files are staged; missing or unsafe references stop the import.</p></div>
+  <div class="native-files settings-files"><label class="file-select optional"><span class="file-symbol">PRO</span>
+   <span class="file-copy"><strong>Project rules <em>recommended</em></strong><small id="nativeProName">Choose .kicad_pro for original design rules</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeProjectFile" type="file" accept=".kicad_pro" aria-label="Select original KiCad project settings file"/></label>
+   <label class="file-select optional"><span class="file-symbol">DRU</span>
+   <span class="file-copy"><strong>Custom DRC rules <em>optional</em></strong><small id="nativeDruName">Choose .kicad_dru if your project uses it</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeRulesFile" type="file" accept=".kicad_dru" aria-label="Select optional KiCad custom DRC rules file"/></label></div>
+  <p class="native-warning">If project rules are omitted, KiCad runs under standalone/default settings. DRC totals may differ from the original project. No fab approval is implied.</p>
+  <button class="native-run" type="submit" id="nativeRun">Analyze with native KiCad <span>→</span></button>
+ </form>
+ <div class="native-job" id="nativeJob" hidden role="status" aria-live="polite"><span class="native-job-dot"></span><span id="nativeJobText">Waiting for local KiCad engine</span></div>
+ <ol class="native-stages" id="nativeStages" hidden aria-label="Observed local KiCad analysis stages">
+ <li data-phase="preparing"><span>01</span> Source captured</li>
+ <li data-phase="geometry"><span>02</span> F.Cu plot recorded</li>
+ <li data-phase="drc"><span>03</span> DRC report produced</li>
+ <li data-phase="netlist"><span>04</span> Schematic netlist recorded</li>
+ <li data-phase="erc"><span>05</span> ERC report produced</li>
+ <li data-phase="complete"><span>06</span> Review indexed</li>
+ </ol>
+ <p class="native-progress-disclaimer">These steps reflect locally observed KiCad files, not passed checks or fabrication readiness.</p>
+ <div class="native-import-note">Analysis runs exclusively on <code>127.0.0.1</code> and uses separate local working copies. The native KiCad input data never leaves this computer.</div>
+</section>
+<div id="cliFallback">
+<form class="import-form" id="importForm"><div class="import-fields">
+ <label>Project display name<input id="importName" type="text" required maxlength="90" autocomplete="off" placeholder="Temperature sensor rev A"/></label>
+ <label>Absolute KiCad PCB path<input id="importBoard" type="text" required spellcheck="false" autocomplete="off" placeholder="/home/user/projects/sensor/sensor.kicad_pcb"/></label>
+ <label>Optional schematic path<input id="importSchematic" type="text" spellcheck="false" autocomplete="off" placeholder="/home/user/projects/sensor/sensor.kicad_sch"/></label>
+ </div><button id="generateImport" type="submit">Prepare native KiCad import command →</button></form>
+<div class="import-error" id="importError" role="status" aria-live="polite"></div>
+<div id="preparedCommand" class="prepared" hidden><div class="prepared-head"><strong>Run this command on your computer</strong><button type="button" id="copyImport">Copy command</button></div>
+ <pre id="importSnippet" tabindex="0"></pre><div class="import-note">The browser cannot run pcbnew on its own. This command executes the native analysis on your machine and updates the local projects index. It will never edit the KiCad PCB.</div></div>
+<p class="import-fallback">For automation, the equivalent terminal command is:</p>
+<div class="terminal">/usr/bin/python3 scripts/review_studio_workspace.py \
+  --workspace __WORKSPACE_SHELL__ add \
+  --name "My board" --board /absolute/path/to/my-board.kicad_pcb \
+  --schematic /absolute/path/to/my-board.kicad_sch
+
+# Reopen the dashboard without rerunning KiCad:
+/usr/bin/python3 scripts/review_studio_workspace.py --workspace __WORKSPACE_SHELL__ render</div>
+<p style="margin-top:13px">No PCB files are uploaded, and no copper, Gerbers or KiCad source content is modified. External board sources require independent schematic/ERC/DRC, supplier data and fabrication acceptance. <b>Adding a project never authorizes manufacturing.</b></p></section>
+</div>
+<section class="help-center" id="help"><span class="overline">GUIDE / PRIVACY / LIMITS</span><h2>Getting started &amp; support</h2>
+ <details><summary>Which KiCad files should I open?</summary><p>Start with your actual <code>.kicad_pcb</code>. Include its matching <code>.kicad_pro</code> design-rule settings, an optional <code>.kicad_sch</code> root schematic, a hierarchy folder if it references child pages, and optional <code>.kicad_dru</code> rules. Missing project rules mean KiCad may report different findings.</p></details>
+ <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
+ <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
+ <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.2 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+</section>
+<dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
+ <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
+ <p id="reviewDeleteDescription">This removes the selected native review, all its local evidence and copies of the selected KiCad source files. Your original PCB outside Review Studio remains unchanged. Back up first if you need these files.</p>
+ <p id="reviewDeleteLabel" class="delete-reference"></p>
+ <label class="delete-phrase">Type <strong>DELETE</strong> to confirm deletion<input id="reviewDeletePhrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE" aria-label="Type DELETE to confirm permanent local review deletion"/></label>
+ <p class="delete-error" id="reviewDeleteError" aria-live="polite"></p>
+ <div class="delete-controls"><button type="button" id="reviewDeleteCancel">Cancel</button><button type="submit" id="reviewDeleteConfirm" disabled>Delete local copy permanently</button></div>
+ </form>
+</dialog>
+<div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
+<div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
+<div class="foot">ZapTrace Review Studio 0.1.2 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<script>
+// Direct native review is enabled only by the explicit localhost server.
+if(window.__REVIEW_LOCAL__?.token){
+ document.getElementById('localSessionControls').hidden=false;
+ document.getElementById('desktopOnboarding').hidden=false;
+ document.getElementById('desktopOnboardingSteps').hidden=false;
+ document.getElementById('staticOnboarding').hidden=true;
+ document.getElementById('nativeRestore').hidden=false;
+ document.getElementById('nativeImport').hidden=false;
+ document.getElementById('cliFallback').hidden=true;
+ const $=id=>document.getElementById(id),token=window.__REVIEW_LOCAL__.token;
+ const board=$('nativeBoardFile'),sch=$('nativeSchFile'),project=$('nativeProjectFile'),rules=$('nativeRulesFile'),sheetFolder=$('nativeSheetFolder'),name=$('nativeImportName');
+ for(const [field,caption] of [[board,$('nativeBoardName')],[sch,$('nativeSchName')],[project,$('nativeProName')],[rules,$('nativeDruName')]]){
+  field.addEventListener('change',()=>{caption.textContent=field.files?.[0]?.name||'No file selected';});
+ }
+ sheetFolder.addEventListener('change',()=>{
+  const count=[...(sheetFolder.files||[])].filter(f=>f.name.endsWith('.kicad_sch')).length;
+  $('nativeSheetName').textContent=count?count+' schematic files found in selected folder':'No native sheets found in selected folder';
+ });
+ const job=$('nativeJob'),status=$('nativeJobText'),run=$('nativeRun');
+ const phases=['preparing','geometry','drc','netlist','erc','complete'];
+ function observedPhase(phase,observed=[]){
+  $('nativeStages').hidden=false;
+  $('nativeStages').querySelectorAll('[data-phase]').forEach(item=>{
+   const tag=item.dataset.phase;
+   const verified=tag==='preparing'||(tag==='complete'&&phase==='complete')||observed.includes(tag);
+   const current=tag===phase;
+   item.classList.toggle('observed',verified);
+   item.classList.toggle('current',current);
+   item.setAttribute('aria-current',current?'step':'false');
+  });
+ }
+ function report(message,type='running'){
+  job.hidden=false;job.classList.toggle('error',type==='error');job.classList.toggle('success',type==='success');
+  status.textContent=message;
+ }
+ document.getElementById('stopLocalStudio').addEventListener('click',async()=>{
+  const button=document.getElementById('stopLocalStudio');
+  button.disabled=true;button.textContent='Stopping local service…';
+  try{
+   const reply=await fetch('/api/shutdown',{method:'POST',headers:{'X-Review-Token':token},cache:'no-store'});
+   if(!reply.ok)throw Error('Local service could not be stopped');
+   document.getElementById('localStopped').hidden=false;
+   document.getElementById('nativeRun').disabled=true;
+   document.getElementById('localSessionControls').hidden=true;
+  }catch(err){
+   button.disabled=false;button.textContent='Stop local Review Studio';
+   document.getElementById('nativeJob').hidden=false;
+   document.getElementById('nativeJobText').textContent='Could not stop local server; close it from your application menu or process manager.';
+  }
+ });
+ const restoreForm=$('nativeRestoreForm'),restoreStatus=$('nativeRestoreStatus'),restoreRun=$('nativeRestoreRun');
+ restoreForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const name=$('nativeRestoreName').value.trim(),file=$('nativeRestoreZip').files?.[0];
+  restoreStatus.hidden=false;
+  if(!name||name.length>90||!file||!file.name.toLowerCase().endsWith('.zip')||file.size>34*1024*1024){
+   restoreStatus.textContent='Choose a local Review Studio ZIP (max 34 MB) and a new review name.';
+   return;
+  }
+  restoreRun.disabled=true;
+  try{
+   restoreStatus.textContent='Validating backup and its source SHA-256 locally…';
+   const response=await fetch('/api/projects/restore?name='+encodeURIComponent(name),{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/zip'},body:file,cache:'no-store'});
+   const item=await response.json();
+   if(!response.ok||item.state!=='running'||!item.id)throw Error(item.error||'Restore was rejected');
+   restoreStatus.textContent='KiCad sources recovered. Regenerating geometry, ERC and DRC (archived reports are ignored).';
+   for(let i=0;i<160;i++){
+    await new Promise(r=>setTimeout(r,1000));
+    const check=await fetch('/api/jobs/'+encodeURIComponent(item.id),{headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!check.ok)throw Error('Native restore analysis status unavailable');
+    const job=await check.json();
+    if(job.state==='complete'){
+     restoreStatus.textContent='New native KiCad review complete. Opening your verified project library…';
+     location.reload();return;
+    }
+    if(job.state==='failed')throw Error(job.message||'Native KiCad verification failed');
+    if(typeof job.message==='string')restoreStatus.textContent=job.message;
+   }
+   throw Error('Review still running; it will appear in Projects when native KiCad completes.');
+  }catch(error){
+   restoreStatus.textContent=(error instanceof Error?error.message:'Restore failed')+
+    ' · Existing reviews and your ZIP backup remain unchanged.';
+  }finally{restoreRun.disabled=false;}
+ });
+ const headers={'X-Review-Token':token};
+ const modal=$('reviewDeleteDialog'),deletePhrase=$('reviewDeletePhrase'),deleteButton=$('reviewDeleteConfirm');
+ let deleteTarget=null;
+ for(const controls of document.querySelectorAll('.data-actions')){
+  controls.hidden=false;
+  controls.querySelector('.backup-review').addEventListener('click',async()=>{
+   const trigger=controls.querySelector('.backup-review');
+   trigger.disabled=true;trigger.textContent='Preparing local ZIP…';
+   try{
+    const url='/api/projects/export?key='+encodeURIComponent(controls.dataset.key)+'&sha='+encodeURIComponent(controls.dataset.sha);
+    const response=await fetch(url,{headers,cache:'no-store'});
+    if(!response.ok){const error=await response.json();throw Error(error.error||'Backup failed');}
+    const blob=await response.blob();
+    const objectUrl=URL.createObjectURL(blob);
+    const link=document.createElement('a');link.href=objectUrl;
+    link.download='zaptrace-review-'+controls.dataset.key+'.zip';
+    document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),2000);
+   }catch(error){
+    trigger.title=error instanceof Error?error.message:'Local backup failed';
+    trigger.textContent='Backup failed · retry';
+   }finally{trigger.disabled=false;if(trigger.textContent==='Preparing local ZIP…')trigger.textContent='Export private ZIP backup';}
+  });
+  controls.querySelector('.delete-review').addEventListener('click',()=>{
+   deleteTarget=controls;deletePhrase.value='';deleteButton.disabled=true;
+   $('reviewDeleteError').textContent='';
+   $('reviewDeleteLabel').textContent=controls.dataset.label+' · PCB SHA '+controls.dataset.sha.slice(0,12)+'…';
+   modal.showModal();deletePhrase.focus();
+  });
+ }
+ $('reviewDeleteCancel').addEventListener('click',()=>modal.close());
+ modal.addEventListener('close',()=>{deleteTarget=null;deletePhrase.value='';});
+ deletePhrase.addEventListener('input',()=>{deleteButton.disabled=deletePhrase.value!=='DELETE';});
+ $('reviewDeleteForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!deleteTarget||deletePhrase.value!=='DELETE')return;
+  deleteButton.disabled=true;$('reviewDeleteError').textContent='Deleting the selected local snapshot…';
+  try{
+   const response=await fetch('/api/projects/delete',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
+    body:JSON.stringify({key:deleteTarget.dataset.key,sha:deleteTarget.dataset.sha,
+    confirmation:'DELETE_LOCAL_REVIEW_AND_STAGED_COPIES'})});
+   const result=await response.json();if(!response.ok||result.state!=='deleted')throw Error(result.error||'Deletion was not completed');
+   modal.close();location.reload();
+  }catch(error){$('reviewDeleteError').textContent=error instanceof Error?error.message:'Local deletion failed';
+   deleteButton.disabled=false;}
+ });
+ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ $('nativeImportForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const selected=board.files?.[0],schematic=sch.files?.[0],projectSettings=project.files?.[0],customRules=rules.files?.[0],title=name.value.trim();
+  if(!title||!selected||!selected.name.toLowerCase().endsWith('.kicad_pcb')||
+   selected.size>10*1024*1024||schematic&&(schematic.size>4*1024*1024||!schematic.name.endsWith('.kicad_sch'))||
+   projectSettings&&(projectSettings.size>3*1024*1024||!projectSettings.name.endsWith('.kicad_pro'))||
+   customRules&&(customRules.size>512*1024||!customRules.name.endsWith('.kicad_dru'))){
+   report('Choose a valid KiCad PCB (max 10 MB) and optional schematic (max 4 MB).','error');return;
+  }
+  run.disabled=true;report('Transferring selected files to the localhost KiCad engine…');
+  $('nativeStages').hidden=true;
+  try{
+   const data=new FormData();data.append('name',title);data.append('board',selected);
+   if(schematic)data.append('schematic',schematic);
+   if(projectSettings)data.append('project',projectSettings);
+   if(customRules)data.append('rules',customRules);
+   const sheets=[...(sheetFolder.files||[])].filter(f=>f.name.toLowerCase().endsWith('.kicad_sch'));
+   if(sheets.length>32)throw Error('A maximum of 32 hierarchical KiCad schematic files is supported');
+   let totalSheets=0;
+   const paths=[];
+   for(const [i,file] of sheets.entries()){
+    totalSheets+=file.size;
+    if(totalSheets>16*1024*1024)throw Error('Hierarchy too large for the local analysis limit');
+    const fullPath=file.webkitRelativePath||file.name;
+    const rel=fullPath.split('/').slice(1).join('/');
+    if(!rel||rel.includes('..')||rel.startsWith('/'))throw Error('Invalid schematic hierarchy path');
+    // The selected root schematic is staged under source.kicad_sch;
+    // do not overwrite it with the folder copy.
+    if(rel===schematic?.name)continue;
+    const key='sheet'+String(i).padStart(3,'0');
+    paths.push({key,path:rel});data.append(key,file);
+   }
+   if(paths.length)data.append('sheet_paths',JSON.stringify(paths));
+   if(sheets.length&&!schematic)throw Error('Select the root .kicad_sch file as well as its folder');
+
+   const response=await fetch('/api/import',{method:'POST',headers,body:data,cache:'no-store'});
+   const result=await response.json();
+   if(!response.ok)throw Error(result.error||'Local KiCad import request failed');
+   if(result.state!=='running'||!result.id)throw Error('Native engine did not start');
+   observedPhase('preparing');
+   report('KiCad is verifying the board, generating native plots, and running design-rule checks. No production approval is implied.');
+   for(let i=0;i<120;i++){
+    await sleep(1200);
+    const poll=await fetch('/api/jobs/'+encodeURIComponent(result.id),{headers,cache:'no-store'});
+    if(!poll.ok)throw Error('Native engine status unavailable');
+    const state=await poll.json();
+    if(state.phase&&state.state==='running'){
+     observedPhase(state.phase,state.observed||[]);
+     if(typeof state.message==='string')report(state.message+' · Engineering approval still required.');
+    }
+    if(state.state==='complete'){
+     observedPhase('complete',state.observed||[]);
+     report('Native review created. Returning to Projects…','success');
+     location.assign(state.openUrl||'/');return;
+    }
+    if(state.state==='failed')throw Error(state.message||'Native KiCad analysis failed');
+   }
+   throw Error('Native analysis is still running; refresh Projects later. No fabrication approval.');
+  }catch(error){report((error instanceof Error?error.message:'Local native import failed')+' · Source files remain unchanged.','error');}
+  finally{run.disabled=false;}
+ });
+}
+// Compare *native source snapshots* only. Every number is taken from each
+// independently generated evidence.json; no inferred green sign-off or DRC
+// equivalence when the original project/manufacturing rules differ.
+const comparisonItems=[...document.querySelectorAll('.project')],selectedSnapshots=[];
+const byId=id=>document.getElementById(id);
+const compareState=byId('compareSelection'),comparePanel=byId('comparePanel');
+const make=(tag,cls,body)=>{const el=document.createElement(tag);if(cls)el.className=cls;
+ if(body!==undefined)el.textContent=String(body);return el;};
+function compareValue(card,key){const val=card.dataset[key];return /^\d+$/.test(val||'')?Number(val):null;}
+function renderComparison(){
+ const count=selectedSnapshots.length;
+ compareState.textContent=count===2?'2 of 2 snapshots selected · comparison ready':
+  count===1?'1 of 2 snapshots selected · choose another':'Select two snapshots';
+ comparisonItems.forEach(card=>{
+  card.classList.toggle('compare-active',selectedSnapshots.includes(card));
+  card.querySelector('.compare-checkbox').checked=selectedSnapshots.includes(card);
+ });
+ comparePanel.hidden=count!==2;
+ if(count!==2)return;
+ const [a,b]=selectedSnapshots;
+ const name=card=>card.querySelector('h3')?.textContent||'KiCad snapshot';
+ const settingsDiffer=a.dataset.projectRules!==b.dataset.projectRules||
+  a.dataset.customRules!==b.dataset.customRules;
+ const context=byId('compareContext');context.replaceChildren();
+ if(settingsDiffer){
+  context.className='compare-context caution';
+  context.append(make('strong','', 'DIFFERENT KICAD RULE CONTEXTS'));
+  context.append(make('p','', 'One snapshot was checked with different supplied project/custom rules. Raw DRC totals are NOT an apples-to-apples manufacturability comparison; KiCad footprints/libraries may also differ.')); 
+ }else{
+  context.className='compare-context neutral';
+  context.append(make('strong','', 'RULE EQUIVALENCE NOT ESTABLISHED'));
+  context.append(make('p','', 'The supplied-rule flags agree, but manufacturing configuration, KiCad library resolution and actual geometry have not been independently proven equivalent.')); 
+ }
+ if(a.dataset.boardSize!==b.dataset.boardSize){
+  context.append(make('p','', 'Native board bounds also differ: '+a.dataset.boardSize+' mm versus '+b.dataset.boardSize+' mm.')); 
+ }
+ const designs=byId('compareDesigns');designs.replaceChildren();
+ for(const [idx,card] of selectedSnapshots.entries()){
+  const side=make('div','compare-side');side.append(make('span','compare-letter',idx===0?'SNAPSHOT A':'SNAPSHOT B'));
+  side.append(make('h3','',name(card)));
+  side.append(make('p','',card.querySelector('.ref span:last-child')?.textContent||'Source fingerprint unavailable'));
+  const links=make('div','compare-links');
+  for(const [css,label] of [['primary','Open native review ↗'],['secondary','Open evidence report ↗']]){
+   const source=card.querySelector('.actions a.'+css);
+   if(!source)continue;
+   const link=make('a','',label);link.href=source.getAttribute('href');links.append(link);
+  }
+  side.append(links);designs.append(side);
+ }
+ const metrics=byId('compareMetrics');metrics.replaceChildren();
+ const specs=[['copper','Copper items','Items per source PCB, not evidence of continuity'],
+  ['pads','Physical pads','Count of native pcbnew pad instances'],
+  ['open','Open connections','KiCad unconnected_items, not straight-line routing proposals'],
+  ['ruleFindings','PCB rule findings','Non-open findings excluding KiCad library consistency'],
+  ['libraryFindings','Library findings','KiCad footprint library consistency under each source context'],
+  ['erc','Schematic ERC','Enabled schematic rules; NOT RUN when no schematic was supplied']];
+ for(const [key,title,note] of specs){
+  const va=compareValue(a,key),vb=compareValue(b,key);
+  const item=make('article','compare-metric');item.append(make('div','compare-metric-title',title));
+  const values=make('div','compare-metric-values');
+  values.append(make('strong','',va===null?'NOT RUN':va));
+  values.append(make('span','',va!==null&&vb!==null?'B − A '+(vb-va>0?'+':'')+(vb-va):'NOT COMPARABLE'));
+  values.append(make('strong','',vb===null?'NOT RUN':vb));item.append(values);
+  item.append(make('p','',note));metrics.append(item);
+ }
+}
+comparisonItems.forEach(card=>{
+ card.querySelector('.compare-checkbox').addEventListener('change',event=>{
+  if(event.target.checked){
+   if(selectedSnapshots.length===2){event.target.checked=false;
+    compareState.textContent='Maximum two snapshots. Clear a selection before adding another.';return;}
+   selectedSnapshots.push(card);
+  }else{
+   const index=selectedSnapshots.indexOf(card);if(index>=0)selectedSnapshots.splice(index,1);
+  }
+  renderComparison();
+  if(selectedSnapshots.length===2)comparePanel.scrollIntoView({block:'nearest',behavior:'instant'});
+ });
+});
+byId('compareClear').addEventListener('click',()=>{selectedSnapshots.length=0;renderComparison();});
+const filter=document.getElementById('filterProjects'),cards=[...document.querySelectorAll('.project')],empty=document.getElementById('emptyFilter');
+filter.addEventListener('input',()=>{const q=filter.value.trim().toLowerCase();let shown=0;for(const card of cards){card.hidden=!card.dataset.search.includes(q);if(!card.hidden)shown++;}empty.hidden=shown>0||!q;});
+const fields={name:document.getElementById('importName'),board:document.getElementById('importBoard'),schematic:document.getElementById('importSchematic')};
+const shellQuote=value=>"'"+value.replaceAll("'","'\\''")+"'";
+document.getElementById('importForm').addEventListener('submit',event=>{
+ event.preventDefault();
+ const name=fields.name.value.trim(),board=fields.board.value.trim(),schematic=fields.schematic.value.trim();
+ const err=document.getElementById('importError'),box=document.getElementById('preparedCommand');
+ box.hidden=true;err.textContent='';
+ if(!name||name.length>90||name.includes('\n')||name.includes('\r')){err.textContent='Enter one project display name (up to 90 characters).';return;}
+ if(!board.startsWith('/')||!board.endsWith('.kicad_pcb')||board.includes('\n')||board.includes('\r')){
+  err.textContent='Enter an absolute path to an actual .kicad_pcb source. The browser cannot verify local files.';return;
+ }
+ if(schematic&&(!schematic.startsWith('/')||!schematic.endsWith('.kicad_sch')||schematic.includes('\n')||schematic.includes('\r'))){
+  err.textContent='Optional schematic must be an absolute .kicad_sch path.';return;
+ }
+ const parts=['/usr/bin/python3','scripts/review_studio_workspace.py','--workspace',
+  shellQuote(__WORKSPACE_JS__),'add','--name',shellQuote(name),'--board',shellQuote(board)];
+ if(schematic)parts.push('--schematic',shellQuote(schematic));
+ document.getElementById('importSnippet').textContent=parts.join(' ');
+ box.hidden=false;box.scrollIntoView({block:'nearest',behavior:'smooth'});
+});
+document.getElementById('copyImport').addEventListener('click',async()=>{
+ const text=document.getElementById('importSnippet').textContent,button=document.getElementById('copyImport');
+ try{if(!navigator.clipboard?.writeText)throw Error('Clipboard access unavailable');
+  await navigator.clipboard.writeText(text);button.textContent='Copied to clipboard';
+ }catch{
+  button.textContent='Select command manually';
+  const range=document.createRange();range.selectNodeContents(document.getElementById('importSnippet'));
+  const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
+ }
+});
+</script></body></html>

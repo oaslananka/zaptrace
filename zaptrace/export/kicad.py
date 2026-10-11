@@ -243,16 +243,54 @@ def _schematic_nodes_for_component(design: Design, component: Component) -> list
     return nodes
 
 
-def _schematic_component_position(index: int) -> tuple[float, float]:
-    """Place components on KiCad's 2.54 mm connection grid."""
-    return 50.8 + (index % 8) * 50.8, 50.8 + (index // 8) * 50.8
+def _schematic_geometry(nodes: list[tuple[str, str]]) -> tuple[float, float, float]:
+    """Fit real library pin labels inside the outline without overlapping sides."""
+    rows = max(1, (len(nodes) + 1) // 2)
+    body_half_width = max(13.97, max((len(name) for name, _ in nodes), default=0) * 0.9 + 6.35)
+    body_half_height = max(5.08, (rows - 1) * 2.54 + 2.54)
+    property_distance = body_half_height + 3.81
+    return body_half_width, body_half_height, property_distance
 
 
-def _schematic_pin_geometry(index: int) -> tuple[float, float, int]:
-    """Return local pin endpoint and orientation on KiCad's connection grid."""
+def _schematic_page_layout(component_count: int, max_pins: int) -> tuple[str, int, float]:
+    """Select an explicit page whose board-like review grid holds all symbols."""
+    rows_per_symbol = max(1, (max_pins + 1) // 2)
+    row_spacing = max(67.31, rows_per_symbol * 5.08 + 22.86)
+    _w, half_height, property_distance = _schematic_geometry([("PIN", "NET")] * max_pins)
+    for page, page_width, page_height, columns in (
+        ("A4", 297.0, 210.0, 3),
+        ("A3", 420.0, 297.0, 4),
+        ("A2", 594.0, 420.0, 6),
+        ("A1", 841.0, 594.0, 8),
+        ("A0", 1189.0, 841.0, 12),
+    ):
+        rows = (component_count + columns - 1) // columns
+        last_x = 50.8 + (min(component_count, columns) - 1) * 88.9
+        last_y = 50.8 + (rows - 1) * row_spacing
+        if (
+            last_x + 35.56 < page_width
+            and last_y + property_distance + 8 < page_height
+            and half_height < row_spacing / 2
+        ):
+            return page, columns, row_spacing
+    raise ValueError("Generated schematic cannot fit the supported KiCad A0 page without clipping symbols")
+
+
+def _schematic_component_position(index: int, *, columns: int, row_spacing: float) -> tuple[float, float]:
+    """Place symbols on a KiCad grid with generous row and column spacing."""
+    return 50.8 + (index % columns) * 88.9, 50.8 + (index // columns) * row_spacing
+
+
+def _schematic_pin_geometry(index: int, pin_count: int, half_width: float) -> tuple[float, float, int]:
+    """Center pin rows and leave adequate space for long logical pin names."""
+    rows = max(1, (pin_count + 1) // 2)
     left_side = index % 2 == 0
     row = index // 2
-    return (-5.08 if left_side else 5.08), row * 2.54, (0 if left_side else 180)
+    return (
+        (-half_width - 2.54 if left_side else half_width + 2.54),
+        ((rows - 1) / 2 - row) * 5.08,
+        (0 if left_side else 180),
+    )
 
 
 def _schematic_property(
@@ -270,17 +308,24 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
     """Build a self-contained minimal KiCad library symbol for one component."""
     symbol_name = f"ZapTrace_{_schematic_identifier(component.ref)}"
     lib_id = f"ZapTrace:{symbol_name}"
+    half_width, half_height, property_distance = _schematic_geometry(nodes)
     lines = [
         f'    (symbol "{lib_id}"',
         "      (exclude_from_sim no)",
         "      (in_bom yes)",
         "      (on_board yes)",
-        f'      (property "Reference" "{_schematic_string(component.ref[:1] or "U")}" (at 0 2.54 0)',
+        "      (pin_numbers (hide yes))",
+        (
+            '      (property "Reference" '
+            f'"{_schematic_string(component.ref[:1] or "U")}" '
+            f"(at 0 {_schematic_number(property_distance)} 0)"
+        ),
         "        (effects (font (size 1.27 1.27)))",
         _DOUBLE_INDENTED_CLOSE,
         (
             '      (property "Value" '
-            f'"{_schematic_string(component.value or component.type or component.ref)}" (at 0 -2.54 0)'
+            f'"{_schematic_string(component.value or component.type or component.ref)}" '
+            f"(at 0 -{_schematic_number(property_distance)} 0)"
         ),
         "        (effects (font (size 1.27 1.27)))",
         _DOUBLE_INDENTED_CLOSE,
@@ -294,13 +339,17 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
         _SCHEMATIC_HIDDEN_EFFECTS,
         _DOUBLE_INDENTED_CLOSE,
         f'      (symbol "{symbol_name}_1_1"',
-        "        (rectangle (start -2.54 2.54) (end 2.54 -2.54)",
+        (
+            f"        (rectangle (start -{_schematic_number(half_width)} "
+            f"{_schematic_number(half_height)}) "
+            f"(end {_schematic_number(half_width)} -{_schematic_number(half_height)})"
+        ),
         "          (stroke (width 0) (type default))",
         "          (fill (type background))",
         "        )",
     ]
     for pin_index, (pin_name, _net_name) in enumerate(nodes):
-        local_x, local_y, rotation = _schematic_pin_geometry(pin_index)
+        local_x, local_y, rotation = _schematic_pin_geometry(pin_index, len(nodes), half_width)
         safe_pin = _schematic_string(pin_name)
         lines.extend(
             [
@@ -320,9 +369,13 @@ def _schematic_symbol_instance(
     component: Component,
     nodes: list[tuple[str, str]],
     index: int,
+    *,
+    columns: int,
+    row_spacing: float,
 ) -> tuple[list[str], list[str]]:
     """Build one symbol instance plus same-coordinate labels for connected pins."""
-    x, y = _schematic_component_position(index)
+    x, y = _schematic_component_position(index, columns=columns, row_spacing=row_spacing)
+    half_width, _half_height, property_distance = _schematic_geometry(nodes)
     lib_id = f"ZapTrace:ZapTrace_{_schematic_identifier(component.ref)}"
     symbol_uuid = _schematic_uuid(design, "symbol", component.ref)
     lines = [
@@ -336,21 +389,35 @@ def _schematic_symbol_instance(
         "    (dnp no)",
         f'    (uuid "{symbol_uuid}")',
     ]
-    _schematic_property(lines, "Reference", component.ref, x, y - 7.62)
-    _schematic_property(lines, "Value", component.value or component.type or component.ref, x, y + 7.62)
+    _schematic_property(lines, "Reference", component.ref, x, y - property_distance)
+    _schematic_property(lines, "Value", component.value or component.type or component.ref, x, y + property_distance)
     _schematic_property(lines, "Footprint", _physical_footprint_library_id(component), x, y, hidden=True)
     _schematic_property(lines, "Datasheet", "", x, y, hidden=True)
     _schematic_property(lines, "Description", "ZapTrace generated connectivity symbol", x, y, hidden=True)
 
     labels: list[str] = []
     for pin_index, (pin_name, net_name) in enumerate(nodes):
-        local_x, local_y, _rotation = _schematic_pin_geometry(pin_index)
+        local_x, local_y, _rotation = _schematic_pin_geometry(pin_index, len(nodes), half_width)
+        # Net labels must project *away* from the symbol body. Their anchor
+        # stays at the exact pin endpoint, preserving Eeschema connectivity.
+        label_angle = 180 if local_x < 0 else 0
         pin_uuid = _schematic_uuid(design, "pin", component.ref, pin_name)
         lines.append(f'    (pin "{_schematic_string(pin_name)}" (uuid "{pin_uuid}"))')
         label_uuid = _schematic_uuid(design, "label", component.ref, pin_name, net_name)
+        wire_uuid = _schematic_uuid(design, "label-stub", component.ref, pin_name, net_name)
+        pin_x = x + local_x
+        pin_y = y - local_y
+        label_x = pin_x + (-7.62 if local_x < 0 else 7.62)
+        # Actual schematic wire: Eeschema net remains grounded in a physical
+        # connection, even though the label is moved away for legibility.
+        labels.append(
+            f"  (wire (pts (xy {_schematic_number(pin_x)} {_schematic_number(pin_y)}) "
+            f"(xy {_schematic_number(label_x)} {_schematic_number(pin_y)})) "
+            f'(stroke (width 0) (type default)) (uuid "{wire_uuid}"))'
+        )
         labels.append(
             f'  (label "{_schematic_string(net_name)}" '
-            f"(at {_schematic_number(x + local_x)} {_schematic_number(y - local_y)} 0) "
+            f"(at {_schematic_number(label_x)} {_schematic_number(pin_y)} {label_angle}) "
             f'(effects (font (size 1.27 1.27))) (uuid "{label_uuid}"))'
         )
     lines.append("  )")
@@ -368,10 +435,16 @@ def _build_schematic(design: Design) -> str:
     directions that the canonical model cannot distinguish reliably.
     """
     root_uuid = _schematic_uuid(design, "root")
+    component_nodes = [
+        (component, _schematic_nodes_for_component(design, component)) for component in design.components.values()
+    ]
+    max_pins = max((len(nodes) for _, nodes in component_nodes), default=0)
+    page, columns, row_spacing = _schematic_page_layout(len(component_nodes), max_pins)
     lines = [
         "(kicad_sch",
         "  (version 20231120)",
         '  (generator "zaptrace")',
+        f'  (paper "{page}")',
         f'  (uuid "{root_uuid}")',
         (
             "  (title_block "
@@ -382,16 +455,15 @@ def _build_schematic(design: Design) -> str:
         "  )",
         "  (lib_symbols",
     ]
-    component_nodes = [
-        (component, _schematic_nodes_for_component(design, component)) for component in design.components.values()
-    ]
     for component, nodes in component_nodes:
         lines.extend(_schematic_library_symbol(component, nodes))
     lines.append("  )")
 
     labels: list[str] = []
     for index, (component, nodes) in enumerate(component_nodes):
-        instance_lines, instance_labels = _schematic_symbol_instance(design, component, nodes, index)
+        instance_lines, instance_labels = _schematic_symbol_instance(
+            design, component, nodes, index, columns=columns, row_spacing=row_spacing
+        )
         lines.extend(instance_lines)
         labels.extend(instance_labels)
     lines.extend(labels)
