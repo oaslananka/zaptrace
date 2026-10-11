@@ -31,10 +31,11 @@ def test_current_candidate_records_real_readiness_without_fabrication_claim() ->
     assert report["checks"]["internal_erc_clean"]["passed"] is True
     assert report["checks"]["exact_component_identity"]["passed"] is False
     assert report["checks"]["internal_drc_clean"]["passed"] is False
-    assert report["checks"]["internal_drc_clean"]["errors"] == 1
-    # Safer diagonal detours also expose six genuine right-angle WARNINGS;
-    # the unrouted-net ERROR remains and fabrication must stay blocked.
-    assert report["checks"]["internal_drc_clean"]["warnings"] == 6
+    # Atomic net-owned occupancy no longer counts the physically conflicting
+    # SCL route as valid. GND and SCL are legitimately left unrouted;
+    # two new right-angle warnings on CC1/CC2 remain visible.
+    assert report["checks"]["internal_drc_clean"]["errors"] == 2
+    assert report["checks"]["internal_drc_clean"]["warnings"] == 8
     assert report["checks"]["internal_drc_clean"]["rule_ids"] == ["DRC-003", "DRC-005"]
     assert report["checks"]["profile_bound_dfm_non_hard_fail"]["passed"] is False
     assert report["checks"]["kicad_erc_clean"]["status"] == "not-run"
