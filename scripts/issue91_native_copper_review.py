@@ -31,7 +31,7 @@ class RoutedConnection:
 
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6/10.0.7.
 # These are only the paths KiCad independently proved physically connected.
-# Do NOT extrapolate success to the 15 remaining unconnected copper items.
+# Do NOT extrapolate success to the 12 remaining unconnected copper items.
 ROUTES: tuple[RoutedConnection, ...] = (
     RoutedConnection(
         "USB_CC1",
@@ -164,6 +164,24 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("D1", "2", (63.05, 68.0)),
         ("U2", "5", (47.975, 61.025)),
         ((63.05, 68.0), (63.05, 72.5), (47.975, 72.5), (47.975, 61.025)),
+    ),
+    RoutedConnection(
+        "GND",
+        ("U1", "1", (21.25, 25.75)),
+        ("U1", "39", (27.795, 31.565)),
+        ((21.25, 25.75), (24.5, 25.75), (24.5, 30.5), (27.795, 31.565)),
+    ),
+    RoutedConnection(
+        "VCC_3V3",
+        ("C1", "1", (29.52, 60.0)),
+        ("U1", "2", (21.25, 27.02)),
+        ((29.52, 60.0), (18.0, 60.0), (18.0, 27.02), (21.25, 27.02)),
+    ),
+    RoutedConnection(
+        "I2C_SDA",
+        ("U1", "33", (38.75, 32.1)),
+        ("U2", "3", (47.325, 58.975)),
+        ((38.75, 32.1), (42.5, 32.1), (42.5, 56.0), (47.325, 56.0), (47.325, 58.975)),
     ),
 )
 
@@ -313,7 +331,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     before = _read_native_report(before_path)
     after = _read_native_report(after_path)
     expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 15}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 12}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
     before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
@@ -337,7 +355,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
         "traceSegments": total_segments,
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "15 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "12 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result

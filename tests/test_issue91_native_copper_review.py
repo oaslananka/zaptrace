@@ -23,8 +23,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 22
-    assert sum(len(route.points) - 1 for route in ROUTES) == 51
+    assert len(ROUTES) == 25
+    assert sum(len(route.points) - 1 for route in ROUTES) == 61
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
@@ -84,6 +84,34 @@ def test_new_independent_ground_paths_keep_verified_pad_centers_and_layers() -> 
         assert candidates[0].net == "GND"
         assert candidates[0].points == points
         assert len(points) == 4
+
+
+def test_three_more_native_verified_review_routes_preserve_exact_pad_centers() -> None:
+    additions = {
+        ("U1", "1", "U1", "39"): (
+            "GND",
+            ((21.25, 25.75), (24.5, 25.75), (24.5, 30.5), (27.795, 31.565)),
+        ),
+        ("C1", "1", "U1", "2"): (
+            "VCC_3V3",
+            ((29.52, 60.0), (18.0, 60.0), (18.0, 27.02), (21.25, 27.02)),
+        ),
+        ("U1", "33", "U2", "3"): (
+            "I2C_SDA",
+            ((38.75, 32.1), (42.5, 32.1), (42.5, 56.0), (47.325, 56.0), (47.325, 58.975)),
+        ),
+    }
+    for (source_ref, source_pad, target_ref, target_pad), (expected_net, points) in additions.items():
+        matches = [
+            route
+            for route in ROUTES
+            if route.source[0:2] == (source_ref, source_pad) and route.target[0:2] == (target_ref, target_pad)
+        ]
+        assert len(matches) == 1
+        assert matches[0].net == expected_net
+        assert matches[0].points == points
+        assert matches[0].source[2] == points[0]
+        assert matches[0].target[2] == points[-1]
 
 
 def test_native_drc_result_cannot_hide_new_finding_classes() -> None:
@@ -163,7 +191,7 @@ def test_finalize_rejects_new_native_drc_class_without_publishing(tmp_path: Path
     (tmp_path / "review.review-drc.rpt").write_text(
         "[drill_out_of_range]: x\n" * 12
         + "[hole_clearance]: y\n" * 4
-        + "[unconnected_items]: z\n" * 15
+        + "[unconnected_items]: z\n" * 12
         + "[shorting_items]: new short\n",
         encoding="utf-8",
     )
@@ -208,11 +236,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 15
+    after += "[unconnected_items]: gap\n" * 12
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 15}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 12}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()
