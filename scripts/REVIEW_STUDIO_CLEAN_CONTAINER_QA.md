@@ -214,3 +214,41 @@ copy. Electrical effects, BOM/PCB synchronization, complex hierarchy and
 vendor part qualification require independent review. 3D vendor model coverage,
 physical device user acceptance, authorized publisher signing, and public GA
 have not been verified or asserted.
+
+## Actual Ubuntu 24.04/KiCad 10 APT and native PCB placement ECO, 0.1.7
+
+The precise 0.1.7 local `.deb` SHA-256 is
+`e7a0d9cbe755420cccfb4c4a31ac6d6728ff3a2288dd2daebe7cd1deedec8471`.
+The five-file local offline release kit SHA-256 is
+`9472f1780e4a04c860dcf44c901ab22aeeeb01796d012b519dd1f5f26a04c0de`.
+
+A fresh disposable Ubuntu 24.04.1 with no KiCad nor Review Studio was actually
+APT-installed with KiCad 10.0.7 and old product 0.1.1. Native PCB/ERC/DRC and
+two Eeschema sheets were generated; old user evidence SHA-256 values frozen.
+Actual `apt install` upgraded this environment from 0.1.1 to the **same hash**
+0.1.7 `.deb` produced by the complete nine-stage release gate (249 Python
+tests, Ruff, typecheck and source SHA). The old user manifest and all saved ERC/
+DRC report hashes were unchanged.
+
+Installed 0.1.7 localhost API genuinely moved KiCad 0603 R1 from (20,20) to
+(21,20.5) in a separate PCB file, proving 0→0 native DRC/opens, consistent
+pad/track identity, and two real plotted F.Cu KiCad SVGs. An authenticated
+KiCad copy download and deliberate private draft deletion passed; the original
+PCB SHA was unchanged. The separately installed schematic editor also changed
+R1 value in a new SCH copy with real KiCad netlist/ERC unchanged, downloaded a
+source-backed artifact, and discarded it. Real Chromium using **exact .deb-
+extracted code** independently tested actual OS PCB picker, native backend,
+two SVG plots, browser result isolation, no token leakage, 390px mobile and
+zero JS exceptions.
+
+Installed localhost restored a legacy private ZIP and reran source-linked KiCad
+ERC/DRC, 2 schematic sheets and 10 genuine OpenGL KiCad camera PNGs. Real
+Chrome checked 3D pointer orbit drag and schematic hierarchy navigation. True
+`apt remove` removed the application, preserving both user reviews/reports,
+the original PCB/SCH and legacy private ZIP. The disposable test container was
+removed. The original worktree and untracked user files were not changed.
+
+**Critical:** This proves a bounded native one-footprint copy workflow, not
+track segment safe dragging, complete DRC with the missing customer's original
+`.kicad_pro`/`.kicad_dru`, electrical suitability, full CAD, manufacturing
+acceptance, vendor 3D coverage, code signing, commercial rights or public GA.

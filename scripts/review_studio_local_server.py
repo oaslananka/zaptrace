@@ -14,6 +14,7 @@ import base64
 import binascii
 import hashlib
 import json
+import math
 import re
 import secrets
 import shutil
@@ -44,6 +45,7 @@ MAX_TOTAL_SHEETS = 16 * 1024 * 1024
 MAX_PCB = 10 * 1024 * 1024
 MAX_SCHEMATIC = 4 * 1024 * 1024
 MAX_ECO_REQUEST = 6 * 1024 * 1024
+MAX_PCB_ECO_REQUEST = 16 * 1024 * 1024
 MAX_PROJECT = 3 * 1024 * 1024
 MAX_CUSTOM_RULES = 512 * 1024
 MIMES = {
@@ -103,6 +105,7 @@ class ReviewLocalServer(ThreadingHTTPServer):
         self.jobs: dict[str, dict] = {}
         self.job_outputs: dict[str, Path] = {}
         self.eco_outputs: dict[str, Path] = {}
+        self.pcb_eco_outputs: dict[str, Path] = {}
         self.lock = threading.Lock()
         self.worker_lock = threading.Lock()
         super().__init__(address, ReviewHandler)
@@ -260,6 +263,40 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+        if url.path.startswith("/api/pcb-eco/result/"):
+            if not self._authorize():
+                return
+            match = re.fullmatch(
+                r"/api/pcb-eco/result/([0-9a-f]{32})/(PREVIEW\.html|ECO_EVIDENCE\.json|source\.kicad_pcb)",
+                url.path,
+            )
+            if not match:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Unknown PCB ECO result"})
+                return
+            job_id, filename = match.groups()
+            with self.review_server.lock:
+                output = self.review_server.pcb_eco_outputs.get(job_id)
+                job = self.review_server.jobs.get(job_id)
+            if output is None or job is None or job.get("state") != "complete":
+                self._json(HTTPStatus.NOT_FOUND, {"error": "No verified PCB ECO draft exists"})
+                return
+            item = output / filename
+            if not item.is_file() or item.is_symlink() or item.stat().st_size > 12_000_000:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "PCB ECO artifact unavailable"})
+                return
+            if filename == "source.kicad_pcb":
+                raw = item.read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", 'attachment; filename="source-edited-PCB-ECO.kicad_pcb"')
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+            else:
+                self._serve_bytes(item.read_bytes(), item.suffix)
+            return
         if url.path.startswith("/api/eco/result/"):
             if not self._authorize():
                 return
@@ -363,6 +400,114 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 return
             self._json(HTTPStatus.OK, {"state": "stopping", "message": "Local Review Studio is stopping"})
             threading.Thread(target=self.review_server.shutdown, daemon=True).start()
+            return
+        if self.path == "/api/pcb-eco/discard":
+            if not self._authorize():
+                return
+            length = self.headers.get("Content-Length", "")
+            if not length.isdecimal() or not 0 < int(length) <= 96:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid PCB ECO discard"})
+                return
+            try:
+                data = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                if (
+                    not isinstance(data, dict)
+                    or set(data) != {"id"}
+                    or not isinstance(data["id"], str)
+                    or not re.fullmatch(r"[0-9a-f]{32}", data["id"])
+                ):
+                    raise ValueError("Invalid isolated PCB ECO job ID")
+                with self.review_server.lock:
+                    job = self.review_server.jobs.get(data["id"])
+                    if job is None or job.get("state") == "running":
+                        raise ValueError("No completed PCB ECO available to discard")
+                    output = self.review_server.pcb_eco_outputs.pop(data["id"], None)
+                    self.review_server.jobs.pop(data["id"], None)
+                if output is not None:
+                    shutil.rmtree(output)
+                self._json(HTTPStatus.OK, {"state": "discarded", "message": "Only PCB ECO working copy deleted"})
+            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:190]})
+            return
+        if self.path == "/api/pcb-eco":
+            if not self._authorize():
+                return
+            length = self.headers.get("Content-Length", "")
+            if (
+                self.headers.get("Content-Type") != "application/json"
+                or not length.isdecimal()
+                or not 15 < int(length) <= MAX_PCB_ECO_REQUEST
+            ):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Provide native KiCad PCB ECO JSON under 16 MB"})
+                return
+            if not self.review_server.worker_lock.acquire(blocking=False):
+                self._json(HTTPStatus.CONFLICT, {"error": "Wait for active native KiCad validation"})
+                return
+            staged = None
+            started = False
+            try:
+                payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                expected = {"source_base64", "original_sha256", "reference", "dx", "dy"}
+                if not isinstance(payload, dict) or set(payload) != expected:
+                    raise ValueError("Expected exactly native PCB SHA, reference and two footprint offsets")
+                ref, digest = payload["reference"], payload["original_sha256"]
+                if (
+                    not isinstance(ref, str)
+                    or not re.fullmatch(r"[A-Za-z]{1,5}[1-9][0-9]{0,5}", ref)
+                    or not isinstance(digest, str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                ):
+                    raise ValueError("Invalid footprint reference or original KiCad SHA")
+                offsets = []
+                for field in ("dx", "dy"):
+                    value = payload[field]
+                    if isinstance(value, bool) or not isinstance(value, (int, float)):
+                        raise ValueError("PCB displacement must be numeric")
+                    real = float(value)
+                    if not math.isfinite(real) or abs(real) > 5 or abs(real * 20 - round(real * 20)) > 1e-7:
+                        raise ValueError("PCB movement must follow a 0.05 mm grid within ±5 mm")
+                    offsets.append(real)
+                if offsets == [0, 0]:
+                    raise ValueError("Choose a nonzero PCB footprint displacement")
+                if not isinstance(payload["source_base64"], str):
+                    raise ValueError("KiCad source encoding required")
+                try:
+                    raw = base64.b64decode(payload["source_base64"], validate=True)
+                except (binascii.Error, ValueError) as exc:
+                    raise ValueError("Invalid native KiCad PCB data") from exc
+                if not 200 < len(raw) <= MAX_PCB or not raw.lstrip().startswith(b"(kicad_pcb"):
+                    raise ValueError("Choose a genuine native KiCad PCB under 10 MB")
+                if hashlib.sha256(raw).hexdigest() != digest:
+                    raise ValueError("Source PCB SHA-256 differs from selected browser file")
+                job_id = uuid.uuid4().hex
+                staged = self.review_server.workspace / "pcb-eco-working" / job_id
+                staged.mkdir(parents=True, exist_ok=False)
+                (staged / "source.kicad_pcb").write_bytes(raw)
+                output = self.review_server.workspace / "pcb-eco-results" / job_id
+                output.parent.mkdir(parents=True, exist_ok=True)
+                job = {
+                    "id": job_id,
+                    "state": "running",
+                    "phase": "native_drc",
+                    "message": "Checking routed-pad anchors, native pad identity and before/after KiCad DRC",
+                }
+                with self.review_server.lock:
+                    self.review_server.jobs[job_id] = job
+                    self.review_server.pcb_eco_outputs[job_id] = output
+                thread = threading.Thread(
+                    target=self._run_pcb_eco_job,
+                    args=(job_id, staged / "source.kicad_pcb", output, ref, *offsets),
+                    daemon=True,
+                )
+                thread.start()
+                started = True
+                self._json(HTTPStatus.ACCEPTED, job)
+            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError, OSError) as exc:
+                if not started:
+                    if staged is not None:
+                        shutil.rmtree(staged, ignore_errors=True)
+                    self.review_server.worker_lock.release()
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:210]})
             return
         if self.path == "/api/eco/discard":
             if not self._authorize():
@@ -715,6 +860,62 @@ class ReviewHandler(BaseHTTPRequestHandler):
             # An already started worker remains responsible for finishing the
             # local analysis, even if the browser disconnects mid-response.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Local import preparation failed"})
+
+    def _run_pcb_eco_job(self, job_id: str, source: Path, output: Path, ref: str, dx: float, dy: float) -> None:
+        result: dict = {"state": "failed", "message": "KiCad PCB ECO failed native checks; no copy published"}
+        try:
+            module = Path(__file__).with_name("review_studio_pcb_eco.py")
+            run = subprocess.run(
+                [
+                    "/usr/bin/python3",
+                    "-B",
+                    str(module),
+                    "--board",
+                    str(source),
+                    "--output",
+                    str(output),
+                    "--ref",
+                    ref,
+                    f"--dx={dx}",
+                    f"--dy={dy}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                check=False,
+            )
+            if run.returncode == 0:
+                manifest = json.loads((output / "ECO_EVIDENCE.json").read_text())
+                if manifest["native_drc"]["new_drc_rules"] != 0:
+                    raise RuntimeError("Native DRC did not certify PCB ECO copy")
+                result = {
+                    "state": "complete",
+                    "message": "One native unrouted footprint moved; DRC verified, NOT fab approved",
+                    "pcb_eco": {
+                        "id": job_id,
+                        "ref": manifest["ref"],
+                        "old_mm": manifest["old_mm"],
+                        "new_mm": manifest["new_mm"],
+                        "fabApproved": False,
+                    },
+                }
+            elif "pad-adjacent copper" in run.stderr:
+                result["message"] = "Footprint has connected copper; use proper drag-routing in KiCad instead"
+            elif "DRC violation" in run.stderr:
+                result["message"] = "KiCad detected new PCB DRC violations; footprint change rejected"
+            elif "Copper zones" in run.stderr:
+                result["message"] = "Copper zones need controlled refill before a safe footprint move"
+        except (OSError, RuntimeError, ValueError, UnicodeError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            pass
+        finally:
+            if result["state"] != "complete":
+                shutil.rmtree(output, ignore_errors=True)
+            shutil.rmtree(source.parent, ignore_errors=True)
+            with self.review_server.lock:
+                self.review_server.jobs[job_id].update(result)
+                if result["state"] != "complete":
+                    self.review_server.pcb_eco_outputs.pop(job_id, None)
+            self.review_server.worker_lock.release()
 
     def _run_eco_job(self, job_id: str, source: Path, output: Path, ref: str, value: str) -> None:
         result: dict = {"state": "failed", "message": "Native KiCad authoring validation failed; no change approved"}

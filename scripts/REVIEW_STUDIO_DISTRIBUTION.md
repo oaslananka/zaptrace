@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.6 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.7 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.6_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.7_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -42,6 +42,22 @@ KiCad CLI rendering; desktop systems can use their existing graphical display.
 The viewer offers native PCB inspection, not geometry-authoring CAD. The native
 ERC/DRC findings and NOT FABRICATION APPROVED warning remain visible even in
 3D mode. The 3D images are local engineering data and stay private.
+
+## Native PCB footprint placement — controlled copy-on-write ECO
+
+Use **Draft a PCB move** in the authenticated local workspace. Select a native
+`.kicad_pcb`, one existing **unrouted** footprint reference, and grid-snapped
+X/Y movement within ±5 mm (0.05 mm increments). Installed KiCad 10 writes a
+separate working-copy PCB, checks tracks, all footprint and pad identities,
+net assignments, orientations, positions and original copper, and compares
+genuine before/after DRC report violation object IDs. Any *new* rule violation,
+increased unconnected count, locked footprint, filled copper zone or existing
+pad-attached track **blocks the change**. The user sees two real KiCad SVG
+copper/silkscreen drawings with synchronized zoom/pan; the new board is
+separately downloaded or explicitly discarded.
+
+This is NOT a route/drag-router, footprint library manager, electrical-design
+approval or manufacturing signoff. No original KiCad source is overwritten.
 
 ## Experimental native schematic value editing — controlled ECO
 
@@ -161,8 +177,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.6_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.6_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.7_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.7_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

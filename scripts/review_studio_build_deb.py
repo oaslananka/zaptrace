@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = "0.1.6"
+VERSION = "0.1.7"
 PACKAGE = "zaptrace-review-studio"
 APP_FILES = (
     "review_studio_app.py",
@@ -24,6 +24,8 @@ APP_FILES = (
     "review_studio_workspace.py",
     "review_studio_native_kicad.py",
     "review_studio_schematic_eco.py",
+    "review_studio_pcb_eco.py",
+    "review_studio_pcb_eco_template.html",
     "review_studio_workspace_template.html",
     "review_studio_native_template.html",
     "review_studio_native_report_template.html",

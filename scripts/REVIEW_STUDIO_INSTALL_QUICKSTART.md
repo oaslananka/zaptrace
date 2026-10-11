@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.6 — Ubuntu installation and acceptance kit
+# ZapTrace Review Studio 0.1.7 — Ubuntu installation and acceptance kit
 
 **Distribution status: local release candidate, unsigned. NOT public GA.**
 
@@ -32,13 +32,13 @@ automatically granted.
 2. Verify this kit's `.deb` before installation:
 
    ```sh
-   sha256sum -c zaptrace-review-studio_0.1.6_all.sha256
+   sha256sum -c zaptrace-review-studio_0.1.7_all.sha256
    ```
 
 3. Install in a terminal in the folder containing the `.deb`:
 
    ```sh
-   sudo apt install ./zaptrace-review-studio_0.1.6_all.deb
+   sudo apt install ./zaptrace-review-studio_0.1.7_all.deb
    zaptrace-review-studio --doctor
    ```
 
@@ -64,6 +64,17 @@ the button is disabled; PCB/Sch/ERC/DRC reviews still work. The 3D image is
 read-only, and some components may not have an installed STEP/WRL model.
 **3D model completeness, enclosure/assembly fit and fabrication approval are
 not verified.** The 3D preview is not an interactive 3D CAD editor.
+
+## Controlled PCB footprint placement draft
+
+Select **Draft a PCB move**, a real `.kicad_pcb`, one unrouted footprint such as
+`R1`, and an X/Y offset in millimeters. KiCad 10 checks both boards' copper,
+pads/nets and DRC before allowing download of a **separate native `.kicad_pcb`
+working copy**. The native before/after PCB preview is source-linked. Routed
+footprints, copper zones, locked components, and any new design-rule findings
+are blocked. **Discard** erases the local draft and never overwrites the
+original PCB. Electrical function, live drag-routing, BOM/EDA synchronization
+and manufacturing acceptance are not guaranteed or supported here.
 
 ## Experimental component-value ECO authoring
 
@@ -101,11 +112,11 @@ user projects**. Those are normally at:
 
 - `RELEASE_MANIFEST.json` names the exact package SHA-256, its bundled files,
   real local release-gate status and any *unverified* launch requirements.
-- `CLEAN_UBUNTU_2404_016_QA.txt` records **real Ubuntu 24.04 APT installation
-  of 0.1.1 and in-place upgrade to 0.1.6**, native two-sheet KiCad ERC/DRC,
+- `CLEAN_UBUNTU_2404_017_QA.txt` records **real Ubuntu 24.04 APT installation
+  of 0.1.1 and in-place upgrade to 0.1.7**, native two-sheet KiCad ERC/DRC,
   authentic offscreen KiCad 3D isometric/top renders,
   successful restore of an older ZIP, and `apt remove` preserving review data.
-- `zaptrace-review-studio_0.1.6_all.sha256` checks the exact `.deb` bytes.
+- `zaptrace-review-studio_0.1.7_all.sha256` checks the exact `.deb` bytes.
 
 **Unsigned:** A SHA-256 match is an integrity check, **not** a publisher
 signature. `PUBLISHER_PUBLIC_KEY.asc` and verified detached signatures are

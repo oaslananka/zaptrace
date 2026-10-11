@@ -33,6 +33,20 @@ installed-package native KiCad acceptance evidence. The tested 0.1.6 release
 introduces a *value-only* authoring surface; earlier 0.1.5 package artifacts
 remain byte-for-byte unchanged. This does not certify arbitrary wire/PCB edits.
 
+## First native PCB placement authoring milestone (0.1.7; not complete PCB CAD)
+
+`review_studio_pcb_eco.py` adds a genuine KiCad 10 source-copy footprint
+translation, verified native pad identity and before/after DRC, responsive
+KiCad-generated PCB SVG comparison and private localhost download/discard.
+The exact 0.1.7 Debian package was independently installed in a disposable
+Ubuntu/KiCad container, upgraded from the old product and tested in real
+Chromium. This works for carefully bounded unrouted geometry, but **does not**
+provide production rule context upload, dragged connected copper, board zones,
+via routing, complete footprint editing or full schematic/PCB synchronization.
+See `REVIEW_STUDIO_PCB_ECO_EXPERIMENT.md` for the exact SHA-bound proof, safety
+gaps and engineering acceptance plan. `fabApproved` and full EDA signoff remain
+false; the release is still unsigned and local only.
+
 ## Required milestones for full-featured EDA
 
 1. **Authentic schematic authoring.** Real component/library selection, net and
