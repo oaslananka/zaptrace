@@ -2,6 +2,7 @@
 import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const fixture=process.env.ZAPTRACE_PCB_ECO_SOURCE;
+const project=process.env.ZAPTRACE_PCB_ECO_PROJECT;
 const shots=process.env.ZAPTRACE_PCB_ECO_SHOTS;
 if(!port||!fixture||!shots)throw Error('Real Chrome port, native PCB source and screenshot path required');
 let pages=[];
@@ -31,6 +32,11 @@ const dom=await command('DOM.getDocument',{depth:1});
 const input=await command('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'#pcbEcoSource'});
 check(!!input.nodeId,'real native KiCad PCB file input exists');
 await command('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[fixture]});
+if(project){
+ const projectInput=await command('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'#pcbEcoProject'});
+ check(!!projectInput.nodeId,'matching native KiCad project selector exists');
+ await command('DOM.setFileInputFiles',{nodeId:projectInput.nodeId,files:[project]});
+}
 const chosen=await js(`(()=>{document.getElementById('pcbEcoRef').value='R1';document.getElementById('pcbEcoDx').value='1';
  document.getElementById('pcbEcoDy').value='.5';document.getElementById('pcbEcoForm').requestSubmit();
  return document.getElementById('pcbEcoSource').files?.[0]?.name})()`);
@@ -54,6 +60,11 @@ console.log('NATIVE KICAD PCB ECO LIVE',result);
 check(result.visible&&result.ready==='true'&&result.id?.length===32&&result.iframeBytes>10000&&
  result.title.includes('R1')&&result.title.includes('21')&&result.title.includes('20.5')&&
  result.title.includes('DRC verified'),'full Chrome native KiCad footprint R1 (20,20) -> (21,20.5) passed real DRC');
+const context=await js(`(()=>({bundleLabel:document.getElementById('pcbEcoDownload').textContent,
+  status:document.getElementById('pcbEcoStatus').textContent}))()`);
+check(project ? context.bundleLabel.includes('ZIP')&&context.status.includes('selected project') :
+  !context.bundleLabel.includes('ZIP')&&context.status.includes('defaults only'),
+  'native KiCad browser distinguishes supplied project rules from default-only DRC');
 const preview=await js(`(()=>{const x=document.getElementById('pcbEcoPreview');return {
  iframeSrc:x.srcdoc.slice(0,500),realSvg:x.srcdoc.split('data:image/svg+xml;base64,').length-1,
  isolated:x.sandbox.contains('allow-scripts')&&!x.sandbox.contains('allow-same-origin'),
@@ -69,6 +80,14 @@ const authenticated=await js(`(async()=>{const id=document.getElementById('pcbEc
  native:data.startsWith('(kicad_pcb'),bytes:data.length}})()`);
 check(authenticated.status===200&&authenticated.native&&authenticated.bytes>3000&&
  authenticated.header?.includes('attachment'),'separately downloadable native KiCad PCB copy available only via authenticated localhost');
+if(project){
+ const bundle=await js(`(async()=>{const id=document.getElementById('pcbEcoResult').dataset.id;
+ const r=await fetch('/api/pcb-eco/result/'+id+'/source.project.zip',
+  {headers:{'X-Review-Token':window.__REVIEW_LOCAL__.token},cache:'no-store'});
+ const raw=new Uint8Array(await r.arrayBuffer());return {status:r.status,bytes:raw.length,zip:raw[0]===80&&raw[1]===75};})()`);
+ check(bundle.status===200&&bundle.zip&&bundle.bytes>3000,
+ 'matched KiCad .kicad_pro is bundled with approved PCB and native ECO evidence');
+}
 await js(`document.getElementById('pcbEcoLab').scrollIntoView({block:'start',behavior:'instant'});true`);
 await new Promise(r=>setTimeout(r,420));
 const desk=await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});

@@ -111,3 +111,74 @@ def test_routed_sensor_footprint_cannot_be_moved_using_browser(tmp_path: Path) -
         assert result["state"] == "failed"
         assert "drag-routing" in result["message"]
     assert hashlib.sha256(COPPER.read_bytes()).hexdigest() == sha
+
+
+def test_real_project_rule_context_browser_eco_returns_private_bundle(tmp_path: Path) -> None:
+    """Matching .kicad_pro source stays intact and travels with the approved copy."""
+    import io
+    import zipfile
+
+    original_project = (Path(__file__).resolve().parents[1] / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes()
+    request = {
+        **make_payload(),
+        "source_filename": "sensor.kicad_pcb",
+        "project_filename": "sensor.kicad_pro",
+        "project_base64": base64.b64encode(original_project).decode(),
+        "project_sha256": hashlib.sha256(original_project).hexdigest(),
+    }
+    with local_studio(tmp_path) as (server, url):
+        token = server.secret
+        status, raw = fetch(url + "/api/pcb-eco", token, data=request)
+        assert status == 202, raw
+        job = json.loads(raw)
+        result = await_job(url, token, job["id"])
+        assert result["state"] == "complete", result
+        assert result["pcb_eco"]["rule_context"] == "project"
+        route = url + "/api/pcb-eco/result/" + job["id"]
+        status, evidence = fetch(route + "/ECO_EVIDENCE.json", token)
+        assert status == 200
+        report = json.loads(evidence)
+        assert report["rule_context"]["mode"] == "project"
+        assert report["rule_context"]["project_sha256"] == hashlib.sha256(original_project).hexdigest()
+        status, bundle = fetch(route + "/source.project.zip", token)
+        assert status == 200
+        with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
+            assert set(archive.namelist()) == {"source.kicad_pcb", "source.kicad_pro", "ECO_EVIDENCE.json"}
+            assert archive.read("source.kicad_pro") == original_project
+            assert archive.read("source.kicad_pcb") != CLEAN.read_bytes()
+        status, _ = fetch(route + "/source.project.zip", "invalid")
+        assert status == 403
+        code, removed = fetch(url + "/api/pcb-eco/discard", token, data={"id": job["id"]})
+        assert code == 200 and json.loads(removed)["state"] == "discarded"
+        assert fetch(route + "/source.project.zip", token)[0] == 404
+    assert (
+        CLEAN.is_file()
+        and original_project
+        == (Path(__file__).resolve().parents[1] / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes()
+    )
+
+
+def test_project_rule_upload_mismatch_and_tampering_fail_closed(tmp_path: Path) -> None:
+    original_project = (Path(__file__).resolve().parents[1] / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes()
+    correct = {
+        **make_payload(),
+        "source_filename": "sensor.kicad_pcb",
+        "project_filename": "sensor.kicad_pro",
+        "project_base64": base64.b64encode(original_project).decode(),
+        "project_sha256": hashlib.sha256(original_project).hexdigest(),
+    }
+    wrong = [
+        {**correct, "project_filename": "different.kicad_pro"},
+        {**correct, "source_filename": "../sensor.kicad_pcb"},
+        {**correct, "project_sha256": "0" * 64},
+        {**correct, "project_base64": "%%not-base64"},
+        {**correct, "project_base64": base64.b64encode(b"not a JSON project").decode()},
+        {**correct, "rules_filename": "sensor.kicad_dru"},
+        {**correct, "project_filename": "sensor.KICAD_PRO"},
+        {**correct, "project_filename": "sensor.kicad_pro", "source_filename": "sensor2.kicad_pcb"},
+    ]
+    with local_studio(tmp_path) as (server, url):
+        for bad in wrong:
+            code, _ = fetch(url + "/api/pcb-eco", server.secret, data=bad)
+            assert code == 400, bad.keys()
+        assert not list((tmp_path / "workspace/pcb-eco-results").glob("*/source.kicad_pcb"))

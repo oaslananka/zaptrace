@@ -65,18 +65,21 @@ multiple schematic sheets and APT removal preserved user data.
 
 ## Production and completeness limitations
 
-- A track may cross a pad *between endpoints*; the current overlap guard only
-  rejects pad-bounding-box **endpoint** touches. It is not a replacement for
-  native drag-routing or a proof of copper continuity under every geometry.
-  The DRC and native consistency checks are additional protections, not a
-  comprehensive copper-collision certificate. More conservative segment/arc
-  intersection protection is a prerequisite for general placement editing.
-- Browser-based ECO accepts `.kicad_pcb` only. It does **not** yet upload the
-  design's matching `.kicad_pro` or `.kicad_dru`. Therefore KiCad may use
-  defaults in this workflow; the DRC comparison **must not** be represented as
-  the production fab rules unless the actual rule context is independently
-  established. The native CLI prototype does copy a physically adjacent
-  `.kicad_pro` into both validation workspaces.
+- The **packaged 0.1.7** overlap guard examines track endpoints only: a segment
+  can cross a pad between endpoints, or newly touch a destination pad. Do not
+  rely on that package for general PCB placement. A post-0.1.7 **local source
+  hardening patch, not yet packaged or installed**, uses native KiCad bounding
+  boxes for tracks, arcs and vias at both source and destination pad locations.
+  This fails closed on intersecting copper but is deliberately conservative:
+  a bounding-box intersection is not exact shape clearance, drag-routing, or
+  complete physical/electrical continuity certification.
+- The **packaged 0.1.7** browser ECO accepts `.kicad_pcb` only, and may fall
+  back to KiCad defaults without a matching project. The newer **local source
+  branch** accepts an optional hash-bound matching `.kicad_pro`, puts it in
+  both DRC workspaces and bundles the PCB plus project in a ZIP. Actual use of
+  each rule is **not independently attested**; the local evidence explicitly
+  records `effective_rules_independently_verified=false`. Selecting
+  `.kicad_dru` custom rules blocks the browser ECO rather than ignoring them.
 - This tool does not move existing traces, refill copper zones, edit board
   outlines, enforce antenna keepouts, sync schematic ECO, assess power/thermal
   performance, approve BOM or generate safe production outputs. A native DRC
@@ -94,7 +97,36 @@ multiple schematic sheets and APT removal preserved user data.
 - QA: `build/distribution/CLEAN_UBUNTU_2404_017_QA.txt` and
   `build/distribution/RELEASE_MANIFEST.json`
 
-**Immediate next implementation target:** copy-on-write KiCad project-rule
-context upload and verified use, then robust track/arc intersection rejection
-and real safe native route-aware footprint drag. Keep the original and saved
-manufacturer rules immutable until all independent checks pass.
+**Immediate next implementation target:** independently attest native KiCad
+custom-rule loading and applied project-rule semantics; then safely introduce
+custom-rule-aware browser editing, native route-aware footprint drag and
+full source-to-layout ECO synchronization. Keep immutable source hashes and
+manufacturer DFM gates.
+
+## Post-0.1.7 local hardening (not part of the SHA-bound 0.1.7 package)
+
+The isolated local branch now rejects copper overlap even when **both track
+endpoints lie outside the pad**, and rejects a moved pad landing on existing
+copper (including native KiCad arc/via bounding boxes). Native KiCad integration
+tests cover original and destination overlaps and check that failed drafts
+never write an output or alter the original. The CLI additionally preserves
+and SHA-binds the matching local .kicad_pro sidecar, preserving the exact
+validated project snapshot. Native .kicad_dru rule-file application was not
+proven by a deliberately invalid-rule test: **all custom-rule sidecar inputs
+are therefore rejected fail-closed**, including otherwise well-paired files.
+
+**Browser support on the local branch:** optional matching `.kicad_pro` is
+base64/SHA-256 checked, validated for KiCad project JSON shape and staged as an
+isolated `source.kicad_pro` in both native DRC workspaces. Successful drafts
+produce an authenticated private ZIP containing `source.kicad_pcb`,
+`source.kicad_pro` and ECO evidence, removable by explicit discard. Default-
+only comparison remains available but is labeled as such. A selected
+`.kicad_dru` is blocked, not silently discarded. Negative HTTP tests cover
+filename/path mismatches, tampered digests and invalid encodings. Actual Chrome
+tested both default-only and matching-project contexts, authenticated ZIP
+download, dual native KiCad SVG, desktop/390px responsive layout, and no JS
+exceptions. These tests exercised **local source, not an installed new package**.
+
+Existing SHA-bound 0.1.7 Debian/ZIP packages remain unchanged. Re-run the
+exact-package clean Ubuntu/Chromium/restore tests and give the changed binary
+a distinct version before describing it as a release candidate.

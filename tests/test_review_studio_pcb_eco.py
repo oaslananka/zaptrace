@@ -148,3 +148,159 @@ def test_output_inside_original_directory_is_rejected(tmp_path: Path) -> None:
     board.write_bytes(CLEAN.read_bytes())
     run = run_eco(board, tmp_path / "not-allowed-in-source")
     assert run.returncode == 2 and not (tmp_path / "not-allowed-in-source").exists()
+
+
+@pytest.mark.parametrize(
+    "copper_kind,x_mm",
+    [
+        ("segment", "19.175"),  # Pad 1 at source; both track endpoints outside the pad.
+        ("segment", "21.825"),  # Pad 2 at destination; source pads have no overlap.
+        ("arc", "19.175"),  # Native arc intersects the source pad, not its endpoints.
+        ("via", "21.825"),  # Native via at destination can create a new electrical join.
+    ],
+)
+def test_existing_copper_overlaps_source_or_destination_pad_are_blocked(
+    tmp_path: Path, copper_kind: str, x_mm: str
+) -> None:
+    """Native KiCad geometry guards contact, not only endpoint-in-pad cases."""
+    board = tmp_path / "original" / "native-copper.kicad_pcb"
+    board.parent.mkdir()
+    script = """
+import pcbnew as p
+import sys
+board = p.LoadBoard(sys.argv[1])
+kind = sys.argv[3]
+x = p.FromMM(float(sys.argv[4]))
+pos = lambda y: p.VECTOR2I(x, p.FromMM(y))
+if kind == "via":
+    item = p.PCB_VIA(board)
+    item.SetPosition(pos(20.5))
+    item.SetWidth(p.FromMM(0.6))
+    item.SetDrill(p.FromMM(0.3))
+    item.SetLayerPair(p.F_Cu, p.B_Cu)
+else:
+    item = p.PCB_ARC(board) if kind == "arc" else p.PCB_TRACK(board)
+    item.SetStart(pos(18))
+    item.SetEnd(pos(22))
+    if kind == "arc":
+        item.SetMid(p.VECTOR2I(x + p.FromMM(0.5), p.FromMM(20)))
+    item.SetWidth(p.FromMM(0.25))
+    item.SetLayer(p.F_Cu)
+board.Add(item)
+p.SaveBoard(sys.argv[2], board)
+"""
+    native = subprocess.run(
+        ["/usr/bin/python3", "-B", "-c", script, str(CLEAN), str(board), copper_kind, x_mm],
+        capture_output=True,
+        text=True,
+        timeout=25,
+        check=False,
+    )
+    assert native.returncode == 0, native.stderr
+    original_sha = hashlib.sha256(board.read_bytes()).hexdigest()
+    output = tmp_path / "must-block-pad-copper"
+    result = run_eco(board, output)
+    assert result.returncode == 2, result.stderr + result.stdout
+    assert "pad-adjacent copper" in result.stderr
+    assert not output.exists()
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == original_sha
+
+
+def test_project_drc_sidecar_is_preserved_and_hashed(tmp_path: Path) -> None:
+    """Matching KiCad .pro settings must survive BOTH native DRC runs."""
+    source = tmp_path / "input"
+    source.mkdir()
+    pcb = source / "native.kicad_pcb"
+    pcb.write_bytes(CLEAN.read_bytes())
+    project = pcb.with_suffix(".kicad_pro")
+    project.write_bytes((SOURCE / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes())
+    original = {path: hashlib.sha256(path.read_bytes()).hexdigest() for path in (pcb, project)}
+    result = run_eco(pcb, tmp_path / "context-preserved")
+    assert result.returncode == 0, result.stderr + result.stdout
+    output = tmp_path / "context-preserved"
+    evidence = json.loads((output / "ECO_EVIDENCE.json").read_text())
+    assert evidence["rule_context"] == {
+        "mode": "project",
+        "project_sha256": original[project],
+        "custom_rules_sha256": None,
+        "effective_rules_independently_verified": False,
+    }
+    for path in (pcb, project):
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == original[path]
+    assert (output / "source.kicad_pro").read_bytes() == project.read_bytes()
+
+
+def test_custom_drc_rules_without_matching_project_are_rejected(tmp_path: Path) -> None:
+    source = tmp_path / "input"
+    source.mkdir()
+    pcb = source / "native.kicad_pcb"
+    pcb.write_bytes(CLEAN.read_bytes())
+    rules = pcb.with_suffix(".kicad_dru")
+    rules.write_text("(version 1)\n")
+    result = run_eco(pcb, tmp_path / "must-block-unpaired-rules")
+    assert result.returncode == 2 and "without their project context" in result.stderr
+    assert not (tmp_path / "must-block-unpaired-rules").exists()
+    assert pcb.read_bytes() == CLEAN.read_bytes()
+
+
+def test_symlinked_kicad_project_context_is_rejected(tmp_path: Path) -> None:
+    source = tmp_path / "input"
+    source.mkdir()
+    pcb = source / "native.kicad_pcb"
+    pcb.write_bytes(CLEAN.read_bytes())
+    pcb.with_suffix(".kicad_pro").symlink_to(SOURCE / "tests/fixtures/kicad_project/top.kicad_pro")
+    result = run_eco(pcb, tmp_path / "must-block-external-rule-link")
+    assert result.returncode == 2 and "sidecar is not a regular file" in result.stderr
+    assert not (tmp_path / "must-block-external-rule-link").exists()
+
+
+def test_kicad_rejects_invalid_custom_rules_instead_of_defaulting(tmp_path: Path) -> None:
+    source = tmp_path / "input"
+    source.mkdir()
+    pcb = source / "native.kicad_pcb"
+    pcb.write_bytes(CLEAN.read_bytes())
+    pcb.with_suffix(".kicad_pro").write_bytes((SOURCE / "tests/fixtures/kicad_project/top.kicad_pro").read_bytes())
+    pcb.with_suffix(".kicad_dru").write_text("(version 1)\n(rule broken (constraint clearance (min INVALID)))\n")
+    result = run_eco(pcb, tmp_path / "no-silent-rule-fallback")
+    assert result.returncode == 2, result.stderr + result.stdout
+    assert "KiCad" in result.stderr
+    assert not (tmp_path / "no-silent-rule-fallback").exists()
+
+
+def test_unrelated_copper_arc_outside_footprint_still_allows_evidence(tmp_path: Path) -> None:
+    """The guard is localized: harmless copper elsewhere is not banned globally."""
+    original = tmp_path / "input"
+    original.mkdir()
+    pcb = original / "unrelated-arc.kicad_pcb"
+    make = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """
+import pcbnew as p,sys
+b=p.LoadBoard(sys.argv[1])
+a=p.PCB_ARC(b)
+a.SetStart(p.VECTOR2I(p.FromMM(28),p.FromMM(17)))
+a.SetMid(p.VECTOR2I(p.FromMM(29),p.FromMM(20)))
+a.SetEnd(p.VECTOR2I(p.FromMM(28),p.FromMM(23)))
+a.SetWidth(p.FromMM(.25))
+a.SetLayer(p.F_Cu)
+b.Add(a)
+p.SaveBoard(sys.argv[2],b)
+""",
+            str(CLEAN),
+            str(pcb),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=25,
+    )
+    assert make.returncode == 0, make.stderr
+    sha_before = hashlib.sha256(pcb.read_bytes()).hexdigest()
+    target = tmp_path / "safe-unrelated-arc"
+    result = run_eco(pcb, target)
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (target / "source.kicad_pcb").is_file()
+    assert hashlib.sha256(pcb.read_bytes()).hexdigest() == sha_before

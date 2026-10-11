@@ -141,14 +141,16 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 <section class="eco-lab" id="pcbEcoLab" hidden aria-label="Controlled native KiCad PCB footprint placement editor">
  <span class="eco-label">REAL NATIVE PCB AUTHORING / FOOTPRINT PLACEMENT ECO</span>
  <h2>Reposition an unrouted footprint</h2>
- <p>Move one existing <strong>unrouted</strong> footprint by a measured offset. Real KiCad 10 verifies copper endpoints, pad UUIDs, net ownership and before/after DRC. Only a separate authored <code>.kicad_pcb</code> copy can be downloaded. <strong>Connected copper, zones and new rule violations are blocked.</strong></p>
+ <p>Move one existing <strong>unrouted</strong> footprint by a measured offset. Real KiCad 10 checks native copper bounding geometry at both positions, pad UUIDs, net ownership and before/after DRC. Only a separate verified PCB working copy can be downloaded. <strong>Connected copper, zones and new rule violations are blocked.</strong></p>
  <form id="pcbEcoForm" class="eco-fields">
   <label>Original native KiCad PCB<input id="pcbEcoSource" type="file" accept=".kicad_pcb" required aria-label="Select KiCad PCB to prepare a footprint move"/></label>
+  <label>Matching KiCad project rules (recommended)<input id="pcbEcoProject" type="file" accept=".kicad_pro" aria-label="Select original project rules with exactly the same base filename"/></label>
+  <label>Custom design rules (unsupported; selection will block move)<input id="pcbEcoRules" type="file" accept=".kicad_dru" aria-label="Disclose custom design rules that require independent validation"/></label>
   <label>Footprint reference<input id="pcbEcoRef" type="text" value="R1" maxlength="11" required spellcheck="false" autocomplete="off"/></label>
   <label>Move X / Y (mm)<span class="pcb-eco-offset"><input id="pcbEcoDx" type="number" min="-5" max="5" step="0.05" value="1" required aria-label="Footprint X movement in millimeters"/><input id="pcbEcoDy" type="number" min="-5" max="5" step="0.05" value="0" required aria-label="Footprint Y movement in millimeters"/></span></label>
   <button id="pcbEcoCreate" type="submit">Check DRC &amp; preview</button>
  </form>
- <p class="eco-warning">Move attempts on routed pads or copper zones are deliberately blocked. DRC pass does not establish electrical performance, antenna clearances, vendor-model correctness or fabrication signoff. Original board sources are never edited.</p>
+ <p class="eco-warning">Supply the matching .kicad_pro to include your project's settings in both KiCad DRC runs; their effective application is not independently certified. With no project file, KiCad's defaults apply, not your fabrication rules. Custom .kicad_dru files are blocked until their loading can be verified. Existing copper, copper zones and new rule violations block movement. DRC passing never establishes fabrication or electrical approval. Original files stay unchanged.</p>
  <p id="pcbEcoStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
  <div class="eco-result" id="pcbEcoResult" hidden>
   <div class="eco-result-head"><strong id="pcbEcoResultTitle">Native PCB move verification · not approved</strong>
@@ -309,7 +311,7 @@ if(window.__REVIEW_LOCAL__?.token){
  });
  // Native PCB authoring lives in a separate security namespace from the
  // schematic-value ECO; neither editor can read the other's artifacts.
- let pcbEcoId=null;
+ let pcbEcoId=null,pcbEcoBundle=false;
  const pcbResult=$('pcbEcoResult'),pcbStatus=$('pcbEcoStatus'),pcbButton=$('pcbEcoCreate');
  const pcbMessage=message=>{pcbStatus.hidden=false;pcbStatus.textContent=message;};
  async function pcbFile(id,file){
@@ -331,7 +333,16 @@ if(window.__REVIEW_LOCAL__?.token){
   pcbButton.disabled=true;
   try{
    pcbMessage('Hashing source file and checking real copper endpoints, KiCad pad net identity and native DRC…');
+   const project=$('pcbEcoProject').files?.[0],rules=$('pcbEcoRules').files?.[0];
+   if(rules)throw Error('Custom KiCad .kicad_dru rules cannot yet be verified. PCB ECO blocked.');
+   if(project&&(project.name!==file.name.replace(/\.kicad_pcb$/,'.kicad_pro')||
+      project.size>3*1024*1024||project.size<9))throw Error('Project .kicad_pro must match PCB basename and be under 3 MB.');
    const payload={...await ecoUploadBase64(file),reference,dx,dy};
+   if(project){
+    const encoded=await ecoUploadBase64(project);
+    Object.assign(payload,{source_filename:file.name,project_filename:project.name,
+     project_base64:encoded.source_base64,project_sha256:encoded.original_sha256});
+   }
    const send=await fetch('/api/pcb-eco',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
     body:JSON.stringify(payload),cache:'no-store'});
    const started=await send.json();
@@ -348,9 +359,11 @@ if(window.__REVIEW_LOCAL__?.token){
      $('pcbEcoPreview').addEventListener('load',()=>{pcbResult.dataset.frameReady='true';},{once:true});
      $('pcbEcoPreview').srcdoc=html;
      pcbResult.dataset.id=started.id;pcbEcoId=started.id;pcbResult.hidden=false;
+     pcbEcoBundle=job.pcb_eco.rule_context==='project';
+     $('pcbEcoDownload').textContent=pcbEcoBundle?'Download PCB + project rules ZIP':'Download separate PCB copy';
      $('pcbEcoResultTitle').textContent=job.pcb_eco.ref+' · '+job.pcb_eco.old_mm.join(', ')+' → '+
       job.pcb_eco.new_mm.join(', ')+' mm · native DRC verified · NOT fab approved';
-     pcbMessage('Native KiCad copper comparison complete; only a separate reviewed PCB draft may be downloaded.');
+     pcbMessage(pcbEcoBundle?'Native PCB compared with the selected project file present; effective custom rule enforcement not independently certified. Download preserves that file.':'Native PCB compared with KiCad defaults only; no production project rules verified.');
      pcbResult.scrollIntoView({behavior:'smooth',block:'nearest'});return;
     }
    }
@@ -361,11 +374,12 @@ if(window.__REVIEW_LOCAL__?.token){
  $('pcbEcoDownload').addEventListener('click',async()=>{
   if(!pcbEcoId)return;
   try{
-   const reply=await pcbFile(pcbEcoId,'source.kicad_pcb');
+   const reply=await pcbFile(pcbEcoId,pcbEcoBundle?'source.project.zip':'source.kicad_pcb');
    const file=await reply.blob(),url=URL.createObjectURL(file),link=document.createElement('a');
-   link.href=url;link.download='source-edited-PCB-ECO.kicad_pcb';document.body.append(link);link.click();link.remove();
+   link.href=url;link.download=pcbEcoBundle?'source-PCB-ECO-project.zip':'source-edited-PCB-ECO.kicad_pcb';
+   document.body.append(link);link.click();link.remove();
    setTimeout(()=>URL.revokeObjectURL(url),2500);
-   pcbMessage('Downloaded separate KiCad PCB working copy. Original, schematic and BOM remain unchanged.');
+   pcbMessage(pcbEcoBundle?'Downloaded PCB and matching project-rule snapshot ZIP. Original project remains unchanged.':'Downloaded PCB copy checked only with KiCad defaults; original unchanged.');
   }catch(error){pcbMessage(error?.message||'Edited PCB download unavailable.');}
  });
  $('pcbEcoDiscard').addEventListener('click',async()=>{
@@ -376,7 +390,9 @@ if(window.__REVIEW_LOCAL__?.token){
     body:JSON.stringify({id:pcbEcoId}),cache:'no-store'});
    const result=await reply.json();
    if(!reply.ok||result.state!=='discarded')throw Error(result.error||'Could not discard PCB copy');
-   pcbEcoId=null;delete pcbResult.dataset.id;delete pcbResult.dataset.frameReady;
+   pcbEcoId=null;pcbEcoBundle=false;
+   $('pcbEcoDownload').textContent='Download separate PCB copy';
+   delete pcbResult.dataset.id;delete pcbResult.dataset.frameReady;
    pcbResult.hidden=true;$('pcbEcoPreview').removeAttribute('srcdoc');
    pcbMessage('Private PCB move draft discarded; original KiCad PCB was never modified.');
   }catch(error){pcbMessage(error?.message||'Could not discard PCB draft.');}

@@ -47,6 +47,29 @@ See `REVIEW_STUDIO_PCB_ECO_EXPERIMENT.md` for the exact SHA-bound proof, safety
 gaps and engineering acceptance plan. `fabApproved` and full EDA signoff remain
 false; the release is still unsigned and local only.
 
+## Post-0.1.7 isolated local engineering hardening (not packaged)
+
+A guarded PCB placement follow-up uses native KiCad track/arc/via bounding
+geometry at both the source and destination pad positions; this blocks
+crossing and unintended landing copper cases missed by endpoint-only checks.
+Existing routed-pad and DRC-regression refusals remain active.
+
+The browser can now optionally import a same-basename, SHA-256-verified
+`.kicad_pro` with the original `.kicad_pcb`, compare the native design with
+that project file present in both validation workspaces, and download a
+private ZIP with the checked PCB, project snapshot and evidence. The live
+Chrome flow was tested with and without that sidecar, including a 390px
+viewport and explicit deletion. Custom `.kicad_dru` rules are **blocked**
+because a deliberately invalid rule file was observed passing KiCad CLI
+without proving application. A present project file **does not attest** all
+effective rules; evidence records
+`effective_rules_independently_verified=false`.
+
+This branch is **not** an installed 0.1.8 release candidate. The previously
+tested 0.1.7 artifact hashes remain untouched; all clean-install, migration,
+restore, uninstall and signed-package gates must be re-run on a new,
+independently versioned package before claiming its acceptance.
+
 ## Required milestones for full-featured EDA
 
 1. **Authentic schematic authoring.** Real component/library selection, net and

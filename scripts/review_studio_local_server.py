@@ -45,7 +45,7 @@ MAX_TOTAL_SHEETS = 16 * 1024 * 1024
 MAX_PCB = 10 * 1024 * 1024
 MAX_SCHEMATIC = 4 * 1024 * 1024
 MAX_ECO_REQUEST = 6 * 1024 * 1024
-MAX_PCB_ECO_REQUEST = 16 * 1024 * 1024
+MAX_PCB_ECO_REQUEST = 22 * 1024 * 1024
 MAX_PROJECT = 3 * 1024 * 1024
 MAX_CUSTOM_RULES = 512 * 1024
 MIMES = {
@@ -267,7 +267,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             if not self._authorize():
                 return
             match = re.fullmatch(
-                r"/api/pcb-eco/result/([0-9a-f]{32})/(PREVIEW\.html|ECO_EVIDENCE\.json|source\.kicad_pcb)",
+                r"/api/pcb-eco/result/([0-9a-f]{32})/(PREVIEW\.html|ECO_EVIDENCE\.json|source\.kicad_pcb|source\.project\.zip)",
                 url.path,
             )
             if not match:
@@ -284,11 +284,16 @@ class ReviewHandler(BaseHTTPRequestHandler):
             if not item.is_file() or item.is_symlink() or item.stat().st_size > 12_000_000:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "PCB ECO artifact unavailable"})
                 return
-            if filename == "source.kicad_pcb":
+            if filename in ("source.kicad_pcb", "source.project.zip"):
                 raw = item.read_bytes()
                 self.send_response(HTTPStatus.OK)
-                self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Disposition", 'attachment; filename="source-edited-PCB-ECO.kicad_pcb"')
+                self.send_header(
+                    "Content-Type", "application/zip" if filename.endswith(".zip") else "application/octet-stream"
+                )
+                download = (
+                    "source-PCB-ECO-project.zip" if filename.endswith(".zip") else "source-edited-PCB-ECO.kicad_pcb"
+                )
+                self.send_header("Content-Disposition", f'attachment; filename="{download}"')
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("X-Content-Type-Options", "nosniff")
                 self.send_header("Content-Length", str(len(raw)))
@@ -438,7 +443,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 or not length.isdecimal()
                 or not 15 < int(length) <= MAX_PCB_ECO_REQUEST
             ):
-                self._json(HTTPStatus.BAD_REQUEST, {"error": "Provide native KiCad PCB ECO JSON under 16 MB"})
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Provide native KiCad PCB ECO JSON under 22 MB"})
                 return
             if not self.review_server.worker_lock.acquire(blocking=False):
                 self._json(HTTPStatus.CONFLICT, {"error": "Wait for active native KiCad validation"})
@@ -448,8 +453,9 @@ class ReviewHandler(BaseHTTPRequestHandler):
             try:
                 payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
                 expected = {"source_base64", "original_sha256", "reference", "dx", "dy"}
-                if not isinstance(payload, dict) or set(payload) != expected:
-                    raise ValueError("Expected exactly native PCB SHA, reference and two footprint offsets")
+                project_fields = {"source_filename", "project_filename", "project_base64", "project_sha256"}
+                if not isinstance(payload, dict) or set(payload) not in (expected, expected | project_fields):
+                    raise ValueError("Expected native PCB SHA, movement, and optional matched KiCad project context")
                 ref, digest = payload["reference"], payload["original_sha256"]
                 if (
                     not isinstance(ref, str)
@@ -479,10 +485,45 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     raise ValueError("Choose a genuine native KiCad PCB under 10 MB")
                 if hashlib.sha256(raw).hexdigest() != digest:
                     raise ValueError("Source PCB SHA-256 differs from selected browser file")
+                project_raw = None
+                if project_fields <= payload.keys():
+                    board_name, project_name = payload["source_filename"], payload["project_filename"]
+                    if (
+                        not checked_name(board_name, ".kicad_pcb")
+                        or not checked_name(project_name, ".kicad_pro")
+                        or not board_name.endswith(".kicad_pcb")
+                        or not project_name.endswith(".kicad_pro")
+                        or Path(board_name).stem != Path(project_name).stem
+                    ):
+                        raise ValueError("KiCad PCB and project filenames must share the exact basename")
+                    encoded, project_sha = payload["project_base64"], payload["project_sha256"]
+                    if (
+                        not isinstance(encoded, str)
+                        or not isinstance(project_sha, str)
+                        or not re.fullmatch(r"[a-f0-9]{64}", project_sha)
+                    ):
+                        raise ValueError("Invalid KiCad project file encoding or hash")
+                    try:
+                        project_raw = base64.b64decode(encoded, validate=True)
+                    except (binascii.Error, ValueError) as exc:
+                        raise ValueError("Invalid KiCad project file data") from exc
+                    if (
+                        not 8 < len(project_raw) <= MAX_PROJECT
+                        or hashlib.sha256(project_raw).hexdigest() != project_sha
+                    ):
+                        raise ValueError("KiCad project data or SHA-256 invalid")
+                    try:
+                        metadata = json.loads(project_raw)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                        raise ValueError("KiCad project data must be valid JSON") from exc
+                    if not isinstance(metadata, dict) or not any(key in metadata for key in ("board", "pcb")):
+                        raise ValueError("Native KiCad project board settings missing")
                 job_id = uuid.uuid4().hex
                 staged = self.review_server.workspace / "pcb-eco-working" / job_id
                 staged.mkdir(parents=True, exist_ok=False)
                 (staged / "source.kicad_pcb").write_bytes(raw)
+                if project_raw is not None:
+                    (staged / "source.kicad_pro").write_bytes(project_raw)
                 output = self.review_server.workspace / "pcb-eco-results" / job_id
                 output.parent.mkdir(parents=True, exist_ok=True)
                 job = {
@@ -888,6 +929,13 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 manifest = json.loads((output / "ECO_EVIDENCE.json").read_text())
                 if manifest["native_drc"]["new_drc_rules"] != 0:
                     raise RuntimeError("Native DRC did not certify PCB ECO copy")
+                if manifest["working_sha256"] != hashlib.sha256((output / "source.kicad_pcb").read_bytes()).hexdigest():
+                    raise RuntimeError("KiCad PCB ECO copy SHA differs from native evidence")
+                with zipfile.ZipFile(output / "source.project.zip", "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+                    for name in ("source.kicad_pcb", "source.kicad_pro", "ECO_EVIDENCE.json"):
+                        artifact = output / name
+                        if artifact.is_file():
+                            bundle.write(artifact, arcname=name)
                 result = {
                     "state": "complete",
                     "message": "One native unrouted footprint moved; DRC verified, NOT fab approved",
@@ -897,6 +945,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                         "old_mm": manifest["old_mm"],
                         "new_mm": manifest["new_mm"],
                         "fabApproved": False,
+                        "rule_context": manifest["rule_context"]["mode"],
                     },
                 }
             elif "pad-adjacent copper" in run.stderr:

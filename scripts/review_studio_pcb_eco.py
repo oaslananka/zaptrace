@@ -71,11 +71,19 @@ def state(board: Any) -> dict:
             vec(item.GetEnd()),
             item.GetWidth(),
             item.GetLayer(),
+            item.GetLayerSet().FmtBin(),
+            vec(item.GetMid()) if isinstance(item, pcb.PCB_ARC) else None,
+            (
+                item.GetDrillValue(),
+                item.GetViaType(),
+            )
+            if isinstance(item, pcb.PCB_VIA)
+            else None,
         )
     return {"footprints": footprints, "tracks": traces, "zones": board.GetAreaCount()}
 
 
-def eligible(board: Any, reference: str) -> Any:
+def eligible(board: Any, reference: str, dx: int, dy: int) -> Any:
     candidates = [fp for fp in board.GetFootprints() if fp.GetReference() == reference]
     if not REFERENCE.fullmatch(reference) or len(candidates) != 1:
         raise ValueError("Select an existing, unique native KiCad footprint reference")
@@ -84,13 +92,17 @@ def eligible(board: Any, reference: str) -> Any:
         raise ValueError("Locked footprint cannot be moved")
     if board.GetAreaCount():
         raise ValueError("Copper zones require refill-aware routing; movement blocked")
+    move = pcb.VECTOR2I(dx, dy)
+    # KiCad's native shape bounding boxes include track width, arcs and vias.
+    # Endpoint-only checks miss traces crossing a pad between their endpoints.
+    # Block contacts at both locations: landing on same-net copper could create
+    # an unintended connection without generating a DRC clearance violation.
+    copper = [track.GetBoundingBox() for track in board.GetTracks()]
     for pad in fp.Pads():
-        area = pad.GetBoundingBox()
-        for trace in board.GetTracks():
-            # Conservative: all endpoints inside any copper-pad bounding box,
-            # including other nets/layers, require real drag-routing review.
-            if area.Contains(trace.GetStart()) or area.Contains(trace.GetEnd()):
-                raise ValueError(f"{reference} has pad-adjacent copper; real drag routing required")
+        original = pad.GetBoundingBox()
+        destination = original.GetWithOffset(move)
+        if any(box.Intersects(original) or box.Intersects(destination) for box in copper):
+            raise ValueError(f"{reference} has pad-adjacent copper; real drag routing required")
     return fp
 
 
@@ -219,19 +231,31 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
         raw = first / source.name
         changed = second / source.name
         raw.write_bytes(original)
-        rules = source.with_suffix(".kicad_pro")
-        if rules.is_file() and not rules.is_symlink():
-            if rules.stat().st_size > 3_000_000:
-                raise ValueError("Native KiCad project rules oversized")
-            for folder in (first, second):
-                shutil.copyfile(rules, folder / rules.name)
+        # The project and custom-rule files are a matched KiCad context.
+        # Omitting .kicad_dru silently changes production DRC semantics.
+        context: dict[str, tuple[Path, str]] = {}
+        for suffix, max_bytes in ((".kicad_pro", 3_000_000), (".kicad_dru", 1_000_000)):
+            path = source.with_suffix(suffix)
+            if path.is_symlink() or (path.exists() and not path.is_file()):
+                raise ValueError("Native KiCad design-rule sidecar is not a regular file")
+            if path.is_file():
+                if path.stat().st_size > max_bytes:
+                    raise ValueError("Native KiCad project rules oversized")
+                context[suffix] = path, sha(path)
+        if ".kicad_dru" in context and ".kicad_pro" not in context:
+            raise ValueError("Custom KiCad DRC rules without their project context are blocked")
+        if ".kicad_dru" in context:
+            raise ValueError("KiCad custom DRC rule loading is unverified; ECO blocked")
+        for folder in (first, second):
+            for path, _digest in context.values():
+                shutil.copyfile(path, folder / path.name)
         board = pcb.LoadBoard(str(raw))
         if board is None:
             raise ValueError("KiCad rejected PCB")
         before = state(board)
-        footprint = eligible(board, reference)
-        old = vec(footprint.GetPosition())
         dx, dy = pcb.FromMM(dx_mm), pcb.FromMM(dy_mm)
+        footprint = eligible(board, reference, dx, dy)
+        old = vec(footprint.GetPosition())
         new = old[0] + dx, old[1] + dy
         footprint.SetPosition(pcb.VECTOR2I(*new))
         pcb.SaveBoard(str(changed), board)
@@ -244,14 +268,19 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
         summary = compare_drc(drc_original, drc_modified)
         before_svg = plot(cli, raw, root / "before.svg")
         after_svg = plot(cli, changed, root / "after.svg")
-        if sha(source) != original_sha:
-            raise RuntimeError("Original PCB changed during validation")
+        if sha(source) != original_sha or any(sha(path) != digest for path, digest in context.values()):
+            raise RuntimeError("Original KiCad PCB or project rule context changed during validation")
         output.mkdir(mode=0o700)
         try:
             copy = output / "source.kicad_pcb"
             copy.write_bytes(changed.read_bytes())
-            if rules.is_file() and not rules.is_symlink():
-                shutil.copyfile(rules, output / "source.kicad_pro")
+            for suffix, (path, digest) in context.items():
+                # Reuse the exact sidecar snapshot validated by KiCad, not an
+                # original file that may change after the final hash check.
+                destination = output / ("source" + suffix)
+                shutil.copyfile(first / path.name, destination)
+                if sha(destination) != digest:
+                    raise RuntimeError("Published KiCad project rule copy differs from verified snapshot")
             for name in ("before-drc.json", "after-drc.json"):
                 shutil.copyfile(root / name, output / name)
             result = {
@@ -263,6 +292,12 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
                 "source_sha256": original_sha,
                 "working_sha256": sha(copy),
                 "native_drc": summary,
+                "rule_context": {
+                    "mode": "project" if ".kicad_pro" in context else "defaults_without_project",
+                    "project_sha256": context[".kicad_pro"][1] if ".kicad_pro" in context else None,
+                    "custom_rules_sha256": context[".kicad_dru"][1] if ".kicad_dru" in context else None,
+                    "effective_rules_independently_verified": False,
+                },
                 "fabApproved": False,
                 "electricallyApproved": False,
             }
