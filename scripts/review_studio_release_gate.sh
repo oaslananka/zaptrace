@@ -16,6 +16,7 @@ PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -p no:cacheprovider \
   tests/test_kicad_export_native_linkage.py \
   tests/test_kicad_usb4105_oval_slots.py \
   tests/test_kicad_verified_embed.py \
+  tests/test_review_studio_native_copper_link.py \
   tests/test_review_studio_native_kicad.py \
   tests/test_review_studio_native_3d.py \
   tests/test_review_studio_schematic_eco.py \
@@ -48,6 +49,7 @@ SOURCES=(
   scripts/review_studio_library.py
   scripts/review_studio_workspace.py
   scripts/review_studio_native_kicad.py
+  scripts/review_studio_native_copper_link.py
   scripts/review_studio_schematic_eco.py
   scripts/review_studio_pcb_eco.py
   scripts/review_studio_schematic_pcb_parity.py
@@ -70,6 +72,7 @@ SOURCES=(
   tests/test_kicad_export_native_linkage.py
   tests/test_kicad_usb4105_oval_slots.py
   tests/test_kicad_verified_embed.py
+  tests/test_review_studio_native_copper_link.py
   tests/test_review_studio_desktop_entry.py
   zaptrace/export/kicad.py
   zaptrace/kicad/verified_vendor.py

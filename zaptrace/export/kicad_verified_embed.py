@@ -204,8 +204,15 @@ def render_verified_footprint(
                     mapped_pads.add(pad_id)
         _instance_identity(child, component.ref, str(idx), uuid_for)
         if kind == "pad":
-            # Match KiCad's usual field order for exact net/UUID evidence.
-            ids = [field for field in child[3:] if _form(field, "uuid")]
+            # Vendor libraries commonly omit pad UUIDs. pcbnew otherwise
+            # assigns random identities on each reload; DRC findings then
+            # cannot be matched to the original or audited after a route.
+            # Every source pad gets exactly one stable *instance*-unique ID.
+            ids: list[SexpNode] = [field for field in child[3:] if _form(field, "uuid")]
+            if len(ids) > 1:
+                raise ValueError(f"Supplier pad has multiple native UUIDs: {component.ref}.{child[1]}")
+            if not ids:
+                ids.append(["uuid", uuid_for(f"vendor-{component.ref}-{idx}-pad")])
             child[:] = child[:3] + [field for field in child[3:] if not _form(field, "uuid")] + ids
         footprint.append(child)
 

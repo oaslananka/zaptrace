@@ -320,3 +320,37 @@ This is **local source-only engineering progress, NOT a new accepted
 distribution or a public GA/fabrication-ready claim**. A subsequent
 separately numbered .deb and real Ubuntu/Chrome acceptance is required
 before these improvements can be distributed.
+
+## Post-0.1.9 local-only native route-copy proof
+
+A new **standalone, source-only, non-GUI** native KiCad 10 single-link
+engine at `scripts/review_studio_native_copper_link.py` checks exact native
+pad UUIDs against independent native `unconnected_items` DRC, duplicates
+complete portable source/library assets, proves no DRC changes due to KiCad
+serialization, then accepts only explicitly scoped 0.20 mm F.Cu straight or
+bounded waypoint paths that **reduce** the native unconnected count without
+any new physical finding or altered schematic parity. The original source
+and source files are hash-verified and never changed; custom DRC sidecars
+without loader proof are refused. The pinned vendor fixture now generates
+per-pad stable unique instance UUIDs to make KIID-backed before/after
+identity evidence reliable across independent KiCad loaders.
+
+Native provisional, reference-placement results: U1.2–U1.3 37→36,
+U2.7–U2.1 36→35 and explicit 3-segment R3.2–R4.2 35→34, always
+16 physical DRC, zero schematic parity and **no fabrication approval**.
+A straight R3.2–R4.2 route and an incorrectly reversed dogleg both
+introduced physical DRC violations and were rejected. See
+`REVIEW_STUDIO_NATIVE_COPPER_LINK_EXPERIMENT.md` for details.
+This does not implement interactive or complete copper routing.
+
+For comparison only, the still-open upstream **PR #119** fixed-position
+review script was independently rerun on a disposable copy of the
+same pinned direct-export reference. It reproduced **25 explicitly
+reviewed physical connections and 61 actual native track segments**,
+with **37 → 12 unconnected**, 16 physical blockers unchanged,
+**zero added native violations** and **zero native schematic-parity
+issues** under real KiCad 10.0.7. The remaining twelve are 3 GND,
+5 VCC_3V3, 2 VCC_5V and 2 I2C_SCL. The PR script, hardcoded route
+coordinates and candidate PCB have NOT been merged into the production
+engine or the existing 0.1.9 .deb. New general-purpose routes must not
+be inferred from this proof. Review-only and fabrication blocked.
