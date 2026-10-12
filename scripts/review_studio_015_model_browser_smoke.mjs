@@ -78,5 +78,14 @@ pass(mobile.width<=390&&mobile.scroll<=mobile.width&&mobile.panelWidth>190&&
  mobile.disclosure!=='none'&&mobile.warningWidth>=mobile.actionGridWidth*.88&&mobile.warningHeight<85,'390px model card has full-row readable warning and no horizontal overflow');
 const result=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
 writeFileSync(shot,Buffer.from(result.data,'base64'));
+const scope=await evalJs(`(()=>{document.getElementById('modePcb').click();
+ const panel=document.getElementById('render3dModelDiagnostics');
+ const root=document.getElementById('render3dControls');
+ const hidden=root.hidden&&root.contains(panel)&&!panel.getBoundingClientRect().width;
+ document.getElementById('mode3D').click();return {hidden,restored:!root.hidden&&root.contains(panel),
+ state:document.getElementById('mode3D').getAttribute('aria-pressed'),
+ fab:document.querySelector('header .headside').textContent}})()`);
+pass(scope.hidden&&scope.restored&&scope.state==='true'&&scope.fab.includes('NOT FABRICATION APPROVED'),
+ '3D model disclosure is hidden in PCB mode, restored only in real KiCad 3D mode without changing safety status');
 pass(errors.length===0,'no native Chromium exceptions while opening source model diagnostics');
 ws.close();console.log('EXACT_015_SOURCE_LINKED_3D_MODEL_DIAGNOSTIC_CHROME=PASS');
