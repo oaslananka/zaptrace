@@ -172,6 +172,9 @@ for fp in board.GetFootprints():
         for pad in fp.Pads():
             if pad.GetNumber()=="1":
                 pad.SetNumber("P1")
+                # Deliberately wrong physical net in this disposable PCB.
+                # Pure /NET vs NET root-local alias must not count as a failure.
+                pad.SetNetCode(0)
                 break
     if mode=="contradictory-repeated-pad" and ref=="U3":
         seen=set()
@@ -310,6 +313,8 @@ def test_native_pin_number_matching_does_not_misstate_net_equality(tmp_path: Pat
     pin = proof["native_pin_net_evidence"]
     assert pin["matching_pin_identifiers_by_reference"] == 1
     assert pin["native_net_label_differences_for_matching_pin_ids"] == 1
+    assert pin["native_unexplained_net_label_disagreements"] == 1
+    assert pin["connected_schematic_pin_net_subset_verified"] is False
     assert any(
         row["reference"] == "R1"
         and row.get("pin") == "P1"

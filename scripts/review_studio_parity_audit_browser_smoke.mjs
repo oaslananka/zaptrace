@@ -5,7 +5,8 @@ import path from 'node:path';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const sch=process.env.ZAPTRACE_PARITY_SCHEMATIC;
 const pcb=process.env.ZAPTRACE_PARITY_PCB;
-const linked=process.env.ZAPTRACE_PARITY_EXPECT_UUID_LINKED==='1';
+const generated=process.env.ZAPTRACE_PARITY_EXPECT_GENERATED==='1';
+const linked=generated||process.env.ZAPTRACE_PARITY_EXPECT_UUID_LINKED==='1';
 const downloadDir=process.env.ZAPTRACE_PARITY_DOWNLOAD_DIR;
 if(!port||!sch||!pcb)throw Error('Native schematic+board and real Chrome port are required');
 let pages=[];
@@ -57,10 +58,13 @@ for(let i=0;i<320;i++){
  await new Promise(r=>setTimeout(r,100));
 }
 console.log('NATIVE SCHEMATIC PCB AUDIT',result);
-pass(result.visible&&result.summary.includes('Schematic: 14')&&result.summary.includes('PCB: 14')&&result.summary.includes('field discrepancies: 5'),
- 'native KiCad compares 14 real components and flags five actual value mismatches');
-pass(result.differences.length===5&&['J1','TP1','TP2','U2','U3'].every(ref=>result.differences.some(line=>line.startsWith(ref+' · value'))),
- 'five specific source-backed mismatches displayed with no fabricated connectivity');
+pass(result.visible&&result.summary.includes('Schematic: 14')&&result.summary.includes('PCB: 14')&&result.summary.includes('field discrepancies: '+(generated?'0':'5')),
+ 'native KiCad compares 14 genuine schematic and PCB components');
+pass(generated?
+  result.differences.length===1&&result.differences[0].includes('Component fields match'):
+  result.differences.length===5&&['J1','TP1','TP2','U2','U3'].every(ref=>result.differences.some(line=>line.startsWith(ref+' · value'))),
+ generated?'newly generated native schematic and PCB have zero fabricated value mismatches':
+ 'five specific original source-backed mismatches displayed with no fabricated connectivity');
 pass(result.linkage.includes('UUID linkage verified: '+(linked?'YES (14/14':'NO (0/14'))&&
  result.linkage.includes('Automatic sync: BLOCKED')&&result.linkage.includes('NOT APPROVED'),
  'browser shows exact native UUID proof without ever authorizing pin/net sync or fabrication');
@@ -70,11 +74,19 @@ pass(linked?
  'browser renders real missing or proven KiCad UUID path evidence as accessible expanded-on-demand details');
 await cmd('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
 const mobile=await evaluate("(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,form:document.getElementById('pcbAuditForm').getBoundingClientRect().toJSON(),result:document.getElementById('pcbAuditResult').getBoundingClientRect().toJSON()}))()");
-pass(result.pinSummary.includes('pin-number/net-label disagreement: 123')&&
- result.pinSummary.includes('0 identical ref/pin labels')&&
- result.pinSummary.includes('112 physical pads')&&
- result.pinFindings.some(x=>x.includes('C1 · P1 · no_identical_pcb_pad_number')),
- 'real KiCad exposes 37 missing schematic pin labels, 86 unmatched PCB identifiers and physical pad ambiguity rather than silently guessing pin maps');
+pass(generated?
+  result.pinSummary.includes('pin-number/net-label disagreement: 38')&&
+  result.pinSummary.includes('47 identical ref/pin labels')&&
+  result.pinSummary.includes('110 physical pads')&&
+  result.pinSummary.includes('0 KiCad-conflicting /NET vs NET label patterns')&&
+  result.pinSummary.includes('0 literal native net conflicts')&&
+  result.pinSummary.includes('connected-pin subset: MATCHED'):
+  result.pinSummary.includes('pin-number/net-label disagreement: 123')&&
+  result.pinSummary.includes('0 identical ref/pin labels')&&
+  result.pinSummary.includes('112 physical pads')&&
+  result.pinFindings.some(x=>x.includes('C1 · P1 · no_identical_pcb_pad_number')),
+ generated?'KiCad symbol-pad IDs match, zero name conflicts, and 38 unused PCB pads remain explicit':
+ 'original KiCad pin IDs and physical pads fail closed rather than guessing a pin map');
 pass(mobile.width<=390&&mobile.scroll<=390&&mobile.form.left>=0&&mobile.form.right<=390&&mobile.result.right<=390,
  '390px Chrome native audit is responsive and has no page horizontal overflow');
 if(downloadDir){
@@ -97,7 +109,7 @@ if(downloadDir){
  pass(evidence.source_sha256.schematic===sha(schRaw)&&
   evidence.source_sha256.pcb===sha(pcbRaw)&&
   evidence.linkage_uuid_verified===linked&&
-  evidence.native_pin_net_evidence.issue_count===123&&
+  evidence.native_pin_net_evidence.issue_count===(generated?38:123)&&
   evidence.automatic_sync_authorized===false&&evidence.fabApproved===false,
   'Chrome-downloaded audit artifact contains exact source SHA-256, native UUID/net evidence and explicit no-sync/fab gates');
 }

@@ -149,6 +149,7 @@ def inspect(schematic: Path, board_path: Path) -> dict:
         raise RuntimeError("Unexpected KiCad netlist structure")
     schematic_components: dict[str, dict] = {}
     schematic_paths: dict[str, frozenset[str]] = {}
+    root_sheet_only = True
     for item in netlist.findall("./components/comp"):
         ref = item.get("ref")
         if not ref or ref in schematic_components:
@@ -159,6 +160,9 @@ def inspect(schematic: Path, board_path: Path) -> dict:
             "schematic_id": item.findtext("tstamps", ""),
         }
         schematic_paths[ref] = expected_symbol_paths(item)
+        sheet = item.find("sheetpath")
+        if sheet is None or sheet.get("tstamps") != "/":
+            root_sheet_only = False
     if not schematic_components:
         raise RuntimeError("No native schematic component instances")
     native = pcb.LoadBoard(str(board_path))
@@ -228,6 +232,20 @@ def inspect(schematic: Path, board_path: Path) -> dict:
     different_net_labels = sorted(
         identity for identity in overlapping if schematic_pins[identity] != actual_pads[identity]
     )
+    # KiCad XML uses /NET for root-sheet LOCAL labels and NET for GLOBAL
+    # labels. These may look like stylistic aliases, but independent
+    # kicad-cli pcb drc --schematic-parity reports net_conflict for /NET
+    # versus NET. Report the pattern for diagnosis, NEVER treat it as
+    # proved native net identity or waive a KiCad net disagreement.
+    root_name_aliases = [
+        identity
+        for identity in different_net_labels
+        if root_sheet_only
+        and schematic_pins[identity].startswith("/")
+        and schematic_pins[identity].count("/") == 1
+        and schematic_pins[identity][1:] == actual_pads[identity]
+    ]
+    native_net_conflicts = set(different_net_labels)
     unmatched_schematic = sorted(schematic_ids - board_ids)
     unmatched_board = sorted(board_ids - schematic_ids)
     # Put same native pin IDs with different nets at the top of the
@@ -240,7 +258,7 @@ def inspect(schematic: Path, board_path: Path) -> dict:
             "schematic_net": schematic_pins[(ref, pin)],
             "pcb_net": actual_pads[(ref, pin)],
         }
-        for ref, pin in different_net_labels
+        for ref, pin in sorted(native_net_conflicts)
     ]
     pin_issues.extend(
         {"reference": ref, "schematic_pin": pin, "issue": "no_identical_pcb_pad_number"}
@@ -260,6 +278,10 @@ def inspect(schematic: Path, board_path: Path) -> dict:
         "schematic_pin_identifiers_missing_from_pcb": len(unmatched_schematic),
         "pcb_pad_identifiers_missing_from_schematic": len(unmatched_board),
         "native_net_label_differences_for_matching_pin_ids": len(different_net_labels),
+        "native_root_sheet_proven": root_sheet_only,
+        "native_root_scope_slash_pattern_not_parity": len(root_name_aliases),
+        "native_unexplained_net_label_disagreements": len(native_net_conflicts),
+        "connected_schematic_pin_net_subset_verified": False,
         "duplicate_pcb_pad_numbers": repeated_pads,
         "conflicting_nets_on_duplicate_pcb_pad_numbers": pad_number_net_conflicts,
         "issue_samples": pin_issues[:24],
@@ -268,6 +290,14 @@ def inspect(schematic: Path, board_path: Path) -> dict:
     # KiCad F8 links by KIID path, not by reference. Prove the actual path
     # for every member with native schematic-exported UUIDs; otherwise block.
     uuid_evidence = verify_uuid_paths(schematic_paths, linked_paths)
+    pin_net_evidence["connected_schematic_pin_net_subset_verified"] = bool(
+        uuid_evidence["verified"]
+        and schematic_ids
+        and not repeated_pins
+        and schematic_ids.issubset(board_ids)
+        and not native_net_conflicts
+        and pad_number_net_conflicts == 0
+    )
     pin_net_status = (
         "exact_names_and_pad_ids_only_not_uuid_linkage"
         if exact_net_labels

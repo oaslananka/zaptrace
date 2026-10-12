@@ -13,6 +13,7 @@ done
 echo '[1/9] Python integration and package lifecycle tests'
 PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -p no:cacheprovider \
   tests/test_kicad_export.py \
+  tests/test_kicad_export_native_linkage.py \
   tests/test_review_studio_native_kicad.py \
   tests/test_review_studio_native_3d.py \
   tests/test_review_studio_schematic_eco.py \
@@ -64,6 +65,7 @@ SOURCES=(
   tests/test_review_studio_pcb_eco_server.py
   tests/test_review_studio_schematic_pcb_parity.py
   tests/test_review_studio_schematic_pcb_parity_server.py
+  tests/test_kicad_export_native_linkage.py
   tests/test_review_studio_desktop_entry.py
   zaptrace/export/kicad.py
   zaptrace/kicad/verified_vendor.py

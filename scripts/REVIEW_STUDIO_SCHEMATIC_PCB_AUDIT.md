@@ -150,3 +150,70 @@ https://docs.kicad.org/10.0/en/pcbnew/pcbnew.html
 https://dev-docs.kicad.org/en/file-formats/sexpr-schematic/
 The proof is **not** KiCad Update PCB from Schematic (F8), not live routing
 and not equivalent to certified electrical or DFM verification.
+
+## Subsequent source-only milestone: KiCad itself reports zero schematic/PCB parity differences
+
+**Local isolated source only; NOT included in the previously accepted 0.1.9
+Debian package or offline kit.** We identified and fixed three independent
+producer-side mismatches in `zaptrace/export/kicad.py`, without modifying the
+previously accepted 0.1.9 distribution or original ESP32 source fixtures:
+
+1. **Physical electrical pin numbers.** The generated Eeschema symbol now
+   uses authoritative `Component.package_pin_map` pad IDs as actual symbol
+   pin **numbers**, retaining the logical name as the symbol pin **label**.
+   Multiple separate physical contacts mapped to one logical pin become
+   separate KiCad schematic pins carrying the correct net. Unknown mappings
+   remain unresolved (not guessed), causing native parity evidence to fail.
+2. **Identity and native fields.** Every generated PCB footprint receives the
+   deterministic root-symbol KIID `(path "/<schematic-symbol-uuid>")` via the
+   same symbol UUID generator as the Eeschema instance. The PCB `Value`
+   field now matches the schematic's explicit-or-fallback Value. A PCB
+   `Description` field now mirrors the schematic's
+   `ZapTrace generated connectivity symbol` description.
+3. **Actual native KiCad global net names.** Generated one-sheet schematic
+   wire labels are now native `global_label` objects with passive shape,
+   not root-local `label` objects. Native KiCad XML then reports `GND`,
+   `VCC_3V3`, etc., exactly as on the PCB. This preserves the intended
+   single-sheet net names. **Important correction:** KiCad's own
+   `pcb drc --schematic-parity` treats a local `/NET` and PCB `NET`
+   as a **net conflict**, not a harmless alias. The read-only audit was
+   tightened to retain every literal name disagreement as an explicit
+   conflict and never authorize its connected-pin subset proof. A native
+   deliberately-regressed local-label schematic triggers 47 such conflicts
+   and must never be accepted.
+
+The **real installed KiCad 10.0.7 CLI**, against a fresh 10-stage source
+pipeline for the ESP32 design, now reports:
+
+- Real `kicad-cli sch erc --severity-all --format json`: **0 ERC
+  violations** (with the project settings used for the test);
+- Real `kicad-cli pcb drc --schematic-parity --severity-all --format json`:
+  **0 native schematic/PCB parity violations**;
+- Independent source-only audit: **14/14 exact native hierarchical symbol
+  KIID paths; 47/47 connected physical pin numbers; 0 Value/footprint
+  field discrepancies; 0 native net-name differences**;
+- **42 PCB physical DRC violations and 37 unrouted/unconnected items remain**
+  according to KiCad. These are serious engineering work, not eliminated
+  by resolving schematic/PCB data synchronization. The remaining 38 PCB-only
+  pad identifiers were not assigned schematic connectivity by guesswork;
+  exact copper routing/physical release must be independently verified.
+
+KiCad's official global label semantics and file structure are described at
+https://dev-docs.kicad.org/en/file-formats/sexpr-schematic/ .
+The separate immutable ESP32 baseline source remains source-hash verified,
+even though its *older* schematic and PCB intentionally fail identity and
+pin-number checks. Golden KiCad snapshot tests were refreshed based on actual
+native-generated outputs; the old schematic golden was independently proven
+stale even before this work. New native tests verify deterministic exports,
+true physical pin numbering, missing package mapping rejection, wrong net
+rejection, and zero KiCad-native schematic/PCB parity while verifying that
+physical DRC/unconnected failures **remain visible**.
+
+The browser's source-only diagnostic was also tested using real Chrome 155
+for both the untouched old source pair and the newly generated pair,
+including 390px layout, verified SHA-256 private JSON download and zero
+JavaScript exceptions. **Still not supported/authorized:** F8 GUI
+forward-annotation, changing connected copper, arbitrary 3D CAD, validated
+manufacturer constraints, or fab/electrical/commercial certification. The
+local source changes require **a new versioned release candidate and
+full exact-package/Ubuntu qualification** before distribution.

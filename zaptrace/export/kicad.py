@@ -231,15 +231,26 @@ def _schematic_number(value: float) -> str:
 
 
 def _schematic_nodes_for_component(design: Design, component: Component) -> list[tuple[str, str]]:
-    """Return unique logical pins and net names connected to *component*."""
+    """Use genuine physical package pad identifiers for native schematic pin numbers.
+
+    Keep logical names in the KiCad symbol pin *name*. Each physical pad
+    sharing a logical net must have its own numbered symbol pin. Unknown or
+    incomplete package mappings are not guessed.
+    """
     nodes: list[tuple[str, str]] = []
-    seen_pins: set[str] = set()
+    seen_logical: set[str] = set()
     for net in design.nets.values():
         for node in net.nodes:
-            if node.component_ref not in (component.id, component.ref) or node.pin_name in seen_pins:
+            if node.component_ref not in (component.id, component.ref) or node.pin_name in seen_logical:
                 continue
-            seen_pins.add(node.pin_name)
-            nodes.append((node.pin_name, net.name))
+            seen_logical.add(node.pin_name)
+            physical = sorted(
+                pad_id for pad_id, logical in component.package_pin_map.items() if logical == node.pin_name
+            )
+            if physical:
+                nodes.extend((pad_id, net.name) for pad_id in physical)
+            else:
+                nodes.append((node.pin_name, net.name))
     return nodes
 
 
@@ -309,6 +320,9 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
     symbol_name = f"ZapTrace_{_schematic_identifier(component.ref)}"
     lib_id = f"ZapTrace:{symbol_name}"
     half_width, half_height, property_distance = _schematic_geometry(nodes)
+    if component.package_pin_map:
+        longest = max((len(component.package_pin_map.get(pin, pin)) for pin, _ in nodes), default=0)
+        half_width = max(half_width, longest * 0.9 + 6.35)
     lines = [
         f'    (symbol "{lib_id}"',
         "      (exclude_from_sim no)",
@@ -348,15 +362,16 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
         "          (fill (type background))",
         "        )",
     ]
-    for pin_index, (pin_name, _net_name) in enumerate(nodes):
+    for pin_index, (physical_pin, _net_name) in enumerate(nodes):
         local_x, local_y, rotation = _schematic_pin_geometry(pin_index, len(nodes), half_width)
-        safe_pin = _schematic_string(pin_name)
+        logical_display = _schematic_string(component.package_pin_map.get(physical_pin, physical_pin))
+        physical_number = _schematic_string(physical_pin)
         lines.extend(
             [
                 f"        (pin passive line (at {_schematic_number(local_x)} {_schematic_number(local_y)} {rotation})",
                 "          (length 2.54)",
-                f'          (name "{safe_pin}" (effects (font (size 1.27 1.27))))',
-                f'          (number "{safe_pin}" (effects (font (size 1.27 1.27))))',
+                f'          (name "{logical_display}" (effects (font (size 1.27 1.27))))',
+                f'          (number "{physical_number}" (effects (font (size 1.27 1.27))))',
                 "        )",
             ]
         )
@@ -376,6 +391,9 @@ def _schematic_symbol_instance(
     """Build one symbol instance plus same-coordinate labels for connected pins."""
     x, y = _schematic_component_position(index, columns=columns, row_spacing=row_spacing)
     half_width, _half_height, property_distance = _schematic_geometry(nodes)
+    if component.package_pin_map:
+        longest = max((len(component.package_pin_map.get(pin, pin)) for pin, _ in nodes), default=0)
+        half_width = max(half_width, longest * 0.9 + 6.35)
     lib_id = f"ZapTrace:ZapTrace_{_schematic_identifier(component.ref)}"
     symbol_uuid = _schematic_uuid(design, "symbol", component.ref)
     lines = [
@@ -415,8 +433,11 @@ def _schematic_symbol_instance(
             f"(xy {_schematic_number(label_x)} {_schematic_number(pin_y)})) "
             f'(stroke (width 0) (type default)) (uuid "{wire_uuid}"))'
         )
+        # A one-sheet generated design uses global labels to preserve the
+        # authoritative net name verbatim in KiCad's PCB parity model.
+        # Local labels would be exported as /NET and conflict with PCB NET.
         labels.append(
-            f'  (label "{_schematic_string(net_name)}" '
+            f'  (global_label "{_schematic_string(net_name)}" (shape passive) '
             f"(at {_schematic_number(label_x)} {_schematic_number(pin_y)} {label_angle}) "
             f'(effects (font (size 1.27 1.27))) (uuid "{label_uuid}"))'
         )
@@ -882,6 +903,9 @@ def _build_footprint(
     lines.append(f'  (footprint "{lib_id}"')
     lines.append('    (layer "F.Cu")')
     lines.append(f'    (uuid "{uid}")')
+    # This root-sheet footprint is linked to the same deterministically
+    # generated schematic symbol by KiCad's hierarchical KIID_PATH.
+    lines.append(f'    (path "/{_schematic_uuid(design, "symbol", comp.ref)}")')
     lines.append(f"    (at {x} {y} 0)")
 
     # Reference designator
@@ -892,14 +916,24 @@ def _build_footprint(
     lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
     lines.append(_INDENTED_CLOSE)
 
-    # Value
-    if comp.value:
-        lines.append(f'    (property "Value" "{comp.value}"')
-        lines.append("      (at 0 3 0)")
-        lines.append('      (layer "F.Fab")')
-        lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-val-prop")}")')
-        lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
-        lines.append(_INDENTED_CLOSE)
+    # Use the same native Value as the generated Eeschema symbol even
+    # when a design relies on its component type as the default value.
+    physical_value = comp.value or comp.type or comp.ref
+    lines.append(f'    (property "Value" "{_schematic_string(physical_value)}"')
+    lines.append("      (at 0 3 0)")
+    lines.append('      (layer "F.Fab")')
+    lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-val-prop")}")')
+    lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
+    lines.append(_INDENTED_CLOSE)
+
+    # Keep the same native KiCad custom Description field on both sides.
+    # Otherwise KiCad's independent PCB --schematic-parity DRC reports
+    # one footprint_symbol_field_mismatch for every linked component.
+    lines.append('    (property "Description" "ZapTrace generated connectivity symbol"')
+    lines.append("      (at 0 0 0)")
+    lines.append('      (layer "F.Fab")')
+    lines.append("      (hide yes)")
+    lines.append(_INDENTED_CLOSE)
 
     # Footprint property
     lines.append(f'    (property "Footprint" "{fp.description if fp else ""}"')

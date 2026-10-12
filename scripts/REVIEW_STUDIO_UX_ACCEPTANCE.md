@@ -138,3 +138,17 @@ Actual Chrome's user-facing parity-audit **JSON download** was exercised with
 native KiCad source files. The downloaded bytes contained the exact selected
 source SHA-256s, the real 123 pin ID differences, and the no-auto-sync/no-fab
 prohibitions. Only own temporary browser and download folders were removed.
+
+## Further source-only: native KiCad 10 parity-positive project in Chrome
+
+Real Chrome 155 was exercised twice: an immutable older ESP32 source pair
+correctly shows 14 absent UUID links, 5 Value mismatches and 123 different
+pin identifiers, while the newly generated physical-pin/UUID/global-net
+project shows **14/14 source paths, 47/47 connected physical pins, zero
+Value/footprint discrepancies and no literal net-name mismatch**, with
+38 PCB-only pad identifiers explicitly visible. Both test actual private JSON
+downloads against original file SHA-256s, mobile 390px reflow and zero JS
+exceptions. Independent CLI `--schematic-parity` now proves **0 schematic
+parity errors** but finds 42 PCB physical DRC violations and 37
+unconnected items. GUI displays are technical review results, never F8
+authorization or fab readiness. Not included in old 0.1.9 RC binary.

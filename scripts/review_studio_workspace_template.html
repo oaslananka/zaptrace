@@ -416,7 +416,11 @@ if(window.__REVIEW_LOCAL__?.token){
    $('pcbAuditPinSummary').textContent='Native KiCad pin-number/net-label disagreement: '+
      pinEvidence.issue_count+' · '+pinEvidence.matching_pin_identifiers_by_reference+
      ' identical ref/pin labels · '+pinEvidence.pcb_physical_pads+
-     ' physical pads · not electrical signoff';
+     ' physical pads · '+(pinEvidence.native_root_scope_slash_pattern_not_parity||0)+
+     ' KiCad-conflicting /NET vs NET label patterns · '+(pinEvidence.native_unexplained_net_label_disagreements||0)+
+     ' literal native net conflicts · connected-pin subset: '+
+     (pinEvidence.connected_schematic_pin_net_subset_verified?'MATCHED':'NOT VERIFIED')+
+     ' · not electrical signoff';
    const pins=$('pcbAuditPinFindings');pins.replaceChildren();
    for(const issue of pinEvidence.issue_samples){
     const item=document.createElement('li');

@@ -96,10 +96,10 @@ def test_schematic_exports_connected_net_nodes_as_kicad_library_pins(tmp_path: P
     assert '(paper "A4")' in schematic
     assert '(number "1"' in schematic
     assert '(pin "1" (uuid ' in schematic
-    assert '(label "VCC" (at 26.67 50.8 180)' in schematic
+    assert '(global_label "VCC" (shape passive) (at 26.67 50.8 180)' in schematic
     assert "(wire (pts (xy 34.29 50.8) (xy 26.67 50.8))" in schematic
     assert '(pin "2" (uuid ' in schematic
-    assert '(label "GND" (at 74.93 50.8 0)' in schematic
+    assert '(global_label "GND" (shape passive) (at 74.93 50.8 0)' in schematic
     assert "(wire (pts (xy 67.31 50.8) (xy 74.93 50.8))" in schematic
     assert '(pin "1" (at ' not in schematic
     assert '(label "VCC" (at 200 10 0))' not in schematic
@@ -118,7 +118,7 @@ def test_schematic_multirow_pin_labels_follow_kicad_library_y_axis(tmp_path: Pat
     schematic = Path(export_kicad_schematic(design, tmp_path)["schematic"]).read_text(encoding="utf-8")
 
     assert "(pin passive line (at -16.51 -2.54 0)" in schematic
-    assert '(label "SIG" (at 26.67 53.34 180)' in schematic
+    assert '(global_label "SIG" (shape passive) (at 26.67 53.34 180)' in schematic
     assert "(wire (pts (xy 34.29 53.34) (xy 26.67 53.34))" in schematic
 
 

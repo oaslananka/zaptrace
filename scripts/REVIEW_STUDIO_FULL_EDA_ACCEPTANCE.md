@@ -215,3 +215,19 @@ overflow. Explicit source change, F8 sync and PCB route editing remain
 blocked. **This work is not packaged into the previously QA-bound 0.1.9
 release candidate**; new packaging requires distinct version and real
 acceptance. Read `REVIEW_STUDIO_SCHEMATIC_PCB_AUDIT.md` for limitations.
+
+## Follow-up source-only: actual KiCad 10.0.7 schematic/PCB parity check
+
+With physical KiCad symbol-pin numbers derived from vetted package-pad
+mapping, deterministic PCB `path` linkage, matching Value/Description and
+single-root global schematic net labels, the new ESP32 pipeline now passes
+KiCad's own **`pcb drc --schematic-parity`: zero mismatches**. Independent
+KiCad ERC reports zero, native read-only SHA-bound audit reports 14/14
+footprint UUID paths and 47/47 connected pad numbers, and matching native
+net labels. A copied local-label legacy schematic still fails on 47 net-name
+conflicts, so the audit no longer considers `/NET` and `NET` equivalent.
+The **42 remaining PCB DRC violations and 37 unconnected items** are not
+fixed by this synchronization work; fabrication and connected-copper route
+editing are still blocked. This is source-only and requires a separately
+versioned exact-package acceptance before any distribution. See
+`REVIEW_STUDIO_SCHEMATIC_PCB_AUDIT.md`.
