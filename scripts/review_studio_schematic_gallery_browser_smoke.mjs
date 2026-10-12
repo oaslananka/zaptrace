@@ -50,12 +50,12 @@ const activated=await js(`(()=>{document.getElementById('modeSch').click();
  return {mode,index:schematicPageIndex,dock:!$('schematicSheetDock').hidden,
  nav:!$('schematicPageNav').hidden,
  disabledPrev:$('schematicPrevious').disabled,disabledNext:$('schematicNext').disabled,
- focus:$('schematicFocusSymbols').disabled,
+ focus:$('schematicFocusSymbols').disabled,rootSymbols:DATA.schematic.symbols?.length||0,
  active:[...document.querySelectorAll('.sheet-thumb')].map(b=>b.getAttribute('aria-current')),
  scope:$('schematicDockScope').textContent,approval:document.querySelector('header .headside').textContent};})()`);
 check(activated.mode==='schematic'&&activated.index===0&&activated.nav&&activated.dock&&activated.disabledPrev&&activated.active[0]==='page',
  'opening read-only schematic shows branded side sheet gallery, readable canvas sheet dock and current page');
-check(activated.focus===(kind==='multi'),'focus root components enabled only when the real root has available symbols');
+check(activated.focus===(activated.rootSymbols===0),'focus root components enabled only when the native source root has actual symbols');
 const sourceRefs=await js(`(()=>({actual:DATA.schematic.crossprobe_refs,
  declared:DATA.schematic.symbols.map(s=>s.ref),
  listed:[...document.querySelectorAll('.sheet-ref')].map(b=>b.dataset.ref),

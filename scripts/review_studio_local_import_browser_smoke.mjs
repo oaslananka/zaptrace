@@ -113,8 +113,8 @@ check(observedStages.has('preparing')&&
 check(final?.projects===1&&!final.failed&&final.count.includes('DRC FINDINGS')&&final.count.includes('OPEN NET PAIRS')&&
  (!process.env.ZAPTRACE_TEST_PRO||final.rule.includes('KiCad project rules included')),
  'native KiCad subprocess completed: real DRC report and open pairs now appear in the project library');
-check(final.href?.startsWith(`http://127.0.0.1:${port}/projects/`)&&
- /-[0-9a-f]{32}\/index\.html$/.test(final.href),
+check(final.href?.startsWith(`http://127.0.0.1:${port}/review-assets/`)&&
+ /\/review-assets\/[0-9a-f]{24}\/index\.html$/.test(final.href),
  'new native PCB project links into its own read-only evidence viewer over localhost');
 const capture=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
 writeFileSync('build/review-studio-live-test/local-import-success.png',Buffer.from(capture.data,'base64'));

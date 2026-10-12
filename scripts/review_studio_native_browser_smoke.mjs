@@ -18,8 +18,8 @@ let seq=0;const callbacks=new Map(),errors=[];
 ws.addEventListener('message',evt=>{const m=JSON.parse(evt.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);
  if(m.id&&callbacks.has(m.id)){callbacks.get(m.id)(m);callbacks.delete(m.id);}});
 const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;callbacks.set(id,m=>m.error?reject(Error(JSON.stringify(m.error))):resolve(m.result));ws.send(JSON.stringify({id,method,params}));});
-await call('Runtime.enable');
-const js=async expression=>{const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
+await call('Runtime.enable');await call('Page.enable');
+const js=async expression=>{await call('Page.bringToFront');const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
 const check=(v,description)=>{if(!v)throw Error('FAIL '+description);console.log('PASS '+description);};
 const initial=await js(`({parts:document.querySelectorAll('.fp-hit').length,pads:document.querySelectorAll('.pad-hit').length,
  faults:document.querySelectorAll('.fault').length,plots:document.querySelectorAll('.layerimage').length,tab:document.querySelectorAll('.listbutton').length,

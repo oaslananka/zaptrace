@@ -73,6 +73,33 @@ def test_pinned_versioned_deb_is_immutable_even_if_new_sources_change(tmp_path: 
     assert sha.read_text() == f"{original_sha}  {prior.name}\n"
 
 
+def test_separately_versioned_013_candidate_has_matching_executable_and_preserves_012(
+    tmp_path: Path,
+) -> None:
+    new = packager.build(SCRIPTS.parent, tmp_path / "new", version="0.1.13")
+    old = packager.build(SCRIPTS.parent, tmp_path / "old", version="0.1.12")
+    metadata = subprocess.run(
+        ["dpkg-deb", "-f", str(new), "Version"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    ).stdout.strip()
+    assert metadata == "0.1.13"
+    extracted = tmp_path / "installed"
+    subprocess.run(["dpkg-deb", "-x", str(new), str(extracted)], check=True, timeout=15)
+    program = extracted / "usr/bin/zaptrace-review-studio"
+    output = subprocess.run([str(program), "--version"], check=True, text=True, capture_output=True, timeout=10).stdout
+    assert "0.1.13" in output
+    workspace = (extracted / "usr/lib/zaptrace-review-studio/scripts/review_studio_workspace_template.html").read_text()
+    assert "0.1.13" in workspace and "0.1.12" not in workspace
+    assert old.name == "zaptrace-review-studio_0.1.12_all.deb"
+    assert hashlib.sha256(new.read_bytes()).hexdigest() != hashlib.sha256(old.read_bytes()).hexdigest()
+    assert new.read_bytes() == packager.build(SCRIPTS.parent, tmp_path / "repro", version="0.1.13").read_bytes()
+    with pytest.raises(ValueError, match="Unsupported version"):
+        packager.build(SCRIPTS.parent, tmp_path / "unsupported", version="0.1.14")
+
+
 def test_package_declares_native_kicad_and_noncommercial_license(release_pkg: Path, tmp_path: Path) -> None:
     for field, value in (("Package", "zaptrace-review-studio"), ("Version", "0.1.12"), ("Architecture", "all")):
         got = subprocess.run(
