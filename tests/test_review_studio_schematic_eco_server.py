@@ -41,7 +41,11 @@ def local_studio(root: Path):
         thread.join(timeout=6)
 
 
-def fetch(url: str, token: str, *, data: dict | None = None, method: str | None = None) -> tuple[int, bytes]:
+def fetch(
+    url: str, token: str, *, data: dict | None = None, method: str | None = None, timeout: float = 22
+) -> tuple[int, bytes]:
+    # Short user interaction and authentication probes retain 22 s default.
+    # Explicit native KiCad DRC callers may use a longer bounded budget.
     headers = {"X-Review-Token": token}
     if data is not None:
         headers["Content-Type"] = "application/json"
@@ -53,7 +57,7 @@ def fetch(url: str, token: str, *, data: dict | None = None, method: str | None 
         data=json.dumps(data).encode() if data is not None else None,
     )
     try:
-        with urlopen(req, timeout=22) as response:
+        with urlopen(req, timeout=timeout) as response:
             return response.status, response.read()
     except HTTPError as exc:
         return exc.code, exc.read()

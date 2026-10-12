@@ -73,7 +73,7 @@ def test_authenticated_two_distinct_nets_real_native_zip_sha_and_discard(
     original, source_files = portable_project
     archive_sha = hashlib.sha256(original).hexdigest()
     with local_studio(tmp_path) as (server, base):
-        code, candidates = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original))
+        code, candidates = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original), timeout=130)
         assert code == 200
         routes = _routes(json.loads(candidates)["links"])
         request = {**upload(original), "routes": routes}
@@ -135,7 +135,7 @@ def test_invalid_native_batch_schema_rejected_before_start(
 ) -> None:
     original, _ = portable_project
     with local_studio(tmp_path) as (server, base):
-        code, raw = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original))
+        code, raw = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original), timeout=130)
         assert code == 200
         routes = mutate(_routes(json.loads(raw)["links"]))
         code, response = fetch(
@@ -151,7 +151,7 @@ def test_second_http_batch_link_failure_rolls_back_first_native_route(
     raw, source_files = portable_project
     original_sha = hashlib.sha256(raw).hexdigest()
     with local_studio(tmp_path) as (server, base):
-        code, native = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw))
+        code, native = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw), timeout=130)
         assert code == 200
         candidates = json.loads(native)["links"]
         routes = _routes(candidates)

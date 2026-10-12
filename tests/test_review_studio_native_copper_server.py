@@ -77,9 +77,9 @@ def test_local_native_copper_inspect_select_route_download_discard(
         assert b'id="copperLab"' in html and b'id="copperPair"' in html
         assert b'id="copperInspectForm"' in html and b'id="copperRouteForm"' in html
         assert b"window.__REVIEW_LOCAL__=" in html
-        code, _ = fetch(base + "/api/native-copper/inspect", "wrong-token", data=payload)
+        code, _ = fetch(base + "/api/native-copper/inspect", "wrong-token", data=payload, timeout=130)
         assert code == 403
-        code, report_raw = fetch(base + "/api/native-copper/inspect", server.secret, data=payload)
+        code, report_raw = fetch(base + "/api/native-copper/inspect", server.secret, data=payload, timeout=130)
         assert code == 200, report_raw
         report = json.loads(report_raw)
         assert report["mode"] == "read_only_native_kicad_links"
@@ -161,7 +161,7 @@ def test_native_two_through_via_http_workflow_uses_real_kicad_drc_and_private_sh
     original, contents = portable
     source_sha = hashlib.sha256(original).hexdigest()
     with local_studio(tmp_path) as (server, base):
-        code, raw = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original))
+        code, raw = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original), timeout=130)
         assert code == 200
         candidates = json.loads(raw)["links"]
         selected = next(
@@ -222,7 +222,7 @@ def test_authenticated_portable_custom_dru_two_via_and_independent_default_drc(
     files[name] = custom
     raw = make_zip(files)
     with local_studio(tmp_path) as (server, base):
-        code, found = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw))
+        code, found = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw), timeout=130)
         assert code == 200, found
         links = json.loads(found)["links"]
         pair = next(
@@ -282,7 +282,7 @@ def test_native_custom_rules_wrong_name_or_invalid_syntax_rejected_without_artif
     content = {**files, bad_name: rules}
     raw = make_zip(content)
     with local_studio(tmp_path) as (server, base):
-        code, answer = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw))
+        code, answer = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw), timeout=130)
         if bad_name.startswith("WRONG"):
             assert code == 400, (code, answer)
         else:
@@ -340,7 +340,7 @@ def test_native_copper_zip_blocks_path_traversal_and_non_source_member(
 ) -> None:
     bad = make_zip({**portable[1], member: b"evil"})
     with local_studio(tmp_path) as (server, base):
-        code, _ = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(bad))
+        code, _ = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(bad), timeout=130)
         assert code == 400
         assert not list((tmp_path / "workspace").glob(".zaptrace-copper-inspect-*"))
 
@@ -359,13 +359,13 @@ def test_native_copper_zip_rejects_symlinks_and_remote_library(
                     archive.writestr(record, b"/tmp/evil")
                 else:
                     archive.writestr(name, raw)
-        code, _ = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(memory.getvalue()))
+        code, _ = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(memory.getvalue()), timeout=130)
         assert code == 400
         bad = dict(portable[1])
         bad["fp-lib-table"] = bad["fp-lib-table"].replace(
             b"${KIPRJMOD}/ZapTrace.pretty", b"/tmp/external-footprints.pretty"
         )
-        code, _ = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(make_zip(bad)))
+        code, _ = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(make_zip(bad)), timeout=130)
         assert code == 400
         assert not list((tmp_path / "workspace").glob(".zaptrace-copper-inspect-*"))
 
