@@ -97,6 +97,18 @@ pass(narrow.client===320&&narrow.scroll<=320&&narrow.panel.width>240&&
  narrow.warning.height<95&&narrow.open,'320px narrow-phone model panel and safety disclaimer remain readable with no horizontal scroll');
 const narrowShot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
 writeFileSync(shot.replace('-390.png','-320.png'),Buffer.from(narrowShot.data,'base64'));
+for(const width of [340,360,375,380,381,385,390]){
+ await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
+ const box=await evalJs(`(()=>{const tools=document.querySelector('.boardactions').getBoundingClientRect();
+  const popup=document.querySelector('.render3d-controls').getBoundingClientRect();
+  return {viewport:document.documentElement.clientWidth,
+   overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,
+   overlap:Math.max(0,Math.min(tools.bottom,popup.bottom)-Math.max(tools.top,popup.top)),
+   popupLeft:popup.left,popupRight:popup.right}})()`);
+ console.log('RESPONSIVE_NATIVE_3D',width,box);
+ pass(box.viewport===width&&box.overflow<=0&&box.overlap<=1&&box.popupLeft>=0&&box.popupRight<=width+1,
+  `real ${width}px Chrome 3D controls do not occlude navigation or exceed viewport`);
+}
 const scope=await evalJs(`(()=>{document.getElementById('modePcb').click();
  const panel=document.getElementById('render3dModelDiagnostics');
  const root=document.getElementById('render3dControls');
