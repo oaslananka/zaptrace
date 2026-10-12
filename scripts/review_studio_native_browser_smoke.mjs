@@ -28,7 +28,7 @@ const initial=await js(`({parts:document.querySelectorAll('.fp-hit').length,pads
  source:DATA.board_name,sha:DATA.source_sha256,kicad:DATA.board.kicad,segments:DATA.board.tracks})`);
 console.log('KIcad real native evidence:',initial);
 check(initial.parts===14&&initial.pads===112&&initial.faults===28&&initial.plots===7,'native plot: 14 footprints, 112 pads, 28 geolocated native DRC markers, seven KiCad layers');
-check(initial.segments===61&&initial.summary.includes('16 findings')&&initial.open.includes('12 native')&&initial.erc.includes('0 findings')&&initial.parity.includes('7 net names')&&initial.parity.includes('pins unverified'),'independent native DRC 16 + 12 open, native ERC 0 enabled-check findings, 61 copper tracks');
+check(initial.segments===61&&initial.summary.includes('16 findings')&&initial.open.includes('12 native')&&initial.erc.includes('0 errors')&&initial.erc.includes('0 warnings')&&initial.erc.includes('enabled rules only')&&initial.parity.includes('7 net names')&&initial.parity.includes('pins unverified'),'independent native DRC 16 + 12 open, native ERC 0 errors/0 warnings (enabled rules only), 61 copper tracks');
 // WAI-ARIA inspector tablist: only active tab is in the page Tab sequence.
 const tabState=()=>js(`(()=>{const tabs=[...document.querySelectorAll('[role="tab"]')];return {
  selected:tabs.find(t=>t.getAttribute('aria-selected')==='true')?.dataset.tab,
