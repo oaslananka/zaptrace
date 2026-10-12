@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 
 VERSION = "0.1.12"
-ACCEPTED_LOCAL_VERSIONS = frozenset({"0.1.12", "0.1.13", "0.1.14", "0.1.15"})
+ACCEPTED_LOCAL_VERSIONS = frozenset({"0.1.12", "0.1.13", "0.1.14", "0.1.15", "0.1.16"})
 PACKAGE = "zaptrace-review-studio"
 APP_FILES = (
     "review_studio_app.py",

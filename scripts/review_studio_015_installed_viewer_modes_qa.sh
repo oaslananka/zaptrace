@@ -86,6 +86,7 @@ echo '[1/4] Actual KiCad 3D 8 orbit views, top and iso and mobile'
 timeout 110s node scripts/review_studio_native_3d_browser_smoke.mjs
 ZAPTRACE_015_SCREENSHOT="$QA/shots/native-3d-model-diagnostics-390.png" timeout 80s node scripts/review_studio_015_model_browser_smoke.mjs
 cp -- "$QA/shots/native-3d-model-diagnostics-390.png" build/qa-015-release-20261012/
+cp -- "$QA/shots/native-3d-model-diagnostics-320.png" build/qa-015-release-20261012/
 cp -- "$QA/shots/native-kicad-3d-isometric-desktop.png" build/qa-015-release-20261012/
 echo "MOBILE_3D_PROOF_SHA256=$(sha256sum "$QA/shots/native-3d-model-diagnostics-390.png" | cut -d ' ' -f1)"
 next_page "http://127.0.0.1:$PORT/multi/index.html"

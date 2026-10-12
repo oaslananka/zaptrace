@@ -78,6 +78,25 @@ pass(mobile.width<=390&&mobile.scroll<=mobile.width&&mobile.panelWidth>190&&
  mobile.disclosure!=='none'&&mobile.warningWidth>=mobile.actionGridWidth*.88&&mobile.warningHeight<85,'390px model card has full-row readable warning and no horizontal overflow');
 const result=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
 writeFileSync(shot,Buffer.from(result.data,'base64'));
+await call('Emulation.setDeviceMetricsOverride',{width:320,height:780,deviceScaleFactor:1,mobile:true});
+const narrow=await evalJs(`(()=>{const p=document.querySelector('.render3d-diagnostics');
+ p.scrollIntoView({block:'center'});
+ const n=p.getBoundingClientRect(), warning=document.querySelector('.render3d-warning').getBoundingClientRect(),
+ actions=document.querySelector('.render3d-actions').getBoundingClientRect();
+ return {client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,
+ panel:n.toJSON(),warning:warning.toJSON(),actions:actions.toJSON(),open:p.open,
+ toolbar:document.querySelector('.boardactions').getBoundingClientRect().toJSON(),
+ controls:document.querySelector('.render3d-controls').getBoundingClientRect().toJSON(),
+ scene:document.querySelector('.boardspace').getBoundingClientRect().toJSON()}})()`);
+console.log('320PX_REAL_3D_DIAGNOSTICS',narrow);
+const toolbarOverlap=Math.max(0,Math.min(narrow.toolbar.bottom,narrow.controls.bottom)-Math.max(narrow.toolbar.top,narrow.controls.top));
+console.log('320PX_3D_CONTROL_TOOLBAR_VERTICAL_OVERLAP_PX',toolbarOverlap);
+pass(toolbarOverlap<=1,'v0.1.15 must fail closed on its real 320px PCB toolbar occlusion');
+pass(narrow.client===320&&narrow.scroll<=320&&narrow.panel.width>240&&
+ narrow.panel.left>=0&&narrow.panel.right<=321&&narrow.warning.width>=narrow.actions.width*.85&&
+ narrow.warning.height<95&&narrow.open,'320px narrow-phone model panel and safety disclaimer remain readable with no horizontal scroll');
+const narrowShot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+writeFileSync(shot.replace('-390.png','-320.png'),Buffer.from(narrowShot.data,'base64'));
 const scope=await evalJs(`(()=>{document.getElementById('modePcb').click();
  const panel=document.getElementById('render3dModelDiagnostics');
  const root=document.getElementById('render3dControls');

@@ -281,7 +281,15 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  .render3d-warning{display:block;grid-column:1/-1;min-width:0;font-size:9px;line-height:1.35}
  .boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px}
 }
-@media(max-width:380px){.render3d-actions{gap:3px}.render3d-actions button{font-size:9px}}
+@media(max-width:380px){
+ .render3d-actions{gap:3px}
+ .render3d-actions button{font-size:9px}
+ /* Keep the live KiCad toolbar unoccluded at 320px. The source model
+    disclosure remains operable inside the independently scrolling panel. */
+ .boardspace:has(.render3d-controls:not([hidden])) .render3d-controls{
+  max-height:calc(100% - 235px);overflow-y:auto;overscroll-behavior:contain
+ }
+}
 /* The mobile inspector must remain navigable: long native findings scroll inside
    the inspector rather than making the entire document thousands of px long. */
 @media(max-width:750px){.right{display:flex;flex-direction:column}.right .entrylist{flex:none;min-height:160px;max-height:min(58dvh,520px);overflow-y:auto;overscroll-behavior:contain}.right .detail{max-height:min(36dvh,280px);overflow-y:auto}}
