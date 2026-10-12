@@ -35,5 +35,16 @@ for(const width of [320,390,1440]){
  const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
  writeFileSync(`${screenshotDir}/mobile-camera-${width}.png`,Buffer.from(shot.data,'base64'));
 }
+// The real KiCad 3D diagnostics are expandable. At 381px, the old 380px
+// breakpoint let them collide with the native PCB/schematic mode toolbar.
+await js("document.getElementById('render3dModelDiagnostics').open=true");
+for(const width of [320,340,360,375,380,381,385,390,420]){
+ await call('Emulation.setDeviceMetricsOverride',{width,height:844,mobile:true,deviceScaleFactor:1});
+ const g=await js(`(()=>{const a=document.querySelector('.boardactions').getBoundingClientRect(),p=document.getElementById('render3dControls').getBoundingClientRect(),d=document.getElementById('render3dModelDiagnostics');return {width:document.documentElement.clientWidth,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,overlap:Math.max(0,Math.min(a.bottom,p.bottom)-Math.max(a.top,p.top)),panelLeft:p.left,panelRight:p.right,diagnosticsOpen:d.open,cap:getComputedStyle(document.getElementById('render3dControls')).maxHeight}})()`);
+ console.log('MOBILE_021_MODEL_DETAIL_BREAKPOINT',width,JSON.stringify(g));
+ check(g.width===width&&g.overflow<=0&&g.overlap<=1&&g.panelLeft>=0&&g.panelRight<=width+1&&g.diagnosticsOpen&&g.cap!=='none',`${width}px open source-model disclosure never masks native KiCad controls`,g);
+}
+console.log('MOBILE_021_REAL_CHROME_OPEN_MODEL_DIAGNOSTICS_320_TO_420_NO_TOOLBAR_OVERLAP=PASS');
+await js("document.getElementById('render3dModelDiagnostics').open=false");
 check(faults.length===0,'zero real Chrome JS exceptions',faults);
 socket.close();console.log('MOBILE_021_REAL_SOURCE_BOUND_CHROME_CAMERA_QA=PASS');

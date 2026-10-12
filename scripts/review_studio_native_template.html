@@ -329,6 +329,11 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  .render3d-actions #render3dNext{grid-column:4;grid-row:2}
  .render3d-actions button{font-size:11px;min-height:44px;padding:7px 4px}
  .render3d-angle span:first-child{font-size:10px}
+ /* A source-backed model warning may expand the panel. Cap its height at ALL
+    021 two-row widths, not just 320-380px, so 381px does not hide mode tools. */
+ .boardspace:has(.render3d-controls:not([hidden])) .render3d-controls{
+  max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain
+ }
 }
 /* The mobile inspector must remain navigable: long native findings scroll inside
    the inspector rather than making the entire document thousands of px long. */

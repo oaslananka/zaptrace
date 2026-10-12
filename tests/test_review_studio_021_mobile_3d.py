@@ -20,6 +20,7 @@ def test_021_mobile_camera_controls_preserve_native_eight_frame_review() -> None
         "#render3dPrevious{grid-column:1;grid-row:2}",
         ".render3d-angle{grid-column:2/span 2;grid-row:2;min-height:44px}",
         "#render3dNext{grid-column:4;grid-row:2}",
+        "max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain",
         ".render3d-actions button{font-size:11px;min-height:44px;",
     ):
         assert selector in html
