@@ -1462,6 +1462,17 @@ function select(sel,withPan=false){if(sel.kind==='pad')measurePad(sel.index);
  }
  if(obj && withPan && obj.x!==null && Number.isFinite(obj.x))center(obj.x,obj.y);
  renderList();
+ // Mobile review: reveal the actual selected KiCad evidence and place keyboard/
+ // screen-reader focus on its heading. Never scroll or steal focus during passive
+ // refreshes, desktop pan, or when another item has become selected meanwhile.
+ if(withPan && sel.kind==='issue' && window.innerWidth<=750){
+  h.tabIndex=-1;
+  requestAnimationFrame(()=>{
+   if(selected?.kind!=='issue'||selected.index!==sel.index||!h.isConnected)return;
+   h.focus({preventScroll:true});
+   d.scrollIntoView({block:'start',behavior:'auto'});
+  });
+ }
 }
 function itemButton(label,sub,onClick,selectedNow=false,bad=false){const b=node('button','listbutton'+(selectedNow?' selected':''));b.type='button';
  const title=node('strong',bad?'bad':'',label);b.append(title,node('span','',sub));b.addEventListener('click',onClick);return b;}
