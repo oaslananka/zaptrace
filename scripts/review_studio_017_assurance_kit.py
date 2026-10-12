@@ -132,18 +132,18 @@ def create(dist: Path, qa: Path) -> Path:
         p = qa / f"native-multisheet-child-{width}.png"
         if not p.is_file() or p.is_symlink():
             raise ValueError(f"{width}px schematic Chrome screenshot is missing")
-        data = p.read_bytes()
+        schematic_png = p.read_bytes()
         if (
-            not data.startswith(b"\x89PNG\r\n\x1a\n")
-            or len(data) < 100
-            or int.from_bytes(data[16:20], "big") != width
-            or int.from_bytes(data[20:24], "big") != 844
+            not schematic_png.startswith(b"\x89PNG\r\n\x1a\n")
+            or len(schematic_png) < 100
+            or int.from_bytes(schematic_png[16:20], "big") != width
+            or int.from_bytes(schematic_png[20:24], "big") != 844
         ):
             raise ValueError(f"{width}px schematic Chrome screenshot is invalid")
-        digest = sha256(data)
-        if f"MOBILE_SCHEMATIC_{width}_SHA256={digest}" not in viewer_log:
+        schematic_digest = sha256(schematic_png)
+        if f"MOBILE_SCHEMATIC_{width}_SHA256={schematic_digest}" not in viewer_log:
             raise ValueError(f"{width}px schematic Chrome screenshot SHA is not bound to the tested viewer")
-        schematic_proofs[str(width)] = digest
+        schematic_proofs[str(width)] = schematic_digest
     summary = (
         "# Review Studio 0.1.17 — unsigned local EDA engineering candidate\n\n"
         f"Exact package SHA-256: `{digest}`. Historical 0.1.12/0.1.13 artifacts remain frozen.\n\n"
