@@ -49,7 +49,7 @@ header{grid-column:1/-1;grid-row:1;padding:10px 23px;background:#0c1522}
 .health-copy strong{font-size:19px;font-weight:810;letter-spacing:-.035em;color:#f0f7ff;line-height:1.25}.health-copy>span:last-child{font-size:10px;color:var(--dim)}
 .health-stat{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;padding:10px 19px;border:0;border-right:1px solid var(--line);background:transparent;color:inherit;gap:3px;min-width:0;position:relative}
 .health-stat:before{position:absolute;left:0;top:13px;bottom:13px;width:2px;background:#6085ba;opacity:.55;content:''}.health-stat:hover,.health-stat:focus-visible{background:#1a3046}.health-stat:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}
-.health-number{font:780 27px/1.04 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.05em;color:#d9edfc;font-variant-numeric:tabular-nums}.health-number.danger{color:#ff95a3}.health-number.okay{color:#7eeccf}.health-note{font-size:10px;color:#93a9bd;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.health-number{font:780 27px/1.04 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.05em;color:#d9edfc;font-variant-numeric:tabular-nums}.health-number.danger{color:#ff95a3}.health-number.caution{color:#ffd18c}.health-number.okay{color:#7eeccf}.health-note{font-size:10px;color:#93a9bd;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .left{grid-column:1;grid-row:3;background:#0e1826;border-right:1px solid #28394d;padding:21px 18px 20px}.right{grid-column:3;grid-row:3;background:#0e1928;border-left:1px solid #28394d;padding:21px 18px 17px}
 .boardspace{grid-column:2;grid-row:3;background-color:#091522;background-image:radial-gradient(circle,#314258 .6px,transparent .9px);background-size:20px 20px}
 .side-identity{margin-bottom:18px}.side-identity h2,.inspector-head h2{font-size:17px;line-height:1.25;letter-spacing:-.025em;margin:5px 0 4px;color:#ecf7ff}.side-identity p{margin:0;font-size:11px;color:#879eb0}
@@ -335,6 +335,14 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
   max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain
  }
 }
+/* 3D source geometry must remain inspectable when a real model warning is open.
+   Reserve a separated model region instead of floating controls above the board. */
+@media(min-width:951px){
+ .app:has(.render3d-controls:not([hidden])){min-height:1010px;height:max(100dvh,1010px);overflow:hidden}
+}
+@media(max-width:950px){
+ .boardspace:has(.render3d-controls:not([hidden])){height:950px;min-height:950px}
+}
 /* The mobile inspector must remain navigable: long native findings scroll inside
    the inspector rather than making the entire document thousands of px long. */
 @media(max-width:750px){.right{display:flex;flex-direction:column}.right .entrylist{flex:none;min-height:160px;max-height:min(58dvh,520px);overflow-y:auto;overscroll-behavior:contain}.right .detail{max-height:min(36dvh,280px);overflow-y:auto}}
@@ -345,7 +353,7 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  <div class="health-copy"><span class="health-kicker">CURRENT DESIGN</span><strong>Engineering review</strong><span>Actual KiCad board · Fabrication blocked</span></div>
  <button class="health-stat" id="quickDrc" type="button"><span class="health-label">DESIGN RULE CHECK</span><span class="health-number danger" id="kpiDrc">—</span><span class="health-note" id="kpiDrcNote">Awaiting native DRC</span></button>
  <button class="health-stat" id="quickOpen" type="button"><span class="health-label">OPEN CONNECTIONS</span><span class="health-number danger" id="kpiOpens">—</span><span class="health-note">Physical completion blocked</span></button>
- <button class="health-stat" id="quickErc" type="button"><span class="health-label">SCHEMATIC ERC</span><span class="health-number okay" id="kpiErc">—</span><span class="health-note">Enabled rules only</span></button>
+ <button class="health-stat" id="quickErc" type="button"><span class="health-label">SCHEMATIC ERC</span><span class="health-number okay" id="kpiErc">—</span><span class="health-note" id="kpiErcNote">Enabled rules only</span></button>
  <button class="health-stat" id="quickPins" type="button"><span class="health-label">PAD MAPPING</span><span class="health-number" id="kpiPins">—</span><span class="health-note">Authored map, not supplier approval</span></button>
 </section>
 <div class="splitter splitter-left" id="leftSplitter" role="separator" tabindex="0"
@@ -579,7 +587,13 @@ function apply(){const current=mode==='pcb'?stage:mode==='3d'?render3dStage:sche
  current.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
  current.style.setProperty('--hit-scale',String(1/zoom));
  updateFooter();}
-function fit(){const w=viewport.clientWidth,h=viewport.clientHeight;const top=110,bottom=62;
+function fit(){const w=viewport.clientWidth,h=viewport.clientHeight;
+ const extent=viewport.getBoundingClientRect();
+ const uiBottom=document.querySelector('.boardactions').getBoundingClientRect().bottom-extent.top;
+ const top=mode==='3d'?Math.max(110,uiBottom+18):110;
+ const controls=$('render3dControls');
+ const bottom=mode==='3d'&&!controls.hidden?
+  Math.max(62,extent.bottom-controls.getBoundingClientRect().top+18):62;
  const availableH=Math.max(120,h-top-bottom),size=activeSize();
  zoom=Math.min((w-48)/size[0],availableH/size[1],2.5);
  panX=(w-size[0]*zoom)/2;panY=top+(availableH-size[1]*zoom)/2;apply();}
@@ -1006,6 +1020,9 @@ function showModelFileDiagnostics(){
 }
 function setupNative3D(){
  showModelFileDiagnostics();
+ $('render3dModelDiagnostics').addEventListener('toggle',()=>{
+  if(mode==='3d')requestAnimationFrame(fit);
+ });
  const trigger=$('mode3D');
  if(DATA.render3d?.state!=='rendered'||DATA.render3d.views?.length!==2){
   trigger.disabled=true;
@@ -1040,6 +1057,8 @@ function switchMode(next){
  $('schematicContext').hidden=mode!=='schematic';
  $('schematicSheetDock').hidden=mode!=='schematic';
  $('render3dControls').hidden=mode!=='3d';
+ // Reserved source-3D canvas height and dynamic controls size are measured
+ // after mode/disclosure changes. No geometry or engineer signoff is modified.
  $('schematicEmptyState').hidden=mode!=='schematic'||DATA.schematic?.pages?.[schematicPageIndex]?.drawn_element_count!==0;
  $('measure').disabled=mode!=='pcb';$('clearMeasure').disabled=mode!=='pcb';
  if(mode!=='pcb'){measureOn=false;measurePoints=[];renderMeasure();}
@@ -1350,9 +1369,17 @@ function summary(){const violations=DATA.findings.filter(f=>f.rule!=='unconnecte
  const drc=$('drcBadge'),cnt=violations.length;
  drc.textContent=DATA.drc_state==='not_run'?'Not run':cnt+' findings'+(cnt?' · needs review':' · no reported findings');
  drc.className=cnt?'critical':(DATA.drc_state==='not_run'?'warn':'good');
- const erc=$('ercBadge');
- erc.textContent=DATA.erc.state==='not_run'?'Not run':DATA.erc.count+' findings · enabled rules only';
- erc.className=DATA.erc.state==='not_run'?'warn':DATA.erc.count?'critical':'good';
+ const erc=$('ercBadge'),er=DATA.erc;
+ const ercVerified=['reported','no_reported_findings'].includes(er.state);
+ const ercErrors=Number.isInteger(er.errors)&&er.errors>=0?er.errors:0;
+ const ercWarnings=Number.isInteger(er.warnings)&&er.warnings>=0?er.warnings:0;
+ const ercUnclassified=ercVerified&&(!Number.isInteger(er.count)||er.count!==ercErrors+ercWarnings);
+ const ercClass=!ercVerified?'warn':ercErrors?'critical':ercWarnings||ercUnclassified?'warn':'good';
+ const ercCountText=ercErrors+' errors · '+ercWarnings+' warnings';
+ erc.textContent=!ercVerified?(er.state==='not_run'?'Not checked':'Unavailable · check native KiCad'):
+  ercUnclassified?'Findings need severity review · enabled rules only':ercCountText+' · enabled rules only';
+ erc.className=ercClass;
+ erc.title=er.scope||'Only enabled KiCad ERC rules are checked';
  const parity=$('netParityBadge'),matches=DATA.net_parity;
  parity.textContent=matches.state==='not_checked'?'Not checked':
  matches.state==='names_match'?matches.common.length+' net names · pins unverified':'Names differ · inspect';
@@ -1376,11 +1403,13 @@ function summary(){const violations=DATA.findings.filter(f=>f.rule!=='unconnecte
  $('kpiDrcNote').textContent=DATA.drc_state==='not_run'?'Not run':cnt?'Unwaived manufacturing findings':'No reported findings · not approved';
  $('kpiOpens').textContent=DATA.drc_state==='not_run'?'—':String(open.length);
  $('quickErc').disabled=!DATA.schematic;
- $('kpiErc').textContent=DATA.erc.state==='not_run'?'—':String(DATA.erc.count);
+ $('kpiErc').textContent=ercVerified&&!ercUnclassified?String(er.count):'—';
+ $('kpiErcNote').textContent=!ercVerified?'Not checked · enabled rules only':
+  ercUnclassified?'Severity unknown · review required':ercCountText+' · enabled rules only';
  $('kpiPins').textContent=pm.state==='not_checked'?'—':pm.mapped_pad_instances+'/'+pm.total_pad_instances;
  $('kpiDrc').className='health-number '+(DATA.drc_state==='not_run'?'':cnt?'danger':'okay');
  $('kpiOpens').className='health-number '+(DATA.drc_state==='not_run'?'':open.length?'danger':'okay');
- $('kpiErc').className='health-number '+(DATA.erc.state==='not_run'?'':DATA.erc.count?'danger':'okay');
+ $('kpiErc').className='health-number '+(!ercVerified?'':ercErrors?'danger':ercWarnings||ercUnclassified?'caution':'okay');
  $('kpiPins').className='health-number '+(pm.state==='mismatch'?'danger':'');
  $('footleft').textContent=`READ-ONLY • ${DATA.board.size.join(' × ')} mm edge bounding box • source ${DATA.source_sha256.slice(0,16)}…`;
 }
