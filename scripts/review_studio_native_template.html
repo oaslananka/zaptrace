@@ -275,6 +275,9 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  .boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px}
 }
 @media(max-width:380px){.render3d-actions{gap:3px}.render3d-actions button{font-size:9px}}
+/* The mobile inspector must remain navigable: long native findings scroll inside
+   the inspector rather than making the entire document thousands of px long. */
+@media(max-width:750px){.right{display:flex;flex-direction:column}.right .entrylist{flex:none;min-height:160px;max-height:min(58dvh,520px);overflow-y:auto;overscroll-behavior:contain}.right .detail{max-height:min(36dvh,280px);overflow-y:auto}}
 </style></head><body>
 <div class="app">
 <header><div class="brand"><div class="brandmark" aria-hidden="true">Z</div><div><div class="brandname">Zap<em>Trace</em></div><div class="brandcaption">Design review workspace</div></div></div><div style="min-width:0"><div class="pathhead" id="boardName"></div><div class="pathmeta" id="boardMeta">Loading native board geometry…</div></div><div class="headside">__WORKSPACE_LINK__<span class="statuspill localpill"><span class="statusdot" aria-hidden="true"></span>Local workspace</span><span class="statuspill">NOT FABRICATION APPROVED</span><button class="command-trigger" id="searchWorkspace" type="button" title="Search native objects (Ctrl K)" aria-label="Search all native PCB and schematic objects">Search workspace <kbd>Ctrl K</kbd></button><button class="header-icon" id="showHelp" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button></div></header>
@@ -388,6 +391,7 @@ const openPairByFinding=new Map((DATA.open_pairs||[]).map(p=>[p.finding_index,p]
 const padLinks=new Map((DATA.pin_parity?.pad_links||[]).map(x=>[x.pad_index,x]));
 const schByRef=new Map((DATA.schematic?.symbols||[]).map(s=>[s.ref,s]));
 const schPinById=new Map((DATA.schematic?.pin_anchors||[]).map(p=>[p.ref+'.'+p.logical_pin,p]));
+const schPinByPhysicalId=new Map((DATA.schematic?.pin_anchors||[]).map(p=>[p.ref+'.'+p.physical_pin,p]));
 const boardRefToIndex=new Map(DATA.board.footprints.map((part,i)=>[part.ref,i]));
 const openedGroups=new Set(['drill_out_of_range']);
 const openedPinRefs=new Set(['J1','U1']);
@@ -446,7 +450,11 @@ function inspectSchematicPin(ref,logicalPin){
  detail.append(detailLine('Native Eeschema net',pin.net),
   detailLine('Schematic anchor',snap(pin.x)+', '+snap(pin.y)),
   node('p','small muted','Actual KiCad embedded library pin endpoint. Any PCB link is scoped to authored package-pin mapping; no datasheet or physical-continuity approval.'));
- const matched=(DATA.pin_parity?.pad_links||[]).filter(e=>e.ref===ref&&e.logical_pin===logicalPin);
+ // Canonical pin functions may repeat (USB-C VBUS/GND). Only a physically
+ // identical pad number with matching function and net is a valid cross-probe.
+ const matched=(DATA.pin_parity?.state==='mapped_net_consistent'?DATA.pin_parity.pad_links:[])
+  .filter(e=>e.ref===ref&&e.pad===pin.physical_pin&&
+   e.logical_pin===pin.canonical_pin&&e.net===pin.net);
  detail.append(detailLine('Matching authored physical pads',matched.length));
  for(const mapped of matched){const b=node('button','crossnav',
    'Go to native PCB '+mapped.ref+'.'+mapped.pad+' ('+mapped.net+') →');b.type='button';
@@ -1229,9 +1237,11 @@ function select(sel,withPan=false){if(sel.kind==='pad')measurePad(sel.index);
   const link=padLinks.get(sel.index);
   if(link){d.append(detailLine('Authored logical pin',link.logical_pin),
     node('p','small muted','Exact native PCB net and native schematic net match the authored package-pin map. Component supplier pin functions and physical continuity are NOT qualified.'));
-   if(schPinById.has(obj.ref+'.'+link.logical_pin)){
-    const b=node('button','crossnav','Locate exact schematic pin '+obj.ref+'.'+link.logical_pin+' →');b.type='button';
-    b.onclick=()=>inspectSchematicPin(obj.ref,link.logical_pin);d.append(b);
+   const exactPin=schPinByPhysicalId.get(obj.ref+'.'+obj.pad);
+   if(DATA.pin_parity.state==='mapped_net_consistent'&&exactPin&&
+      exactPin.canonical_pin===link.logical_pin&&exactPin.net===obj.net){
+    const b=node('button','crossnav','Locate exact schematic pin '+obj.ref+'.'+exactPin.logical_pin+' →');b.type='button';
+    b.onclick=()=>inspectSchematicPin(obj.ref,exactPin.logical_pin);d.append(b);
    }
   }
   else if(DATA.pin_parity.state==='not_checked')d.append(node('p','small muted','Physical pin-to-logical-pin mapping NOT checked.'));

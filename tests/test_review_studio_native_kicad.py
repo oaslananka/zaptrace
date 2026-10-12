@@ -294,6 +294,22 @@ def test_native_physical_pad_mapping_is_exact_and_scoped() -> None:
     assert report["design_sha256"]
 
 
+def test_usb_c_repeated_function_maps_only_exact_physical_vbus_pad_numbers() -> None:
+    board, schematic, design = _local_pin_parity_sources()
+    parity = native.physical_pin_parity(board, schematic, design)
+    assert parity["state"] == "mapped_net_consistent"
+    pad_links = {(item["ref"], item["pad"]): item for item in parity["pad_links"]}
+    vbus = [pin for pin in schematic["pin_anchors"] if pin["ref"] == "J1" and pin["canonical_pin"] == "VBUS"]
+    assert {pin["physical_pin"] for pin in vbus} == {"A4", "A9", "B4", "B9"}
+    assert {pin["logical_pin"] for pin in vbus} == {"VBUS_A4", "VBUS_A9", "VBUS_B4", "VBUS_B9"}
+    for pin in vbus:
+        link = pad_links[("J1", pin["physical_pin"])]
+        assert link["logical_pin"] == pin["canonical_pin"] == "VBUS"
+        assert link["net"] == pin["net"] == "VCC_5V"
+    # A repeated canonical function never supplies authority for a different pin.
+    assert len({(pin["ref"], pin["physical_pin"]) for pin in vbus}) == 4
+
+
 def test_wrong_physical_pad_net_is_not_silently_approved() -> None:
     from copy import deepcopy
 

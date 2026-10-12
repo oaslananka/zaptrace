@@ -351,13 +351,24 @@ check(pinRoundtrip.found&&pinRoundtrip.first.ref==='U1'&&pinRoundtrip.first.pin=
  pinRoundtrip.first.schMode==='true'&&pinRoundtrip.first.detail.includes('I2C_SDA')&&
  pinRoundtrip.mode==='true'&&pinRoundtrip.selected===1,
  'native PCB U1.33 ↔ exact Eeschema U1.GPIO21 pin endpoint (not symbol centre)');
-const usbcMultiPin=await js(`(()=>{document.getElementById('modeSch').click();
- const btn=[...document.querySelectorAll('.sch-pin-hit')].find(b=>b.dataset.ref==='J1'&&b.dataset.pin==='VBUS');
- btn?.click();return {found:!!btn,selected:document.querySelector('.sch-pin-hit.selected')?.dataset.pin,
-  padLinks:[...document.querySelectorAll('#detail .crossnav')].filter(x=>x.textContent.includes('Go to native PCB J1.')).map(x=>x.textContent)};})()`);
-check(usbcMultiPin.found&&usbcMultiPin.selected==='VBUS'&&usbcMultiPin.padLinks.length===4&&
- usbcMultiPin.padLinks.some(x=>x.includes('J1.B9')),
- 'J1.VBUS schematic pin exposes all four original USB-C VBUS pads, no fake one-to-one mapping');
+const usbcPhysicalPins=await js(`(()=>{document.getElementById('modeSch').click();
+ const buttons=[...document.querySelectorAll('.sch-pin-hit')].filter(b=>b.dataset.ref==='J1'&&b.dataset.pin.startsWith('VBUS_'));
+ const results=buttons.map(btn=>{btn.click();return {pin:btn.dataset.pin,
+  selected:document.querySelector('.sch-pin-hit.selected')?.dataset.pin,
+  links:[...document.querySelectorAll('#detail .crossnav')]
+    .filter(x=>x.textContent.includes('Go to native PCB J1.')).map(x=>x.textContent)};});
+ const last=buttons.find(b=>b.dataset.pin==='VBUS_B9');last?.click();
+ const link=[...document.querySelectorAll('#detail .crossnav')].find(b=>b.textContent.includes('J1.B9'));
+ link?.click();const onPcb=Boolean(document.querySelector('.pad-hit.selected')?.title.startsWith('J1.B9 '));
+ const back=[...document.querySelectorAll('#detail .crossnav')].find(b=>b.textContent.includes('Locate exact schematic pin J1.VBUS_B9'));
+ back?.click();
+ return {results,onPcb,backFound:!!back,returned:document.querySelector('.sch-pin-hit.selected')?.dataset.pin};})()`);
+console.log('J1 USB-C EXACT PHYSICAL PIN ROUNDTRIP',usbcPhysicalPins);
+check(usbcPhysicalPins.results.length===4&&
+ ['VBUS_A4','VBUS_A9','VBUS_B4','VBUS_B9'].every(pin=>usbcPhysicalPins.results.some(x=>
+  x.pin===pin&&x.selected===pin&&x.links.length===1&&x.links[0].includes('J1.'+pin.slice(5))))&&
+ usbcPhysicalPins.onPcb&&usbcPhysicalPins.backFound&&usbcPhysicalPins.returned==='VBUS_B9',
+ 'USB-C four distinct VBUS physical pins have strict one-to-one authored cross-probe links in both directions');
 const pinPhoto=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
 writeFileSync(screenshotDir+'/native-schematic-pin-crossprobe.png',Buffer.from(pinPhoto.data,'base64'));
 let opens=await js(`(()=>{document.getElementById('modePcb').click();const issue=[...document.querySelectorAll('.fault')]
@@ -495,6 +506,20 @@ const mobileDock=await js(`(()=>({left:getComputedStyle(document.getElementById(
  queue:document.getElementById('reviewQueue').hidden}))()`);
 check(mobileDock.left==='none'&&mobileDock.right==='none',
  '390px mobile removes decorative resize handles without losing native inspection functionality');
+const mobileInspector=await js(`(()=>{
+ document.querySelector('[data-tab="issues"]').click();
+ const search=document.getElementById('search');search.value='';search.dispatchEvent(new Event('input'));
+ document.querySelectorAll('#entrylist .issuehead').forEach(button=>{
+  if(button.getAttribute('aria-expanded')==='false')button.click();
+ });
+ const panel=document.getElementById('rightSidebar'),list=document.getElementById('entrylist');
+ return {panelHeight:panel.getBoundingClientRect().height,listHeight:list.clientHeight,
+  listScroll:list.scrollHeight,scrollStyle:getComputedStyle(list).overflowY};})()`);
+console.log('390PX_NATIVE_INSPECTOR_LAYOUT',mobileInspector);
+check(mobileInspector.panelHeight<1300&&mobileInspector.listHeight<=520&&
+ mobileInspector.listScroll>mobileInspector.listHeight&&mobileInspector.scrollStyle==='auto',
+ '390px native findings stay inside a bounded scrollable inspector instead of a multi-thousand-pixel document');
+
 check(mobileHierarchy.canvasTop<mobileHierarchy.evidenceTop&&mobileHierarchy.healthTop<mobileHierarchy.canvasTop&&
  mobileHierarchy.healthRows===4,'390px mobile hierarchy prioritizes PCB before detailed evidence with four real check metrics');
 const mobileCommand=await js(`(()=>{document.getElementById('searchCanvas').click();

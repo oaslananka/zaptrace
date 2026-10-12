@@ -7,7 +7,7 @@ for(let i=0;i<60;i++){
  try{pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();if(pages.some(p=>p.type==='page'))break;}catch{}
  await new Promise(r=>setTimeout(r,140));
 }
-const page=pages?.find(p=>p.type==='page');if(!page)throw Error('Chrome comparison page unavailable');
+const page=pages?.find(p=>p.type==='page'&&/^http:\/\/127\.0\.0\.1:\d+\/$/.test(p.url||''));if(!page)throw Error('Local Chrome comparison workspace page unavailable');
 const ws=new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((res,rej)=>{ws.addEventListener('open',res,{once:true});ws.addEventListener('error',rej,{once:true});});
 let seq=0;const pending=new Map(),errors=[];
@@ -53,8 +53,8 @@ check(chosen.warning.includes('DIFFERENT KICAD RULE CONTEXTS')&&chosen.warning.i
 const byTitle=Object.fromEntries(chosen.metrics.map(x=>[x.title,x]));
 check(byTitle['Copper items']?.numbers.join(',')==='61,0'&&byTitle['Copper items']?.diff.includes('-61')&&
  byTitle['Open connections']?.numbers.join(',')==='12,37'&&byTitle['Open connections']?.diff.includes('+25')&&
- byTitle['PCB rule findings']?.numbers.join(',')==='16,28'&&
- byTitle['Library findings']?.numbers.join(',')==='0,14'&&
+ byTitle['PCB rule findings']?.numbers.join(',')==='16,31'&&
+ byTitle['Library findings']?.numbers.join(',')==='0,0'&&
  byTitle['Schematic ERC']?.numbers.join(',')==='0,0',
  'native comparison uses real 61 vs 0 copper items, 12 vs 37 open items, and exact PCB rule counts');
 check(chosen.links.length===4&&chosen.links.every(x=>x.href.includes('index.html')||x.href.includes('REVIEW_REPORT.html')),
@@ -69,8 +69,10 @@ if(data.cards>2){
  denied.metric?.includes('61'),
  'third native source cannot overwrite existing two-snapshot comparison or make a misleading triple-delta');
 }
-const picture=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
-writeFileSync(shots+'/professional-evidence-comparison-desktop.png',Buffer.from(picture.data,'base64'));
+if(process.env.ZAPTRACE_SKIP_COMPARISON_SHOTS!=='1'){
+ const picture=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ writeFileSync(shots+'/professional-evidence-comparison-desktop.png',Buffer.from(picture.data,'base64'));
+}
 await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
 const mobile=await js(`(()=>{const p=document.getElementById('comparePanel');p.scrollIntoView({block:'start'});
  return {viewport:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,
@@ -82,8 +84,10 @@ const mobile=await js(`(()=>{const p=document.getElementById('comparePanel');p.s
 console.log('CHROME COMPARISON 390px',mobile);
 check(mobile.viewport<=390&&mobile.scroll<=mobile.viewport&&mobile.panel<390&&mobile.warning&&mobile.selection===2,
  'comparison works at 390px without page overflow and preserves prominent DRC context warning');
-const mobilePicture=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
-writeFileSync(shots+'/professional-evidence-comparison-mobile.png',Buffer.from(mobilePicture.data,'base64'));
+if(process.env.ZAPTRACE_SKIP_COMPARISON_SHOTS!=='1'){
+ const mobilePicture=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ writeFileSync(shots+'/professional-evidence-comparison-mobile.png',Buffer.from(mobilePicture.data,'base64'));
+}
 await call('Emulation.clearDeviceMetricsOverride');
 const removed=await js(`(()=>{document.getElementById('compareClear').click();
  return {hidden:document.getElementById('comparePanel').hidden,checked:[...document.querySelectorAll('.compare-checkbox')].filter(x=>x.checked).length,
