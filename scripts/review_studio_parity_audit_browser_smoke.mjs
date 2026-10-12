@@ -1,7 +1,12 @@
 // Real Chrome: source-only native schematic/PCB association with no synchronization.
+import {createHash} from 'node:crypto';
+import {mkdir,readFile,readdir} from 'node:fs/promises';
+import path from 'node:path';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const sch=process.env.ZAPTRACE_PARITY_SCHEMATIC;
 const pcb=process.env.ZAPTRACE_PARITY_PCB;
+const linked=process.env.ZAPTRACE_PARITY_EXPECT_UUID_LINKED==='1';
+const downloadDir=process.env.ZAPTRACE_PARITY_DOWNLOAD_DIR;
 if(!port||!sch||!pcb)throw Error('Native schematic+board and real Chrome port are required');
 let pages=[];
 for(let i=0;i<90;i++){
@@ -46,7 +51,7 @@ for(const [selector,source] of [['#pcbAuditSch',sch],['#pcbAuditPcb',pcb]]){
 await evaluate("document.getElementById('pcbAuditForm').requestSubmit();true");
 let result={};
 for(let i=0;i<320;i++){
- result=await evaluate("(()=>({status:document.getElementById('pcbAuditStatus').textContent,working:document.getElementById('pcbAuditRun').disabled,visible:!document.getElementById('pcbAuditResult').hidden,summary:document.getElementById('pcbAuditSummary').textContent,differences:[...document.querySelectorAll('#pcbAuditDifferences li')].map(x=>x.textContent),linkage:document.getElementById('pcbAuditLinkage').textContent}))()");
+ result=await evaluate("(()=>({status:document.getElementById('pcbAuditStatus').textContent,working:document.getElementById('pcbAuditRun').disabled,visible:!document.getElementById('pcbAuditResult').hidden,summary:document.getElementById('pcbAuditSummary').textContent,differences:[...document.querySelectorAll('#pcbAuditDifferences li')].map(x=>x.textContent),linkage:document.getElementById('pcbAuditLinkage').textContent,pathSummary:document.getElementById('pcbAuditPathSummary').textContent,pathFindings:[...document.querySelectorAll('#pcbAuditPathFindings li')].map(x=>x.textContent),pinSummary:document.getElementById('pcbAuditPinSummary').textContent,pinFindings:[...document.querySelectorAll('#pcbAuditPinFindings li')].map(x=>x.textContent)}))()");
  if(result.visible)break;
  if(!result.working&&!result.visible)throw Error('Browser parity API refused: '+result.status);
  await new Promise(r=>setTimeout(r,100));
@@ -56,11 +61,45 @@ pass(result.visible&&result.summary.includes('Schematic: 14')&&result.summary.in
  'native KiCad compares 14 real components and flags five actual value mismatches');
 pass(result.differences.length===5&&['J1','TP1','TP2','U2','U3'].every(ref=>result.differences.some(line=>line.startsWith(ref+' · value'))),
  'five specific source-backed mismatches displayed with no fabricated connectivity');
-pass(result.linkage.includes('UUID linkage verified: NO')&&result.linkage.includes('Automatic sync: BLOCKED')&&result.linkage.includes('NOT APPROVED'),
- 'browser explicitly refuses UUID, net, electrical or fabrication parity authorization');
+pass(result.linkage.includes('UUID linkage verified: '+(linked?'YES (14/14':'NO (0/14'))&&
+ result.linkage.includes('Automatic sync: BLOCKED')&&result.linkage.includes('NOT APPROVED'),
+ 'browser shows exact native UUID proof without ever authorizing pin/net sync or fabrication');
+pass(linked?
+  result.pathSummary.includes('findings: 0')&&result.pathFindings.length===1:
+  result.pathSummary.includes('findings: 14')&&result.pathFindings.length===14,
+ 'browser renders real missing or proven KiCad UUID path evidence as accessible expanded-on-demand details');
 await cmd('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
 const mobile=await evaluate("(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,form:document.getElementById('pcbAuditForm').getBoundingClientRect().toJSON(),result:document.getElementById('pcbAuditResult').getBoundingClientRect().toJSON()}))()");
+pass(result.pinSummary.includes('pin-number/net-label disagreement: 123')&&
+ result.pinSummary.includes('0 identical ref/pin labels')&&
+ result.pinSummary.includes('112 physical pads')&&
+ result.pinFindings.some(x=>x.includes('C1 · P1 · no_identical_pcb_pad_number')),
+ 'real KiCad exposes 37 missing schematic pin labels, 86 unmatched PCB identifiers and physical pad ambiguity rather than silently guessing pin maps');
 pass(mobile.width<=390&&mobile.scroll<=390&&mobile.form.left>=0&&mobile.form.right<=390&&mobile.result.right<=390,
  '390px Chrome native audit is responsive and has no page horizontal overflow');
+if(downloadDir){
+ await mkdir(downloadDir,{recursive:true});
+ await cmd('Page.setDownloadBehavior',{behavior:'allow',downloadPath:downloadDir});
+ await evaluate("document.getElementById('pcbAuditDownload').click();true");
+ let bytes=null;
+ for(let i=0;i<90;i++){
+  const names=await readdir(downloadDir);
+  const file=names.find(x=>x==='zaptrace-native-schematic-pcb-audit.json');
+  if(file&&!names.some(x=>x.endsWith('.crdownload'))){
+   bytes=await readFile(path.join(downloadDir,file));break;
+  }
+  await new Promise(resolve=>setTimeout(resolve,100));
+ }
+ pass(bytes!==null,'actual private audit JSON downloaded by user-facing Chrome control');
+ const evidence=JSON.parse(bytes.toString('utf8'));
+ const sha=source=>createHash('sha256').update(source).digest('hex');
+ const schRaw=await readFile(sch),pcbRaw=await readFile(pcb);
+ pass(evidence.source_sha256.schematic===sha(schRaw)&&
+  evidence.source_sha256.pcb===sha(pcbRaw)&&
+  evidence.linkage_uuid_verified===linked&&
+  evidence.native_pin_net_evidence.issue_count===123&&
+  evidence.automatic_sync_authorized===false&&evidence.fabApproved===false,
+  'Chrome-downloaded audit artifact contains exact source SHA-256, native UUID/net evidence and explicit no-sync/fab gates');
+}
 pass(errors.length===0,'zero Chrome JavaScript errors during native read-only audit: '+errors.join(','));
 ws.close();console.log('NATIVE SCHEMATIC PCB PARITY CHROME: ALL PASSED');

@@ -198,3 +198,20 @@ human-user acceptance, independent signing and fabrication remain unverified.
   `build/distribution/RELEASE_MANIFEST.json` for the exact package.
 - Fabrication signoff, model coverage certification, independent user-device
   acceptance, real publisher signatures and public GA: **NOT verified**.
+
+## Post-0.1.9 source-only: native KiCad UUID association evidence
+
+The isolated branch now derives full hierarchical schematic symbol-unit
+KIID paths directly from real KiCad 10 XML netlists and verifies that native
+`pcbnew.FOOTPRINT.GetPath()` matches all symbols uniquely. A native
+*copy-only* linked ESP32 board reached 14/14 identifiers; the original PCB
+contains zero such native paths, so reports 0/14. Swapped, duplicated,
+invented, missing and wrong-sheet UUID paths are rejected. The UI also
+shows strict physical pad number versus schematic pin identifier evidence
+(37 schema pin IDs / 86 unique PCB pad IDs, **0** exact overlaps in the
+original source; 112 physical pads). Both UUID-negative and UUID-positive
+Chrome scenarios were tested without javascript errors or 390px layout
+overflow. Explicit source change, F8 sync and PCB route editing remain
+blocked. **This work is not packaged into the previously QA-bound 0.1.9
+release candidate**; new packaging requires distinct version and real
+acceptance. Read `REVIEW_STUDIO_SCHEMATIC_PCB_AUDIT.md` for limitations.

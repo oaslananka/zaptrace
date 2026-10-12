@@ -116,3 +116,25 @@ Actual Chrome demonstrated 14 shared references and five source-backed
 ESP32 `Value` differences, with clear `UUID linkage verified: NO`,
 `Automatic sync: BLOCKED`, and `NOT APPROVED` warnings at 390px.
 No evidence changes the CAD authoring/fabrication incompleteness above.
+
+## Post-0.1.9 source-only UI: real UUID and pin/net audit
+
+A linked native KiCad 10 board test **copy** with full schematic KIIDs shows
+`UUID linkage verified: YES (14/14)`, whereas the unchanged actual ESP32
+source shows `NO (0/14)` and 14 native PCB path-missing findings. An
+accessible expandable evidence panel displays those precise path issues,
+not a reference-name guess. A second panel shows 123 actual unmapped
+pin-number identifiers and any literal net-name discrepancies, separating
+112 physical pads from 86 unique pad labels. Both use real file-picker
+uploads, authenticated localhost KiCad engines and Chrome 155, with 390px
+no-overflow validation, no JavaScript exceptions and unchanged originals.
+Even the UUID-positive test copy displays `Automatic sync: BLOCKED`,
+`Pin/net ... NOT VERIFIED` and `Fabrication: NOT APPROVED`.
+These are post-0.1.9 local-source improvements, NOT in the previously
+QA-qualified (unsigned) 0.1.9 distribution bytes.
+
+
+Actual Chrome's user-facing parity-audit **JSON download** was exercised with
+native KiCad source files. The downloaded bytes contained the exact selected
+source SHA-256s, the real 123 pin ID differences, and the no-auto-sync/no-fab
+prohibitions. Only own temporary browser and download folders were removed.

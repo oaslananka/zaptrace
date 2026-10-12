@@ -219,6 +219,12 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
   <p id="pcbAuditSummary"></p>
   <ul id="pcbAuditDifferences"></ul>
   <p id="pcbAuditLinkage"></p>
+  <details id="pcbAuditPathDetails"><summary id="pcbAuditPathSummary">Native KiCad UUID linkage evidence</summary>
+   <ul id="pcbAuditPathFindings"></ul>
+  </details>
+  <details id="pcbAuditPinDetails"><summary id="pcbAuditPinSummary">Native pin-number / net-label evidence</summary>
+   <ul id="pcbAuditPinFindings"></ul>
+  </details>
   <button type="button" id="pcbAuditDownload">Download source-hashed audit JSON</button>
  </div>
 </section>
@@ -383,8 +389,53 @@ if(window.__REVIEW_LOCAL__?.token){
     const ok=document.createElement('li');ok.textContent='Component fields match; this is NOT proof of pin/net linkage.';
     items.append(ok);
    }
-   $('pcbAuditLinkage').textContent='KiCad UUID linkage verified: NO · Pin/net association: '+
-     report.pin_net_correspondence+' · Automatic sync: BLOCKED · Fabrication: NOT APPROVED.';
+   const linkage=report.native_uuid_linkage;
+   if(!linkage||typeof linkage.verified!=='boolean'||!Array.isArray(linkage.findings))
+    throw Error('KiCad native UUID association evidence is unavailable');
+   $('pcbAuditLinkage').textContent='KiCad UUID linkage verified: '+(linkage.verified?'YES':'NO')+
+    ' ('+linkage.verified_reference_count+'/'+linkage.expected_reference_count+
+    ' native symbol paths) · Pin/net association: '+report.pin_net_correspondence+
+    ' · Automatic sync: BLOCKED · Fabrication: NOT APPROVED.';
+   $('pcbAuditPathSummary').textContent='KiCad UUID path findings: '+linkage.findings.length+
+    ' · '+linkage.status;
+   const pathFindings=$('pcbAuditPathFindings');pathFindings.replaceChildren();
+   for(const issue of linkage.findings){
+    const item=document.createElement('li');
+    item.textContent=issue.reference+' · '+issue.issue+
+     (issue.other_reference?' · also linked to '+issue.other_reference:'');
+    pathFindings.append(item);
+   }
+   if(!linkage.findings.length){
+    const item=document.createElement('li');
+    item.textContent='Each footprint has an exact unique KiCad schematic symbol UUID path. This is not electrical/pin/net signoff.';
+    pathFindings.append(item);
+   }
+   const pinEvidence=report.native_pin_net_evidence;
+   if(!pinEvidence||!Array.isArray(pinEvidence.issue_samples))
+    throw Error('KiCad native pin/net diagnostic evidence is unavailable');
+   $('pcbAuditPinSummary').textContent='Native KiCad pin-number/net-label disagreement: '+
+     pinEvidence.issue_count+' · '+pinEvidence.matching_pin_identifiers_by_reference+
+     ' identical ref/pin labels · '+pinEvidence.pcb_physical_pads+
+     ' physical pads · not electrical signoff';
+   const pins=$('pcbAuditPinFindings');pins.replaceChildren();
+   for(const issue of pinEvidence.issue_samples){
+    const item=document.createElement('li');
+    item.textContent=issue.reference+' · '+(issue.schematic_pin||issue.pcb_pad||issue.pin)+
+      ' · '+issue.issue+(issue.schematic_net!==undefined?
+       ' · schematic net: '+issue.schematic_net+' · PCB net: '+issue.pcb_net:'');
+    pins.append(item);
+   }
+   if(pinEvidence.issue_count>pinEvidence.issue_samples.length){
+    const more=document.createElement('li');
+    more.textContent=(pinEvidence.issue_count-pinEvidence.issue_samples.length)+
+      ' additional source differences in the downloadable local JSON report.';
+    pins.append(more);
+   }
+   if(!pinEvidence.issue_count){
+    const item=document.createElement('li');
+    item.textContent='Native pin IDs and net strings agree exactly by reference; requires separate UUID, connectivity and electrical validation.';
+    pins.append(item);
+   }
    auditResult.hidden=false;
    auditMessage('Native source comparison complete; separate unresolved engineering checks remain.','success');
   }catch(error){

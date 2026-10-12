@@ -77,3 +77,76 @@ Official KiCad documentation:
 - https://docs.kicad.org/10.0/en/pcbnew/pcbnew.html
 - https://dev-docs.kicad.org/en/apis-and-binding/pcbnew/
 - https://dev-docs.kicad.org/en/apis-and-binding/ipc-api/for-addon-developers/
+
+## Post-0.1.9 source-only milestone: actual KIID association and pin evidence
+
+**Source branch only — NOT in the hash-bound 0.1.9 .deb or offline ZIP.**
+The existing tested 0.1.9 archive is immutable. Any new package must receive
+a separate version and its own exact-package acceptance.
+
+The audit now derives KiCad schematic KIID paths from the **native KiCad 10
+XML netlist**, concatenating the real sheet-instance UUID path with each
+symbol-unit UUID; multi-unit symbols are explicitly supported. It compares
+each such full KIID path with the actual `pcbnew.FOOTPRINT.GetPath().AsString()`
+read from the user-selected native board. Ref/name equality alone never
+counts. Empty/malformed PCB paths, wrong or reversed hierarchical sheet
+instances, UUIDs assigned to the wrong component, repeated PCB paths,
+duplicate schematic symbol UUID paths and unsupported timestamp structures
+all block the linkage proof. Individual findings and validated reference
+counts are returned without modifying either source. The graphical UI
+displays **actual UUID KIID path proof** separately from pin/net safety.
+An exact native UUID match proves the serialized symbols and footprints
+share a KiCad linkage identifier; it does **not** prove the underlying
+electrical circuit, copper integrity, rule semantics or production release.
+
+The native ESP32 source pair contains **14 schematic references and 14 PCB
+footprints**, but the original PCB has **zero linked KiCad symbol paths**.
+On a **disposable native KiCad PCB test copy only**, assigning all 14 actual
+exported KiCad symbol UUID paths through KiCad's own `pcbnew.KIID_PATH`
+produced **14/14 strict linked reference matches**. Replacing/swapping/
+duplicating/removing those paths in separate copies causes explicit failure.
+The same full-UUID-positive copy still has five `Value` mismatches and
+unresolved pin/pad net association: **no automatic F8 sync is authorized**.
+No production source was changed.
+
+Additional pin-number/net-label diagnostics report unambiguous, literal
+information without inferring aliases: actual schematic connected-pin IDs,
+PCB pad IDs, physical-pad count, matching identical `(ref, pin)` pairs,
+source-only/PCB-only pin labels, identical-ID/different-net labels, and
+duplicate-number pads with conflicting native net labels. A bounded interactive
+list prioritizes direct pin/net contradictions, with full findings in a
+private SHA-linked JSON report. On the genuine ESP32 sources:
+
+- 37 connected schematic pin identifiers;
+- 112 physical PCB pads, but only 86 unique footprint/pad-number pairs;
+- **0** literal `(reference, pin number)` matches;
+- 37 schematic-only pin identifiers and 86 PCB-only pad identifiers;
+- 123 literal identifier discrepancies;
+- repeated physical pad identifiers, with 0 observed conflicting-net
+  repetitions on the original PCB.
+
+KiCad symbol pins labelled `P1`/`P2` cannot safely be guessed to
+correspond to the PCB pads labelled `1`/`2`. Likewise, native schematic
+net names such as `/VCC_3V3` are not assumed equivalent to `VCC_3V3`
+without a proven KiCad source mapping. The UI explicitly refuses
+synchronization or manufacturing approval in both UUID-positive and
+UUID-negative states.
+
+Regression tests construct real linked native KiCad PCB copies on demand,
+using the actual schematic netlist (not hardcoded UUID assertions); verify
+positive, negative, hierarchical/multiunit and repeated-UUID cases; and
+alter pad labels/nets in **temporary copies only** to prove the diagnostic
+catches same-number/different-net and repeated-number/different-net failures.
+Real Chrome tests cover both original and linked copies, the full diagnostic
+summary, mobile 390px display and zero JavaScript errors. In addition, the
+user-facing **Download source-hashed audit JSON** control was exercised via
+real Chrome's download manager and the resulting JSON was checked against the
+original schematic and PCB SHA-256, native counts, unverified linkage, and
+explicit no-auto-sync/fabrication gates. The disposable download was deleted
+with the test browser profile.
+
+The authoritative editor behavior is documented by KiCad:
+https://docs.kicad.org/10.0/en/pcbnew/pcbnew.html
+https://dev-docs.kicad.org/en/file-formats/sexpr-schematic/
+The proof is **not** KiCad Update PCB from Schematic (F8), not live routing
+and not equivalent to certified electrical or DFM verification.
