@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-VERSION = "0.1.11"
+VERSION = "0.1.12"
 PACKAGE = "zaptrace-review-studio"
 APP_FILES = (
     "review_studio_app.py",
@@ -27,6 +27,7 @@ APP_FILES = (
     "review_studio_pcb_eco.py",
     "review_studio_native_copper_link.py",
     "review_studio_native_copper_bundle.py",
+    "review_studio_native_copper_batch.py",
     "review_studio_schematic_pcb_parity.py",
     "review_studio_pcb_eco_template.html",
     "review_studio_workspace_template.html",
@@ -46,13 +47,13 @@ def _write(dest: Path, data: bytes, executable: bool = False) -> None:
 def build(root: Path, output_dir: Path, *, epoch: int = 1700000000) -> Path:
     root = root.resolve()
     output_dir = output_dir.resolve()
-    # This source branch adds a multi-net endpoint that depends on a NEW
-    # native worker. Packaging it as the previously approved 0.1.11 release,
-    # or omitting the worker, would misrepresent the signed-off install.
-    # Fail before writing even to a new output folder. Only a separately
-    # numbered 0.1.12 release gate may lift this barrier.
-    if VERSION == "0.1.11" and (root / "scripts/review_studio_native_copper_batch.py").is_file():
-        raise ValueError("Post-0.1.11 multi-net source requires a new 0.1.12 release and full native QA")
+    # Never ship a server with a native multi-net route endpoint when its
+    # subprocess worker is missing. Historical 0.1.11 builds are frozen and
+    # their manifests are never rewritten during this separate 0.1.12 RC.
+    if (root / "scripts/review_studio_native_copper_batch.py").is_file() and (
+        "review_studio_native_copper_batch.py" not in APP_FILES
+    ):
+        raise ValueError("Native multinet endpoint cannot be packaged without the matching KiCad worker")
     if not (root / "LICENSE").is_file():
         raise ValueError("Source license not present, distribution is blocked")
     if not shutil.which("dpkg-deb") or not shutil.which("desktop-file-validate"):

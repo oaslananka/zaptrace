@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.11 — Ubuntu installation and acceptance guide
+# ZapTrace Review Studio 0.1.12 — Ubuntu installation and acceptance guide
 
 **Distribution status: local release candidate, unsigned. NOT public GA.**
 
@@ -32,13 +32,13 @@ automatically granted.
 2. Verify this kit's `.deb` before installation:
 
    ```sh
-   sha256sum -c zaptrace-review-studio_0.1.11_all.sha256
+   sha256sum -c zaptrace-review-studio_0.1.12_all.sha256
    ```
 
 3. Install in a terminal in the folder containing the `.deb`:
 
    ```sh
-   sudo apt install ./zaptrace-review-studio_0.1.11_all.deb
+   sudo apt install ./zaptrace-review-studio_0.1.12_all.deb
    zaptrace-review-studio --doctor
    ```
 
@@ -155,22 +155,22 @@ user projects**. Those are normally at:
   real local release-gate status and any *unverified* launch requirements.
 - `CLEAN_UBUNTU_2404_019_QA.txt` records the **historical 0.1.9**
   Ubuntu 24.04 APT install, native KiCad acceptance and uninstall, NOT
-  verification of this new 0.1.11 candidate.
-- `CLEAN_UBUNTU_2404_0111_QA.txt` is **required for** the distinct
-  0.1.11 local candidate acceptance. It must bind to the exact new .deb SHA-256,
+  verification of this new 0.1.12 candidate.
+- `CLEAN_UBUNTU_2404_0112_QA.txt` is **required for** the distinct
+  0.1.12 local candidate acceptance. It must bind to the exact new .deb SHA-256,
   including clean Ubuntu APT install/upgrade/remove, actual installed
   KiCad 10.0.7 analysis, Chrome against the installed Ubuntu localhost
   service, and independent rootless exact-package Chrome checks.
   If this report is absent or its SHA differs from the .deb, the release
   kit must be **rejected**. This does not constitute independent physical
   host acceptance, a publisher signature or production qualification.
-- New in 0.1.11: native two-through-via F.Cu/B.Cu/F.Cu copper with a
+- New in 0.1.12: native two-through-via F.Cu/B.Cu/F.Cu copper with a
   matching project-local `.kicad_dru` ZIP sidecar and its SHA-256.
   The extra custom-rule loader sentinel AND separate rule-free KiCad DRC
   must both pass. Neither check independently establishes that the entire
   custom rule language has safe or complete manufacturing semantics.
   Inspect the result's `rule_context` and both DRC JSON reports.
-- `zaptrace-review-studio_0.1.11_all.sha256` checks the new
+- `zaptrace-review-studio_0.1.12_all.sha256` checks the new
   exact `.deb` bytes; SHA is integrity checking, NOT publisher signing.
 
 **Unsigned:** A SHA-256 match is an integrity check, **not** a publisher
@@ -184,3 +184,21 @@ installation, publisher trust, and commercial distribution license rights.
 These checks are necessary before claiming a public General Availability
 release. Unsupported KiCad 11 and older KiCad versions cannot be silently
 accepted by this package.
+
+
+## 0.1.12 guarded transactional PCB multi-net mode
+
+The authenticated copper review now offers a **queue of two or three
+distinct native KiCad DRC pad pairs**. Inspect one matching portable
+project ZIP first; for each net explicitly choose physical pad UUIDs
+and optional waypoints/through-via indices, then use **Add selected
+route to batch**. After two or three unique nets are queued, press
+**Verify all queued routes — no partial output**. This is an atomic
+isolated working-copy process: each independent saved PCB must pass
+the unchanged KiCad native DRC and any custom-rule/default-rule
+crosscheck. One failure discards all staged changes. Only a complete
+batch may be downloaded or discarded through authenticated localhost.
+The sample reference reduces open connections from **37 to 35** while
+retaining **16 existing physical DRC violations**. Boards with
+copper zones are rejected: **zone refill is NOT supported**.
+Do not use it to approve production, routability or schematic/net sync.

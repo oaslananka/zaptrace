@@ -15,16 +15,6 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-# This branch deliberately adds an unshipped native module to the service.
-# Frozen 0.1.11 release-build fixtures belong to the last QA-qualified
-# 0.1.11 commit. They cannot honestly package newer 0.1.12 source bytes.
-pytestmark = pytest.mark.skipif(
-    (Path(__file__).resolve().parents[1] / "scripts/review_studio_native_copper_batch.py").is_file()
-    and 'VERSION = "0.1.11"'
-    in (Path(__file__).resolve().parents[1] / "scripts/review_studio_build_deb.py").read_text(),
-    reason="Unshipped 0.1.12 native batch source cannot be acceptance-tested as frozen 0.1.11",
-)
-
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 APP_SCRIPT = SCRIPTS / "review_studio_app.py"
 PKG_SCRIPT = SCRIPTS / "review_studio_build_deb.py"
@@ -84,7 +74,7 @@ def test_pinned_versioned_deb_is_immutable_even_if_new_sources_change(tmp_path: 
 
 
 def test_package_declares_native_kicad_and_noncommercial_license(release_pkg: Path, tmp_path: Path) -> None:
-    for field, value in (("Package", "zaptrace-review-studio"), ("Version", "0.1.11"), ("Architecture", "all")):
+    for field, value in (("Package", "zaptrace-review-studio"), ("Version", "0.1.12"), ("Architecture", "all")):
         got = subprocess.run(
             ["dpkg-deb", "-f", str(release_pkg), field], check=True, capture_output=True, text=True, timeout=10
         ).stdout.strip()
@@ -127,7 +117,7 @@ def test_package_doctor_from_extracted_location_does_not_create_user_data(
     assert "Native KiCad CLI 10." in result.stdout
     assert "Native pcbnew Python binding" in result.stdout
     version = subprocess.run([str(executable), "--version"], env=env, capture_output=True, text=True, timeout=10)
-    assert version.returncode == 0 and "0.1.11" in version.stdout
+    assert version.returncode == 0 and "0.1.12" in version.stdout
     # KiCad's own `kicad-cli version` probe can initialize XDG directories.
     # `--doctor` must never create a Review Studio library/session itself.
     assert not (user / "data/zaptrace-review-studio").exists()
@@ -231,7 +221,7 @@ def test_rootless_real_dpkg_install_launch_and_uninstall_leave_no_package_files(
     command = base / "usr/bin/zaptrace-review-studio"
     assert command.is_file()
     result = subprocess.run([str(command), "--version"], capture_output=True, text=True, timeout=10)
-    assert result.returncode == 0 and "0.1.11" in result.stdout
+    assert result.returncode == 0 and "0.1.12" in result.stdout
     result = subprocess.run([str(command), "--doctor"], capture_output=True, text=True, timeout=20)
     assert result.returncode == 0 and "KiCad CLI 10" in result.stdout
     assert not (base / "usr/lib/zaptrace-review-studio/scripts/__pycache__").exists()

@@ -195,13 +195,25 @@ print('GENUINE_NATIVE_ZONE_KEPT_UNFILLED')
     assert board.read_bytes() == original
 
 
-def test_post_0111_batch_source_cannot_build_a_mislabeled_0111_package(tmp_path: Path) -> None:
+def test_packaged_native_multinet_includes_its_worker_and_never_replaces_frozen_0111(tmp_path: Path) -> None:
     import sys
 
     sys.path.insert(0, str(ROOT / "scripts"))
     from review_studio_build_deb import build
 
-    proposed = tmp_path / "must-not-create"
-    with pytest.raises(ValueError, match="new 0.1.12 release and full native QA"):
-        build(ROOT, proposed)
-    assert not proposed.exists()
+    proposal = build(ROOT, tmp_path / "draft-012")
+    assert proposal.name == "zaptrace-review-studio_0.1.12_all.deb"
+    inspected = subprocess.run(
+        ["dpkg-deb", "-c", str(proposal)],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=20,
+    ).stdout
+    assert "usr/lib/zaptrace-review-studio/scripts/review_studio_native_copper_batch.py" in inspected
+    assert "usr/lib/zaptrace-review-studio/scripts/review_studio_native_copper_bundle.py" in inspected
+    assert "usr/lib/zaptrace-review-studio/scripts/review_studio_local_server.py" in inspected
+    frozen = ROOT / "build/distribution/zaptrace-review-studio_0.1.11_all.deb"
+    frozen_sha = ROOT / "build/distribution/zaptrace-review-studio_0.1.11_all.sha256"
+    digest = hashlib.sha256(frozen.read_bytes()).hexdigest()
+    assert frozen_sha.read_text().strip() == f"{digest}  {frozen.name}"

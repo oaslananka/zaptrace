@@ -227,7 +227,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
    <button id="copperQueueClear" type="button" disabled>Clear pending routes</button>
   </div>
  </div>
- <p class="eco-warning">0.1.11 single-route installation is separately qualified; the transactional 0.1.12 multi-net queue is SOURCE ONLY and not included in its .deb. Verify the 0.1.11 exact installer and its local QA manifest before relying on two-via or custom-rule features. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. An optional matching project-root .kicad_dru is checked with a native KiCad loader sentinel; the proposed copper must ALSO pass DRC on independent copies without that custom rule file. Rule semantics are not independently qualified. The native 0.20 mm track, existing DRC findings, project-local library sources, copper geometry and schematic parity must all survive. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
+ <p class="eco-warning">The transactional 0.1.12 multi-net queue is experimental and only in the separately SHA-qualified 0.1.12 release candidate; verify the exact installed 0.1.12 Debian package and its local QA manifest before relying on two-via or custom-rule features. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. An optional matching project-root .kicad_dru is checked with a native KiCad loader sentinel; the proposed copper must ALSO pass DRC on independent copies without that custom rule file. Rule semantics are not independently qualified. The native 0.20 mm track, existing DRC findings, project-local library sources, copper geometry and schematic parity must all survive. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
  <p class="eco-status" id="copperStatus" role="status" aria-live="polite" hidden></p>
  <div class="eco-result" id="copperResult" hidden>
   <div class="eco-result-head"><strong id="copperResultTitle">Separate native KiCad copper draft · NOT approved</strong>
@@ -325,7 +325,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
  <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
  <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
- <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.11 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.12 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
 </section>
 <dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
  <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
@@ -338,7 +338,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 </dialog>
 <div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
 <div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
-<div class="foot">ZapTrace Review Studio 0.1.11 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<div class="foot">ZapTrace Review Studio 0.1.12 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
 <script>
 // Direct native review is enabled only by the explicit localhost server.
 if(window.__REVIEW_LOCAL__?.token){
@@ -514,6 +514,10 @@ if(window.__REVIEW_LOCAL__?.token){
  $('copperBatchRun').addEventListener('click',async()=>{
   if(copperId||copperBatchBusy||copperQueued.length<2)return;
   copperBatchBusy=true;renderCopperQueue();copperRouteRun.disabled=true;
+  // A prior single-route preview may still be visible after its discard.
+  // Never reuse an old successful result while a NEW batch job is running.
+  copperResult.hidden=true;$('copperPreview').removeAttribute('srcdoc');
+  $('copperResultTitle').textContent='';$('copperResultSummary').textContent='';
   try{
    const archive=await copperProjectPayload();
    copperMessage('Verifying '+copperQueued.length+' distinct KiCad nets, chained working-copy SHA and cumulative DRC. No partial publishing…');
@@ -563,6 +567,9 @@ if(window.__REVIEW_LOCAL__?.token){
   event.preventDefault();
   if(copperId||copperBatchBusy){copperMessage('Finish or discard the active copper draft before another edit.','error');return;}
   copperRouteRun.disabled=true;
+  // Refuse to expose a stale batch/single proof during another native job.
+  copperResult.hidden=true;$('copperPreview').removeAttribute('srcdoc');
+  $('copperResultTitle').textContent='';$('copperResultSummary').textContent='';
   try{
    const {route}=selectedCopperRoute();
    const archive=await copperProjectPayload();

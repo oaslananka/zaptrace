@@ -293,3 +293,30 @@ copy-on-write route did not worsen *verified* violations; existing
 16 DRC failures and 36 open connections require engineering resolution.
 No full EDA editor, zone refill, routing completion, fab signoff,
 independent host testing or publisher identity signature.
+
+
+## 0.1.12 guarded multiple-net engineering candidate
+
+The 0.1.12 package adds a native SHA-linked, rollback-only **2–3 net**
+routing queue to the authenticated localhost browser. Each route is a
+distinct native KiCad pad UUID pair, bounded to F.Cu-only geometry or an
+explicit two-through-via F.Cu/B.Cu/F.Cu segment. Every step is evaluated
+against the previous saved, isolated working PCB; native KiCad DRC and
+schematic parity are checked after each step and across the entire batch.
+On any failed link, no result is published. The user must explicitly
+download or discard the single private ZIP containing real before/after
+KiCad plots, per-step evidence, final saved PCB and SHA-256-bound DRC.
+
+A matching .kicad_dru is checked using KiCad's real loader sentinel and
+an independent custom-rule-free baseline/working DRC crosscheck at
+**every step**. Zones remain fail-closed: the system refuses any KiCad
+board with copper zones rather than claiming unverified zone refill.
+This work is NOT full EDA, autorouting, an F8 schematic association,
+a manufacturing approval, or an independently verified physical PCB.
+The reference test still has **16 existing DRC violations** and **35
+unconnected items** after the illustrative two-net operation.
+
+0.1.12 is an **unsigned, noncommercial, locally qualified engineering
+release candidate only if its separately versioned CLEAN_UBUNTU_2404_0112_QA.txt
+and RELEASE_MANIFEST.json identify the exact installed .deb SHA**. The
+previous 0.1.11 .deb, offline ZIP and historical report remain immutable.

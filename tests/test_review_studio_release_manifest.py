@@ -7,16 +7,6 @@ from pathlib import Path
 
 import pytest
 
-# This branch deliberately adds an unshipped native module to the service.
-# Frozen 0.1.11 release-build fixtures belong to the last QA-qualified
-# 0.1.11 commit. They cannot honestly package newer 0.1.12 source bytes.
-pytestmark = pytest.mark.skipif(
-    (Path(__file__).resolve().parents[1] / "scripts/review_studio_native_copper_batch.py").is_file()
-    and 'VERSION = "0.1.11"'
-    in (Path(__file__).resolve().parents[1] / "scripts/review_studio_build_deb.py").read_text(),
-    reason="Unshipped 0.1.12 native batch source cannot be acceptance-tested as frozen 0.1.11",
-)
-
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 from review_studio_build_deb import build  # noqa: E402
@@ -42,7 +32,7 @@ def test_audit_lists_real_files_and_always_discloses_unsigned_and_not_ga(
     tmp_path: Path,
 ) -> None:
     report = manifest(release_artifact, gate_log(tmp_path))
-    assert report["version"] == "0.1.11"
+    assert report["version"] == "0.1.12"
     assert report["package"]["sha256"] == sha256(release_artifact)
     assert report["target"]["native_kicad"] == "10.x"
     assert report["validation"]["nine_stage_release_gate"]
@@ -80,21 +70,25 @@ def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
     qa = tmp_path / "clean-ubuntu-qa.txt"
     accepted = (
         "PACKAGE_SHA256=" + sha256(release_artifact) + "\n"
-        "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.1 = 0\n"
-        "Real APT in-place upgrade to installed 0.1.11 passed\n"
-        "Installed 0.1.11 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
-        "Installed 0.1.11 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
-        "Installed 0.1.11 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
-        "Installed 0.1.11 native PCB quarter-turn and KiCad DRC: PASS\n"
-        "Installed 0.1.11 native schematic/PCB readonly comparison: PASS\n"
-        "Exact package 0.1.11 Chrome quarter-turn and private parity audit: PASS\n"
-        "Installed 0.1.11 guarded native copper route and SHA-bounded DRC proof: PASS\n"
-        "Exact package 0.1.11 Chrome guarded copper ZIP, SVG, discard: PASS\n"
-        "Installed 0.1.11 native custom KiCad rules loader + independent default DRC verified: PASS\n"
-        "EXACT_PACKAGE_0111_CUSTOM_TWO_VIA_AND_LEGACY_FCU_CHROME: PASS\n"
+        "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.11 = 0\n"
+        "Real APT in-place upgrade to installed 0.1.12 passed\n"
+        "Installed 0.1.12 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
+        "Installed 0.1.12 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
+        "Installed 0.1.12 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
+        "Installed 0.1.12 native PCB quarter-turn and KiCad DRC: PASS\n"
+        "Installed 0.1.12 native schematic/PCB readonly comparison: PASS\n"
+        "Exact package 0.1.12 Chrome quarter-turn and private parity audit: PASS\n"
+        "Installed 0.1.12 guarded native copper route and SHA-bounded DRC proof: PASS\n"
+        "Exact package 0.1.12 Chrome guarded copper ZIP, SVG, discard: PASS\n"
+        "Installed 0.1.12 native custom KiCad rules loader + independent default DRC verified: PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_TWO_VIA_AND_LEGACY_FCU_CHROME: PASS\n"
+        "EXACT_PACKAGE_0112_NATIVE_TWO_NET_PROJECT_AND_SHA_EVIDENCE=PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_THROUGH_VIAS_MULTINET_AND_LEGACY_CHROME: PASS\n"
+        "INSTALLED_0112_NATIVE_MULTINET_37_TO_35_AND_16_TO_16=PASS\n"
+        "UBUNTU_24_04_APT_0112_MULTINET_BATCH_CHROME=PASS\n"
         "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
         "Native localhost startup/shutdown after upgrade passed\n"
-        "Actual APT remove 0.1.11 passed\n"
+        "Actual APT remove 0.1.12 passed\n"
     )
     qa.write_text(accepted)
     good = manifest(release_artifact, log, qa)
@@ -110,7 +104,7 @@ def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
     assert good["validation"]["full_schematic_pcb_uuid_pin_net_sync_verified"] is False
     assert good["validation"]["native_3d_model_coverage_independently_verified"] is False
     assert good["validation"]["clean_ubuntu_container_apt_remove_preserves_user_data"] is True
-    assert good["validation"]["clean_ubuntu_container_inplace_011_to_0111_upgrade"] is True
+    assert good["validation"]["clean_ubuntu_container_inplace_0111_to_0112_upgrade"] is True
     assert good["validation"]["clean_ubuntu_custom_rule_loader_and_default_drc_dual_proof"] is True
     assert good["validation"]["clean_ubuntu_exact_package_browser_two_via_custom_rule_proof"] is True
     assert good["validation"]["clean_ubuntu_container_legacy_zip_restored_using_fresh_kicad"] is True

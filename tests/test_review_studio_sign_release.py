@@ -10,16 +10,6 @@ from pathlib import Path
 
 import pytest
 
-# This branch deliberately adds an unshipped native module to the service.
-# Frozen 0.1.11 release-build fixtures belong to the last QA-qualified
-# 0.1.11 commit. They cannot honestly package newer 0.1.12 source bytes.
-pytestmark = pytest.mark.skipif(
-    (Path(__file__).resolve().parents[1] / "scripts/review_studio_native_copper_batch.py").is_file()
-    and 'VERSION = "0.1.11"'
-    in (Path(__file__).resolve().parents[1] / "scripts/review_studio_build_deb.py").read_text(),
-    reason="Unshipped 0.1.12 native batch source cannot be acceptance-tested as frozen 0.1.11",
-)
-
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_PATH))
 
@@ -41,21 +31,25 @@ def qa_material(tmp_path: Path) -> tuple[Path, Path, Path, str]:
     qa = tmp_path / "qa-report.txt"
     qa.write_text(
         f"PACKAGE_SHA256={sha256(package)}\n"
-        "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.1 = 0\n"
-        "Real APT in-place upgrade to installed 0.1.11 passed\n"
-        "Installed 0.1.11 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
-        "Installed 0.1.11 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
-        "Installed 0.1.11 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
-        "Installed 0.1.11 native PCB quarter-turn and KiCad DRC: PASS\n"
-        "Installed 0.1.11 native schematic/PCB readonly comparison: PASS\n"
-        "Exact package 0.1.11 Chrome quarter-turn and private parity audit: PASS\n"
-        "Installed 0.1.11 guarded native copper route and SHA-bounded DRC proof: PASS\n"
-        "Exact package 0.1.11 Chrome guarded copper ZIP, SVG, discard: PASS\n"
-        "Installed 0.1.11 native custom KiCad rules loader + independent default DRC verified: PASS\n"
-        "EXACT_PACKAGE_0111_CUSTOM_TWO_VIA_AND_LEGACY_FCU_CHROME: PASS\n"
+        "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.11 = 0\n"
+        "Real APT in-place upgrade to installed 0.1.12 passed\n"
+        "Installed 0.1.12 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
+        "Installed 0.1.12 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
+        "Installed 0.1.12 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
+        "Installed 0.1.12 native PCB quarter-turn and KiCad DRC: PASS\n"
+        "Installed 0.1.12 native schematic/PCB readonly comparison: PASS\n"
+        "Exact package 0.1.12 Chrome quarter-turn and private parity audit: PASS\n"
+        "Installed 0.1.12 guarded native copper route and SHA-bounded DRC proof: PASS\n"
+        "Exact package 0.1.12 Chrome guarded copper ZIP, SVG, discard: PASS\n"
+        "Installed 0.1.12 native custom KiCad rules loader + independent default DRC verified: PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_TWO_VIA_AND_LEGACY_FCU_CHROME: PASS\n"
+        "EXACT_PACKAGE_0112_NATIVE_TWO_NET_PROJECT_AND_SHA_EVIDENCE=PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_THROUGH_VIAS_MULTINET_AND_LEGACY_CHROME: PASS\n"
+        "INSTALLED_0112_NATIVE_MULTINET_37_TO_35_AND_16_TO_16=PASS\n"
+        "UBUNTU_24_04_APT_0112_MULTINET_BATCH_CHROME=PASS\n"
         "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
         "Native localhost startup/shutdown after upgrade passed\n"
-        "Actual APT remove 0.1.11 passed\n"
+        "Actual APT remove 0.1.12 passed\n"
     )
     release = tmp_path / "RELEASE_MANIFEST.json"
     release.write_text(json.dumps(manifest(package, gate, qa), indent=2) + "\n")

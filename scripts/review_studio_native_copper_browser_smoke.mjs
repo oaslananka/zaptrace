@@ -102,11 +102,14 @@ if(batchMode){
   ";document.getElementById('copperRouteForm').requestSubmit();true");
 }
 let result={};
-for(let i=0;i<440;i++){
+// Allow the browser QA clock to cover the native DRC budget (up to 675s for multi-net).
+for(let i=0;i<(batchMode?1550:900);i++){
  result=await evaluate("(()=>({status:document.getElementById('copperStatus').textContent,running:document.getElementById('copperRouteRun').disabled,ready:!document.getElementById('copperResult').hidden,title:document.getElementById('copperResultTitle').textContent,summary:document.getElementById('copperResultSummary').textContent}))()");
- if(result.ready)break;
- if(!result.running&&!result.ready)throw Error('Native KiCad copper route rejected: '+result.status);
- await new Promise(resolve=>setTimeout(resolve,200));
+ if(result.ready&&(!batchMode||result.summary.includes('Unconnected: 37 → 35')))break;
+ if((!result.running&&!result.ready)||result.status.includes('batch refused')||
+    result.status.includes('batch rejected')||result.status.includes('KiCad rejected'))
+    throw Error('Native KiCad copper route rejected: '+result.status);
+ await new Promise(resolve=>setTimeout(resolve,450));
 }
 console.log('CHROME_NATIVE_COPPER_VERIFICATION_STATE',JSON.stringify({result,viaMode,customMode,batchMode}));
 pass(result.ready&&result.summary.includes(batchMode?'Unconnected: 37 → 35':'Unconnected: 37 → 36')&&
