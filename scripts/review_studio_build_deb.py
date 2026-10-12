@@ -27,6 +27,7 @@ ACCEPTED_LOCAL_VERSIONS = frozenset(
         "0.1.18",
         "0.1.19",
         "0.1.20",
+        "0.1.21",
     }
 )
 PACKAGE = "zaptrace-review-studio"

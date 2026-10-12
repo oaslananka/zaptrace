@@ -318,6 +318,18 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
   max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain
  }
 }
+@media(max-width:420px){
+ /* Two-tier camera controls preserve real KiCad 45-degree orbit actions without
+    squeezing the live angle into an unreadable five-column mobile toolbar. */
+ .render3d-actions{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ .render3d-actions #render3dIso{grid-column:1/span 2;grid-row:1}
+ .render3d-actions #render3dTop{grid-column:3/span 2;grid-row:1}
+ .render3d-actions #render3dPrevious{grid-column:1;grid-row:2}
+ .render3d-actions .render3d-angle{grid-column:2/span 2;grid-row:2;min-height:44px}
+ .render3d-actions #render3dNext{grid-column:4;grid-row:2}
+ .render3d-actions button{font-size:11px;min-height:44px;padding:7px 4px}
+ .render3d-angle span:first-child{font-size:10px}
+}
 /* The mobile inspector must remain navigable: long native findings scroll inside
    the inspector rather than making the entire document thousands of px long. */
 @media(max-width:750px){.right{display:flex;flex-direction:column}.right .entrylist{flex:none;min-height:160px;max-height:min(58dvh,520px);overflow-y:auto;overscroll-behavior:contain}.right .detail{max-height:min(36dvh,280px);overflow-y:auto}}
