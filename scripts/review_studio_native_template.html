@@ -261,6 +261,13 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 .render3d-actions button:focus-visible{outline:2px solid #75f5d2;outline-offset:2px}
 .render3d-controls{width:min(480px,calc(100% - 30px))}
 .render3d-controls .render3d-warning{max-width:440px}
+/* Source-linked model file checks are not STEP geometry or enclosure approval. */
+.render3d-diagnostics{margin-top:9px;border-top:1px solid #426172;padding-top:8px;color:#d2e5eb;max-height:35dvh;overflow:auto}
+.render3d-diagnostics summary{cursor:pointer;font-size:11px;font-weight:800;line-height:1.45;outline-offset:3px}
+.render3d-diagnostics summary:focus-visible{outline:2px solid #75f5d2}
+.render3d-diagnostics-detail{padding:8px 0;font-size:11px;line-height:1.65;overflow-wrap:anywhere}
+.render3d-diagnostics-detail p{margin:4px 0}
+.render3d-diagnostics-detail strong{color:#ffdda8}
 .render3dstage{cursor:ew-resize}
 @media(max-width:750px){
  .render3d-controls{width:auto;bottom:80px;padding:9px 10px;left:10px;right:10px}
@@ -271,7 +278,7 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  .render3d-angle{min-width:0;min-height:39px;padding:4px 1px;gap:0}
  .render3d-angle span:first-child{font-size:9px;white-space:nowrap}
  .render3d-angle span:last-child{font-size:8px}
- .render3d-warning{display:none}
+ .render3d-warning{display:block;grid-column:1/-1;min-width:0;font-size:9px;line-height:1.35}
  .boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px}
 }
 @media(max-width:380px){.render3d-actions{gap:3px}.render3d-actions button{font-size:9px}}
@@ -331,7 +338,10 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
   <button id="render3dPrevious" type="button" title="Rotate previous 45° view" aria-label="Rotate native KiCad camera 45 degrees left">↶ 45°</button>
   <div class="render3d-angle" aria-live="polite"><span id="render3dAngle">PRESENTATION VIEW</span><span id="render3dFrameCount">—</span></div>
   <button id="render3dNext" type="button" title="Rotate next 45° view" aria-label="Rotate native KiCad camera 45 degrees right">45° ↷</button>
-  <span class="render3d-warning">Drag the board sideways to rotate through real KiCad camera frames · Shift+drag pans · no synthetic CAD geometry · no DFM, assembly or fabrication signoff</span></div>
+  <span class="render3d-warning">Drag to orbit · Shift+drag pans · DFM, model geometry and assembly remain unverified</span></div>
+  <details class="render3d-diagnostics" id="render3dModelDiagnostics"><summary id="render3dModelSummary">Inspect 3D model file coverage · unverified</summary>
+   <div class="render3d-diagnostics-detail" id="render3dModelDetails" role="status" aria-live="polite">Source model inventory unavailable. Mechanical and fabrication approval blocked.</div>
+  </details>
  </div>
  <div class="schematic-sheet-dock" id="schematicSheetDock" hidden aria-label="Schematic sheet navigation">
   <button type="button" id="schematicPrevious" aria-label="Previous native schematic sheet" title="Previous native sheet ([)">←</button>
@@ -822,7 +832,26 @@ function set3DCamera(index){
  $('render3dTop').setAttribute('aria-pressed',String(index===1));
  if(mode==='3d'){fit();updatePreferences();}
 }
+function showModelFileDiagnostics(){
+ const summary=$('render3dModelSummary'), details=$('render3dModelDetails');
+ const checked=DATA.board?.model_assets;
+ if(!checked||!Number.isInteger(checked.declared_references)||checked.model_geometry_approved!==false){
+  summary.textContent='Model availability NOT checked · review required';
+  details.textContent='No trustworthy native KiCad model file inventory was recorded. Assembly and fabrication NOT approved.';
+  return;
+ }
+ summary.textContent=`3D model files ${checked.present_files}/${checked.declared_references} present · inspect gaps`;
+ details.replaceChildren();
+ const line=(label,parts)=>{const p=node('p');const tag=node('strong');tag.textContent=label+' ';p.append(tag);
+  p.append(document.createTextNode(parts));details.append(p);};
+ line('Footprints:',`${checked.footprints}; model paths declared: ${checked.declared_references}; source files found: ${checked.present_files}.`);
+ line('Unresolved model file links:',checked.unresolved_refs?.join(', ')||'None detected');
+ line('Footprints without model links:',checked.without_model_refs?.join(', ')||'None detected');
+ if(checked.same_stem_step_candidates?.length)line('Same-stem STEP candidates (NOT verified):',checked.same_stem_step_candidates.join(', '));
+ line('Engineering gate:',checked.scope||'Presence only; model geometry and manufacturing NOT verified.');
+}
 function setupNative3D(){
+ showModelFileDiagnostics();
  const trigger=$('mode3D');
  if(DATA.render3d?.state!=='rendered'||DATA.render3d.views?.length!==2){
   trigger.disabled=true;

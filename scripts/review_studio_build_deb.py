@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 
 VERSION = "0.1.12"
-ACCEPTED_LOCAL_VERSIONS = frozenset({"0.1.12", "0.1.13"})
+ACCEPTED_LOCAL_VERSIONS = frozenset({"0.1.12", "0.1.13", "0.1.14", "0.1.15"})
 PACKAGE = "zaptrace-review-studio"
 APP_FILES = (
     "review_studio_app.py",
@@ -140,9 +140,9 @@ def build(root: Path, output_dir: Path, *, version: str = VERSION, epoch: int = 
         # Prior QA-accepted packages are immutable. A material content
         # change MUST use a new release version, never overwrite its bytes.
         if archive.exists() and archive.read_bytes() != produced:
-            raise ValueError(f"Existing version {VERSION} archive has different bytes; bump version before packaging")
+            raise ValueError(f"Existing version {version} archive has different bytes; bump version before packaging")
         if manifest.exists() and manifest.read_text(encoding="ascii") != statement:
-            raise ValueError(f"Existing version {VERSION} SHA manifest differs; cannot overwrite")
+            raise ValueError(f"Existing version {version} SHA manifest differs; cannot overwrite")
         if not archive.exists():
             archive.write_bytes(produced)
         if not manifest.exists():

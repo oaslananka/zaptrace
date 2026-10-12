@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Real disposable Ubuntu 24.04 APT upgrade 0.1.13 -> 0.1.15 -> removal.
+# Fail closed, no host package modification and no real user workspace touched.
+set -euo pipefail
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$ROOT"
+NAME=${ZAPTRACE_UBUNTU_QA_CONTAINER:-zt-015-qa-20261012}
+[[ "$NAME" == zt-015-qa-* ]] || { echo 'Refusing non-QA container' >&2;exit 2; }
+docker inspect --format '{{.HostConfig.NetworkMode}}' "$NAME" |grep -Fx host >/dev/null
+(cd build/distribution && sha256sum -c zaptrace-review-studio_0.1.13_all.sha256 && sha256sum -c zaptrace-review-studio_0.1.15_all.sha256)
+docker exec -e DEBIAN_FRONTEND=noninteractive "$NAME" /bin/sh -ec '
+ set -e
+ DATA=/root/.local/share/zaptrace-review-studio/qa-owned-fixture.bin
+ mkdir -p "$(dirname "$DATA")"
+ printf "ISOLATED_QA_ONLY_NO_PERSONAL_SOURCE\\n" > "$DATA"
+ chmod 600 "$DATA"
+ BASE=$(sha256sum "$DATA" | cut -d " " -f1)
+ apt-get -qy --allow-downgrades install /tmp/review013.deb
+ test "$(dpkg-query -W -f="\${Version}" zaptrace-review-studio)" = 0.1.13
+ test "$(kicad-cli version)" = 10.0.7
+ echo "APT_013_BASELINE_KICAD_10_0_7=PASS"
+ apt-get -qy install /tmp/review015.deb
+ test "$(dpkg-query -W -f="\${Version}" zaptrace-review-studio)" = 0.1.15
+ test "$(sha256sum "$DATA"|cut -d " " -f1)" = "$BASE"
+ test "$(zaptrace-review-studio --version)" = "ZapTrace Review Studio 0.1.15"
+ test -f /usr/lib/zaptrace-review-studio/scripts/review_studio_native_kicad.py
+ zaptrace-review-studio --doctor
+ echo "UBUNTU_24_04_APT_013_TO_015_UPGRADE_AND_DOCTOR=PASS"
+ apt-get -qy remove zaptrace-review-studio
+ test "$(sha256sum "$DATA"|cut -d " " -f1)" = "$BASE"
+ test ! -f /usr/bin/zaptrace-review-studio
+ echo "UBUNTU_24_04_APT_015_REMOVAL_PRESERVES_PRIVATE_DATA=PASS"
+'
+(cd build/distribution && sha256sum -c zaptrace-review-studio_0.1.15_all.sha256)
+echo "PACKAGE_SHA256=$(sha256sum build/distribution/zaptrace-review-studio_0.1.15_all.deb|cut -d ' ' -f1)"
+echo 'EXACT_015_REAL_UBUNTU_24_04_UPGRADE_REMOVE=PASS'

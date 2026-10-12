@@ -74,6 +74,58 @@ def validated_native_drc(report: str) -> list[dict]:
     return findings
 
 
+def _model_file_probe(source: str, board_dir: Path) -> tuple[bool, bool]:
+    """Conservative file existence only, NOT trusted 3D/mechanical validation.
+
+    KiCad 10 can map older KiCad-version model variable names to its current
+    model root. A same-stem STEP file is a *candidate*, not auto-approved.
+    """
+    match = re.fullmatch(r"\$\{KICAD(?:\d+)?_3DMODEL_DIR\}/(.+)", source)
+    project = re.fullmatch(r"\$\{KIPRJMOD\}/(.+)", source)
+    candidate: Path | None = None
+    if match:
+        relative = Path(match.group(1))
+        root = Path(os.environ.get("KICAD10_3DMODEL_DIR") or "/usr/share/kicad/3dmodels")
+        if not relative.is_absolute() and ".." not in relative.parts:
+            candidate = root / relative
+    elif project:
+        relative = Path(project.group(1))
+        if not relative.is_absolute() and ".." not in relative.parts:
+            candidate = board_dir / relative
+    # Deliberately do not expand arbitrary variables, user-home or filesystem
+    # paths into source-linked browser evidence. Unknown is NOT a passing check.
+    if candidate is None:
+        return False, False
+    try:
+        present = candidate.is_file()
+        alternative = candidate.with_suffix(".step").is_file() if candidate.suffix.lower() == ".wrl" else False
+        return present, alternative and not present
+    except (OSError, ValueError):
+        return False, False
+
+
+def _model_inventory(model_links: dict[str, list[str]], board_dir: Path) -> dict:
+    rows = []
+    for reference, models in sorted(model_links.items()):
+        for source in models:
+            present, same_stem_step = _model_file_probe(source, board_dir)
+            rows.append(
+                {"reference": reference, "declared_file_present": present, "same_stem_step_candidate": same_stem_step}
+            )
+    unresolved = sorted({row["reference"] for row in rows if not row["declared_file_present"]})
+    unmodelled = sorted(ref for ref, refs in model_links.items() if not refs)
+    return {
+        "footprints": len(model_links),
+        "declared_references": len(rows),
+        "present_files": sum(row["declared_file_present"] for row in rows),
+        "unresolved_refs": unresolved,
+        "without_model_refs": unmodelled,
+        "same_stem_step_candidates": sorted({row["reference"] for row in rows if row["same_stem_step_candidate"]}),
+        "scope": "file-presence-only; mechanical geometry, model alignment and fabrication NOT verified",
+        "model_geometry_approved": False,
+    }
+
+
 def _read_kicad(board_path: Path) -> dict:
     # Do not pip-import pcbnew from the wrong interpreter: this is the native oracle.
     try:
@@ -88,6 +140,7 @@ def _read_kicad(board_path: Path) -> dict:
         raise ValueError("Unsupported / missing Edge.Cuts board outline")
     footprints = []
     pads = []
+    model_links: dict[str, list[str]] = {}
     for fp in sorted(board.GetFootprints(), key=lambda x: x.GetReference()):
         pos = fp.GetPosition()
         f = {
@@ -99,6 +152,7 @@ def _read_kicad(board_path: Path) -> dict:
             "pad_count": len(list(fp.Pads())),
         }
         footprints.append(f)
+        model_links[f["ref"]] = [str(model.m_Filename) for model in fp.Models() if model.m_Filename]
         for pad in fp.Pads():
             point = pad.GetPosition()
             pads.append(
@@ -129,6 +183,7 @@ def _read_kicad(board_path: Path) -> dict:
         "origin": [round(x0, 4), round(y0, 4)],
         "size": [round(w, 4), round(h, 4)],
         "footprints": footprints,
+        "model_assets": _model_inventory(model_links, board_path.parent),
         "pads": pads,
         "tracks": len(list(board.GetTracks())),
         "zones": len(list(board.Zones())),
@@ -930,6 +985,21 @@ def native_review_report_html(payload: dict) -> str:
     lib_count = sum(
         f["rule"] in {"lib_footprint_issues", "lib_footprint_mismatch", "footprint_library_mismatch"} for f in bad
     )
+    models = payload.get("board", {}).get("model_assets") or {}
+    model_value = (
+        f"{models['present_files']}/{models['declared_references']} source files found"
+        if models.get("model_geometry_approved") is False
+        else "NOT CHECKED"
+    )
+    model_scope = (
+        "Unresolved references: "
+        + ", ".join(models.get("unresolved_refs") or [])
+        + "; no model: "
+        + ", ".join(models.get("without_model_refs") or [])
+        + ". File presence only; fit/assembly NOT qualified."
+        if models
+        else "Native 3D model file presence not checked; approval blocked."
+    )
     rows = [
         ("Board DRC", state_drc, "Native KiCad DRC under supplied context; no waiver"),
         (
@@ -945,6 +1015,7 @@ def native_review_report_html(payload: dict) -> str:
         ("Physical connectivity", state_opens, "Native DRC pairs, not route validation"),
         ("Schematic ERC", state_erc, "Only enabled native schematic checks"),
         ("Pad mapping", state_pins, "Authored map; no vendor pin qualification"),
+        ("3D model file references", model_value, model_scope),
         ("Fabrication authorization", "BLOCKED", "No fabricator or human production approval"),
     ]
     gate_html = "".join(
