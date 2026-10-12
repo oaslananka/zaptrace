@@ -1408,6 +1408,50 @@ function makeHits(){netOverlay=document.createElementNS('http://www.w3.org/2000/
  DATA.board.pads.forEach((pad,i)=>{const btn=node('button','pad-hit');btn.type='button';btn.title=pad.ref+'.'+pad.pad+' · '+pad.net;btn.setAttribute('aria-label','Inspect pad '+pad.ref+'.'+pad.pad+' '+pad.net);btn.addEventListener('click',ev=>{ev.stopPropagation();select({kind:'pad',index:i},true);});place(btn,pad.x,pad.y);focusButtons.pads.push(btn);});
  DATA.findings.forEach((issue,i)=>{if(issue.x===null||issue.y===null)return;const btn=node('button','fault'+(issue.severity==='warning'?' warning':''));btn.type='button';btn.title=issue.rule+': '+issue.message;btn.setAttribute('aria-label','Inspect KiCad '+issue.rule);btn.addEventListener('click',ev=>{ev.stopPropagation();setTab('issues');select({kind:'issue',index:i},true);});place(btn,issue.x,issue.y);focusButtons.issues[i]=btn;});
 }
+/* One Tab stop for the many source-backed KiCad PCB object buttons. Arrow
+   keys browse actual plotted markers; Enter/Space still invoke their normal
+   native inspection click and Ctrl+K still searches all source objects.
+   This changes only keyboard focus order, never board or DRC geometry. */
+const MARKER_SELECTOR='.fp-hit,.pad-hit,.fault';
+function visibleCanvasMarkers(){
+ return [...stage.querySelectorAll(MARKER_SELECTOR)].filter(b=>!b.disabled&&getComputedStyle(b).display!=='none');
+}
+function roveCanvasMarker(target=null,moveFocus=false){
+ const active=document.activeElement,visible=visibleCanvasMarkers();
+ const restoreFromHidden=active instanceof Element&&stage.contains(active)&&
+  active.matches(MARKER_SELECTOR)&&!visible.includes(active);
+ const chosen=target&&visible.includes(target)?target:
+  visible.find(b=>b.tabIndex===0)||visible.find(b=>b.classList.contains('fault'))||visible[0];
+ for(const b of stage.querySelectorAll(MARKER_SELECTOR))b.tabIndex=b===chosen?0:-1;
+ if((moveFocus||restoreFromHidden)&&chosen)chosen.focus({preventScroll:true});
+}
+function bindCanvasRoving(){
+ stage.setAttribute('role','group');
+ stage.setAttribute('aria-label','Source-backed KiCad PCB object markers. Use arrow keys to browse, Enter to inspect. Original design unchanged.');
+ // Buttons have implicit tabIndex=0 on creation; reset before selecting a
+ // single source fault/footprint as the sole initial Tab anchor.
+ for(const marker of stage.querySelectorAll(MARKER_SELECTOR))marker.tabIndex=-1;
+ stage.addEventListener('focusin',event=>{
+  if(event.target instanceof Element&&event.target.matches(MARKER_SELECTOR))roveCanvasMarker(event.target);
+ });
+ stage.addEventListener('keydown',event=>{
+  if(!(event.target instanceof Element)||!event.target.matches(MARKER_SELECTOR))return;
+  if(event.key==='Enter'||event.key===' '){
+   // A single deterministic trusted keyboard activation. Stop the browser
+   // default so Space key-up cannot accidentally select twice.
+   event.preventDefault();event.stopPropagation();event.target.click();return;
+  }
+  if(!['ArrowRight','ArrowDown','ArrowLeft','ArrowUp','Home','End'].includes(event.key))return;
+  const available=visibleCanvasMarkers(),idx=available.indexOf(event.target);
+  if(idx<0||!available.length)return;
+  let next;
+  if(event.key==='Home')next=0;
+  else if(event.key==='End')next=available.length-1;
+  else next=(idx+(event.key==='ArrowRight'||event.key==='ArrowDown'?1:-1)+available.length)%available.length;
+  event.preventDefault();event.stopPropagation();roveCanvasMarker(available[next],true);
+ });
+ roveCanvasMarker();
+}
 function clearSelected(){stage.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));
  if(schematicStage)schematicStage.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));}
 function detailLine(label,value){const row=node('div','detailrow');const l=node('label','',label),v=node('span','',value);row.append(l,v);return row;}
@@ -1461,6 +1505,12 @@ function select(sel,withPan=false){if(sel.kind==='pad')measurePad(sel.index);
   openedGroups.add(obj.rule);
  }
  if(obj && withPan && obj.x!==null && Number.isFinite(obj.x))center(obj.x,obj.y);
+ // Switching inspected source object changes only the Tab anchor; it must not
+ // steal focus from a sidebar button, dialog, or a user editing a review note.
+ if(['part','pad','issue'].includes(sel.kind)){
+  const markers=sel.kind==='part'?focusButtons.parts:sel.kind==='pad'?focusButtons.pads:focusButtons.issues;
+  const target=markers[sel.index];if(target)roveCanvasMarker(target);
+ }
  renderList();
  // Mobile review: reveal the actual selected KiCad evidence and place keyboard/
  // screen-reader focus on its heading. Never scroll or steal focus during passive
@@ -1692,7 +1742,7 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>{
 });
  [['showPadMarkers','hide-pad-markers'],['showFaultMarkers','hide-fault-markers'],
   ['showFootprintMarkers','hide-footprint-markers']].forEach(([id,cls])=>{
-  $(id).addEventListener('change',()=>{stage.classList.toggle(cls,!$(id).checked);updatePreferences();});
+  $(id).addEventListener('change',()=>{stage.classList.toggle(cls,!$(id).checked);roveCanvasMarker();updatePreferences();});
  });
  $('modePcb').addEventListener('click',()=>switchMode('pcb'));
  $('modeSch').addEventListener('click',()=>switchMode('schematic'));
@@ -1789,6 +1839,6 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>{
    zoom=Math.min(12,Math.max(.08,zoom*(e.deltaY<0?1.12:.89)));panX=mx-(mx-panX)*zoom/prior;panY=my-(my-panY)*zoom/prior;apply();},{passive:false});
  window.addEventListener('resize',fit);
 }
-function boot(){summary();drawLayers();setupSchematic();setupNative3D();makeHits();bind();renderMeasure();renderList();fit();restorePreferences();}
+function boot(){summary();drawLayers();setupSchematic();setupNative3D();makeHits();bindCanvasRoving();bind();renderMeasure();renderList();fit();restorePreferences();}
 boot();
 </script></body></html>
