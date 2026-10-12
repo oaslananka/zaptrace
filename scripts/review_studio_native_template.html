@@ -224,12 +224,20 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 .schematic-dock-context>span{font:800 9px ui-monospace,monospace;color:#76dcc4;letter-spacing:.08em}
 .schematic-dock-context>strong{font-size:12px;color:#e6f4fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .schematic-dock-context>small{font-size:9px;color:#a2bfd0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:105px;max-width:340px}
+.schematic-empty-state[hidden]{display:none}
+ .schematic-empty-state{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:7;
+  width:min(340px,calc(100% - 24px));padding:17px 18px;border-radius:12px;border:1px solid #547c8b;
+  background:#12263bea;color:#e8f5f9;box-shadow:0 15px 45px #0009;pointer-events:none;
+  display:flex;flex-direction:column;gap:8px;line-height:1.5}
+ .schematic-empty-state strong{font-size:13px;letter-spacing:.01em}
+ .schematic-empty-state span{font-size:11px;color:#c3dce4}
+ .boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:105px;max-width:340px}
 @media(min-width:751px) and (max-width:1450px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{max-width:220px}}
 @media(max-width:750px){.sheet-thumbnails{grid-template-columns:repeat(2,minmax(0,1fr))}.sheet-thumb{grid-template-columns:1fr;gap:7px;min-width:0}.sheet-thumb-img{width:100%;height:78px}.schematic-sheet-dock{bottom:84px;right:10px;left:10px;grid-template-columns:43px minmax(0,1fr) 43px}.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:10px;max-width:none}}
 /* At 320px the original KiCad child-page stepper must clear the taller native
    engineering caution panel, not merely avoid horizontal document overflow. */
 @media(max-width:340px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .schematic-sheet-dock{bottom:102px}}
+@media(max-width:750px){.boardactions #plus,.boardactions #minus{min-width:38px;min-height:38px;padding:7px 10px}}
 @media(max-width:420px){.sheet-thumbnails{grid-template-columns:1fr}.sheet-thumb{grid-template-columns:70px 1fr}.sheet-thumb-img{height:54px;width:70px}}
 
 .sheet-reference-panel[hidden]{display:none}.sheet-reference-panel{margin-top:15px;padding-top:14px;border-top:1px solid #34536b}
@@ -290,7 +298,7 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  /* Keep the live KiCad toolbar unoccluded at 320px. The source model
     disclosure remains operable inside the independently scrolling panel. */
  .boardspace:has(.render3d-controls:not([hidden])) .render3d-controls{
-  max-height:calc(100% - 235px);overflow-y:auto;overscroll-behavior:contain
+  max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain
  }
 }
 /* The mobile inspector must remain navigable: long native findings scroll inside
@@ -353,6 +361,10 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
   <details class="render3d-diagnostics" id="render3dModelDiagnostics"><summary id="render3dModelSummary">Inspect 3D model file coverage · unverified</summary>
    <div class="render3d-diagnostics-detail" id="render3dModelDetails" role="status" aria-live="polite">Source model inventory unavailable. Mechanical and fabrication approval blocked.</div>
   </details>
+ </div>
+ <div id="schematicEmptyState" class="schematic-empty-state" role="status" aria-live="polite" hidden>
+  <strong>No drawings on this original KiCad sheet</strong>
+  <span>KiCad plotted zero graphical objects here. The empty page is source-verified, not a rendering failure. Open another sheet to inspect geometry.</span>
  </div>
  <div class="schematic-sheet-dock" id="schematicSheetDock" hidden aria-label="Schematic sheet navigation">
   <button type="button" id="schematicPrevious" aria-label="Previous native schematic sheet" title="Previous native sheet ([)">←</button>
@@ -712,7 +724,9 @@ function setSchematicPage(index){
  $('schematicSheetCount').textContent=String(count).padStart(2,'0')+' SHEETS';
  $('schematicDockIndex').textContent='SHEET '+String(index+1).padStart(2,'0')+' / '+String(count).padStart(2,'0');
  $('schematicDockTitle').textContent=page.name;
- $('schematicDockScope').textContent=index===0?'Root · source-linked navigation':'Child · plotted geometry only';
+ $('schematicDockScope').textContent=index===0?'Root · source-linked navigation':
+  page.drawn_element_count===0?'Child · no plotted drawings':'Child · plotted geometry only';
+ $('schematicEmptyState').hidden=mode!=='schematic'||page.drawn_element_count!==0;
  $('schematicPrevious').disabled=index===0;
  $('schematicNext').disabled=index>=count-1;
  $('schematicFocusSymbols').disabled=index!==0||!DATA.schematic.symbols?.length;
@@ -897,6 +911,7 @@ function switchMode(next){
  $('schematicContext').hidden=mode!=='schematic';
  $('schematicSheetDock').hidden=mode!=='schematic';
  $('render3dControls').hidden=mode!=='3d';
+ $('schematicEmptyState').hidden=mode!=='schematic'||DATA.schematic?.pages?.[schematicPageIndex]?.drawn_element_count!==0;
  $('measure').disabled=mode!=='pcb';$('clearMeasure').disabled=mode!=='pcb';
  if(mode!=='pcb'){measureOn=false;measurePoints=[];renderMeasure();}
  cursorCoords=null;

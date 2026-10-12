@@ -439,6 +439,16 @@ def _read_schematic_netlist(cli: str, schematic: Path, output: Path) -> dict:
     return {"refs": set(refs), "nets": set(nets), "logical_nodes": logical_nodes}
 
 
+def schematic_svg_drawn_elements(plot: bytes) -> int:
+    """Count only actual KiCad SVG draw primitives, never decorative SVG wrappers."""
+    try:
+        document = ET.fromstring(plot)
+    except ET.ParseError as exc:
+        raise RuntimeError("Native KiCad schematic SVG is malformed") from exc
+    drawable = {"path", "text", "rect", "line", "polyline", "polygon", "circle", "ellipse", "image", "use"}
+    return sum(node.tag.rsplit("}", 1)[-1] in drawable for node in document.iter() if isinstance(node.tag, str))
+
+
 def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: bool = False) -> dict:
     """Native root-page KiCad plot; hierarchy ERC is separate, no false pin parity."""
     if not schematic.is_file() or schematic.suffix != ".kicad_sch":
@@ -514,6 +524,7 @@ def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: boo
         viewbox = re.search(rb'viewBox="0\.0000 0\.0000 ([\d.]+) ([\d.]+)"', plot)
         if not viewbox:
             raise RuntimeError("Native schematic SVG page dimensions missing")
+        drawn_element_count = schematic_svg_drawn_elements(plot)
         name = "Root sheet" if page == root_svg else page.stem.removeprefix(export_source.stem + "-")
         page_views.append(
             {
@@ -521,6 +532,7 @@ def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: boo
                 "src": "data:image/svg+xml;base64," + base64.b64encode(plot).decode("ascii"),
                 "viewbox": [float(viewbox.group(1)), float(viewbox.group(2))],
                 "root_only_crossprobe": page == root_svg,
+                "drawn_element_count": drawn_element_count,
             }
         )
     data = root_svg.read_bytes()
