@@ -231,3 +231,37 @@ fixed by this synchronization work; fabrication and connected-copper route
 editing are still blocked. This is source-only and requires a separately
 versioned exact-package acceptance before any distribution. See
 `REVIEW_STUDIO_SCHEMATIC_PCB_AUDIT.md`.
+
+## Native KiCad PCB DRC triage — 2026-10-12 source-only follow-up
+
+After the generated project's **zero schematic/PCB parity violations**
+were independently proven, KiCad 10.0.7 still reported **42 physical PCB
+DRC violations and 37 unconnected items**, with the following explicit
+types: 14 `lib_footprint_mismatch` warnings, 12
+`drill_out_of_range` errors, 8 `silk_over_copper` warnings,
+4 `through_hole_pad_without_hole` errors, 3 `clearance` errors,
+and 1 `solder_mask_bridge` error. None are waived by the schematic/
+PCB UUID/pin/net correctness milestone.
+
+The four through-hole-without-hole violations originate at the four
+plated oval USB-C `J1` shell slots in the pinned GCT supplier library.
+The source vendor module contains `(drill oval 0.6 1.7)` or
+`(drill oval 0.6 1.4)`; the existing importer/model only carries a
+scalar drill diameter and cannot preserve those oval holes. **Open PR #119**
+specifically addresses vendor-footprint embedding and oval slots; inspect
+and coordinate with that already-in-progress fix instead of rewriting
+unapproved supplier geometry independently. No change was made to the
+pinned vendor files, manufacturer drill constraints, net assignments,
+physical copper, or remote PR.
+
+The dozen small-hole errors concern actual 0.20 mm thermal holes in
+the pinned ESP32 footprint versus the review project's 0.30 mm minimum
+hole rule. They require explicit supplier/capability evidence rather than
+silently changing a design rule. The three clearance errors and one
+solder-mask-bridge error have actual, physical component/pad geometry
+collisions; the eight silkscreen warnings involve the module reference
+placement; 37 unconnected items require reviewed net-specific copper
+routing. These remain **production blockers** pending native KiCad DRC,
+unrouted net clearance, vendor constraints, STEP/model review and
+independent physical acceptance. The temporary triage project's native
+JSON was inspected and then removed to avoid stale untracked build files.
