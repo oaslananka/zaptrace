@@ -89,7 +89,9 @@ def test_generated_esp32_native_kiid_and_full_connected_pad_subset(tmp_path: Pat
     assert pins["native_net_label_differences_for_matching_pin_ids"] == 0
     assert pins["native_unexplained_net_label_disagreements"] == 0
     assert pins["connected_schematic_pin_net_subset_verified"] is True
-    assert pins["pcb_pad_identifiers_missing_from_schematic"] == 38
+    # Genuine vendor J1 includes two anonymous NPTH locating pegs,
+    # represented by one unique (J1, '') mechanical pad identifier.
+    assert pins["pcb_pad_identifiers_missing_from_schematic"] == 39
     assert pins["conflicting_nets_on_duplicate_pcb_pad_numbers"] == 0
     assert report["automatic_sync_authorized"] is False
     assert report["electricallyApproved"] is False
@@ -262,9 +264,17 @@ def test_native_kicad_drc_schematic_parity_is_clean_without_misreporting_routing
     native_report = json.loads(parity_path.read_text())
     assert native_report["kicad_version"].startswith("10.")
     assert native_report["schematic_parity"] == []
-    # Nonzero copper/fabrication errors and unrouted nets MUST remain visible.
-    assert len(native_report["violations"]) > 0
-    assert len(native_report["unconnected_items"]) > 0
+    # The exact pinned supplier art replaces fake pads-only library redraws
+    # and retains real oval holes; never waive the remaining physical DRC.
+    from collections import Counter
+
+    kinds = Counter(item["type"] for item in native_report["violations"])
+    assert kinds == {"drill_out_of_range": 12, "hole_clearance": 4}
+    assert len(native_report["violations"]) == 16
+    assert len(native_report["unconnected_items"]) == 37
+    assert "lib_footprint_mismatch" not in kinds
+    assert "through_hole_pad_without_hole" not in kinds
+    assert "silk_over_copper" not in kinds
     assert evidence["automatic_sync_authorized"] is False
     assert evidence["electricallyApproved"] is False
     assert evidence["fabApproved"] is False

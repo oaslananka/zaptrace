@@ -265,3 +265,58 @@ routing. These remain **production blockers** pending native KiCad DRC,
 unrouted net clearance, vendor constraints, STEP/model review and
 independent physical acceptance. The temporary triage project's native
 JSON was inspected and then removed to avoid stale untracked build files.
+
+## Post-0.1.9 source-only: selected PR #119 vendor geometry integration
+
+We examined remote PR **#119** as read-only evidence and **selectively adapted**
+its source-pinned geometry/Excellon modules into the isolated local branch,
+rather than merging the entire remote PR. The PR remains open; no remote
+commit, merge, or PR modification occurred. The local schematic/PCB UUID,
+physical-pin mapping, global KiCad net names and Value/Description parity
+improvements were preserved.
+
+The native KiCad 10.0.7 source-only acceptance now has **zero ERC violations
+and zero schematic/PCB parity violations**. Real PCB DRC against the exact
+digest-verified, unmodified supplier footprint assets improved from **42
+physical violations to 16**:
+
+- The 14 library-footprint mismatches disappeared because the generated
+  board now embeds original supplier artwork, courtyard, RF rule areas,
+  pad shapes, thermal metadata and model references rather than drawing
+  an approximate footprint from only pad positions.
+- Four GCT USB-C shell stake pads now have their actual **0.6 × 1.7 mm**
+  or **0.6 × 1.4 mm** routed plated oval drills, eliminating the earlier
+  four missing-hole violations. Two existing **0.65 mm NPTH locating
+  pegs** with *empty mechanical pad numbers* are now retained in the
+  imported model, board, and Excellon manufacturing records.
+- Eight former reference/silkscreen DRC warnings are no longer reported
+  when KiCad uses the supplier's original footprint annotations.
+- Zero native `lib_footprint_mismatch`, `through_hole_pad_without_hole`,
+  `silk_over_copper` or prior `net_conflict`/BOM parity warnings remain.
+  BOM inclusion in Eeschema now follows the *actual SHA-verified vendor
+  attribute*, rather than guessing that all components should be included.
+
+**Still failing: 12 `drill_out_of_range` and 4 `hole_clearance` errors,
+plus 37 independently detected unconnected items.** These involve actual
+pinned ESP32 manufacturer thermal pad/hole constraints. We did NOT enlarge
+supplier drills, waive KiCad's physical clearances, lower the fab minimum
+hole size, auto-route, or assert fabrication approval. Resolving the
+remaining 16 requires vetted manufacturing capability/geometry and a
+separately reviewed native routing and DRC result.
+
+The exact original supplier `.kicad_mod` bytes and old 0.1.7–0.1.9
+local release archives remain immutable. Source model `Pad` now retains
+actual `drill_slot` and `roundrect_rratio` fields; the KiCad importer
+preserves unnamed mechanical NPTH pads; Excellon correctly emits four
+real G85 routes rather than fake round hits. Model JSON schema and
+regression/golden baselines were updated. Native KiCad tests explicitly
+enforce **16 physical DRC, 37 unconnected, zero schematic parity** for the
+pinned source; independent roundtrip, supplier-artwork, and plated/NPTH
+drill tests passed. Chrome 155 tested the native full-vendor source and the
+untouched older ESP32 source, real private source-hashed JSON downloads,
+mobile 390px and zero JS errors.
+
+This is **local source-only engineering progress, NOT a new accepted
+distribution or a public GA/fabrication-ready claim**. A subsequent
+separately numbered .deb and real Ubuntu/Chrome acceptance is required
+before these improvements can be distributed.

@@ -75,9 +75,9 @@ pass(linked?
 await cmd('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
 const mobile=await evaluate("(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,form:document.getElementById('pcbAuditForm').getBoundingClientRect().toJSON(),result:document.getElementById('pcbAuditResult').getBoundingClientRect().toJSON()}))()");
 pass(generated?
-  result.pinSummary.includes('pin-number/net-label disagreement: 38')&&
+  result.pinSummary.includes('pin-number/net-label disagreement: 39')&&
   result.pinSummary.includes('47 identical ref/pin labels')&&
-  result.pinSummary.includes('110 physical pads')&&
+  result.pinSummary.includes('112 physical pads')&&
   result.pinSummary.includes('0 KiCad-conflicting /NET vs NET label patterns')&&
   result.pinSummary.includes('0 literal native net conflicts')&&
   result.pinSummary.includes('connected-pin subset: MATCHED'):
@@ -85,7 +85,7 @@ pass(generated?
   result.pinSummary.includes('0 identical ref/pin labels')&&
   result.pinSummary.includes('112 physical pads')&&
   result.pinFindings.some(x=>x.includes('C1 · P1 · no_identical_pcb_pad_number')),
- generated?'KiCad symbol-pad IDs match, zero name conflicts, and 38 unused PCB pads remain explicit':
+ generated?'KiCad symbol-pad IDs match, zero name conflicts, and 39 non-schematic pad identifiers remain explicit (including anonymous NPTH)':
  'original KiCad pin IDs and physical pads fail closed rather than guessing a pin map');
 pass(mobile.width<=390&&mobile.scroll<=390&&mobile.form.left>=0&&mobile.form.right<=390&&mobile.result.right<=390,
  '390px Chrome native audit is responsive and has no page horizontal overflow');
@@ -109,7 +109,7 @@ if(downloadDir){
  pass(evidence.source_sha256.schematic===sha(schRaw)&&
   evidence.source_sha256.pcb===sha(pcbRaw)&&
   evidence.linkage_uuid_verified===linked&&
-  evidence.native_pin_net_evidence.issue_count===(generated?38:123)&&
+  evidence.native_pin_net_evidence.issue_count===(generated?39:123)&&
   evidence.automatic_sync_authorized===false&&evidence.fabApproved===false,
   'Chrome-downloaded audit artifact contains exact source SHA-256, native UUID/net evidence and explicit no-sync/fab gates');
 }

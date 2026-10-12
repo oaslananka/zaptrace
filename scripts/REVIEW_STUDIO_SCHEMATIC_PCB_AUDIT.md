@@ -217,3 +217,27 @@ forward-annotation, changing connected copper, arbitrary 3D CAD, validated
 manufacturer constraints, or fab/electrical/commercial certification. The
 local source changes require **a new versioned release candidate and
 full exact-package/Ubuntu qualification** before distribution.
+
+## Source-only: full supplier pad inventory and KiCad 10 fabrication findings
+
+Selected implementation ideas from open upstream **PR #119** were adapted
+locally without any remote PR operations. Real SHA-pinned vendor footprints
+are now used for board instance artwork and plated/NPTH drilling. The
+complete GCT USB-C asset contains **22 physical pad objects**: 16
+electrical contacts, 4 plated oval shell slots and 2 unnumbered mechanical
+NPTH pegs. The actual KiCad PCB contains 112 physical pad objects. Its
+read-only audit now reports **39** distinct PCB-only pad identifiers versus
+38 in the earlier pads-only export, because `(J1, "")` identifies the
+mechanical NPTH peg pair. It is never assigned an electrical net or
+fabrication approval on inference.
+
+The generated Eeschema symbol and board KiCad KIID, Value, vendor BOM
+attributes, and native net names match; independent
+`kicad-cli pcb drc --schematic-parity` confirms **0 parity issues**.
+Independent physical PCB DRC reports **16 real fabrication errors and
+37 unconnected items**. Do not confuse an exact KiCad linkage or the
+read-only `connected_schematic_pin_net_subset_verified` result with
+qualified physical routing or manufacturing approval. Full identical
+source SHA-256 evidence and private browser JSON were verified on the
+unchanged original design inputs. This remains an unversioned
+post-0.1.9 **local-only source milestone**.

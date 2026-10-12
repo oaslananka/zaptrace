@@ -152,3 +152,22 @@ exceptions. Independent CLI `--schematic-parity` now proves **0 schematic
 parity errors** but finds 42 PCB physical DRC violations and 37
 unconnected items. GUI displays are technical review results, never F8
 authorization or fab readiness. Not included in old 0.1.9 RC binary.
+
+## Post-0.1.9 actual full vendor footprint browser regression
+
+The previously QA-qualified but unsigned 0.1.9 SHA archive is unchanged. With selected native supplier
+embedding work adapted locally from PR #119, Chrome 155 exercised the
+authenticated read-only parity UI against both genuine inputs:
+
+- Old source-bound ESP32 KiCad design: still fails closed on absent native
+  KIID paths, physical pin labels and the five component field differences.
+- Newly generated exact-vendor KiCad design: authentic 14/14 KIID paths,
+  47/47 connected pin IDs, zero field/net differences, and **39 unbound PCB
+  pad identifiers** including an anonymous unnumbered mechanical pad ID.
+
+The Chrome test verified SHA-256 values in an actually downloaded private
+JSON file for each source, 390px no-overflow layout, zero runtime JS
+errors and refusal to authorize automatic sync or fabrication. The
+corresponding independent KiCad DRC still has 16 physical violations
+and 37 unconnected items. These results are source-only and do not
+constitute an independently signed or GA 0.1.10 installer.
