@@ -138,6 +138,23 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 @media(max-width:1070px) and (min-width:751px){.app{--left-width:216px;--right-width:274px}}
 @media(max-width:750px){.app{--left-width:0px;--right-width:0px}.splitter{display:none}}
 
+/* Human triage annotations are session-only. No DRC waiver or fabrication approval. */
+.review-note-summary{display:flex;flex-direction:column;gap:8px;margin:13px 0;padding:13px;
+ background:#17283b;border:1px solid #37566a;border-radius:10px;color:#cfe4ed}
+.review-note-summary strong{font-size:11px}.review-note-summary span,.review-note-summary small{font-size:10px;line-height:1.5}
+.review-note-summary button{min-height:36px;padding:8px;border:1px solid #498d80;background:#234941;
+ color:#baffea;border-radius:7px;font-size:11px;font-weight:750}
+.review-note-summary button:disabled{opacity:.45;cursor:not-allowed}
+.triage-editor{margin-top:16px;padding:12px;border:1px solid #47657a;border-radius:9px;
+ display:flex;flex-direction:column;gap:9px;background:#122337}
+.triage-editor h4{font-size:12px;color:#e4f8ff;margin:0}.triage-editor label{font-size:11px;color:#c0d8e4;font-weight:700}
+.triage-editor select,.triage-editor textarea{width:100%;color:#e1f5fb;background:#0c1c2c;
+ border:1px solid #547087;border-radius:7px;padding:9px;font:inherit;font-size:11px}
+.triage-editor textarea{resize:vertical;min-height:70px;line-height:1.5}
+.triage-editor button{min-height:38px;background:#236457;border:1px solid #49a28f;color:#effff9;
+ border-radius:7px;font-size:11px;font-weight:800}
+.triage-editor small{font-size:10px;line-height:1.5;color:#b7cbd6}
+@media(max-width:750px){.right .detail:has(.triage-editor){max-height:none;overflow:visible}}
 /* Read-only native error-review queue, with simple keyboard traversal. */
 .review-queue{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;margin:0 0 10px;border:1px solid #355772;border-radius:9px;background:#182e40}
 .review-queue[hidden]{display:none}.review-queue-status{font-size:11px;font-weight:830;color:#b2d8e9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -321,7 +338,15 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  aria-label="Resize right object inspector" aria-orientation="vertical" aria-valuemin="250" aria-valuemax="480" aria-valuenow="346"
  title="Drag to resize inspector · arrow keys adjust · double-click resets"></div>
 <aside class="left" id="leftSidebar" aria-label="Evidence and layers"><div class="side-identity"><span class="side-overline">REVIEW WORKSPACE</span><h2>Design evidence</h2><p>Source-traceable. No manufacturing claims.</p></div><div class="session-preferences" aria-label="Workspace layout preferences"><span id="prefsStatus" aria-live="polite">Session layout</span><button id="resetPreferences" type="button" title="Reset viewer layout; does not modify the KiCad design">Reset layout</button></div>
- <section class="summary"><div class="eyebrow">CURRENT EVIDENCE</div><h2>Verification status</h2><p>Native checks and explicit engineering boundaries.</p><div class="summary-row"><span>Native DRC</span><strong id="drcBadge">Not run</strong></div><div class="summary-row"><span>Native ERC</span><strong id="ercBadge">Not run</strong></div><div class="summary-row"><span>Net-label parity</span><strong id="netParityBadge">Not checked</strong></div><div class="summary-row"><span>Pin → pad map</span><strong id="pinParityBadge">Not checked</strong></div><div class="summary-row"><span>Unconnected</span><strong id="openBadge">Not checked</strong></div><div class="summary-row"><span>Fab authorization</span><strong class="warn">Human approval required</strong></div><button class="primarybtn" id="inspectIssues" type="button">Inspect native findings →</button><button class="plainbtn" id="inspectOpens" type="button" style="width:100%;margin-top:8px">Review open connections →</button><a class="report-link" href="REVIEW_REPORT.html" target="_blank" rel="noopener" id="evidenceReport">Open local evidence report ↗</a></section>
+ <section class="summary"><div class="eyebrow">CURRENT EVIDENCE</div><h2>Verification status</h2><p>Native checks and explicit engineering boundaries.</p><div class="summary-row"><span>Native DRC</span><strong id="drcBadge">Not run</strong></div><div class="summary-row"><span>Native ERC</span><strong id="ercBadge">Not run</strong></div><div class="summary-row"><span>Net-label parity</span><strong id="netParityBadge">Not checked</strong></div><div class="summary-row"><span>Pin → pad map</span><strong id="pinParityBadge">Not checked</strong></div><div class="summary-row"><span>Unconnected</span><strong id="openBadge">Not checked</strong></div><div class="summary-row"><span>Fab authorization</span><strong class="warn">Human approval required</strong></div><button class="primarybtn" id="inspectIssues" type="button">Inspect native findings →</button><button class="plainbtn" id="inspectOpens" type="button" style="width:100%;margin-top:8px">Review open connections →</button><div class="review-note-summary" aria-label="Local engineering finding triage, not a DRC waiver">
+  <strong>Finding review notes · this session</strong>
+  <span id="triageProgress" role="status" aria-live="polite">0 findings investigated · no source approval</span>
+  <button id="exportTriage" type="button" disabled aria-label="Download source-bound review notes JSON, not a fabrication approval">Export review notes (.json)</button>
+  <button id="importTriage" type="button" aria-label="Import human review notes for this exact KiCad source only">Import review notes (.json)</button>
+  <input id="triageFile" type="file" accept=".json,application/json" hidden aria-label="Choose source-bound human review notes JSON file" />
+  <small id="triageImportStatus" role="status" aria-live="polite">Review notes are unsigned. Only the exact current source and findings can be restored; no production approval.</small>
+  <small>Local session only. Notes do not modify KiCad findings, connectivity, design rules or fabrication status.</small>
+ </div><a class="report-link" href="REVIEW_REPORT.html" target="_blank" rel="noopener" id="evidenceReport">Open local evidence report ↗</a></section>
 
  <section class="section" id="copperControls"><h2 class="sectiontitle">Copper & manufacturing layers</h2><div class="layers" id="layerPicker"></div></section>
  <section class="section" id="inspectionOverlays"><h2 class="sectiontitle">Inspection markers</h2><p class="small muted">Show or hide interactive markers only. Native geometry, DRC evidence and fabrication blockers remain unchanged.</p>
@@ -428,6 +453,93 @@ const schPinByPhysicalId=new Map((DATA.schematic?.pin_anchors||[]).map(p=>[p.ref
 const boardRefToIndex=new Map(DATA.board.footprints.map((part,i)=>[part.ref,i]));
 const openedGroups=new Set(['drill_out_of_range']);
 const openedPinRefs=new Set(['J1','U1']);
+const triageNotes=new Map(); // Only user notes, never evidence/DRC replacement; not persisted.
+const TRIAGE_OPTIONS=['unreviewed','investigated','repair_required'];
+function exportableTriage(){
+ const records=[...triageNotes.entries()].filter(([idx,x])=>Number.isInteger(idx)&&
+  idx>=0&&idx<DATA.findings.length&&TRIAGE_OPTIONS.includes(x.status)).sort((a,b)=>a[0]-b[0]);
+ return {schema_version:1,kind:'human_review_notes_not_verified_approval',
+  source_sha256:DATA.source_sha256,drc_state:DATA.drc_state,
+  fabrication_approved:false,source_modified:false,all_findings_remain_unwaived:true,
+  findings_total:DATA.findings.length,notes:records.map(([index,x])=>{
+   const f=DATA.findings[index];
+   return {finding_index:index,rule:f.rule,severity:f.severity,message:f.message,
+    source_objects:f.objects,position_mm:[f.x,f.y],triage:x.status,note:x.note};
+  })};
+}
+function updateTriageSummary(){
+ const total=triageNotes.size;
+ const repair=[...triageNotes.values()].filter(x=>x.status==='repair_required').length;
+ $('triageProgress').textContent=total+' of '+DATA.findings.length+
+  ' findings noted · '+repair+' need repair · no DRC or fabrication waiver';
+ $('exportTriage').disabled=total===0;
+}
+function showTriageEditor(detail,index){
+ const original=triageNotes.get(index)||{status:'unreviewed',note:''};
+ const area=node('section','triage-editor');
+ area.setAttribute('aria-label','Session-only human finding triage');
+ area.append(node('h4','','Engineering review note · original finding remains open'));
+ const statusLabel=node('label','','Review outcome');statusLabel.htmlFor='triageOutcome';
+ const outcome=node('select','');outcome.id='triageOutcome';
+ for(const [value,label] of [['unreviewed','Not reviewed'],['investigated','Investigated · still a KiCad finding'],
+   ['repair_required','Repair required · still a KiCad finding']]){
+  const option=node('option','',label);option.value=value;outcome.append(option);
+ }
+ outcome.value=original.status;
+ const noteLabel=node('label','','Engineer note (max 600 characters)');noteLabel.htmlFor='triageNote';
+ const notes=node('textarea','');notes.id='triageNote';notes.maxLength=600;notes.rows=3;
+ notes.placeholder='Evidence, repair hypothesis, or next manual verification step…';notes.value=original.note;
+ const save=node('button','','Save local review note');save.type='button';
+ const feedback=node('small','','Session only. No KiCad DRC changes, no automatic waiver or manufacturing approval.');
+ save.addEventListener('click',()=>{
+  const value=outcome.value,content=notes.value.trim().slice(0,600);
+  if(!TRIAGE_OPTIONS.includes(value))return;
+  if(value==='unreviewed'&&!content)triageNotes.delete(index);
+  else triageNotes.set(index,{status:value,note:content});
+  feedback.textContent='Saved for this session; source DRC and fabrication blockers unchanged.';
+  updateTriageSummary();renderList();
+ });
+ area.append(statusLabel,outcome,noteLabel,notes,save,feedback);detail.append(area);
+}
+async function readTriageFile(file){
+ if(!file||file.size>1048576)throw new Error('Review notes file missing or larger than 1 MiB');
+ const input=JSON.parse(await file.text());
+ if(!input||input.schema_version!==1||input.kind!=='human_review_notes_not_verified_approval'||
+    input.source_sha256!==DATA.source_sha256||input.drc_state!==DATA.drc_state||
+    input.findings_total!==DATA.findings.length||input.fabrication_approved!==false||
+    input.source_modified!==false||input.all_findings_remain_unwaived!==true||
+    !Array.isArray(input.notes)||input.notes.length>DATA.findings.length){
+  throw new Error('Different source, source findings, or invalid review-notes schema');
+ }
+ const next=new Map();
+ for(const x of input.notes){
+  if(!x||!Number.isInteger(x.finding_index)||x.finding_index<0||
+   x.finding_index>=DATA.findings.length||next.has(x.finding_index)||
+   !TRIAGE_OPTIONS.includes(x.triage)||typeof x.note!=='string'||x.note.length>600){
+   throw new Error('Invalid or duplicate finding index, outcome or note');
+  }
+  const original=DATA.findings[x.finding_index];
+  if(x.rule!==original.rule||x.severity!==original.severity||x.message!==original.message||
+   JSON.stringify(x.source_objects)!==JSON.stringify(original.objects)||
+   JSON.stringify(x.position_mm)!==JSON.stringify([original.x,original.y])){
+   throw new Error('Review record refers to a different original KiCad finding');
+  }
+  next.set(x.finding_index,{status:x.triage,note:x.note});
+ }
+ // Atomic restore: never mutate session state before all records pass validation.
+ triageNotes.clear();for(const [id,entry] of next)triageNotes.set(id,entry);
+ updateTriageSummary();if(selected?.kind==='issue')select(selected,false);
+ return next.size;
+}
+function downloadTriage(){
+ if(triageNotes.size===0)return;
+ const json=JSON.stringify(exportableTriage(),null,2)+'\n';
+ const blob=new Blob([json],{type:'application/json'});
+ const url=URL.createObjectURL(blob);const link=node('a','');link.href=url;
+ link.download='zaptrace-review-notes-'+DATA.source_sha256.slice(0,16)+'.json';
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;}
 function snap(n){return Number(n).toFixed(2)+' mm';}
 let cursorCoords=null;
@@ -1327,6 +1439,7 @@ function select(sel,withPan=false){if(sel.kind==='pad')measurePad(sel.index);
   addRuleGuidance(d,obj);
   attachOpenPair(d,sel.index);
   attachNativeDrcLinks(d,obj);
+  showTriageEditor(d,sel.index);
   focusButtons.issues[sel.index]?.classList.add('selected');
   openedGroups.add(obj.rule);
  }
@@ -1407,7 +1520,10 @@ function renderList(){const list=$('entrylist');list.replaceChildren();const q=$
    head.addEventListener('click',()=>{const open=body.hidden;body.hidden=!open;head.setAttribute('aria-expanded',String(open));
     if(open)openedGroups.add(rule);else openedGroups.delete(rule);});
    for(const [f,i] of items){const location=f.x===null?'Location not reported':f.x.toFixed(3)+', '+f.y.toFixed(3)+' mm';
-    body.append(itemButton(f.rule+' · '+location,f.message,
+    const review=triageNotes.get(i);
+    const suffix=review?.status==='repair_required'?' · REVIEW NOTE: repair required':
+      review?.status==='investigated'?' · REVIEW NOTE: investigated':review?' · REVIEW NOTE saved':'';
+    body.append(itemButton(f.rule+' · '+location,f.message+suffix,
      ()=>select({kind:'issue',index:i},true),selected?.kind==='issue'&&selected.index===i,f.severity==='error'));}
    group.append(head,body);list.appendChild(group);
   }
@@ -1558,6 +1674,18 @@ function bind(){document.querySelectorAll('[data-tab]').forEach(b=>{
  $('inspectOpens').addEventListener('click',()=>{setTab('opens');$('entrylist').focus();});
  $('reviewPrev').addEventListener('click',()=>advanceReview(-1));
  $('reviewNext').addEventListener('click',()=>advanceReview(1));
+ $('exportTriage').addEventListener('click',downloadTriage);
+ $('importTriage').addEventListener('click',()=>$('triageFile').click());
+ $('triageFile').addEventListener('change',async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  try{
+   const count=await readTriageFile(file);
+   $('triageImportStatus').textContent=count+' source-matched human notes imported · no DRC waiver or approval';
+  }catch{
+   $('triageImportStatus').textContent='Import rejected: source hash, original findings or note schema mismatch';
+  }finally{event.target.value='';}
+ });
+ updateTriageSummary();
  $('resetPreferences').addEventListener('click',resetPreferences);
  $('quickDrc').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('issues');$('entrylist').focus();});
  $('quickOpen').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('opens');$('entrylist').focus();});
