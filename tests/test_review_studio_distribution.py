@@ -97,7 +97,8 @@ def test_separately_versioned_013_candidate_has_matching_executable_and_preserve
     assert hashlib.sha256(new.read_bytes()).hexdigest() != hashlib.sha256(old.read_bytes()).hexdigest()
     assert new.read_bytes() == packager.build(SCRIPTS.parent, tmp_path / "repro", version="0.1.13").read_bytes()
     with pytest.raises(ValueError, match="Unsupported version"):
-        packager.build(SCRIPTS.parent, tmp_path / "unsupported", version="0.1.14")
+        # Stable negative oracle: reviewed candidate versions evolve over time.
+        packager.build(SCRIPTS.parent, tmp_path / "unsupported", version="9999.0.0")
 
 
 def test_package_declares_native_kicad_and_noncommercial_license(release_pkg: Path, tmp_path: Path) -> None:
