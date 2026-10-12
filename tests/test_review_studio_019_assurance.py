@@ -83,6 +83,14 @@ def test_019_kit_is_deterministic_source_bound_and_never_certifies_hardware(acce
         assert not any(name.endswith((".kicad_sch", ".kicad_pcb", ".kicad_pro")) for name in archive.namelist())
         manifest = json.loads(archive.read("ACCEPTANCE_019.json"))
         assert manifest["version"] == "0.1.19"
+        expected_package_sha256 = hashlib.sha256(archive.read("zaptrace-review-studio_0.1.19_all.deb")).hexdigest()
+        assert (
+            archive.read("zaptrace-review-studio_0.1.19_all.deb")
+            == (dist / "zaptrace-review-studio_0.1.19_all.deb").read_bytes()
+        )
+        assert manifest["package"]["sha256"] == expected_package_sha256
+        assert manifest["package"]["sha256"] != manifest["mobile_native_schematic_screenshots_sha256"]["390"]
+        assert expected_package_sha256 in archive.read("LOCAL_QA_AND_LIMITATIONS.md").decode("utf-8")
         assert all(value["pass"] for value in manifest["validation"].values())
         for status in (
             "public_release",
