@@ -66,7 +66,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 
 .data-actions[hidden]{display:none}.data-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid #365065}.data-actions button{background:#163142;border:1px solid #426376;border-radius:7px;padding:9px 10px;min-height:38px;font-size:10px;font-weight:790;color:#c7f0e5;cursor:pointer}.data-actions button:hover{border-color:#86e1c6}.data-actions .delete-review{color:#efc4ce;border-color:#725966}.delete-modal{background:#0e2130;color:#e5f8ef;border:1px solid #6b8992;border-radius:14px;padding:24px;width:min(480px,calc(100vw - 26px));max-height:90vh;box-shadow:0 28px 90px #000b}.delete-modal::backdrop{background:#000b}.delete-modal h2{font-size:24px;letter-spacing:-.04em;margin:7px 0 11px}.delete-modal p{font-size:12px;line-height:1.6;color:#adc4d1}.delete-reference{background:#182f41;border:1px solid #3b5768;border-radius:8px;padding:10px;overflow-wrap:anywhere}.delete-phrase{font-size:11px;font-weight:750;display:flex;flex-direction:column;gap:9px;margin:17px 0}.delete-phrase strong{color:#ffbabb}.delete-phrase input{background:#091827;border:1px solid #5e7b88;color:#f1fff8;border-radius:8px;padding:12px;font-size:13px;min-height:43px}.delete-controls{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px}.delete-controls button{border:1px solid #53717b;border-radius:8px;background:#1a3543;padding:12px 14px;color:#e4f7ed;cursor:pointer;min-height:44px;font-weight:800;font-size:11px}.delete-controls #reviewDeleteConfirm{background:#642e41;border-color:#bd7586}.delete-controls button:disabled{opacity:.38;cursor:not-allowed}.delete-error{color:#ffb8c0!important}
 
-.restore-section[hidden]{display:none}.restore-section{display:grid;grid-template-columns:1fr;gap:8px;margin:28px 0 5px;padding:22px;border:1px solid #547d81;border-radius:13px;background:linear-gradient(130deg,#162f40,#101f30)}.restore-section h2{font-size:19px;letter-spacing:-.04em;margin:5px 0 8px}.restore-section p{font-size:11px;line-height:1.6;color:#aac8cf;max-width:860px;margin:0}.restore-section p strong{color:#e4fff5}.restore-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:11px}.restore-form label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:750;color:#c9ebdd;min-width:0}.restore-form input{background:#091b2a;border:1px solid #486674;border-radius:8px;color:#e6f7fa;padding:11px;min-height:43px;width:100%;min-width:0;font-size:11px}.restore-form button{background:#244e4a;border:1px solid #70a6a0;border-radius:8px;color:#ddffef;min-height:43px;padding:9px 12px;font-size:11px;font-weight:850;cursor:pointer}.restore-form button:disabled{opacity:.5;cursor:wait}#nativeRestoreStatus{padding:11px;border:1px solid #47626c;border-radius:9px;background:#132b3a}#nativeRestoreStatus[hidden]{display:none}
+.restore-section[hidden]{display:none}.restore-section{display:grid;grid-template-columns:1fr;gap:8px;margin:28px 0 5px;padding:22px;border:1px solid #547d81;border-radius:13px;background:linear-gradient(130deg,#162f40,#101f30)}.restore-section h2{font-size:19px;letter-spacing:-.04em;margin:5px 0 8px}.restore-section p{font-size:11px;line-height:1.6;color:#aac8cf;max-width:860px;margin:0}.restore-section p strong{color:#e4fff5}.restore-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:11px}.restore-form label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:750;color:#c9ebdd;min-width:0}.restore-form input{background:#091b2a;border:1px solid #486674;border-radius:8px;color:#e6f7fa;padding:11px;min-height:43px;width:100%;min-width:0;font-size:11px}.restore-form button{background:#244e4a;border:1px solid #70a6a0;border-radius:8px;color:#ddffef;min-height:43px;padding:9px 12px;font-size:11px;font-weight:850;cursor:pointer}.restore-form button:disabled{opacity:.5;cursor:wait}#nativeRestoreStatus{padding:11px;border:1px solid #47626c;border-radius:9px;background:#132b3a}#nativeRestoreStatus[hidden]{display:none}#nativeRestoreStatus.error{border-color:#bf7380;background:#371f2a;color:#ffe2e6}
 @media(max-width:900px){.restore-form{grid-template-columns:1fr 1fr}.restore-form button{grid-column:1/-1}}@media(max-width:580px){.restore-form{grid-template-columns:1fr}.restore-section{padding:16px}}
 
 /* PCB placement ECO uses the same accessible review surface. */
@@ -137,6 +137,25 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 
 @media(pointer:coarse){.tools a,.header-help,.actions a,.compare-links a,.eco-result-actions button,.compare-heading button{min-height:44px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:0.01ms!important;transition-duration:0.01ms!important}}
+/* Every mobile action, help entry and data-selection label gets a usable touch target. */
+@media(max-width:700px){
+ .header-help,.compare-select,.foot a,.help-center summary{min-height:44px}
+ .header-help,.foot a{display:inline-flex;align-items:center}
+ .help-center summary{padding:12px 3px}
+}
+/* On phone-sized EDA workspaces, keep the project library above the fold:
+   a primary import action and two compact pairs of clearly labelled tools. */
+@media(max-width:650px){
+ header{position:relative}
+ .header-right{flex-wrap:nowrap}
+ .header-help{position:absolute;right:11px;top:10px}
+ .header-right .local,.header-right .gate{white-space:nowrap;font-size:9px;padding:8px 9px}
+ .tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .tools .searchbox{grid-column:1/-1;min-width:0;width:100%;max-width:none}
+ .tools .add-link{width:100%;min-width:0;min-height:48px;padding:10px 7px;
+  line-height:1.3;white-space:normal;text-align:center}
+ .tools>a.add-link:first-of-type{grid-column:1/-1}
+}
 </style></head><body>
 <a class="skip-to-content" href="#workspaceMain">Skip to main content</a>
 <header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local" id="runtimeMode">OFFLINE · REVIEW ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
@@ -943,6 +962,8 @@ if(window.__REVIEW_LOCAL__?.token){
  }
  function report(message,type='running'){
   job.hidden=false;job.classList.toggle('error',type==='error');job.classList.toggle('success',type==='success');
+  job.setAttribute('role',type==='error'?'alert':'status');
+  job.setAttribute('aria-live',type==='error'?'assertive':'polite');
   status.textContent=message;
  }
  document.getElementById('stopLocalStudio').addEventListener('click',async()=>{
@@ -965,7 +986,11 @@ if(window.__REVIEW_LOCAL__?.token){
   event.preventDefault();
   const name=$('nativeRestoreName').value.trim(),file=$('nativeRestoreZip').files?.[0];
   restoreStatus.hidden=false;
+  restoreStatus.classList.remove('error');
+  restoreStatus.setAttribute('role','status');restoreStatus.setAttribute('aria-live','polite');
   if(!name||name.length>90||!file||!file.name.toLowerCase().endsWith('.zip')||file.size>34*1024*1024){
+   restoreStatus.classList.add('error');
+   restoreStatus.setAttribute('role','alert');restoreStatus.setAttribute('aria-live','assertive');
    restoreStatus.textContent='Choose a local Review Studio ZIP (max 34 MB) and a new review name.';
    return;
   }
@@ -991,6 +1016,8 @@ if(window.__REVIEW_LOCAL__?.token){
    }
    throw Error('Review still running; it will appear in Projects when native KiCad completes.');
   }catch(error){
+   restoreStatus.classList.add('error');
+   restoreStatus.setAttribute('role','alert');restoreStatus.setAttribute('aria-live','assertive');
    restoreStatus.textContent=(error instanceof Error?error.message:'Restore failed')+
     ' · Existing reviews and your ZIP backup remain unchanged.';
   }finally{restoreRun.disabled=false;}

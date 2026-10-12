@@ -9,7 +9,9 @@ for(let i=0;i<55;i++){
  try{pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();if(pages.some(x=>x.type==='page'))break;}
  catch{}await new Promise(r=>setTimeout(r,150));
 }
-const p=pages?.find(x=>x.type==='page');if(!p)throw Error('Local Chrome debug page unavailable');
+const auditUrl=process.env.ZAPTRACE_AUDIT_URL;
+const p=auditUrl?pages?.find(x=>x.type==='page'&&x.url===auditUrl):pages?.find(x=>x.type==='page');
+if(!p)throw Error('Explicit native-review Chrome QA tab unavailable');
 const ws=new WebSocket(p.webSocketDebuggerUrl);
 await new Promise((ok,bad)=>{ws.addEventListener('open',ok,{once:true});ws.addEventListener('error',bad,{once:true});});
 let seq=0;const callbacks=new Map(),errors=[];
@@ -27,6 +29,36 @@ const initial=await js(`({parts:document.querySelectorAll('.fp-hit').length,pads
 console.log('KIcad real native evidence:',initial);
 check(initial.parts===14&&initial.pads===112&&initial.faults===28&&initial.plots===7,'native plot: 14 footprints, 112 pads, 28 geolocated native DRC markers, seven KiCad layers');
 check(initial.segments===61&&initial.summary.includes('16 findings')&&initial.open.includes('12 native')&&initial.erc.includes('0 findings')&&initial.parity.includes('7 net names')&&initial.parity.includes('pins unverified'),'independent native DRC 16 + 12 open, native ERC 0 enabled-check findings, 61 copper tracks');
+// WAI-ARIA inspector tablist: only active tab is in the page Tab sequence.
+const tabState=()=>js(`(()=>{const tabs=[...document.querySelectorAll('[role="tab"]')];return {
+ selected:tabs.find(t=>t.getAttribute('aria-selected')==='true')?.dataset.tab,
+ focus:document.activeElement?.dataset?.tab,
+ tabs:tabs.map(t=>({name:t.dataset.tab,tabIndex:t.tabIndex,controls:t.getAttribute('aria-controls')})),
+ labelled:document.getElementById('entrylist').getAttribute('aria-labelledby')};})()`);
+const inspectorTabs=await tabState();
+check(inspectorTabs.tabs.length===5&&inspectorTabs.tabs.every(t=>t.controls==='entrylist')&&
+ inspectorTabs.tabs.filter(t=>t.tabIndex===0).length===1&&
+ inspectorTabs.tabs.find(t=>t.tabIndex===0)?.name===inspectorTabs.selected,
+ 'inspector tabs expose labelled panel and exactly one sequential keyboard stop');
+await js(`document.querySelector('[data-tab="issues"]').focus()`);
+const pressInspectorKey=async(key,code=key)=>{
+ await call('Input.dispatchKeyEvent',{type:'keyDown',key,code});
+ await call('Input.dispatchKeyEvent',{type:'keyUp',key,code});
+ return tabState();
+};
+let tabKeys=await pressInspectorKey('ArrowRight');
+check(tabKeys.selected==='opens'&&tabKeys.focus==='opens'&&
+ tabKeys.labelled==='inspector-tab-opens'&&tabKeys.tabs.filter(t=>t.tabIndex===0).length===1,
+ 'ArrowRight changes DRC to Open with matched focus and ARIA labelled tabpanel');
+tabKeys=await pressInspectorKey('ArrowLeft');
+check(tabKeys.selected==='issues'&&tabKeys.focus==='issues','ArrowLeft navigates back to DRC');
+tabKeys=await pressInspectorKey('End');
+check(tabKeys.selected==='pins'&&tabKeys.focus==='pins','End navigates to final Pins tab');
+tabKeys=await pressInspectorKey('ArrowRight');
+check(tabKeys.selected==='issues'&&tabKeys.focus==='issues','ArrowRight wraps from Pins to DRC');
+tabKeys=await pressInspectorKey('Home');
+check(tabKeys.selected==='issues'&&tabKeys.focus==='issues','Home navigates to first DRC tab');
+await js(`document.querySelector('[data-tab="issues"]').blur()`);
 const workspace=await js(`(async()=>{
  const $=id=>document.getElementById(id),metrics={drc:$('kpiDrc').textContent,
   opens:$('kpiOpens').textContent,erc:$('kpiErc').textContent,pins:$('kpiPins').textContent};

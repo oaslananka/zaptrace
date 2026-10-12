@@ -341,11 +341,11 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
  <div class="measurement-panel" id="measurementPanel" hidden><h3>Pad-centre measurement</h3><div class="measure-status" id="measureReadout" aria-live="polite">Not started</div></div>
  <div class="boardfoot" id="boardFoot"><b>KiCad-rendered geometry, unmodified source.</b> Clicking pads, footprints or violations reveals source IDs. DRC != production approval.</div>
 </main>
-<aside class="right" id="rightSidebar" aria-label="Board inspector"><div class="inspector-head"><span><span class="side-overline">OBJECT EXPLORER</span><h2>Inspector</h2></span><span class="inspector-count" id="inspectorCount">Native data</span></div><div class="tabset" role="tablist" aria-label="Inspect"><button type="button" role="tab" aria-selected="true" data-tab="issues">DRC</button><button type="button" role="tab" aria-selected="false" data-tab="opens">Open</button><button type="button" role="tab" aria-selected="false" data-tab="parts">Parts</button><button type="button" role="tab" aria-selected="false" data-tab="nets">Nets</button><button type="button" role="tab" aria-selected="false" data-tab="pins">Pins</button></div><div class="review-queue" id="reviewQueue" hidden aria-label="Sequential native KiCad findings">
+<aside class="right" id="rightSidebar" aria-label="Board inspector"><div class="inspector-head"><span><span class="side-overline">OBJECT EXPLORER</span><h2>Inspector</h2></span><span class="inspector-count" id="inspectorCount">Native data</span></div><div class="tabset" role="tablist" aria-label="Inspect"><button type="button" role="tab" id="inspector-tab-issues" aria-controls="entrylist" tabindex="0" aria-selected="true" data-tab="issues">DRC</button><button type="button" role="tab" id="inspector-tab-opens" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="opens">Open</button><button type="button" role="tab" id="inspector-tab-parts" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="parts">Parts</button><button type="button" role="tab" id="inspector-tab-nets" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="nets">Nets</button><button type="button" role="tab" id="inspector-tab-pins" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="pins">Pins</button></div><div class="review-queue" id="reviewQueue" hidden aria-label="Sequential native KiCad findings">
  <span class="review-queue-status" id="reviewQueueStatus">Select a source finding</span>
  <div class="review-queue-actions"><button type="button" class="plainbtn" id="reviewPrev" title="Previous native finding (K)" aria-label="Previous native finding">←</button>
  <button type="button" class="plainbtn" id="reviewNext" title="Next native finding (J)" aria-label="Next native finding">→</button></div></div>
- <input class="finder" id="search" type="search" placeholder="Search faults, parts, nets, pins…" aria-label="Search board inspection data"/><div class="detail" id="detail" aria-live="polite"><h3>Select an object to inspect</h3><div class="small muted">Choose a DRC finding, net, footprint or pad. Source-verified details appear here.</div></div><div class="entrylist" id="entrylist" role="tabpanel" tabindex="0"></div></aside>
+ <input class="finder" id="search" type="search" placeholder="Search faults, parts, nets, pins…" aria-label="Search board inspection data"/><div class="detail" id="detail" aria-live="polite"><h3>Select an object to inspect</h3><div class="small muted">Choose a DRC finding, net, footprint or pad. Source-verified details appear here.</div></div><div class="entrylist" id="entrylist" role="tabpanel" aria-labelledby="inspector-tab-issues" tabindex="0"></div></aside>
 <footer><span id="footleft">Native local review · not a Gerber/export approval</span><span class="status-hotkeys">Shortcuts <kbd>?</kbd> · Find <kbd>/</kbd> · Fit <kbd>F</kbd> · Focus <kbd>Q</kbd></span><span id="footright">0×</span></footer>
 <div class="command-backdrop" id="commandBackdrop" hidden>
  <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="commandTitle" tabindex="-1">
@@ -965,7 +965,15 @@ function resetPreferences(){
  prefsReady=true;
  $('prefsStatus').textContent='Layout reset · source unchanged';
 }
-function setTab(next){tab=next;$('search').value='';document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===next)));renderList();updatePreferences();}
+function setTab(next){
+ tab=next;$('search').value='';
+ document.querySelectorAll('[data-tab]').forEach(b=>{
+  const active=b.dataset.tab===next;
+  b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;
+ });
+ $('entrylist').setAttribute('aria-labelledby','inspector-tab-'+next);
+ renderList();updatePreferences();
+}
 function setFocusMode(next){
  document.querySelector('.app').classList.toggle('focus-mode',next);
  $('focusMode').setAttribute('aria-pressed',String(next));$('focusMode').textContent=next?'Exit focus':'Focus';
@@ -1468,7 +1476,21 @@ function bindPanelSplitters(){
   el.setAttribute('aria-valuenow',String(Math.round(currentWidth(config))));
  }
 }
-function bind(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+function bind(){document.querySelectorAll('[data-tab]').forEach(b=>{
+ b.addEventListener('click',()=>setTab(b.dataset.tab));
+ b.addEventListener('keydown',event=>{
+  const tabs=[...document.querySelectorAll('[data-tab]')];
+  const current=tabs.indexOf(b);
+  let next;
+  if(event.key==='ArrowRight')next=(current+1)%tabs.length;
+  else if(event.key==='ArrowLeft')next=(current-1+tabs.length)%tabs.length;
+  else if(event.key==='Home')next=0;
+  else if(event.key==='End')next=tabs.length-1;
+  else return;
+  event.preventDefault();
+  const target=tabs[next];target.focus();setTab(target.dataset.tab);
+ });
+});
  [['showPadMarkers','hide-pad-markers'],['showFaultMarkers','hide-fault-markers'],
   ['showFootprintMarkers','hide-footprint-markers']].forEach(([id,cls])=>{
   $(id).addEventListener('change',()=>{stage.classList.toggle(cls,!$(id).checked);updatePreferences();});

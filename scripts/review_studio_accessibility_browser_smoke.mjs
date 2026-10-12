@@ -7,7 +7,9 @@ for(let i=0;i<90;i++){
  try{tabs=await(await fetch('http://127.0.0.1:'+port+'/json/list')).json();if(tabs.some(t=>t.type==='page'))break;}catch{}
  await new Promise(resolve=>setTimeout(resolve,120));
 }
-const tab=tabs.find(t=>t.type==='page'&&t.url?.startsWith('http://127.0.0.1:'))||tabs.find(t=>t.type==='page');
+const auditUrl=process.env.ZAPTRACE_AUDIT_URL;
+const tab=auditUrl?tabs.find(t=>t.type==='page'&&t.url===auditUrl):
+ tabs.find(t=>t.type==='page'&&t.url?.startsWith('http://127.0.0.1:'))||tabs.find(t=>t.type==='page');
 console.log('CHROME TAB',tab?.url);
 if(!tab)throw Error('No Chrome workspace tab');
 const ws=new WebSocket(tab.webSocketDebuggerUrl);
@@ -65,9 +67,26 @@ result=await evaluate("(()=>({text:document.getElementById('filterProjects').val
 pass(result.text===''&&result.empty&&result.shown===loaded.count&&result.feedback===loaded.count+' native snapshots available','Escape restores search and project cards');
 const typing=await evaluate("(()=>{const input=document.getElementById('ecoRef');input.focus();input.value='R1';document.dispatchEvent(new KeyboardEvent('keydown',{key:'/',bubbles:true,cancelable:true}));return {active:document.activeElement.id,value:input.value};})()");
 pass(typing.active==='ecoRef'&&typing.value==='R1','shortcut never steals input focus');
-const rejected=await evaluate("(()=>{for(const id of ['ecoForm','pcbEcoForm']){const form=document.getElementById(id);form.reset();form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));}return ['ecoStatus','pcbEcoStatus'].map(id=>{const el=document.getElementById(id);return {id,role:el.getAttribute('role'),live:el.getAttribute('aria-live'),error:el.classList.contains('error'),visible:!el.hidden,message:el.textContent};});})()");
-pass(rejected.length===2&&rejected.every(x=>x.visible&&x.error&&x.role==='alert'&&x.live==='assertive'&&x.message.length>20),
- 'invalid schematic and PCB drafts announce actionable errors without starting native authoring');
+const rejected=await evaluate(`(async()=>{
+ const fields=[['ecoForm','ecoStatus'],['pcbEcoForm','pcbEcoStatus'],
+  ['copperInspectForm','copperStatus'],['pcbAuditForm','pcbAuditStatus'],
+  ['nativeRestoreForm','nativeRestoreStatus'],['nativeImportForm','nativeJob']];
+ const issues=[];
+ for(const [formId,statusId] of fields){
+  const form=document.getElementById(formId);form.reset();
+  form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+  await new Promise(resolve=>setTimeout(resolve,85));
+  const el=document.getElementById(statusId);
+  issues.push({formId,statusId,role:el.getAttribute('role'),
+   live:el.getAttribute('aria-live'),error:el.classList.contains('error'),
+   visible:!el.hidden,message:el.textContent});
+ }
+ return issues;
+})()`);
+console.log('INVALID NATIVE ENGINEERING FORMS',rejected);
+pass(rejected.length===6&&rejected.every(x=>x.visible&&x.error&&
+ x.role==='alert'&&x.live==='assertive'&&x.message.length>20),
+ 'all six live native engineering forms announce actionable invalid-input errors without running KiCad');
 
 const focus=await evaluate("(()=>{const node=document.querySelector('.skip-to-content');node.focus();return {visible:getComputedStyle(node).transform,focused:document.activeElement===node};})()");
 pass(focus.focused&&focus.visible==='none','skip link visible when keyboard focused');
