@@ -393,3 +393,73 @@ def test_restore_ui_is_localonly_and_always_rechecks_drc() -> None:
     assert "'/api/projects/restore?name='" in template
     assert "archived reports are ignored" in template
     assert "nativeRestore'" in template and "__REVIEW_LOCAL__" in template
+
+
+def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_path: Path) -> None:
+    """Registered native review images work without exposing unrelated local files."""
+    from review_studio_workspace import _append_project
+
+    external = tmp_path / "independent-native-review"
+    external.mkdir()
+    (external / "index.html").write_text(
+        "<!doctype html><title>Real review evidence</title>"
+        '<a class="project-back" id="workspaceHome" href="../old-offline-workspace/index.html">← Projects</a>'
+    )
+    (external / "REVIEW_REPORT.html").write_text("Real KiCad review NOT fabrication approved")
+    (external / "evidence.json").write_text(
+        json.dumps(
+            {
+                "board_name": "independent-real-board",
+                "source_sha256": "a" * 64,
+                "drc_state": "reported",
+                "board": {"pads": [{"ref": "R1", "pad": "1"}], "copper": [], "size": [40, 30]},
+                "erc": {"state": "not_run", "count": None},
+                "findings": [{"rule": "unconnected_items"}],
+            }
+        )
+    )
+    preview = b"\x89PNG\r\n\x1a\n" + b"known-native-evidence-only"
+    (external / "professional-desktop-final.png").write_bytes(preview)
+    (external / "source.kicad_pcb").write_bytes(b"private PCB source must not be served")
+    (tmp_path / "private.md").write_bytes(b"sibling private notes must not be served")
+    (external / "stealth.md").symlink_to(tmp_path / "private.md")
+    home = tmp_path / "workspace"
+    _append_project(home, "Real external native source", external)
+    with running(home) as server:
+        base = f"http://127.0.0.1:{server.server_port}"
+        status, data = request(base, "/")
+        assert status == 200
+        page = data.decode()
+        key = server_code.registered_review_asset_id(external)
+        route = "/review-assets/" + key + "/"
+        assert 'src="' + route + 'professional-desktop-final.png"' in page
+        assert 'href="' + route + 'index.html"' in page
+        assert b"Real external native source" in data
+        assert "/../independent-native-review/" not in page
+        assert request(base, route + "professional-desktop-final.png") == (200, preview)
+        viewer = request(base, route + "index.html")[1]
+        assert b"Real review evidence" in viewer
+        status_report, report_bytes = request(base, route + "REVIEW_REPORT.html")
+        assert status_report == 200
+        assert b"Real KiCad review NOT fabrication approved" in report_bytes
+        assert b'id="workspaceHome" href="/"' in viewer
+        assert b"old-offline-workspace" not in viewer
+        assert b"old-offline-workspace" in (external / "index.html").read_bytes()
+        with urlopen(Request(base + route + "index.html"), timeout=7) as asset:
+            csp = asset.headers["Content-Security-Policy"]
+            assert "sandbox allow-scripts allow-popups" in csp
+            assert "allow-popups-to-escape-sandbox" not in csp
+            assert "allow-same-origin" not in csp
+            assert "connect-src 'none'" in csp
+            assert "form-action 'none'" in csp
+        for blocked in (
+            route + "source.kicad_pcb",
+            route + "%2e%2e/private.md",
+            route + "not-registered.png",
+            route + "stealth.md",
+            "/review-assets/" + "0" * 24 + "/index.html",
+            "/review-assets/" + key + "/",
+        ):
+            status, body = request(base, blocked)
+            assert status in {403, 404}, (blocked, status)
+            assert b"private" not in body.lower()

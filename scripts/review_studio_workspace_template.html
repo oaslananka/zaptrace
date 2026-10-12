@@ -3,6 +3,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'"/>
 <title>ZapTrace — Review Studio Workspace</title>
 <style>
+/* Interactive QA: keyboard access, readable targets, and truthful mode labels. */
 :root{color-scheme:dark;--bg:#080f19;--surface:#0f1c2c;--raised:#17293b;--line:#2e4459;--white:#edf6fc;--muted:#8da8bd;--green:#79e8d5;--red:#ff9aab}
 *{box-sizing:border-box}body{margin:0;color:var(--white);background:var(--bg);font:14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}button,input,a{font:inherit}a{color:inherit;text-decoration:none}
 header{min-height:76px;display:flex;justify-content:space-between;align-items:center;padding:12px max(4vw,20px);gap:17px;background:#0e1a29;border-bottom:1px solid var(--line)}
@@ -86,6 +87,8 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 .eco-fields button,.eco-result button{min-height:44px;padding:10px 13px;background:#70dfc3;border:1px solid #93f1da;border-radius:8px;color:#123c39;font-size:11px;font-weight:850;cursor:pointer}
 .eco-fields button:disabled,.eco-result button:disabled{opacity:.45;cursor:wait}
 .eco-status{padding:11px 14px;background:#122e36;border:1px solid #406f76;border-radius:8px;font-size:11px;color:#c6f4e8;margin:13px 0}
+.eco-status.error{background:#38232d;border-color:#b77483;color:#ffe0e6}
+.eco-status.success{background:#17372f;border-color:#539986;color:#d3ffed}
 .eco-status[hidden]{display:none}.eco-result{margin-top:14px;border:1px solid #537d80;border-radius:12px;overflow:hidden;background:#0e2133}
 .eco-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px;background:#193744}
 .eco-result-head strong{font-size:12px;color:#d4fff1}.eco-result-actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -94,10 +97,48 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 .eco-warning{border:1px solid #776259!important;background:#302a31;color:#f5d6b9!important;padding:10px 13px;border-radius:8px;margin-top:14px!important}
 @media(max-width:870px){.eco-fields{grid-template-columns:1fr 1fr}.eco-fields label:first-child{grid-column:1/-1}.eco-fields>button{grid-column:1/-1}}
 @media(max-width:600px){.eco-lab{padding:14px}.eco-fields{grid-template-columns:1fr}.eco-fields label:first-child,.eco-fields>button{grid-column:auto}.eco-result iframe{height:75vh}.eco-result-head{align-items:flex-start}}
+/* The skip link is visible to keyboard users and does not cover pointer UI. */
+.skip-to-content{position:absolute;z-index:1000;top:10px;left:12px;transform:translateY(-160%);background:#b8ffec;color:#102630;border:2px solid #102630;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:800}
+.skip-to-content:focus{transform:none}
+:where(a,button,input,summary,select,textarea):focus-visible{outline:3px solid #9ef9df;outline-offset:3px}
+:where(a,button,input,summary,select,textarea):disabled{cursor:not-allowed}
+:where(section,[id]):target{scroll-margin-top:18px}
+.search-feedback{font-size:12px;color:#c1dfdf;margin:-12px 0 18px;min-height:20px}
+.art .image-unavailable{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:linear-gradient(155deg,#153c37,#142b41);color:#c7f2e7;text-align:center;padding:42px 15px;font-size:14px;font-weight:800}
+.image-unavailable small{font-weight:500;color:#a8cad3;font-size:12px}
+@media(max-width:650px){
+ header{flex-wrap:wrap;gap:9px}
+ .header-right{width:100%;justify-content:flex-start;gap:7px}
+ .header-right .local{display:inline-flex;font-size:10px}
+ .header-help{min-height:36px}
+}
+
+.search-hint{font-size:12px;color:#b1d5d7;white-space:nowrap}
+.empty button{cursor:pointer;padding:10px 15px;border-radius:8px;border:1px solid #6ab19f;background:#204a47;color:#cffff2;font-weight:750;margin-top:13px;min-height:44px}
+@media(max-width:1050px){
+ .tools{flex-wrap:wrap;gap:10px}
+ .searchbox{flex:1 1 100%;max-width:none;min-width:0}
+ .meta-note,.search-hint{display:none}
+ .tools .add-link{flex:1 1 190px;white-space:normal;text-align:center}
+}
+@media(max-width:400px){.tools .add-link{flex:1 1 100%}}
+/* Readability: small measured values stay distinct without 9px body labels. */
+.project .ref,.project .source-type,.project .mini-metrics span{font-size:11px}
+.project .counts,.project .rules-breakdown,.project .rules-source{font-size:12px;line-height:1.5}
+.project .actions a,.project .board-name{font-size:12px}
+.compare-side p,.compare-metric p,.compare-metric-title,.compare-footnote{font-size:12px;line-height:1.5}
+.compare-links a,.compare-heading button,.add-link{font-size:12px}
+.help-center p,.onboarding p,.eco-lab p{font-size:12px;line-height:1.6}
+
+
+@media(pointer:coarse){.tools a,.header-help,.actions a,.compare-links a,.eco-result-actions button,.compare-heading button{min-height:44px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:0.01ms!important;transition-duration:0.01ms!important}}
 </style></head><body>
-<header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local">OFFLINE · READ-ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
-<main><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
-<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ Draft a PCB move</a></div>
+<a class="skip-to-content" href="#workspaceMain">Skip to main content</a>
+<header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local" id="runtimeMode">OFFLINE · REVIEW ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
+<main id="workspaceMain" tabindex="-1"><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
+<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects (press slash to focus)" aria-controls="workspaceProjects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="search-hint" aria-hidden="true">Press / to search</span><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ Draft a PCB move</a></div>
+<p class="search-feedback" id="projectSearchFeedback" role="status" aria-live="polite" aria-atomic="true"></p>
 <div class="compare-toolbar"><div><span class="overline">NATIVE EVIDENCE COMPARISON</span><p>Select exactly two source snapshots to compare observable evidence. Counts are never fabrication approval.</p></div><span id="compareSelection" role="status" aria-live="polite">__COMPARE_HINT__</span></div>
 <section class="compare-panel" id="comparePanel" hidden aria-label="Native snapshot comparison">
  <div class="compare-heading"><div><span class="overline">SIDE-BY-SIDE / INSPECTION ONLY</span><h2>Evidence delta</h2></div><button id="compareClear" type="button">Clear selection</button></div>
@@ -106,7 +147,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <div class="compare-metrics" id="compareMetrics"></div>
  <p class="compare-footnote">All values are source-specific native KiCad findings. A difference in counts is not proof of an engineering improvement, DFM acceptance, safe routing or manufacturing readiness. Source geometry, design intent, active DRC rules and external libraries require independent validation.</p>
 </section>
-<div class="grid" id="workspaceProjects">__PROJECT_CARDS__</div><div class="empty" id="emptyFilter" hidden>No registered review matches that search. Clear the filter to see available projects.</div>
+<div class="grid" id="workspaceProjects">__PROJECT_CARDS__</div><div class="empty" id="emptyFilter" hidden>No registered review matches that search. <button type="button" id="clearProjectSearch">Clear search and show projects</button></div>
 <section class="restore-section" id="nativeRestore" hidden aria-label="Restore private KiCad backup">
  <div><span class="overline">PRIVATE BACKUP / FRESH NATIVE VERIFICATION</span>
  <h2>Restore a Review Studio ZIP</h2>
@@ -221,7 +262,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
  <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
  <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
- <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.7 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.8 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
 </section>
 <dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
  <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
@@ -234,10 +275,12 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 </dialog>
 <div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
 <div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
-<div class="foot">ZapTrace Review Studio 0.1.7 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<div class="foot">ZapTrace Review Studio 0.1.8 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
 <script>
 // Direct native review is enabled only by the explicit localhost server.
 if(window.__REVIEW_LOCAL__?.token){
+ document.getElementById('runtimeMode').textContent='LOCAL · GUARDED ECO';
+ document.getElementById('runtimeMode').title='Reviews are read-only; only separately downloaded, KiCad-validated engineering drafts may be edited.';
  document.getElementById('localSessionControls').hidden=false;
  document.getElementById('desktopOnboarding').hidden=false;
  document.getElementById('desktopOnboardingSteps').hidden=false;
@@ -253,7 +296,13 @@ if(window.__REVIEW_LOCAL__?.token){
  const board=$('nativeBoardFile'),sch=$('nativeSchFile'),project=$('nativeProjectFile'),rules=$('nativeRulesFile'),sheetFolder=$('nativeSheetFolder'),name=$('nativeImportName');
  let lastEcoId=null;
  const ecoStatus=$('ecoStatus'),ecoCreate=$('ecoCreate'),ecoResult=$('ecoResult');
- function ecoMessage(note){ecoStatus.hidden=false;ecoStatus.textContent=note;}
+ function ecoMessage(note,kind='info'){
+  ecoStatus.hidden=false;ecoStatus.textContent=note;
+  ecoStatus.classList.toggle('error',kind==='error');
+  ecoStatus.classList.toggle('success',kind==='success');
+  ecoStatus.setAttribute('role',kind==='error'?'alert':'status');
+  ecoStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ }
  async function ecoFile(id,filename){
   const res=await fetch('/api/eco/result/'+encodeURIComponent(id)+'/'+filename,
    {headers:{'X-Review-Token':token},cache:'no-store'});
@@ -270,13 +319,13 @@ if(window.__REVIEW_LOCAL__?.token){
  }
  $('ecoForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  if(lastEcoId){ecoMessage('Discard the current local ECO draft before authoring another.');return;}
+  if(lastEcoId){ecoMessage('Discard the current local ECO draft before authoring another.','error');return;}
   const file=$('ecoSource').files?.[0];
   const reference=$('ecoRef').value.trim(),value=$('ecoValue').value.trim();
   if(!file||!file.name.endsWith('.kicad_sch')||file.size>4*1024*1024||file.size<100||
      !/^[A-Za-z]{1,5}[1-9][0-9]{0,5}$/.test(reference)||
      !/^[A-Za-z0-9][A-Za-z0-9 .,_+/%Ωµμ°()-]{0,62}$/.test(value)){
-   ecoMessage('Choose a native .kicad_sch under 4 MB, an exact component reference (R1) and a safe value.');return;
+   ecoMessage('Choose a native .kicad_sch under 4 MB, an exact component reference (R1) and a safe value.','error');return;
   }
   ecoCreate.disabled=true;
   try{
@@ -300,20 +349,26 @@ if(window.__REVIEW_LOCAL__?.token){
      $('ecoResultTitle').textContent=job.eco.reference+' · '+job.eco.old_value+' → '+job.eco.new_value+
       ' · KiCad verified copy · PCB NOT synchronized';
      lastEcoId=start.id;ecoResult.dataset.id=start.id;ecoResult.hidden=false;
-     ecoMessage('KiCad native netlist + ERC validated. Examine the visual diff before downloading a separate draft.');
-     ecoResult.scrollIntoView({behavior:'smooth',block:'nearest'});
+     ecoMessage('KiCad native netlist + ERC validated. Examine the visual diff before downloading a separate draft.','success');
+     ecoResult.scrollIntoView({behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'),block:'nearest'});
      return;
     }
    }
    throw Error('KiCad ECO validation timed out; no approval or source overwrite');
-  }catch(err){ecoMessage(err?.message||'KiCad ECO failed; source unchanged.');}
+  }catch(err){ecoMessage(err?.message||'KiCad ECO failed; source unchanged.','error');}
   finally{ecoCreate.disabled=false;}
  });
  // Native PCB authoring lives in a separate security namespace from the
  // schematic-value ECO; neither editor can read the other's artifacts.
  let pcbEcoId=null,pcbEcoBundle=false;
  const pcbResult=$('pcbEcoResult'),pcbStatus=$('pcbEcoStatus'),pcbButton=$('pcbEcoCreate');
- const pcbMessage=message=>{pcbStatus.hidden=false;pcbStatus.textContent=message;};
+ const pcbMessage=(message,kind='info')=>{
+  pcbStatus.hidden=false;pcbStatus.textContent=message;
+  pcbStatus.classList.toggle('error',kind==='error');
+  pcbStatus.classList.toggle('success',kind==='success');
+  pcbStatus.setAttribute('role',kind==='error'?'alert':'status');
+  pcbStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ };
  async function pcbFile(id,file){
   const r=await fetch('/api/pcb-eco/result/'+encodeURIComponent(id)+'/'+file,
    {headers:{'X-Review-Token':token},cache:'no-store'});
@@ -322,13 +377,13 @@ if(window.__REVIEW_LOCAL__?.token){
  }
  $('pcbEcoForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  if(pcbEcoId){pcbMessage('Discard the current PCB working copy before starting another move.');return;}
+  if(pcbEcoId){pcbMessage('Discard the current PCB working copy before starting another move.','error');return;}
   const file=$('pcbEcoSource').files?.[0],reference=$('pcbEcoRef').value.trim();
   const dx=Number($('pcbEcoDx').value),dy=Number($('pcbEcoDy').value);
   if(!file||!file.name.endsWith('.kicad_pcb')||file.size<200||file.size>10*1024*1024||
      !/^[A-Za-z]{1,5}[1-9][0-9]{0,5}$/.test(reference)||[dx,dy].some(x=>!Number.isFinite(x)||Math.abs(x)>5||Math.abs(x*20-Math.round(x*20))>1e-7)||
      (dx===0&&dy===0)){
-   pcbMessage('Select a valid native PCB, unique reference and nonzero ±5 mm movement on 0.05 mm grid.');return;
+   pcbMessage('Select a valid native PCB, unique reference and nonzero ±5 mm movement on 0.05 mm grid.','error');return;
   }
   pcbButton.disabled=true;
   try{
@@ -374,11 +429,11 @@ if(window.__REVIEW_LOCAL__?.token){
      pcbMessage(probed?'Native KiCad custom-rule loader probe passed; individual rule semantics and fabrication remain unverified. Matching PCB/project/rules are preserved in ZIP.':
       pcbEcoBundle?'Native PCB compared with the selected project file present; effective custom rule enforcement not independently certified. Download preserves that file.':
       'Native PCB compared with KiCad defaults only; no production project rules verified.');
-     pcbResult.scrollIntoView({behavior:'smooth',block:'nearest'});return;
+     pcbResult.scrollIntoView({behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'),block:'nearest'});return;
     }
    }
    throw Error('Native PCB validation exceeded the local timeout; no approval or source overwrite.');
-  }catch(error){pcbMessage(error?.message||'Native PCB placement refused; original remains unchanged.');}
+  }catch(error){pcbMessage(error?.message||'Native PCB placement refused; original remains unchanged.','error');}
   finally{pcbButton.disabled=false;}
  });
  $('pcbEcoDownload').addEventListener('click',async()=>{
@@ -390,7 +445,7 @@ if(window.__REVIEW_LOCAL__?.token){
    document.body.append(link);link.click();link.remove();
    setTimeout(()=>URL.revokeObjectURL(url),2500);
    pcbMessage(pcbEcoBundle?'Downloaded a separate PCB/project/rules evidence ZIP (where supplied). Source files remain unchanged.':'Downloaded PCB copy checked only with KiCad defaults; original unchanged.');
-  }catch(error){pcbMessage(error?.message||'Edited PCB download unavailable.');}
+  }catch(error){pcbMessage(error?.message||'Edited PCB download unavailable.','error');}
  });
  $('pcbEcoDiscard').addEventListener('click',async()=>{
   if(!pcbEcoId)return;
@@ -404,8 +459,8 @@ if(window.__REVIEW_LOCAL__?.token){
    $('pcbEcoDownload').textContent='Download separate PCB copy';
    delete pcbResult.dataset.id;delete pcbResult.dataset.frameReady;
    pcbResult.hidden=true;$('pcbEcoPreview').removeAttribute('srcdoc');
-   pcbMessage('Private PCB move draft discarded; original KiCad PCB was never modified.');
-  }catch(error){pcbMessage(error?.message||'Could not discard PCB draft.');}
+   pcbMessage('Private PCB move draft discarded; original KiCad PCB was never modified.','success');
+  }catch(error){pcbMessage(error?.message||'Could not discard PCB draft.','error');}
   finally{$('pcbEcoDiscard').disabled=false;}
  });
  $('ecoDownload').addEventListener('click',async()=>{
@@ -416,7 +471,7 @@ if(window.__REVIEW_LOCAL__?.token){
    a.href=url;a.download='source-edited-ECO.kicad_sch';document.body.append(a);a.click();a.remove();
    setTimeout(()=>URL.revokeObjectURL(url),2500);
    ecoMessage('Downloaded a separate KiCad ECO copy. Original PCB, source and BOM remain unchanged.');
-  }catch(err){ecoMessage(err?.message||'KiCad edited copy unavailable.');}
+  }catch(err){ecoMessage(err?.message||'KiCad edited copy unavailable.','error');}
  });
  $('ecoDiscard').addEventListener('click',async()=>{
   if(!lastEcoId)return;
@@ -427,8 +482,8 @@ if(window.__REVIEW_LOCAL__?.token){
    const result=await res.json();if(!res.ok||result.state!=='discarded')throw Error(result.error||'Could not discard draft');
    lastEcoId=null;delete ecoResult.dataset.id;delete ecoResult.dataset.frameReady;
    ecoResult.hidden=true;$('ecoPreview').removeAttribute('srcdoc');
-   ecoMessage('Local ECO draft discarded; no original source file was modified.');
-  }catch(err){ecoMessage(err?.message||'Could not discard local ECO draft.');}
+   ecoMessage('Local ECO draft discarded; no original source file was modified.','success');
+  }catch(err){ecoMessage(err?.message||'Could not discard local ECO draft.','error');}
   finally{$('ecoDiscard').disabled=false;}
  });
  for(const [field,caption] of [[board,$('nativeBoardName')],[sch,$('nativeSchName')],[project,$('nativeProName')],[rules,$('nativeDruName')]]){
@@ -614,6 +669,33 @@ if(window.__REVIEW_LOCAL__?.token){
   finally{run.disabled=false;}
  });
 }
+// Avoid presenting broken image icons as evidence. Only native, registered
+// real KiCad screenshots / native layer plots are shown. Never invent geometry.
+for(const card of document.querySelectorAll('.project')){
+ const art=card.querySelector('.art'),images=[...art.querySelectorAll('img')];
+ if(!images.length)continue;
+ const update=()=>{
+  for(const img of images){
+   if(img.complete&&img.naturalWidth===0)img.hidden=true;
+  }
+  if(!images.every(img=>img.complete)||images.some(img=>img.naturalWidth>0)||
+   art.querySelector('.image-unavailable'))return;
+  const fallback=document.createElement('div');
+  fallback.className='image-unavailable';
+  fallback.setAttribute('role','img');
+  fallback.setAttribute('aria-label','Native image preview unavailable');
+  const title=document.createElement('strong'),note=document.createElement('small');
+  title.textContent='Preview image unavailable';
+  note.textContent='Open the registered native evidence to inspect the source';
+  fallback.append(title,note);
+  art.append(fallback);
+ };
+ for(const img of images){
+  img.addEventListener('error',update);
+  img.addEventListener('load',update);
+ }
+ update();
+}
 // Compare *native source snapshots* only. Every number is taken from each
 // independently generated evidence.json; no inferred green sign-off or DRC
 // equivalence when the original project/manufacturing rules differ.
@@ -695,7 +777,36 @@ comparisonItems.forEach(card=>{
 });
 byId('compareClear').addEventListener('click',()=>{selectedSnapshots.length=0;renderComparison();});
 const filter=document.getElementById('filterProjects'),cards=[...document.querySelectorAll('.project')],empty=document.getElementById('emptyFilter');
-filter.addEventListener('input',()=>{const q=filter.value.trim().toLowerCase();let shown=0;for(const card of cards){card.hidden=!card.dataset.search.includes(q);if(!card.hidden)shown++;}empty.hidden=shown>0||!q;});
+const searchFeedback=document.getElementById('projectSearchFeedback');
+function filterReviews(){
+ const query=filter.value.trim().toLocaleLowerCase();
+ let shown=0;
+ for(const card of cards){
+  card.hidden=!card.dataset.search.toLocaleLowerCase().includes(query);
+  if(!card.hidden)shown++;
+ }
+ empty.hidden=shown>0||!query;
+ searchFeedback.textContent=query
+  ? 'Showing '+shown+' of '+cards.length+' native snapshots'
+  : cards.length+' native snapshots available';
+}
+filter.addEventListener('input',filterReviews);
+document.getElementById('clearProjectSearch').addEventListener('click',()=>{
+ filter.value='';filterReviews();filter.focus();
+});
+// Non-destructive keyboard accelerators only: never intercept form typing,
+// dialogs, editor iframes, or system Ctrl/Alt/Meta shortcuts.
+document.addEventListener('keydown',event=>{
+ if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
+ const active=document.activeElement;
+ const typing=active&&(active.matches('input,textarea,select,[contenteditable]')||active.isContentEditable);
+ if(event.key==='/'&&!typing&&!document.querySelector('dialog[open]')){
+  event.preventDefault();filter.focus();filter.select();
+ }else if(event.key==='Escape'&&active===filter&&filter.value){
+  event.preventDefault();filter.value='';filterReviews();
+ }
+});
+filterReviews();
 const fields={name:document.getElementById('importName'),board:document.getElementById('importBoard'),schematic:document.getElementById('importSchematic')};
 const shellQuote=value=>"'"+value.replaceAll("'","'\\''")+"'";
 document.getElementById('importForm').addEventListener('submit',event=>{
@@ -714,7 +825,7 @@ document.getElementById('importForm').addEventListener('submit',event=>{
   shellQuote(__WORKSPACE_JS__),'add','--name',shellQuote(name),'--board',shellQuote(board)];
  if(schematic)parts.push('--schematic',shellQuote(schematic));
  document.getElementById('importSnippet').textContent=parts.join(' ');
- box.hidden=false;box.scrollIntoView({block:'nearest',behavior:'smooth'});
+ box.hidden=false;box.scrollIntoView({block:'nearest',behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth')});
 });
 document.getElementById('copyImport').addEventListener('click',async()=>{
  const text=document.getElementById('importSnippet').textContent,button=document.getElementById('copyImport');

@@ -327,3 +327,25 @@ def test_empty_or_one_native_source_does_not_show_unusable_compare_selection(tmp
     assert 'class="compare-checkbox"' in one
     assert "Add another native KiCad board to unlock comparison" in one
     assert "No native KiCad boards yet" not in one
+
+
+def test_local_workspace_accessibility_search_and_truthful_version(tmp_path: Path) -> None:
+    review = _review(tmp_path / "native-evidence")
+    catalog = tmp_path / "library"
+    workspace._append_project(catalog, "Native test review", review)
+    html = workspace.render_workspace(catalog).read_text()
+    assert "ZapTrace Review Studio 0.1.8" in html
+    assert "Distribution 0.1.8" in html
+    assert "OFFLINE · REVIEW ONLY" in html
+    assert "LOCAL · GUARDED ECO" in html
+    assert '<main id="workspaceMain" tabindex="-1">' in html
+    assert 'class="skip-to-content" href="#workspaceMain"' in html
+    assert 'id="filterProjects"' in html
+    assert 'aria-controls="workspaceProjects"' in html
+    assert 'id="projectSearchFeedback" role="status" aria-live="polite"' in html
+    assert 'id="clearProjectSearch"' in html
+    assert "event.key==='/'&&!typing" in html
+    assert "event.key==='Escape'&&active===filter&&filter.value" in html
+    assert "prefers-reduced-motion:reduce" in html
+    assert "native snapshots available" in html
+    assert "ZapTrace Review Studio 0.1.7" not in html

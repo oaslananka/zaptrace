@@ -83,6 +83,16 @@ Older 0.1.7 package bytes remain unchanged. **Full EDA, every custom-rule
 semantic, real continuous 3D CAD, independent physical host acceptance,
 publisher signing, commercial rights and fab approval are still unverified.**
 
+## Post-0.1.8 isolated workspace UX and external-review hardening
+
+See `REVIEW_STUDIO_UX_ACCEPTANCE.md` for source-only progress and remaining
+professional UI and full EDA gates. Local real Chrome tested corrected branding,
+truthful editing mode, keyboard navigation, 320–1440px responsive cards,
+accessible error messages, and secure external registered-review image/viewer
+navigation without exposing private original KiCad sources. This source work is
+**not present in the SHA-bound 0.1.8 .deb** and must receive a new version with
+independent package installation QA before it can be claimed as a release.
+
 ## Required milestones for full-featured EDA
 
 1. **Authentic schematic authoring.** Real component/library selection, net and

@@ -15,6 +15,7 @@ import binascii
 import hashlib
 import json
 import math
+import os
 import re
 import secrets
 import shutil
@@ -28,7 +29,7 @@ from email.policy import default
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from review_studio_library import delete_review, export_review, validate_restore_backup
 from review_studio_workspace import (
@@ -59,6 +60,27 @@ MIMES = {
     ".rpt": "text/plain; charset=utf-8",
     ".md": "text/markdown; charset=utf-8",
 }
+
+
+def registered_review_asset_id(review: Path) -> str:
+    """Opaque non-secret URL id; never use arbitrary absolute paths from GET."""
+    return hashlib.sha256(str(review.resolve()).encode("utf-8")).hexdigest()[:24]
+
+
+def web_review_links(workspace: Path, html: str) -> str:
+    """Change only displayed registered evidence links in the localhost copy.
+
+    Keep standalone file:// workspace links unchanged. Do not rewrite any
+    unregistered file; the GET endpoint independently checks each request.
+    """
+    for record in _read_projects(workspace):
+        review = record["review"]
+        relative = os.path.relpath(review, workspace)
+        old = "/".join(quote(part) for part in Path(relative).parts) + "/"
+        url = "/review-assets/" + registered_review_asset_id(review) + "/"
+        html = html.replace('src="' + old, 'src="' + url)
+        html = html.replace('href="' + old, 'href="' + url)
+    return html
 
 
 def checked_name(filename: str, extension: str) -> bool:
@@ -353,7 +375,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
         if url.path == "/" or url.path == "/index.html":
             try:
                 path = render_workspace(self.review_server.workspace)
-                source = path.read_text(encoding="utf-8")
+                source = web_review_links(self.review_server.workspace, path.read_text(encoding="utf-8"))
                 # Bridge capability is only delivered from the bound localhost server;
                 # file:// keeps the standalone command-generation fallback.
                 bridge = (
@@ -366,6 +388,52 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"error": "Failed to render verified project library", "detail": str(exc)[:170]},
                 )
+            return
+        # Registered native evidence assets get a bounded, opaque URL, even
+        # when the original standalone review is outside the current workspace.
+        # Never allow source PCB/SCHEMATIC, traversal or unregistered file reads.
+        if url.path.startswith("/review-assets/"):
+            match = re.fullmatch(r"/review-assets/([0-9a-f]{24})/(.+)", url.path)
+            if match is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            review_id, encoded_relative = match.groups()
+            relative = unquote(encoded_relative)
+            parts = Path(relative).parts
+            if not parts or any(part in (".", "..") for part in parts) or "\\" in relative or "\x00" in relative:
+                self.send_error(HTTPStatus.FORBIDDEN)
+                return
+            try:
+                matched = [
+                    item["review"]
+                    for item in _read_projects(self.review_server.workspace)
+                    if registered_review_asset_id(item["review"]) == review_id
+                ]
+            except (ValueError, RuntimeError, OSError, json.JSONDecodeError):
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            if len(matched) != 1:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            base = matched[0].resolve()
+            candidate = (base / relative).resolve()
+            if not candidate.is_relative_to(base) or not self._is_known_file(candidate):
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            native_bytes = candidate.read_bytes()
+            if candidate.name == "index.html":
+                # Independent build-era pages may still point to a prior
+                # offline workspace. In this verified localhost wrapper,
+                # return only the safe local Projects page.
+                native_html = native_bytes.decode("utf-8")
+                native_html = re.sub(
+                    r'(id="workspaceHome"\s+href=")[^"]*(")',
+                    r"\g<1>/\g<2>",
+                    native_html,
+                    count=1,
+                )
+                native_bytes = native_html.encode("utf-8")
+            self._serve_bytes(native_bytes, candidate.suffix.lower(), sandboxed=True)
             return
         # Existing relative links from /<workspace>/index.html can contain ../
         # and original review cards point to build/native-review/index.html.
@@ -381,9 +449,23 @@ class ReviewHandler(BaseHTTPRequestHandler):
             return
         self._serve_bytes(candidate.read_bytes(), candidate.suffix.lower())
 
-    def _serve_bytes(self, body: bytes, ext: str) -> None:
+    def _serve_bytes(self, body: bytes, ext: str, *, sandboxed: bool = False) -> None:
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", MIMES.get(ext, "application/octet-stream"))
+        if sandboxed and ext == ".html":
+            # Untrusted externally registered native HTML must never inherit
+            # the localhost application's privileged bearer capability.
+            # Relative native image/script assets and separate read-only report
+            # popups remain available, but popup sandbox inheritance prevents
+            # same-origin access, network egress or privileged fetch.
+            host = f"http://127.0.0.1:{self.review_server.server_port}"
+            self.send_header(
+                "Content-Security-Policy",
+                "sandbox allow-scripts allow-popups; default-src 'none'; "
+                + f"img-src data: blob: {host}; "
+                + f"script-src 'unsafe-inline' {host}; style-src 'unsafe-inline' {host}; "
+                + "connect-src 'none'; form-action 'none'; base-uri 'none'",
+            )
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
