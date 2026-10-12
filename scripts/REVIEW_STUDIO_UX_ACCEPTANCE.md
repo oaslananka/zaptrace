@@ -231,3 +231,20 @@ a source-byte-identical ZIP, two native KiCad F/B copper SVG snapshots,
 private authenticated downloadable evidence, 390px no-overflow viewport,
 and zero JavaScript exceptions. This is an **unshipped source-only**
 regression, not a claim about installed 0.1.10.
+
+## 0.1.11 exact-package authenticated native copper UX acceptance
+
+The previously unshipped post-0.1.10 `Via indices` and safe
+geometry reset controls were separately packaged under unsigned
+**0.1.11**. Actual Chrome 155 exercised the exact extracted `.deb`
+and an **APT-installed Ubuntu 24.04.5** localhost server. A custom
+`.kicad_dru` with sentinel-proven loading and independent native
+default DRC yielded one explicitly selected F.Cu/B.Cu/F.Cu corridor
+(two 0.60 mm / 0.30 mm through-vias) and a legacy F.Cu route in
+the same authenticated browser session. Both preserved native
+DRC 16→16, reduced open copper 37→36, produced genuine KiCad
+before/after SVG, verified SHA-bound private downloads and discard.
+Malformed/repeated indices are blocked in Chrome before job creation.
+The portable source remains byte-identical. Real 390 px browser
+layout had no horizontal overflow or runtime JavaScript exceptions.
+No result implies schematic synchronization or fabrication signoff.

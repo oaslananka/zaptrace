@@ -212,6 +212,85 @@ def test_native_two_through_via_http_workflow_uses_real_kicad_drc_and_private_sh
     assert source_sha == hashlib.sha256(original).hexdigest()
 
 
+def test_authenticated_portable_custom_dru_two_via_and_independent_default_drc(
+    tmp_path: Path, portable: tuple[bytes, dict[str, bytes]]
+) -> None:
+    original, original_files = portable
+    files = dict(original_files)
+    name = "ESP32_I2C_Sensor_Board.kicad_dru"
+    custom = b'(version 1)\n(rule "BENIGN_COURTYARD" (constraint courtyard_clearance (min 0.1mm)))\n'
+    files[name] = custom
+    raw = make_zip(files)
+    with local_studio(tmp_path) as (server, base):
+        code, found = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw))
+        assert code == 200, found
+        links = json.loads(found)["links"]
+        pair = next(
+            x
+            for x in links
+            if any("Pad 2 [GND] of R3" in pad["label"] for pad in x["pads"])
+            and any("Pad 2 [GND] of R4" in pad["label"] for pad in x["pads"])
+        )
+        uuids = [x["uuid"] for x in pair["pads"]]
+        payload = {
+            **upload(raw),
+            "start_pad_uuid": uuids[0],
+            "end_pad_uuid": uuids[1],
+            "waypoints": [[72.51, 58.8], [77.51, 58.8]],
+            "via_indices": [1, 2],
+        }
+        code, queued = fetch(base + "/api/native-copper", server.secret, data=payload)
+        assert code == 202, queued
+        job_id = json.loads(queued)["id"]
+        done = await_job(base, server.secret, job_id)
+        assert done["state"] == "complete", done
+        assert done["native_copper"]["rule_context"]["custom_rule_loader_probe_passed"] is True
+        assert done["native_copper"]["rule_context"]["default_drc_crosscheck_passed"] is True
+        endpoint = base + "/api/native-copper/result/" + job_id
+        code, packed = fetch(endpoint + "/native-copper-project.zip", server.secret)
+        assert code == 200
+        with zipfile.ZipFile(io.BytesIO(packed)) as package:
+            assert package.testzip() is None
+            assert package.read(name) == custom
+            evidence = json.loads(package.read("EVIDENCE.json"))
+            assert evidence["source_asset_sha256"][name] == hashlib.sha256(custom).hexdigest()
+            assert evidence["rule_context"]["effective_rules_independently_verified"] is False
+            assert evidence["link"]["via_indices"] == [1, 2]
+            for filename in ("baseline-default-drc.json", "candidate-default-drc.json"):
+                assert filename in package.namelist()
+            assert len(json.loads(package.read("candidate-default-drc.json"))["unconnected_items"]) == 36
+            assert package.read("before.svg") != package.read("after.svg")
+        code, discarded = fetch(base + "/api/native-copper/discard", server.secret, data={"id": job_id})
+        assert code == 200 and json.loads(discarded)["state"] == "discarded"
+        code, _ = fetch(endpoint + "/native-copper-project.zip", server.secret)
+        assert code == 404
+    assert hashlib.sha256(raw).hexdigest() != hashlib.sha256(original).hexdigest()
+    assert original_files == portable[1]
+
+
+@pytest.mark.parametrize(
+    ("bad_name", "rules"),
+    [
+        ("WRONG_PROJECT.kicad_dru", b'(version 1)\n(rule "x" (constraint courtyard_clearance (min 0.1mm)))'),
+        ("ESP32_I2C_Sensor_Board.kicad_dru", b'(version 1)\n(rule "x" (constraint clearance (min INVALID)))'),
+    ],
+)
+def test_native_custom_rules_wrong_name_or_invalid_syntax_rejected_without_artifact(
+    tmp_path: Path, portable: tuple[bytes, dict[str, bytes]], bad_name: str, rules: bytes
+) -> None:
+    _, files = portable
+    content = {**files, bad_name: rules}
+    raw = make_zip(content)
+    with local_studio(tmp_path) as (server, base):
+        code, answer = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(raw))
+        if bad_name.startswith("WRONG"):
+            assert code == 400, (code, answer)
+        else:
+            assert code in (400, 422), (code, answer)
+        assert not list((tmp_path / "workspace/native-copper-results").glob("*/EVIDENCE.json"))
+    assert files == portable[1]
+
+
 @pytest.mark.parametrize(
     ("change", "expected"),
     [

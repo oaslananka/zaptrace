@@ -373,15 +373,76 @@ def test_native_waypoint_validation_denies_wrong_direction_and_untrusted_geometr
     assert board.read_bytes() == original
 
 
-def test_native_link_rejects_unattested_custom_rules_even_for_good_geometry(tmp_path: Path) -> None:
+def test_native_dual_oracle_custom_kicad_dru_2_via_link_and_sha(tmp_path: Path) -> None:
     board, ids = source_project(tmp_path)
     dru = board.with_suffix(".kicad_dru")
-    dru.write_text('(version 1)\n(rule "demo" (constraint clearance (min 0.2mm)))\n')
-    output = tmp_path / "rules-prohibited"
-    run = execute(board, output, ids[("U1", "2")], ids[("U1", "3")])
-    assert run.returncode == 2
-    assert "Custom KiCad design rules" in run.stderr
-    assert not output.exists()
+    original = b'(version 1)\n(rule "BENIGN_COURTYARD" (constraint courtyard_clearance (min 0.1mm)))\n'
+    dru.write_bytes(original)
+    source_sha = hashlib.sha256(board.read_bytes()).hexdigest()
+    output = tmp_path / "custom-rule-verified-vias"
+    run = execute(
+        board,
+        output,
+        ids[("R3", "2")],
+        ids[("R4", "2")],
+        "[[72.51,58.8],[77.51,58.8]]",
+        "[1,2]",
+    )
+    assert run.returncode == 0, run.stderr
+    proof = json.loads((output / "EVIDENCE.json").read_text())
+    assert proof["source_sha256"] == source_sha
+    assert proof["rule_context"] == {
+        "mode": "project_with_custom_rules",
+        "custom_rules_sha256": hashlib.sha256(original).hexdigest(),
+        "custom_rule_loader_probe_passed": True,
+        "default_drc_crosscheck_passed": True,
+        "effective_rules_independently_verified": False,
+    }
+    assert proof["source_asset_sha256"][dru.name] == hashlib.sha256(original).hexdigest()
+    assert proof["native_drc"]["before_violations"] == proof["native_drc"]["after_violations"] == 16
+    assert proof["native_drc"]["before_unconnected"] == 37
+    assert proof["native_drc"]["after_unconnected"] == 36
+    assert (output / "project" / dru.name).read_bytes() == original
+    for sidecar in ("baseline-default-drc.json", "candidate-default-drc.json"):
+        assert (output / sidecar).is_file()
+    assert len(json.loads((output / "candidate-default-drc.json").read_text())["unconnected_items"]) == 36
+    assert board.read_bytes() == board.read_bytes() and hashlib.sha256(board.read_bytes()).hexdigest() == source_sha
+    assert dru.read_bytes() == original
+
+
+def test_custom_native_track_width_violation_blocks_two_via_route(tmp_path: Path) -> None:
+    board, ids = source_project(tmp_path)
+    rules = board.with_suffix(".kicad_dru")
+    rules.write_text('(version 1)\n(rule "STRICT_NEW_TRACK_WIDTH" (constraint track_width (min 0.25mm)))\n')
+    board_sha = hashlib.sha256(board.read_bytes()).hexdigest()
+    result_folder = tmp_path / "custom-width-rejected"
+    result = execute(
+        board,
+        result_folder,
+        ids[("R3", "2")],
+        ids[("R4", "2")],
+        "[[72.51,58.8],[77.51,58.8]]",
+        "[1,2]",
+    )
+    assert result.returncode == 2
+    assert "New physical KiCad DRC violation" in result.stderr, result.stderr
+    assert not result_folder.exists()
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == board_sha
+
+
+def test_invalid_native_custom_dru_fails_without_silent_default_fallback(tmp_path: Path) -> None:
+    board, ids = source_project(tmp_path)
+    dru = board.with_suffix(".kicad_dru")
+    rules = b"(version 1)\n(rule broken (constraint clearance (min NOT_A_DIMENSION)))\n"
+    dru.write_bytes(rules)
+    sha = hashlib.sha256(board.read_bytes()).hexdigest()
+    out = tmp_path / "never-author-invalid-rule"
+    result = execute(board, out, ids[("U1", "2")], ids[("U1", "3")])
+    assert result.returncode == 2
+    assert "KiCad" in result.stderr
+    assert not out.exists()
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == sha
+    assert dru.read_bytes() == rules
 
 
 def test_native_two_straight_links_prove_cumulative_drc_nonworsening(tmp_path: Path) -> None:

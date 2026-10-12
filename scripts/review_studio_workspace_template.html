@@ -217,7 +217,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
   <label>Optional explicit through-via waypoint indices (JSON, 1-based)<input id="copperViaIndices" type="text" value="[]" maxlength="12" autocomplete="off" spellcheck="false" aria-label="Empty for F.Cu only; two increasing one-based waypoint indices for exact F.Cu to B.Cu to F.Cu through-vias" placeholder="[1,2]"/></label>
   <button type="submit" id="copperRouteRun" disabled>Verify one real copper link &amp; create copy</button>
  </form>
- <p class="eco-warning">Experimental source-only post-0.1.10 routing extension: the verified 0.1.10 installer is unchanged and does not contain this two-via feature. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. The native 0.20 mm track, existing DRC findings, complete project-local library sources, copper geometry and schematic parity must all survive independently. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
+ <p class="eco-warning">Experimental 0.1.11 native routing candidate: verify this exact installer and its local QA manifest before relying on two-via or custom-rule features. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. An optional matching project-root .kicad_dru is checked with a native KiCad loader sentinel; the proposed copper must ALSO pass DRC on independent copies without that custom rule file. Rule semantics are not independently qualified. The native 0.20 mm track, existing DRC findings, project-local library sources, copper geometry and schematic parity must all survive. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
  <p class="eco-status" id="copperStatus" role="status" aria-live="polite" hidden></p>
  <div class="eco-result" id="copperResult" hidden>
   <div class="eco-result-head"><strong id="copperResultTitle">Separate native KiCad copper draft · NOT approved</strong>
@@ -315,7 +315,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
  <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
  <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
- <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.10 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.11 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
 </section>
 <dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
  <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
@@ -328,7 +328,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 </dialog>
 <div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
 <div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
-<div class="foot">ZapTrace Review Studio 0.1.10 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<div class="foot">ZapTrace Review Studio 0.1.11 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
 <script>
 // Direct native review is enabled only by the explicit localhost server.
 if(window.__REVIEW_LOCAL__?.token){
@@ -494,7 +494,11 @@ if(window.__REVIEW_LOCAL__?.token){
       data.after_unconnected+' · Physical DRC: '+data.before_violations+' → '+
       data.after_violations+' · Native parity unchanged at zero. '+data.link.length_mm.toFixed(2)+
       ' mm copper, 0.20 mm width, layers '+data.link.segment_layers.join(' → ')+
-      ', through-vias '+data.link.via_count+'. No fabrication or electrical signoff.';
+      ', through-vias '+data.link.via_count+'. '+
+      (data.rule_context?.mode==='project_with_custom_rules'
+       ? 'Custom .kicad_dru loader proof + independent default KiCad DRC passed; rule semantics NOT independently approved. '
+       : 'Standard project KiCad DRC passed. ')+
+      'No fabrication or electrical signoff.';
      copperResult.hidden=false;
      try{
       const previewReply=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/PREVIEW.html',

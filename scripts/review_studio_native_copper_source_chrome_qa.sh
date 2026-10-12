@@ -31,6 +31,10 @@ from zaptrace.export.kicad import export_kicad
 import os,zipfile
 folder=Path(os.environ['SOURCE'])
 export_kicad(parse_file(Path('build/source-reference-readonly/issue91-design.yaml')),folder)
+if os.environ.get('ZAPTRACE_COPPER_CUSTOM_RULES')=='1':
+ (folder/'ESP32_I2C_Sensor_Board.kicad_dru').write_text(
+  '(version 1)\n(rule "BENIGN_COURTYARD" (constraint courtyard_clearance (min 0.1mm)))\n'
+ )
 with zipfile.ZipFile(os.environ['ZIP'],'w',zipfile.ZIP_DEFLATED) as archive:
  for member in sorted(folder.rglob('*')):
   if member.is_file():archive.write(member,member.relative_to(folder).as_posix())
@@ -75,6 +79,15 @@ with zipfile.ZipFile(sys.argv[1]) as result:
  assert evidence['native_drc']['before_violations']==evidence['native_drc']['after_violations']==16
  assert evidence['fabApproved'] is False
  assert result.read('before.svg')!=result.read('after.svg')
+ if __import__('os').environ.get('ZAPTRACE_COPPER_CUSTOM_RULES')=='1':
+  context=evidence['rule_context']
+  assert context['custom_rule_loader_probe_passed'] is True
+  assert context['default_drc_crosscheck_passed'] is True
+  assert context['effective_rules_independently_verified'] is False
+  assert evidence['source_asset_sha256']['ESP32_I2C_Sensor_Board.kicad_dru']==context['custom_rules_sha256']
+  assert 'baseline-default-drc.json' in result.namelist()
+  assert 'candidate-default-drc.json' in result.namelist()
+  assert len(json.loads(result.read('candidate-default-drc.json'))['unconnected_items'])==36
  from pathlib import Path
  board=Path(sys.argv[1]).parent/'native-verified-via.kicad_pcb'
  board.write_bytes(result.read('ESP32_I2C_Sensor_Board.kicad_pcb'))

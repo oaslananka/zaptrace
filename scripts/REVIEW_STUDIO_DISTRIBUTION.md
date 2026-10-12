@@ -261,3 +261,35 @@ board fixtures, Git metadata and staged source PCB/schematics. Archive contents
 and the exact SHA256 should be audited before external distribution. No code
 signing, public update feed, or external consumer acceptance has been completed
 by this local build.
+
+## 0.1.11 separate native two-through-via and custom-rule local candidate
+
+The unsigned **0.1.11** package was separately accepted against its
+own 9/9 release gate, deterministic repeated package bytes, real
+Ubuntu 24.04.5 APT upgrade/install/uninstall, native KiCad 10.0.7
+DRC/3D, installed-package host Chrome, exact extracted-package Chrome,
+source SHA-256 and previous 0.1.1 backup/user-data preservation.
+Native custom `.kicad_dru` files are copied verbatim, independently
+loader-probed and crosschecked with rule-free KiCad DRC before a new
+two-through-via copper link can be downloaded.
+
+`zaptrace-review-studio_0.1.11_all.deb` SHA-256:
+`267cb49b0055a9eb16fad6943053e9aacb79ad14d692fef8c1023e72334297af`.
+
+`zaptrace-review-studio_0.1.11_ubuntu24.04-local-RC.zip`
+SHA-256:
+`3bdf9677b13f2a6a89eea174e7351abf5928a56adc4405ec1289b5fe8b550c5d`.
+
+Distinct source/Ubuntu evidence:
+`build/distribution/CLEAN_UBUNTU_2404_0111_QA.txt` and
+`build/distribution/RELEASE_MANIFEST.json`.
+Historical **0.1.10** QA manifest saved as
+`build/distribution/RELEASE_MANIFEST_0110.json`; old 0.1.10
+Debian package/kit hashes unchanged.
+
+This is an **unsigned local engineering release candidate, NOT GA**.
+Zero new physical DRC findings means only that this single
+copy-on-write route did not worsen *verified* violations; existing
+16 DRC failures and 36 open connections require engineering resolution.
+No full EDA editor, zone refill, routing completion, fab signoff,
+independent host testing or publisher identity signature.

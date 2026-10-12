@@ -213,3 +213,35 @@ DRC signatures from the direct-source reference placement, so
 cross-layout metrics are never combined. The temporary PR copy must be
 regenerated and the full DRC contract rerun if the board or KiCad
 version changes.
+
+## 0.1.11 local candidate acceptance (12 October 2026)
+
+The source-only milestones above are now captured **separately in
+the unsigned, locally accepted 0.1.11 Debian release candidate**, NOT
+retroactively in the frozen 0.1.10 installation. The guarded real
+F.Cu→B.Cu→F.Cu two-through-via route and the old F.Cu-only route
+both passed KiCad 10.0.7, native open-link count **37→36**, existing
+physical DRC **16→16**, browser preview, SHA-protected project ZIP,
+original source preservation and explicit discard.
+
+A matching project-root `.kicad_dru` is preserved by SHA-256 and must
+independently pass (1) a disposable **native KiCad rule-loader sentinel
+probe** and (2) both custom-rule KiCad DRC and a **separate rule-free
+KiCad DRC** on source/working copies. A restrictive 0.25 mm track-width
+rule correctly rejected a new 0.20 mm trace; invalid custom rules
+cannot silently fall back to defaults, even during link discovery.
+Proof of loader operation is NOT independent semantic verification of
+every custom rule. Both DRC JSON pairs are bundled with the protected
+KiCad source. Browser Chrome 155 exercised the exact extracted Debian
+bytes, plus a separate host Chrome instance exercising the **real
+APT-installed Ubuntu 24.04.5** application; prior local private
+0.1.1 review files and backup ZIP survived real upgrade, restore and
+APT uninstall.
+
+Exact 0.1.11 `.deb` SHA-256:
+`267cb49b0055a9eb16fad6943053e9aacb79ad14d692fef8c1023e72334297af`.
+Final reports: `build/distribution/CLEAN_UBUNTU_2404_0111_QA.txt` and
+`build/distribution/RELEASE_MANIFEST.json`.
+No issuer signing, automatic copper completion, generic multilayer
+routing, zone refill, electromagnetic/electrical acceptance or PCB
+fabrication approval.

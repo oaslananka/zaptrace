@@ -334,8 +334,8 @@ def test_local_workspace_accessibility_search_and_truthful_version(tmp_path: Pat
     catalog = tmp_path / "library"
     workspace._append_project(catalog, "Native test review", review)
     html = workspace.render_workspace(catalog).read_text()
-    assert "ZapTrace Review Studio 0.1.10" in html
-    assert "Distribution 0.1.10" in html
+    assert "ZapTrace Review Studio 0.1.11" in html
+    assert "Distribution 0.1.11" in html
     assert "OFFLINE · REVIEW ONLY" in html
     assert "LOCAL · GUARDED ECO" in html
     assert '<main id="workspaceMain" tabindex="-1">' in html

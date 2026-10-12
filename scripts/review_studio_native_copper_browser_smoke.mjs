@@ -6,6 +6,7 @@ const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const zip=process.env.ZAPTRACE_COPPER_ZIP;
 const dir=process.env.ZAPTRACE_COPPER_DOWNLOAD_DIR;
 const viaMode=process.env.ZAPTRACE_COPPER_VIA_PAIR==='1';
+const customMode=process.env.ZAPTRACE_COPPER_CUSTOM_RULES==='1';
 if(!port||!zip||!dir)throw Error('Real localhost Chrome and portable KiCad ZIP required');
 const initialSha=createHash('sha256').update(await readFile(zip)).digest('hex');
 let pages=[];
@@ -88,9 +89,11 @@ for(let i=0;i<440;i++){
  if(!result.running&&!result.ready)throw Error('Native KiCad copper route rejected: '+result.status);
  await new Promise(resolve=>setTimeout(resolve,200));
 }
+console.log('CHROME_NATIVE_COPPER_VERIFICATION_STATE',JSON.stringify({result,viaMode,customMode}));
 pass(result.ready&&result.summary.includes('Unconnected: 37 → 36')&&
  result.summary.includes('Physical DRC: 16 → 16')&&result.summary.includes('0.20 mm width')&&
  result.title.includes('NOT APPROVED')&&
+ (!customMode||result.summary.includes('Custom .kicad_dru loader proof + independent default KiCad DRC passed'))&&
  (!viaMode||(result.title.includes('2 through-via(s)')&&result.summary.includes('F.Cu → B.Cu → F.Cu'))),
  viaMode?'Chrome native F/B two-through-via copy proved DRC 37→36 without new violations and explicitly blocked fab':
  'Chrome native selected copper route reduced open count without new physical DRC; fabrication explicitly blocked');

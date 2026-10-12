@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import pcbnew as pcb
-from review_studio_pcb_eco import signature, state
+from review_studio_pcb_eco import attest_custom_rule_loading, signature, state
 
 PROJECT_SIDECARS = (".kicad_sch", ".kicad_pro")
 PORTABLE_FILES = ("fp-lib-table", "sym-lib-table", "ZapTrace.kicad_sym")
@@ -44,8 +44,11 @@ def _portable_sources(board: Path) -> list[Path]:
         raise ValueError("Verified self-contained ZapTrace.pretty source required")
     if any(not path.is_file() or path.is_symlink() for path in paths):
         raise ValueError("Project, schematic and portable library sidecars must exist as regular files")
-    if (folder / (board.stem + ".kicad_dru")).exists():
-        raise ValueError("Custom KiCad design rules require separate independent loader proof")
+    rules = board.with_suffix(".kicad_dru")
+    if rules.exists() or rules.is_symlink():
+        if rules.is_symlink() or not rules.is_file() or not 0 < rules.stat().st_size <= 1_000_000:
+            raise ValueError("KiCad custom rules must be a regular file under 1 MB")
+        paths.append(rules)
     expected_uri = {
         "fp-lib-table": "${KIPRJMOD}/ZapTrace.pretty",
         "sym-lib-table": "${KIPRJMOD}/ZapTrace.kicad_sym",
@@ -109,6 +112,21 @@ def _native_report(cli: str, source: Path, output: Path) -> dict:
     ):
         raise RuntimeError("Unexpected native KiCad 10 DRC evidence")
     return report
+
+
+def _enforce_nonworsening(baseline: dict, candidate: dict, *, label: str) -> tuple[int, int]:
+    for key in ("kicad_version", "included_severities", "ignored_checks"):
+        if baseline.get(key) != candidate.get(key):
+            raise RuntimeError(f"{label}: KiCad engine, severities or active rule policy changed")
+    if candidate["schematic_parity"] or baseline["schematic_parity"]:
+        raise RuntimeError(f"{label}: KiCad schematic/PCB parity not clean")
+    added = Counter(map(signature, candidate["violations"])) - Counter(map(signature, baseline["violations"]))
+    if added:
+        raise RuntimeError(f"{label}: New physical KiCad DRC violation(s): {sum(added.values())}; route rejected")
+    before, after = len(baseline["unconnected_items"]), len(candidate["unconnected_items"])
+    if after != before - 1:
+        raise RuntimeError(f"{label}: Exactly one native KiCad unconnected item must be resolved")
+    return before, after
 
 
 def _pad_lookup(board: Any) -> dict[str, Any]:
@@ -370,15 +388,42 @@ def prove(
         for key in ("kicad_version", "included_severities", "ignored_checks"):
             if initial.get(key) != actual.get(key):
                 raise RuntimeError("Native KiCad rules or engine changed during routing")
-        if actual["schematic_parity"]:
-            raise RuntimeError("New schematic/PCB parity issue; route rejected")
-        additions = Counter(map(signature, actual["violations"])) - Counter(map(signature, initial["violations"]))
-        if additions:
-            raise RuntimeError(f"New physical KiCad DRC violation(s): {sum(additions.values())}; route rejected")
-        before_open = len(initial["unconnected_items"])
-        after_open = len(actual["unconnected_items"])
-        if after_open != before_open - 1:
-            raise RuntimeError("Exactly one native KiCad unconnected item must be resolved by this single link")
+        before_open, after_open = _enforce_nonworsening(initial, actual, label="Project KiCad DRC")
+        rule_filename = source.with_suffix(".kicad_dru").name
+        custom_rules = first / rule_filename
+        rule_loader_proved = False
+        default_drc_proved = False
+        if custom_rules.is_file():
+            rule_loader_proved = attest_custom_rule_loading(
+                cli, root, first_board, custom_rules, originals[source.name]
+            )
+            # Dual-oracle: user-authored custom rules can override generic
+            # defaults. In independent, *rule-free* copies of each exact
+            # normalized input/output board, even a relaxed custom clearance
+            # cannot hide a new default DRC or another connected net.
+            unruled_before = root / "independent-default-before"
+            unruled_after = root / "independent-default-after"
+            _clone_assets(
+                [path for path in paths if path.name != rule_filename],
+                source.parent,
+                unruled_before,
+            )
+            _clone_assets(
+                [path for path in paths if path.name != rule_filename],
+                source.parent,
+                unruled_after,
+            )
+            shutil.copyfile(first_board, unruled_before / source.name)
+            shutil.copyfile(second_board, unruled_after / source.name)
+            default_before = _native_report(cli, unruled_before / source.name, root / "default-before-drc.json")
+            default_after = _native_report(cli, unruled_after / source.name, root / "default-after-drc.json")
+            _enforce_nonworsening(default_before, default_after, label="Independent default KiCad DRC")
+            if (
+                default_before["kicad_version"] != initial["kicad_version"]
+                or default_after["kicad_version"] != actual["kicad_version"]
+            ):
+                raise RuntimeError("Independent KiCad custom-vs-default version changed")
+            default_drc_proved = True
         if any(
             digest(path) != sha for path, sha in ((source.parent / name, value) for name, value in originals.items())
         ):
@@ -389,6 +434,13 @@ def prove(
             "source_sha256": originals[source.name],
             "working_sha256": digest(second_board),
             "source_asset_sha256": originals,
+            "rule_context": {
+                "mode": "project_with_custom_rules" if rule_loader_proved else "project",
+                "custom_rules_sha256": originals.get(rule_filename),
+                "custom_rule_loader_probe_passed": rule_loader_proved,
+                "default_drc_crosscheck_passed": default_drc_proved,
+                "effective_rules_independently_verified": False,
+            },
             "link": link,
             "native_drc": {
                 "before_violations": len(initial["violations"]),
@@ -409,6 +461,9 @@ def prove(
             shutil.copyfile(second_board, output / "project" / source.name)
             shutil.copyfile(root / "baseline.json", output / "baseline-drc.json")
             shutil.copyfile(root / "candidate.json", output / "candidate-drc.json")
+            if default_drc_proved:
+                shutil.copyfile(root / "default-before-drc.json", output / "baseline-default-drc.json")
+                shutil.copyfile(root / "default-after-drc.json", output / "candidate-default-drc.json")
             (output / "EVIDENCE.json").write_text(json.dumps(evidence, indent=2) + "\n")
         except Exception:
             shutil.rmtree(output, ignore_errors=True)

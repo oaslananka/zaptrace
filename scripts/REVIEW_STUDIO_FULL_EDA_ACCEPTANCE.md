@@ -463,3 +463,29 @@ completion and manufacturing/fab authorization are still absent.
 The immutable 0.1.10 `.deb`, its SHA-256, and its QA report are
 **not** evidence of this new source-only feature. A separately numbered
 release gate is mandatory before packaging.
+
+## 0.1.11 — locally qualified custom KiCad rules and two through-vias
+
+The preceding **historical post-0.1.10 source-only milestone is now
+included in a separately numbered 0.1.11 engineering local RC**.
+Do not infer that feature was present in the SHA-qualified 0.1.10
+installer. The new 0.1.11 9/9 release gate, exact .deb Chrome, custom
+`.kicad_dru` native loader sentinel and dual custom/default DRC,
+real Ubuntu 24.04.5 KiCad 10.0.7 APT upgrade/installed-Chrome/uninstall,
+legacy 0.1.1 private ZIP restore, all 14 old private review file hashes
+and 10 native KiCad OpenGL 3D images passed.
+
+The single native R3.2→R4.2 routed corridor still leaves **36 open
+connections and 16 pre-existing physical DRC failures**; these are
+production blockers, **not** release-quality PCB evidence.
+A 0.25 mm custom track-width minimum blocks the 0.20 mm new path.
+Malformed custom KiCad rule sources are rejected in discovery and
+authoring, rather than silently treated as ordinary KiCad defaults.
+
+Candidate package SHA-256:
+`267cb49b0055a9eb16fad6943053e9aacb79ad14d692fef8c1023e72334297af`.
+The exact package and Ubuntu acceptance are in
+`build/distribution/CLEAN_UBUNTU_2404_0111_QA.txt` and the
+SHA-matched local manifest. No arbitrary via stacks, autorouting,
+full-fledged schematic+PCB editor, fabrication certificate,
+independent physical-machine QA or publisher signature.

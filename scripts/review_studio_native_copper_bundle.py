@@ -117,13 +117,17 @@ def extract_project_zip(raw: bytes, destination: Path) -> Path:
                 (
                     "/" not in name
                     and (
-                        name.endswith((".kicad_pcb", ".kicad_sch", ".kicad_pro", ".kicad_netlist_evidence.json"))
+                        name.endswith(
+                            (".kicad_pcb", ".kicad_sch", ".kicad_pro", ".kicad_dru", ".kicad_netlist_evidence.json")
+                        )
                         or name in {"fp-lib-table", "sym-lib-table", "ZapTrace.kicad_sym"}
                     )
                 )
                 or (name.startswith("ZapTrace.pretty/") and MODNAME.fullmatch(name.removeprefix("ZapTrace.pretty/")))
             ):
                 raise ValueError("Unsupported file in portable KiCad project ZIP")
+            if name.endswith(".kicad_dru") and member.file_size > 1_000_000:
+                raise ValueError("KiCad custom rule sidecar exceeds safe 1 MB")
             if member.flag_bits & 0x1 or member.file_size > MAX_ITEM or member.file_size <= 0:
                 raise ValueError("Encrypted, empty or oversized native project member")
             size += member.file_size
@@ -153,6 +157,7 @@ def extract_project_zip(raw: bytes, destination: Path) -> Path:
                 name.endswith(".kicad_netlist_evidence.json") and name != base + ".kicad_netlist_evidence.json"
                 for name in names
             )
+            or any(name.endswith(".kicad_dru") and name != base + ".kicad_dru" for name in names)
         ):
             raise ValueError("Missing matching native project and portable footprint library")
         destination.mkdir(mode=0o700)
@@ -232,6 +237,37 @@ def inspect_native_pairs(board: Path, report: Path) -> dict:
         raise RuntimeError("Native KiCad 10 DRC evidence incomplete")
     if data["schematic_parity"]:
         raise ValueError("KiCad schematic-to-PCB parity is not clean; native route editing blocked")
+    rules = board.with_suffix(".kicad_dru")
+    if rules.is_file():
+        # Native KiCad CLI may quietly run its ordinary DRC even if a broken
+        # .kicad_dru failed to parse. Prove the actual custom-rule loader
+        # executes our distinct sentinel BEFORE returning selectable links.
+        # Run only the trusted static native code on system KiCad Python;
+        # untrusted uploaded rules remain isolated in the disposable temp.
+        probe = subprocess.run(
+            [
+                "/usr/bin/python3",
+                "-B",
+                "-c",
+                "import hashlib,sys;"
+                "sys.path.insert(0,sys.argv[1]);"
+                "from pathlib import Path;"
+                "from review_studio_pcb_eco import attest_custom_rule_loading;"
+                "p=Path(sys.argv[2]);"
+                "assert attest_custom_rule_loading(sys.argv[3],Path(sys.argv[4]),p,"
+                "p.with_suffix('.kicad_dru'),hashlib.sha256(p.read_bytes()).hexdigest())",
+                str(Path(__file__).resolve().parent),
+                str(board),
+                cli,
+                str(report.parent),
+            ],
+            text=True,
+            capture_output=True,
+            timeout=105,
+            check=False,
+        )
+        if probe.returncode:
+            raise RuntimeError("Native KiCad custom .kicad_dru loader proof failed; no links exposed")
     results = []
     for record in data["unconnected_items"]:
         items = record.get("items")

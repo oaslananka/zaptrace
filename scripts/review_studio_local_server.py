@@ -1413,6 +1413,28 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     or evidence["fabApproved"] is not False
                 ):
                     raise RuntimeError("Independent native copper evidence integrity failed")
+                rules = source.with_suffix(".kicad_dru")
+                rule_context = evidence.get("rule_context", {})
+                rule_sha = hashlib.sha256(rules.read_bytes()).hexdigest() if rules.exists() else None
+                if (
+                    rule_context.get("custom_rules_sha256") != rule_sha
+                    or evidence.get("source_asset_sha256", {}).get(rules.name) != rule_sha
+                    or (
+                        rule_sha is not None
+                        and (
+                            rule_context.get("custom_rule_loader_probe_passed") is not True
+                            or rule_context.get("default_drc_crosscheck_passed") is not True
+                            or any(
+                                not (output / filename).is_file()
+                                for filename in (
+                                    "baseline-default-drc.json",
+                                    "candidate-default-drc.json",
+                                )
+                            )
+                        )
+                    )
+                ):
+                    raise RuntimeError("Custom KiCad project rule SHA/loader/default-DCR evidence incomplete")
                 # Source SHA & genuine KiCad plot authenticity remain bounded:
                 # preserve original source bytes through BOTH plot operations.
                 kicad_cli = shutil.which("kicad-cli")
@@ -1437,10 +1459,12 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     for member in sorted((output / "project").rglob("*")):
                         if member.is_file() and not member.is_symlink():
                             archive.write(member, arcname=member.relative_to(output / "project").as_posix())
+                    extra_drc = ("baseline-default-drc.json", "candidate-default-drc.json") if rule_sha else ()
                     for name in (
                         "EVIDENCE.json",
                         "baseline-drc.json",
                         "candidate-drc.json",
+                        *extra_drc,
                         "before.svg",
                         "after.svg",
                         "PREVIEW.html",
@@ -1463,6 +1487,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                         "id": job_id,
                         "download_sha256": source_bound_artifacts,
                         "link": evidence["link"],
+                        "rule_context": rule_context,
                         "before_unconnected": counts["before_unconnected"],
                         "after_unconnected": counts["after_unconnected"],
                         "before_violations": counts["before_violations"],
