@@ -27,11 +27,12 @@ MODNAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.+-]{0,159}\.kicad_mod\Z")
 UUID = re.compile(r"[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\Z")
 
 
-def checked_upload(payload: object, require_route: bool) -> tuple[bytes, str, tuple[str, str] | None, list]:
+def checked_upload(payload: object, require_route: bool) -> tuple[bytes, str, tuple[str, str] | None, list, list[int]]:
     fields = {"project_base64", "project_sha256"}
     if require_route:
         fields |= {"start_pad_uuid", "end_pad_uuid", "waypoints"}
-    if not isinstance(payload, dict) or set(payload) != fields:
+    extended = fields | {"via_indices"} if require_route else fields
+    if not isinstance(payload, dict) or set(payload) not in (fields, extended):
         raise ValueError("Expected one exact portable KiCad ZIP with SHA-256 and explicit native pad selection")
     encoded, wanted = payload["project_base64"], payload["project_sha256"]
     if not isinstance(encoded, str) or not isinstance(wanted, str) or not HEX_SHA.fullmatch(wanted):
@@ -46,6 +47,7 @@ def checked_upload(payload: object, require_route: bool) -> tuple[bytes, str, tu
         raise ValueError("Portable KiCad ZIP size or SHA-256 mismatch")
     pair = None
     points = []
+    via_indices: list[int] = []
     if require_route:
         start, end = payload["start_pad_uuid"], payload["end_pad_uuid"]
         if (
@@ -67,7 +69,17 @@ def checked_upload(payload: object, require_route: bool) -> tuple[bytes, str, tu
                 or any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in point)
             ):
                 raise ValueError("Invalid finite intermediate copper coordinate")
-    return raw, wanted, pair, points
+        via_indices = payload.get("via_indices", [])
+        if not isinstance(via_indices, list) or (
+            via_indices
+            and (
+                len(via_indices) != 2
+                or any(type(index) is not int for index in via_indices)
+                or not 1 <= via_indices[0] < via_indices[1] <= len(points)
+            )
+        ):
+            raise ValueError("Only two ordered intermediate native through-via waypoint indices are supported")
+    return raw, wanted, pair, points, via_indices
 
 
 def extract_project_zip(raw: bytes, destination: Path) -> Path:

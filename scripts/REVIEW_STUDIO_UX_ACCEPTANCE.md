@@ -211,3 +211,23 @@ comparison were present in the downloaded authenticated project ZIP.
 private download/discard and zero browser JavaScript exceptions.
 The earlier 0.1.9 package/kit never had these controls and remains
 unchanged.
+
+
+## Source-only post-0.1.10 dual-copper via controls
+
+The authenticated Chrome 155 native copper panel adds a bounded
+`Via indices` field. `[]` means unchanged single-layer F.Cu.
+The explicit `[1,2]` with two intermediate coordinates requests two
+0.60 mm through-vias and one B.Cu corridor. Invalid indices are rejected
+before any native KiCad invocation; the server checks them again.
+On changing the selected actual native pad pair, inspecting another ZIP,
+or discarding a working copy, the editor resets the prior waypoints
+and via indices, preventing accidental reuse across unrelated nets.
+
+Real Chrome exercised BOTH an actual R3.2→R4.2 2-via GND route and
+the pre-existing U1.2→U1.3 all-F.Cu route consecutively. Both reduced
+native unconnected 37→36 with unchanged native 16 physical DRC,
+a source-byte-identical ZIP, two native KiCad F/B copper SVG snapshots,
+private authenticated downloadable evidence, 390px no-overflow viewport,
+and zero JavaScript exceptions. This is an **unshipped source-only**
+regression, not a claim about installed 0.1.10.

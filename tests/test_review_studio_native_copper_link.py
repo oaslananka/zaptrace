@@ -51,7 +51,7 @@ print(json.dumps({f'{f.GetReference()}:{p.GetNumber()}':p.m_Uuid.AsString()
 
 
 def execute(
-    pcb: Path, output: Path, first: str, second: str, waypoints: str = "[]"
+    pcb: Path, output: Path, first: str, second: str, waypoints: str = "[]", via_indices: str = "[]"
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -68,6 +68,8 @@ def execute(
             second,
             "--waypoints-json",
             waypoints,
+            "--via-indices-json",
+            via_indices,
         ],
         capture_output=True,
         text=True,
@@ -193,6 +195,130 @@ print(json.dumps(sorted(uuids)))
         uuids = set(json.loads(native.stdout))
         assert len(uuids) == 112
         assert all(item["uuid"] in uuids for finding in d["unconnected_items"] for item in finding["items"])
+
+
+def test_actual_kicad_two_through_vias_and_bottom_copper_roundtrip(tmp_path: Path) -> None:
+    board, ids = source_project(tmp_path)
+    original = board.read_bytes()
+    destination = tmp_path / "isolated-real-through-via-pair"
+    result = execute(
+        board,
+        destination,
+        ids[("R3", "2")],
+        ids[("R4", "2")],
+        "[[72.51,58.8],[77.51,58.8]]",
+        "[1,2]",
+    )
+    assert result.returncode == 0, result.stderr
+    evidence = json.loads((destination / "EVIDENCE.json").read_text())
+    assert evidence["link"]["via_count"] == 2
+    assert evidence["link"]["via_indices"] == [1, 2]
+    assert evidence["link"]["segment_layers"] == ["F.Cu", "B.Cu", "F.Cu"]
+    assert evidence["link"]["via_diameter_mm"] == 0.6
+    assert evidence["link"]["via_drill_mm"] == 0.3
+    assert evidence["link"]["segment_count"] == 3
+    assert evidence["native_drc"]["before_unconnected"] == 37
+    assert evidence["native_drc"]["after_unconnected"] == 36
+    assert evidence["native_drc"]["before_violations"] == evidence["native_drc"]["after_violations"] == 16
+    assert evidence["native_drc"]["schematic_parity"] == 0
+    assert evidence["fabApproved"] is False
+    actual = destination / "project" / board.name
+    reopened = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """import pcbnew as p,json,sys
+b=p.LoadBoard(sys.argv[1])
+print(json.dumps({'vias':[(v.m_Uuid.AsString(),p.ToMM(v.GetPosition().x),p.ToMM(v.GetPosition().y),
+p.ToMM(v.GetWidth()),p.ToMM(v.GetDrillValue()),v.GetViaType())
+ for v in b.GetTracks() if isinstance(v,p.PCB_VIA)],
+ 'back_tracks':[(p.ToMM(t.GetStart().x),p.ToMM(t.GetEnd().x),t.GetNetname())
+ for t in b.GetTracks() if not isinstance(t,p.PCB_VIA) and t.GetLayer()==p.B_Cu]}))
+""",
+            str(actual),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    geometry = json.loads(reopened.stdout)
+    assert len(geometry["vias"]) == 2
+    assert {tuple(x[1:3]) for x in geometry["vias"]} == {(72.51, 58.8), (77.51, 58.8)}
+    assert all(x[3:5] == [0.6, 0.3] for x in geometry["vias"])
+    assert len(geometry["back_tracks"]) == 1
+    assert geometry["back_tracks"][0] == [72.51, 77.51, "GND"]
+    assert board.read_bytes() == original
+
+
+def test_native_four_copper_layer_stack_cannot_use_bounded_two_layer_via_path(tmp_path: Path) -> None:
+    board, _ = source_project(tmp_path)
+    original_sha = hashlib.sha256(board.read_bytes()).hexdigest()
+    run = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """import pcbnew as pcb,sys
+sys.path.insert(0,sys.argv[2])
+from review_studio_native_copper_link import _bounded_route_points
+board=pcb.LoadBoard(sys.argv[1])
+board.SetCopperLayerCount(4)
+assert board.GetCopperLayerCount()==4
+link={'points_mm':[[72.51,60.0],[77.51,60.0]]}
+try:
+ _bounded_route_points(board,link,[[72.51,58.8],[77.51,58.8]],[1,2])
+except ValueError as exc:
+ assert 'two-copper-layer board required' in str(exc),str(exc)
+ print('REAL_NATIVE_FOUR_LAYER_STACK_REJECTED')
+else:
+ raise AssertionError('Two-layer via operation accepted four-layer board')
+""",
+            str(board),
+            str(ROOT / "scripts"),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=35,
+        check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "REAL_NATIVE_FOUR_LAYER_STACK_REJECTED" in run.stdout
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == original_sha
+
+
+@pytest.mark.parametrize(
+    ("via_indices", "error"),
+    [
+        ("[1]", "Exactly two ordered"),
+        ("[1,1]", "Exactly two ordered"),
+        ("[2,1]", "Exactly two ordered"),
+        ("[0,2]", "Exactly two ordered"),
+        ("[1,3]", "Exactly two ordered"),
+        ("[true,2]", "Exactly two ordered"),
+        ('["1",2]', "Exactly two ordered"),
+        ("[1,2,3]", "Exactly two ordered"),
+    ],
+)
+def test_explicit_via_indices_are_strictly_bounded_and_never_published(
+    tmp_path: Path, via_indices: str, error: str
+) -> None:
+    board, ids = source_project(tmp_path)
+    original = board.read_bytes()
+    out = tmp_path / "no-published-via"
+    result = execute(
+        board,
+        out,
+        ids[("R3", "2")],
+        ids[("R4", "2")],
+        "[[72.51,58.8],[77.51,58.8]]",
+        via_indices,
+    )
+    assert result.returncode == 2
+    assert error in result.stderr
+    assert not out.exists()
+    assert board.read_bytes() == original
 
 
 def test_native_manhattan_bypass_reduces_real_open_count_without_drc_regression(tmp_path: Path) -> None:

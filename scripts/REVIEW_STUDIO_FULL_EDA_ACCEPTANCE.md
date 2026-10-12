@@ -426,3 +426,40 @@ private per-file SHA-256. Real Chrome 155 tested the sandboxed native
 plots and the offline ZIP contains the same `before.svg`,
 `after.svg` and static `PREVIEW.html` alongside exact DRC JSON.
 This is source-only and not 0.1.9 exact-package acceptance.
+
+
+## Post-0.1.10 unshipped, real native two-through-via routing proof
+
+Separate source-only code, NOT packaged in the previously hash-qualified
+0.1.10 local candidate, now supports a strictly constrained user-drawn
+single-net F.Cu→B.Cu→F.Cu route with **exactly two physical through-vias**.
+The user explicitly provides two 1-based waypoint indices, the original
+KiCad 10 physical pad UUID pair and up to four waypoint coordinates.
+The native output uses real `pcbnew.PCB_TRACK` on F.Cu/B.Cu and
+`pcbnew.PCB_VIA` with 0.60 mm via/0.30 mm drill on only a two-layer
+board. Loaded-and-saved KiCad metadata verifies all original pad/trace
+state and each added segment and via (including both copper layers).
+Native DRC rejects ANY new physical/schematic-parity violation, custom
+unverified DRC rules or a connectivity delta other than **exactly one**
+connected item. Strict upload schema rejects malicious via indices and
+normal all-F.Cu requests continue to work.
+
+The generated ESP32 reference's genuine KiCad DRC remained **16→16**
+physical failures and **37→36** open pad links on an explicit
+R3.2→R4.2 GND route: R3.2→(72.51,58.8) [F.Cu],
+(72.51,58.8)→(77.51,58.8) [B.Cu],
+(77.51,58.8)→R4.2 [F.Cu] with through-vias at those
+two explicitly supplied positions. Real native KiCad saved and reopened
+the exact hole diameter, copper layers, drill, net and positions.
+A real Chrome acceptance exercised **via route then legacy F.Cu
+route** in the same authenticated session, including actual KiCad
+F/B copper SVG, full evidence ZIP, safe discard and 390px viewport.
+The user-facing editor resets stale points/via indices before any
+new pair, upload or discarded draft.
+
+Full route search/shove, arbitrary via counts and stacks, zone fill,
+custom `.kicad_dru` qualification, KiCad F8 link, all-pad autoroute
+completion and manufacturing/fab authorization are still absent.
+The immutable 0.1.10 `.deb`, its SHA-256, and its QA report are
+**not** evidence of this new source-only feature. A separately numbered
+release gate is mandatory before packaging.

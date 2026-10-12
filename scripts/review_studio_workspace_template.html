@@ -214,9 +214,10 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <form id="copperRouteForm" class="eco-fields" hidden>
   <label>Native KiCad unconnected pad pair<select id="copperPair" required aria-label="Choose exact native KiCad DRC unconnected pad pair"><option value="">Inspect a project first</option></select></label>
   <label>Optional intermediate route coordinates (mm, JSON pairs)<input id="copperWaypoints" type="text" value="[]" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Up to four explicitly specified route waypoint coordinate pairs as JSON" placeholder="[[72.51,58.8],[77.51,58.8]]"/></label>
+  <label>Optional explicit through-via waypoint indices (JSON, 1-based)<input id="copperViaIndices" type="text" value="[]" maxlength="12" autocomplete="off" spellcheck="false" aria-label="Empty for F.Cu only; two increasing one-based waypoint indices for exact F.Cu to B.Cu to F.Cu through-vias" placeholder="[1,2]"/></label>
   <button type="submit" id="copperRouteRun" disabled>Verify one real copper link &amp; create copy</button>
  </form>
- <p class="eco-warning">Experimental 0.1.10 native copper editor: this feature was NOT part of the previously QA-qualified 0.1.9 installer. Download your private project/evidence ZIP before restarting Review Studio; unreachable copper drafts are erased on restart. Only KiCad 10, one exact F.Cu pad-to-pad net link at 0.20 mm track width, up to four explicit intermediate points, and complete portable verified library context. All source/asset hashes, schematic parity, native physical DRC and saved copper identity must be preserved. A new DRC violation rejects the entire draft. A passed link may still leave unrouted nets and real manufacturing violations. <strong>NOT fab or electrical approval.</strong></p>
+ <p class="eco-warning">Experimental source-only post-0.1.10 routing extension: the verified 0.1.10 installer is unchanged and does not contain this two-via feature. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. The native 0.20 mm track, existing DRC findings, complete project-local library sources, copper geometry and schematic parity must all survive independently. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
  <p class="eco-status" id="copperStatus" role="status" aria-live="polite" hidden></p>
  <div class="eco-result" id="copperResult" hidden>
   <div class="eco-result-head"><strong id="copperResultTitle">Separate native KiCad copper draft · NOT approved</strong>
@@ -224,7 +225,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
     <button type="button" id="copperEvidence">Download native KiCad DRC evidence</button>
     <button type="button" id="copperDiscard">Discard private copper draft</button></div></div>
   <p id="copperResultSummary" aria-live="polite"></p>
-  <iframe id="copperPreview" title="Real KiCad native before and after F.Cu, silkscreen and board outline drawings" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+  <iframe id="copperPreview" title="Real KiCad native before and after F.Cu, B.Cu, silkscreen and board outline drawings" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
  </div>
 </section>
 <section class="eco-lab" id="pcbAuditLab" hidden aria-label="Read-only native KiCad schematic to PCB parity evidence">
@@ -392,10 +393,18 @@ if(window.__REVIEW_LOCAL__?.token){
   copperStatus.setAttribute('role',kind==='error'?'alert':'status');
   copperStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
  };
+ const copperResetGeometry=()=>{
+  $('copperWaypoints').value='[]';
+  $('copperViaIndices').value='[]';
+ };
  const copperClear=()=>{
   copperArchive=null;copperCandidates=[];copperPair.replaceChildren();
+  copperResetGeometry();
   copperRouteRun.disabled=true;$('copperRouteForm').hidden=true;
  };
+ // A previously accepted route for a different electrical net must never
+ // silently follow the operator when they select another native pad pair.
+ copperPair.addEventListener('change',copperResetGeometry);
  $('copperZip').addEventListener('change',()=>{
   copperClear();
   if(copperId)copperMessage('Discard the existing verified draft before starting a new copper review.','error');
@@ -454,12 +463,17 @@ if(window.__REVIEW_LOCAL__?.token){
    if(!Array.isArray(waypoints)||waypoints.length>4||waypoints.some(p=>!Array.isArray(p)||p.length!==2||
        p.some(n=>typeof n!=='number'||!Number.isFinite(n))))
     throw Error('Waypoints must be zero to four finite [x,y] coordinate pairs.');
+   const via_indices=JSON.parse($('copperViaIndices').value.trim()||'[]');
+   if(!Array.isArray(via_indices)||(via_indices.length!==0&&(
+       via_indices.length!==2||!via_indices.every(n=>Number.isInteger(n))||
+       via_indices[0]<1||via_indices[0]>=via_indices[1]||via_indices[1]>waypoints.length)))
+    throw Error('Via indices: [] (F.Cu only), or two ordered one-based waypoint indexes, e.g. [1,2].');
    const archive=await copperProjectPayload();
-   copperMessage('Native KiCad is checking exact pad UUIDs, project geometry, all physical DRC findings and saved copper identity…');
+   copperMessage('Native KiCad is checking exact pad UUIDs, F/B copper and through-via geometry, physical DRC and saved copper identity…');
    const send=await fetch('/api/native-copper',{
     method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
     body:JSON.stringify({...archive,start_pad_uuid:candidate.pads[0].uuid,
-     end_pad_uuid:candidate.pads[1].uuid,waypoints}),cache:'no-store'
+     end_pad_uuid:candidate.pads[1].uuid,waypoints,via_indices}),cache:'no-store'
    });
    const started=await send.json();
    if(!send.ok||started.state!=='running'||!started.id)throw Error(started.error||'Native route request rejected');
@@ -475,11 +489,12 @@ if(window.__REVIEW_LOCAL__?.token){
      if(!data||data.fabApproved!==false)throw Error('Route evidence incomplete');
      copperId=started.id;
      $('copperResultTitle').textContent=data.link.net+' · '+data.link.segment_count+
-      ' F.Cu segment(s) · Native KiCad verified copy · NOT APPROVED';
+      ' track segment(s) · '+data.link.via_count+' through-via(s) · Native KiCad verified copy · NOT APPROVED';
      $('copperResultSummary').textContent='Unconnected: '+data.before_unconnected+' → '+
       data.after_unconnected+' · Physical DRC: '+data.before_violations+' → '+
       data.after_violations+' · Native parity unchanged at zero. '+data.link.length_mm.toFixed(2)+
-      ' mm copper, 0.20 mm width. No fabrication or electrical signoff.';
+      ' mm copper, 0.20 mm width, layers '+data.link.segment_layers.join(' → ')+
+      ', through-vias '+data.link.via_count+'. No fabrication or electrical signoff.';
      copperResult.hidden=false;
      try{
       const previewReply=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/PREVIEW.html',

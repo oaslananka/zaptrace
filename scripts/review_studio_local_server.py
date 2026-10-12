@@ -120,7 +120,7 @@ def parse_multipart(content_type: str, data: bytes) -> dict[str, tuple[str, byte
 
 
 def native_copper_native_svg(cli: str, board: Path, output: Path) -> bytes:
-    """Use real KiCad 10 F.Cu/F.SilkS/Edge.Cuts output, never sketch copper."""
+    """Use KiCad 10 real F/B copper, silkscreen and board edges; never sketch copper."""
     run = subprocess.run(
         [
             cli,
@@ -128,7 +128,7 @@ def native_copper_native_svg(cli: str, board: Path, output: Path) -> bytes:
             "export",
             "svg",
             "--layers",
-            "F.Cu,F.SilkS,Edge.Cuts",
+            "F.Cu,B.Cu,F.SilkS,Edge.Cuts",
             "--mode-single",
             "--page-size-mode",
             "2",
@@ -1291,7 +1291,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
         try:
             inspect = self.path.endswith("/inspect")
             payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
-            raw, source_sha, pair, waypoints = checked_upload(payload, require_route=not inspect)
+            raw, source_sha, pair, waypoints, via_indices = checked_upload(payload, require_route=not inspect)
             self.review_server.workspace.mkdir(parents=True, exist_ok=True)
             if inspect:
                 with tempfile.TemporaryDirectory(
@@ -1323,7 +1323,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     self.review_server.native_copper_outputs[job_id] = result_folder
                 thread = threading.Thread(
                     target=self._run_native_copper_job,
-                    args=(job_id, project_path, result_folder, pair, waypoints, source_sha),
+                    args=(job_id, project_path, result_folder, pair, waypoints, via_indices, source_sha),
                     daemon=True,
                 )
                 thread.start()
@@ -1349,6 +1349,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
         output: Path,
         pair: tuple[str, str],
         waypoints: list,
+        via_indices: list[int],
         archive_sha: str,
     ) -> None:
         result: dict = {
@@ -1372,6 +1373,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     pair[1],
                     "--waypoints-json",
                     json.dumps(waypoints),
+                    "--via-indices-json",
+                    json.dumps(via_indices),
                 ],
                 capture_output=True,
                 text=True,
@@ -1390,13 +1393,23 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 evidence = json.loads(evidence_file.read_text())
                 copper = output / "project" / source.name
                 counts = evidence["native_drc"]
+                layer_by_segment = [
+                    "B.Cu" if via_indices and via_indices[0] <= index < via_indices[1] else "F.Cu"
+                    for index in range(len(waypoints) + 1)
+                ]
+                # Double-check the exact requested geometry *outside* the
+                # native subprocess, not merely its published booleans.
                 if (
                     evidence["working_sha256"] != hashlib.sha256(copper.read_bytes()).hexdigest()
                     or evidence["source_sha256"] != hashlib.sha256(source.read_bytes()).hexdigest()
                     or evidence["link"]["pad_uuids"] != list(pair)
+                    or evidence["link"].get("via_indices") != via_indices
+                    or evidence["link"].get("via_count") != len(via_indices)
+                    or evidence["link"].get("segment_count") != len(layer_by_segment)
+                    or evidence["link"].get("segment_layers") != layer_by_segment
                     or counts["new_findings"] != 0
                     or counts["schematic_parity"] != 0
-                    or counts["after_unconnected"] >= counts["before_unconnected"]
+                    or counts["after_unconnected"] != counts["before_unconnected"] - 1
                     or evidence["fabApproved"] is not False
                 ):
                     raise RuntimeError("Independent native copper evidence integrity failed")

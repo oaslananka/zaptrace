@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # pyright: reportMissingImports=false
-"""Guarded *single straight* KiCad 10 copper link on an isolated portable project copy.
+"""Guarded *single pad-pair* KiCad 10 copper route on an isolated project copy.
 
 No routing is committed to the input. Strict KiCad DRC, schematic parity,
 source/library SHA hashes and native PCB metadata must all survive. This
@@ -168,7 +168,7 @@ def _link_description(
     return {"index": index, "net": a.GetNetname(), "pad_uuids": uuids, "points_mm": coords, "length_mm": length}
 
 
-def _bounded_route_points(board: Any, link: dict, waypoints: list) -> None:
+def _bounded_route_points(board: Any, link: dict, waypoints: list, via_indices: list[int] | None = None) -> None:
     """Validate an explicit physical F.Cu polyline, never synthesize geometry."""
     if not isinstance(waypoints, list) or len(waypoints) > 4:
         raise ValueError("At most four explicitly requested intermediate points")
@@ -198,6 +198,29 @@ def _bounded_route_points(board: Any, link: dict, waypoints: list) -> None:
     link["points_mm"] = points
     link["length_mm"] = sum(distances)
     link["segment_count"] = len(distances)
+    # An explicit pair of THROUGH vias is the only permitted layer change:
+    # pads and all outer tracks remain F.Cu; exactly one interior track
+    # corridor traverses B.Cu. The UI never guesses/synthesizes a via.
+    selected = [] if via_indices is None else via_indices
+    if not isinstance(selected, list) or (
+        selected
+        and (
+            len(selected) != 2
+            or any(type(i) is not int for i in selected)
+            or not 1 <= selected[0] < selected[1] <= len(waypoints)
+            or board.GetCopperLayerCount() != 2
+        )
+    ):
+        raise ValueError("Exactly two ordered intermediate through-via indices on a two-copper-layer board required")
+    link["via_indices"] = selected
+    link["via_count"] = len(selected)
+    link["via_positions_mm"] = [points[i] for i in selected]
+    link["segment_layers"] = [
+        "B.Cu" if selected and selected[0] <= i < selected[1] else "F.Cu" for i in range(len(distances))
+    ]
+    link["track_width_mm"] = 0.2
+    link["via_diameter_mm"] = 0.6 if selected else None
+    link["via_drill_mm"] = 0.3 if selected else None
 
 
 def _check_board_metadata(before: dict, after: dict, route: dict) -> None:
@@ -208,20 +231,35 @@ def _check_board_metadata(before: dict, after: dict, route: dict) -> None:
     if any(current.get(uid) != data for uid, data in orig.items()):
         raise RuntimeError("Existing board traces changed")
     additions = set(current) - set(orig)
-    if len(additions) != route["segment_count"] or len(current) != len(orig) + route["segment_count"]:
-        raise RuntimeError("Native PCB segment inventory changed beyond explicit route")
-    expected = [
-        ((pcb.FromMM(a[0]), pcb.FromMM(a[1])), (pcb.FromMM(b[0]), pcb.FromMM(b[1])))
-        for a, b in zip(route["points_mm"], route["points_mm"][1:], strict=False)
-    ]
-    observed = []
+    if len(additions) != route["segment_count"] + route["via_count"] or len(current) != len(orig) + len(additions):
+        raise RuntimeError("Native PCB segment/via inventory changed beyond explicit route")
+    expected_tracks = Counter(
+        (
+            (pcb.FromMM(a[0]), pcb.FromMM(a[1])),
+            (pcb.FromMM(b[0]), pcb.FromMM(b[1])),
+            pcb.B_Cu if layer == "B.Cu" else pcb.F_Cu,
+        )
+        for (a, b), layer in zip(
+            zip(route["points_mm"], route["points_mm"][1:], strict=False), route["segment_layers"], strict=True
+        )
+    )
+    expected_vias = Counter((pcb.FromMM(pos[0]), pcb.FromMM(pos[1])) for pos in route["via_positions_mm"])
+    observed_tracks: Counter = Counter()
+    observed_vias: Counter = Counter()
     for uid in additions:
-        track = current[uid]
-        if track[1] != route["net"] or track[4] != pcb.FromMM(0.2) or track[5] != pcb.F_Cu:
-            raise RuntimeError("New native trace net, copper layer or width unexpected")
-        observed.append((track[2], track[3]))
-    if Counter(observed) != Counter(expected):
-        raise RuntimeError("Native KiCad saved different route segments")
+        item = current[uid]
+        if item[1] != route["net"]:
+            raise RuntimeError("New native copper net identity unexpected")
+        if item[8] is None:
+            if item[4] != pcb.FromMM(0.2) or item[5] not in (pcb.F_Cu, pcb.B_Cu):
+                raise RuntimeError("New native route width/layer unexpected")
+            observed_tracks[(item[2], item[3], item[5])] += 1
+        else:
+            if item[2] != item[3] or item[4] != pcb.FromMM(0.6) or item[8] != (pcb.FromMM(0.3), pcb.VIATYPE_THROUGH):
+                raise RuntimeError("New native via diameter/drill/type/position changed")
+            observed_vias[item[2]] += 1
+    if observed_tracks != expected_tracks or observed_vias != expected_vias:
+        raise RuntimeError("Native KiCad saved different explicit copper segments or through-vias")
 
 
 def prove(
@@ -230,6 +268,7 @@ def prove(
     link_index: int | None = None,
     requested_uuids: tuple[str, str] | None = None,
     waypoints: list | None = None,
+    via_indices: list[int] | None = None,
 ) -> dict:
     if source.is_symlink():
         raise ValueError("Symlinked KiCad source board not accepted")
@@ -284,24 +323,49 @@ def prove(
         link = _link_description(initial, link_index, pads, requested_uuids)
         if waypoints and requested_uuids is None:
             raise ValueError("Intermediate waypoints require explicit ordered pad UUID endpoints")
-        _bounded_route_points(board, link, waypoints if waypoints is not None else [])
+        _bounded_route_points(board, link, waypoints if waypoints is not None else [], via_indices)
         net = board.FindNet(link["net"])
         if net is None:
             raise ValueError("Native board named net missing")
         native_points = [pcb.VECTOR2I(pcb.FromMM(x), pcb.FromMM(y)) for x, y in link["points_mm"]]
-        for start, end in zip(native_points, native_points[1:], strict=False):
+        for (start, end), layer in zip(
+            zip(native_points, native_points[1:], strict=False), link["segment_layers"], strict=True
+        ):
             track = pcb.PCB_TRACK(board)
             track.SetStart(start)
             track.SetEnd(end)
             track.SetWidth(pcb.FromMM(0.2))
-            track.SetLayer(pcb.F_Cu)
+            track.SetLayer(pcb.B_Cu if layer == "B.Cu" else pcb.F_Cu)
             track.SetNet(net)
             board.Add(track)
+        for index in link["via_indices"]:
+            via = pcb.PCB_VIA(board)
+            via.SetPosition(native_points[index])
+            via.SetViaType(pcb.VIATYPE_THROUGH)
+            via.SetTopLayer(pcb.F_Cu)
+            via.SetBottomLayer(pcb.B_Cu)
+            via.SetWidth(pcb.FromMM(0.6))
+            via.SetDrill(pcb.FromMM(0.3))
+            via.SetNet(net)
+            board.Add(via)
         pcb.SaveBoard(str(second_board), board)
         reread = pcb.LoadBoard(str(second_board))
         if reread is None:
             raise RuntimeError("Native KiCad failed to reopen written copy")
         _check_board_metadata(before, state(reread), link)
+        # Reopened KiCad vias must genuinely span BOTH copper planes; this
+        # is native saved PCB data, not only the constructor parameters.
+        original_track_uuids = set(before["tracks"])
+        added_native_vias = [
+            item
+            for item in reread.GetTracks()
+            if item.m_Uuid.AsString() not in original_track_uuids and isinstance(item, pcb.PCB_VIA)
+        ]
+        if len(added_native_vias) != link["via_count"] or any(
+            not via.GetLayerSet().Contains(pcb.F_Cu) or not via.GetLayerSet().Contains(pcb.B_Cu)
+            for via in added_native_vias
+        ):
+            raise RuntimeError("KiCad saved different through-via copper layer pair")
         actual = _native_report(cli, second_board, root / "candidate.json")
         for key in ("kicad_version", "included_severities", "ignored_checks"):
             if initial.get(key) != actual.get(key):
@@ -313,14 +377,14 @@ def prove(
             raise RuntimeError(f"New physical KiCad DRC violation(s): {sum(additions.values())}; route rejected")
         before_open = len(initial["unconnected_items"])
         after_open = len(actual["unconnected_items"])
-        if after_open >= before_open:
-            raise RuntimeError("No proven reduction in KiCad unconnected items")
+        if after_open != before_open - 1:
+            raise RuntimeError("Exactly one native KiCad unconnected item must be resolved by this single link")
         if any(
             digest(path) != sha for path, sha in ((source.parent / name, value) for name, value in originals.items())
         ):
             raise RuntimeError("Input KiCad source or supplier geometry changed during proof")
         evidence = {
-            "type": "NATIVE_STRAIGHT_SINGLE_LINK_REVIEW_COPY",
+            "type": "NATIVE_SINGLE_LINK_LAYERED_COPPER_REVIEW_COPY",
             "status": "provisional_native_drc_10_verified_copy_not_fab",
             "source_sha256": originals[source.name],
             "working_sha256": digest(second_board),
@@ -362,7 +426,12 @@ def main() -> int:
     parser.add_argument(
         "--waypoints-json",
         default="[]",
-        help="JSON list of up to four explicit [x_mm,y_mm] intermediate F.Cu points",
+        help="JSON array of up to four explicit [x_mm,y_mm] intermediate points",
+    )
+    parser.add_argument(
+        "--via-indices-json",
+        default="[]",
+        help="Optional two 1-based intermediate point indices for exactly F.Cu→B.Cu→F.Cu via pair",
     )
     args = parser.parse_args()
     if (args.start_pad_uuid is None) != (args.end_pad_uuid is None):
@@ -370,7 +439,8 @@ def main() -> int:
     pair = (args.start_pad_uuid, args.end_pad_uuid) if args.start_pad_uuid is not None else None
     try:
         points = json.loads(args.waypoints_json)
-        print(json.dumps(prove(args.board, args.output, args.link_index, pair, points), indent=2))
+        via_indices = json.loads(args.via_indices_json)
+        print(json.dumps(prove(args.board, args.output, args.link_index, pair, points, via_indices), indent=2))
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as exc:
         print("SAFE NATIVE COPPER REVIEW BLOCKED:", exc, file=sys.stderr)
         return 2

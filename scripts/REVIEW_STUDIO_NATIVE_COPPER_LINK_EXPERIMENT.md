@@ -1,12 +1,13 @@
 # Native KiCad copper link: source-only, fail-closed experimental proof
 
-**Status:** isolated **post-0.1.9 source-only** implementation. The guarded
-copper authoring engine now has a real authenticated localhost web UI and
-HTTP workflow **when running from this source branch**, but the SHA-qualified
-0.1.9 Debian package and offline kit are unchanged and **do not contain this
-GUI or API**. A newly numbered exact-package/Ubuntu qualification is still
-required before shipping. No full copper autorouter, GUI F8 synchronization,
-independent fabrication review or electrical signoff.
+**Status:** the guarded single-layer copper UI was separately qualified in
+the immutable, **unsigned 0.1.10 local candidate**. The optional
+**two-through-via F.Cu → B.Cu → F.Cu extension described below is a NEW
+post-0.1.10 source-only milestone**, not part of the SHA-qualified 0.1.10
+Debian package or offline ZIP. It requires a **new version number and its
+own exact-package/Ubuntu acceptance** before any installation or release
+claims. No autorouter, KiCad F8 synchronization, independent manufacturing
+review or electrical signoff.
 
 ## What is genuinely implemented
 
@@ -15,8 +16,19 @@ specified single-net F.Cu connection** between two pad UUIDs that native
 KiCad 10 independently lists as one unconnected pad pair. It accepts a
 straight track or a user-specified polyline with up to **four** explicitly
 supplied intermediate millimetre coordinates; each piece is a native KiCad
-`PCB_TRACK` with 0.20 mm width. It does not search for a route or perform
-shove/ripup/autorouting.
+`PCB_TRACK` with 0.20 mm width. **New source-only extension:** on an
+exactly two-copper-layer board, a user can additionally supply
+`via_indices: [i,j]`, where `1 <= i < j <= number_of_waypoints`.
+KiCad then writes an explicit F.Cu segment from start pad to waypoint
+`i`, B.Cu tracks from waypoint `i` to waypoint `j`, and F.Cu from
+`j` to the end pad. Exactly two native KiCad through-hole vias (0.60 mm
+diameter, 0.30 mm drill) are placed on those two intermediate points.
+All segments and both vias retain the requested original net.
+`via_indices: []` or omission preserves the old all-F.Cu behavior.
+
+No via is synthesized automatically and the route is NOT an autorouter.
+A straight center-to-center route, a multi-segment polyline, and this
+one F→B→F corridor are the only supported route shapes.
 
 All preconditions and invariants fail closed:
 
@@ -38,6 +50,11 @@ All preconditions and invariants fail closed:
 - Endpoints 0.2–20 mm apart; waypoint bounds inside the native board
   rectangle; no duplicate coordinates, NaN, infinity, booleans or large
   values; each segment 0.15–25 mm and aggregate length at most 60 mm.
+  The via indices are two **strict integers**, ascending, between 1 and
+  the actual number of intermediate waypoints; no blind user-defined
+  via count, layer name, blind/buried/microvia or mixed-layer stackup.
+  KiCad must report **exactly one** newly connected DRC item, never
+  additional unintended connectivity.
 - No original PCB/file changes. The native loaded PCB and exact asset
   hashes are captured before generating output. Identical baseline and
   post-route `kicad-cli pcb drc --schematic-parity --severity-all --format
@@ -102,6 +119,13 @@ guesses those IDs:
 ```
 
 Use `--waypoints-json '[]'` (default) for a single straight segment.
+In the **new source-only** two-via mode, keep the shown intermediate
+waypoints but additionally supply `--via-indices-json '[1,2]'` to
+connect exactly F.Cu → B.Cu → F.Cu using two 0.60 mm/0.30 mm
+native KiCad through-vias at the shown intermediate positions. This
+command is **not available in the frozen 0.1.10 installed package**.
+Without that extra argument (`[]` by default), the original F.Cu
+polyline remains unchanged.
 The guarded engine is also available in the **source-only, authenticated
 localhost UI** in `review_studio_workspace_template.html`. Select the ZIP
 of the *contents* of the generated portable KiCad folder (root-level
@@ -177,8 +201,10 @@ links are categorized as **3 GND, 5 VCC_3V3, 2 VCC_5V and 2 I2C_SCL**
 the new pad-to-pad review-only engine does not support). Manufacturer
 `drill_out_of_range` (12) and `hole_clearance` (4) are still present.
 The independent candidate is **not complete routing**, not an
-electrical-performance certificate, not independently fab-approved and
-not installed in Review Studio.
+electrical-performance certificate or independently fab-approved.
+The original single-F.Cu native copper editor is present in the
+QA-qualified unsigned 0.1.10 local installer; the **new optional
+dual-via/layer extension exists only in subsequent isolated source**.
 
 PR #119's particular hardcoded route coordinates may NOT be re-used
 for a newly placed or otherwise altered board. In particular, our

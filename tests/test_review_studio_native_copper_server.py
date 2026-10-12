@@ -155,6 +155,63 @@ def test_local_native_copper_inspect_select_route_download_discard(
     assert contents == original_contents
 
 
+def test_native_two_through_via_http_workflow_uses_real_kicad_drc_and_private_sha(
+    tmp_path: Path, portable: tuple[bytes, dict[str, bytes]]
+) -> None:
+    original, contents = portable
+    source_sha = hashlib.sha256(original).hexdigest()
+    with local_studio(tmp_path) as (server, base):
+        code, raw = fetch(base + "/api/native-copper/inspect", server.secret, data=upload(original))
+        assert code == 200
+        candidates = json.loads(raw)["links"]
+        selected = next(
+            item
+            for item in candidates
+            if any("Pad 2 [GND] of R3" in pad["label"] for pad in item["pads"])
+            and any("Pad 2 [GND] of R4" in pad["label"] for pad in item["pads"])
+        )
+        uuids = [item["uuid"] for item in selected["pads"]]
+        assert len(uuids) == 2
+        payload = {
+            **upload(original),
+            "start_pad_uuid": uuids[0],
+            "end_pad_uuid": uuids[1],
+            "waypoints": [[72.51, 58.8], [77.51, 58.8]],
+            "via_indices": [1, 2],
+        }
+        code, queued = fetch(base + "/api/native-copper", server.secret, data=payload)
+        assert code == 202, queued
+        identifier = json.loads(queued)["id"]
+        finished = await_job(base, server.secret, identifier)
+        assert finished["state"] == "complete", finished
+        result = finished["native_copper"]
+        assert result["archive_sha256"] == source_sha
+        assert result["link"]["segment_layers"] == ["F.Cu", "B.Cu", "F.Cu"]
+        assert result["link"]["via_count"] == 2
+        assert result["link"]["via_diameter_mm"] == 0.6
+        assert result["link"]["via_drill_mm"] == 0.3
+        assert result["before_unconnected"] == 37 and result["after_unconnected"] == 36
+        assert result["before_violations"] == result["after_violations"] == 16
+        assert result["fabApproved"] is False
+        url = base + "/api/native-copper/result/" + identifier
+        code, data = fetch(url + "/native-copper-project.zip", server.secret)
+        assert code == 200
+        assert result["download_sha256"]["native-copper-project.zip"] == hashlib.sha256(data).hexdigest()
+        with zipfile.ZipFile(io.BytesIO(data)) as package:
+            manifest = json.loads(package.read("EVIDENCE.json"))
+            assert manifest["source_sha256"] == hashlib.sha256(contents["ESP32_I2C_Sensor_Board.kicad_pcb"]).hexdigest()
+            assert manifest["link"]["via_indices"] == [1, 2]
+            assert b"<svg" in package.read("after.svg")
+            assert package.read("after.svg") != package.read("before.svg")
+            assert b"NOT FABRICATION APPROVED" in package.read("PREVIEW.html")
+            assert len(json.loads(package.read("candidate-drc.json"))["unconnected_items"]) == 36
+        code, discarded = fetch(base + "/api/native-copper/discard", server.secret, data={"id": identifier})
+        assert code == 200 and json.loads(discarded)["state"] == "discarded"
+        code, _ = fetch(url + "/native-copper-project.zip", server.secret)
+        assert code == 404
+    assert source_sha == hashlib.sha256(original).hexdigest()
+
+
 @pytest.mark.parametrize(
     ("change", "expected"),
     [
@@ -164,6 +221,13 @@ def test_local_native_copper_inspect_select_route_download_discard(
         ({"start_pad_uuid": "no-uuid"}, 400),
         ({"waypoints": [True]}, 400),
         ({"waypoints": [[0, float("inf")]]}, 400),
+        ({"via_indices": [0, 2]}, 400),
+        ({"via_indices": [2, 1]}, 400),
+        ({"via_indices": [1, 1]}, 400),
+        ({"via_indices": [True, 2]}, 400),
+        ({"via_indices": [1.0, 2]}, 400),
+        ({"via_indices": [1, 2, 3]}, 400),
+        ({"via_indices": "[]"}, 400),
     ],
 )
 def test_native_copper_api_rejects_invalid_privileged_requests(
