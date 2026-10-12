@@ -11,8 +11,39 @@ for x in "$PY" "$RUFF" "$PYRIGHT" /usr/bin/python3 /usr/bin/dpkg-deb;do
   [[ -x "$x" ]] || { echo "MISSING RELEASE TOOL: $x" >&2; exit 2; }
 done
 
+echo '[preflight] Synchronize source-SHA-checked derived HTML evidence with the current renderer'
+/usr/bin/python3 -B - <<'PYQA'
+import hashlib
+import json
+import sys
+from pathlib import Path
+root = Path.cwd()
+sys.path.insert(0, str(root / "scripts"))
+from review_studio_native_kicad import native_review_report_html
+board = root / "build/source-reference-readonly/ESP32_actual_copper_review.kicad_pcb"
+file = root / "build/native-review/evidence.json"
+report = root / "build/native-review/REVIEW_REPORT.html"
+if not file.exists():
+    if report.exists():
+        raise RuntimeError("Cached report present without source-backed evidence")
+    print("NATIVE_CACHED_REPORT_NOT_PRESENT; source will be rebuilt at [4/9]")
+else:
+    if file.is_symlink() or report.is_symlink() or not board.is_file():
+        raise RuntimeError("Unsafe native report cache input")
+    evidence = json.loads(file.read_text(encoding="utf-8"))
+    original_sha = hashlib.sha256(board.read_bytes()).hexdigest()
+    if evidence.get("source_sha256") != original_sha:
+        raise RuntimeError("Cached native evidence does not match actual immutable PCB SHA")
+    evidence["schematic"] = evidence.get("schematic_meta")
+    generated = native_review_report_html(evidence)
+    if "NOT FABRICATION APPROVED" not in generated or "<script" in generated.lower():
+        raise RuntimeError("Insecure or unqualified generated native report")
+    report.write_text(generated, encoding="utf-8")
+    print("SHA_BOUND_NATIVE_STATIC_REPORT_PREFLIGHT=PASS", original_sha)
+PYQA
+
 echo '[1/9] Python integration and package lifecycle tests'
-PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -p no:cacheprovider \
+PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -x -p no:cacheprovider \
   tests/test_kicad_export.py \
   tests/test_kicad_export_native_linkage.py \
   tests/test_kicad_usb4105_oval_slots.py \
