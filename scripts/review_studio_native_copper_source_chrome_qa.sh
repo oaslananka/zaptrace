@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Source-only post-0.1.10 guarded F.Cu / two-through-via / B.Cu / F.Cu Chrome proof.
-# This is explicitly NOT the QA-qualified frozen 0.1.10 installation.
+# Source-only post-0.1.11 guarded native single/via/multinet Chrome proof.
+# This new batch feature is NOT inside QA-qualified frozen 0.1.11 installation.
 set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 cd "$ROOT"
@@ -107,8 +107,26 @@ print('INDEPENDENT_SAVED_KICAD_PCBNEW_TWO_VIAS_AND_BOTTOM_COPPER=PASS')
  board.unlink()
  print('CHROME_DOWNLOADED_REAL_KICAD_NATIVE_TWO_THROUGH_VIA_COPY=PASS')
 PY
+export ZAPTRACE_COPPER_BATCH=1
+export ZAPTRACE_COPPER_DOWNLOAD_DIR="$QA/downloads-batch"
+node scripts/review_studio_native_copper_browser_smoke.mjs
+python3 -B - "$QA/downloads-batch/native-copper-project.zip" <<'PY_CHECK_BATCH'
+import json,sys,zipfile
+with zipfile.ZipFile(sys.argv[1]) as result:
+ assert result.testzip() is None
+ evidence=json.loads(result.read('EVIDENCE.json'))
+ assert evidence['step_count']==2
+ assert evidence['distinct_nets']==['GND','VCC_3V3']
+ assert evidence['cumulative_drc']['before_unconnected']==37
+ assert evidence['cumulative_drc']['after_unconnected']==35
+ assert evidence['cumulative_drc']['before_violations']==evidence['cumulative_drc']['after_violations']==16
+ assert evidence['fabApproved'] is False
+ assert len([p for p in result.namelist() if p.startswith('step-') and p.endswith('-evidence.json')])==2
+ print('CHROME_DOWNLOADED_NATIVE_TRANSACTIONAL_TWO_NETS_DRC_37_TO_35=PASS')
+PY_CHECK_BATCH
+unset ZAPTRACE_COPPER_BATCH
 unset ZAPTRACE_COPPER_VIA_PAIR
 export ZAPTRACE_COPPER_DOWNLOAD_DIR="$QA/downloads-old"
 node scripts/review_studio_native_copper_browser_smoke.mjs
-(cd build/distribution && sha256sum -c zaptrace-review-studio_0.1.10_all.sha256)
-echo 'POST_0110_SOURCE_ONLY_CHROME_TWO_VIA_AND_LEGACY_FCU_ALL_PASSED'
+(cd build/distribution && sha256sum -c zaptrace-review-studio_0.1.11_all.sha256)
+echo 'POST_0111_SOURCE_ONLY_CHROME_TWO_VIA_TWO_NET_BATCH_AND_LEGACY_FCU_ALL_PASSED'

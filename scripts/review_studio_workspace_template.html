@@ -216,8 +216,18 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
   <label>Optional intermediate route coordinates (mm, JSON pairs)<input id="copperWaypoints" type="text" value="[]" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Up to four explicitly specified route waypoint coordinate pairs as JSON" placeholder="[[72.51,58.8],[77.51,58.8]]"/></label>
   <label>Optional explicit through-via waypoint indices (JSON, 1-based)<input id="copperViaIndices" type="text" value="[]" maxlength="12" autocomplete="off" spellcheck="false" aria-label="Empty for F.Cu only; two increasing one-based waypoint indices for exact F.Cu to B.Cu to F.Cu through-vias" placeholder="[1,2]"/></label>
   <button type="submit" id="copperRouteRun" disabled>Verify one real copper link &amp; create copy</button>
+  <button type="button" id="copperQueueAdd" disabled>Add selected route to batch</button>
  </form>
- <p class="eco-warning">Experimental 0.1.11 native routing candidate: verify this exact installer and its local QA manifest before relying on two-via or custom-rule features. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. An optional matching project-root .kicad_dru is checked with a native KiCad loader sentinel; the proposed copper must ALSO pass DRC on independent copies without that custom rule file. Rule semantics are not independently qualified. The native 0.20 mm track, existing DRC findings, project-local library sources, copper geometry and schematic parity must all survive. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
+ <div id="copperBatchPanel" hidden aria-label="Transactional multiple-net KiCad route queue">
+  <h3>Transactional native multi-net routing · source-only 0.1.12</h3>
+  <p>Queue two or three distinct net/pad pairs. Every step must reduce one real open KiCad connection; any failure rejects the entire batch. Copper zones are unsupported. No automatic routing or fabrication approval.</p>
+  <ol id="copperQueued" aria-label="Explicit native copper routes awaiting independent DRC"></ol>
+  <div class="eco-result-actions">
+   <button id="copperBatchRun" type="button" disabled>Verify all queued routes · no partial output</button>
+   <button id="copperQueueClear" type="button" disabled>Clear pending routes</button>
+  </div>
+ </div>
+ <p class="eco-warning">0.1.11 single-route installation is separately qualified; the transactional 0.1.12 multi-net queue is SOURCE ONLY and not included in its .deb. Verify the 0.1.11 exact installer and its local QA manifest before relying on two-via or custom-rule features. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. An optional matching project-root .kicad_dru is checked with a native KiCad loader sentinel; the proposed copper must ALSO pass DRC on independent copies without that custom rule file. Rule semantics are not independently qualified. The native 0.20 mm track, existing DRC findings, project-local library sources, copper geometry and schematic parity must all survive. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
  <p class="eco-status" id="copperStatus" role="status" aria-live="polite" hidden></p>
  <div class="eco-result" id="copperResult" hidden>
   <div class="eco-result-head"><strong id="copperResultTitle">Separate native KiCad copper draft · NOT approved</strong>
@@ -385,7 +395,34 @@ if(window.__REVIEW_LOCAL__?.token){
  }
  const copperStatus=$('copperStatus'),copperInspectRun=$('copperInspectRun'),
   copperRouteRun=$('copperRouteRun'),copperResult=$('copperResult'),copperPair=$('copperPair');
- let copperArchive=null,copperCandidates=[],copperId=null;
+ let copperArchive=null,copperCandidates=[],copperId=null,copperQueued=[],copperBatchBusy=false;
+ const renderCopperQueue=()=>{
+  const list=$('copperQueued');list.replaceChildren();
+  for(const item of copperQueued){
+   const li=document.createElement('li');
+   li.textContent=item.title+' · '+item.route.waypoints.length+
+    ' waypoint(s) · '+item.route.via_indices.length+' through-via(s)';
+   list.append(li);
+  }
+  $('copperBatchPanel').hidden=!copperCandidates.length;
+  $('copperQueueAdd').disabled=!copperCandidates.length||copperQueued.length>=3||Boolean(copperId)||copperBatchBusy;
+  $('copperBatchRun').disabled=copperQueued.length<2||Boolean(copperId)||copperBatchBusy;
+  $('copperQueueClear').disabled=!copperQueued.length||Boolean(copperId)||copperBatchBusy;
+ };
+ const selectedCopperRoute=()=>{
+  const index=Number(copperPair.value),candidate=copperCandidates[index];
+  if(!candidate||!Number.isInteger(index)||index<0)throw Error('Select a native KiCad connection first.');
+  const waypoints=JSON.parse($('copperWaypoints').value.trim()||'[]');
+  if(!Array.isArray(waypoints)||waypoints.length>4||waypoints.some(p=>!Array.isArray(p)||p.length!==2||
+      p.some(n=>typeof n!=='number'||!Number.isFinite(n))))throw Error('Waypoints must be zero to four finite [x,y] coordinate pairs.');
+  const via_indices=JSON.parse($('copperViaIndices').value.trim()||'[]');
+  if(!Array.isArray(via_indices)||(via_indices.length!==0&&(
+      via_indices.length!==2||!via_indices.every(n=>Number.isInteger(n))||
+      via_indices[0]<1||via_indices[0]>=via_indices[1]||via_indices[1]>waypoints.length)))
+   throw Error('Via indices: [] (F.Cu only), or two ordered one-based waypoint indexes, e.g. [1,2].');
+  return {route:{start_pad_uuid:candidate.pads[0].uuid,end_pad_uuid:candidate.pads[1].uuid,waypoints,via_indices},
+   title:candidate.pads[0].label+' → '+candidate.pads[1].label};
+ };
  const copperMessage=(message,kind='info')=>{
   copperStatus.hidden=false;copperStatus.textContent=message;
   copperStatus.classList.toggle('error',kind==='error');
@@ -398,9 +435,10 @@ if(window.__REVIEW_LOCAL__?.token){
   $('copperViaIndices').value='[]';
  };
  const copperClear=()=>{
-  copperArchive=null;copperCandidates=[];copperPair.replaceChildren();
+  copperArchive=null;copperCandidates=[];copperPair.replaceChildren();copperQueued=[];
   copperResetGeometry();
   copperRouteRun.disabled=true;$('copperRouteForm').hidden=true;
+  renderCopperQueue();
  };
  // A previously accepted route for a different electrical net must never
  // silently follow the operator when they select another native pad pair.
@@ -445,6 +483,7 @@ if(window.__REVIEW_LOCAL__?.token){
    }
    $('copperRouteForm').hidden=!copperCandidates.length;
    copperRouteRun.disabled=!copperCandidates.length;
+   renderCopperQueue();
    copperMessage('Native KiCad 10: '+report.unconnected_count+' open items · '+report.physical_drc_count+
     ' physical DRC findings · 0 schematic-parity issues. '+copperCandidates.length+
     ' exact pairs available. Select one; routing requires a new independent KiCad DRC.','success');
@@ -452,28 +491,85 @@ if(window.__REVIEW_LOCAL__?.token){
   }catch(error){copperClear();copperMessage(error?.message||'Native KiCad project inspection failed.','error');}
   finally{copperInspectRun.disabled=false;}
  });
+ $('copperQueueAdd').addEventListener('click',()=>{
+  if(copperId||copperBatchBusy){copperMessage('Discard the active draft first.','error');return;}
+  try{
+   const item=selectedCopperRoute();
+   if(copperQueued.length>=3)throw Error('Maximum three explicit native routes per batch.');
+   const previous=new Set(copperQueued.flatMap(x=>[x.route.start_pad_uuid,x.route.end_pad_uuid]));
+   if(previous.has(item.route.start_pad_uuid)||previous.has(item.route.end_pad_uuid))
+    throw Error('The same physical pad UUID cannot be reused in a batch.');
+   // A distinct net is compulsory; pre-check native DRC labels, then the
+   // server independently checks actual PCB net identities after each route.
+   const net=(item.title.match(/\[([^\]]+)\]/)||[])[1];
+   if(!net||copperQueued.some(x=>x.net===net))throw Error('Select a different native electrical net for this batch.');
+   copperQueued.push({...item,net});renderCopperQueue();copperResetGeometry();
+   copperMessage(copperQueued.length+' native route(s) queued. Batch publishes nothing unless every route passes.','success');
+  }catch(error){copperMessage(error?.message||'Native route could not be queued.','error');}
+ });
+ $('copperQueueClear').addEventListener('click',()=>{
+  if(copperId||copperBatchBusy)return;
+  copperQueued=[];renderCopperQueue();copperMessage('Uncommitted multi-net queue cleared. Original ZIP unchanged.','success');
+ });
+ $('copperBatchRun').addEventListener('click',async()=>{
+  if(copperId||copperBatchBusy||copperQueued.length<2)return;
+  copperBatchBusy=true;renderCopperQueue();copperRouteRun.disabled=true;
+  try{
+   const archive=await copperProjectPayload();
+   copperMessage('Verifying '+copperQueued.length+' distinct KiCad nets, chained working-copy SHA and cumulative DRC. No partial publishing…');
+   const reply=await fetch('/api/native-copper/batch',{method:'POST',
+    headers:{'X-Review-Token':token,'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify({...archive,routes:copperQueued.map(item=>item.route)})});
+   const started=await reply.json();
+   if(!reply.ok||started.state!=='running'||!started.id)throw Error(started.error||'Native batch request rejected.');
+   // Child KiCad DRC is bounded to 570s for three independent steps;
+   // browser waiting must exceed that ceiling or a healthy job appears lost.
+   for(let attempt=0;attempt<1500;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,450));
+    const status=await fetch('/api/jobs/'+encodeURIComponent(started.id),
+     {headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!status.ok)throw Error('Native KiCad batch state unavailable');
+    const job=await status.json();
+    if(job.state==='failed')throw Error(job.message||'Native KiCad discarded an unsuccessful batch');
+    if(job.state==='complete'){
+     const proof=job.native_copper;
+     if(!proof||proof.fabApproved!==false||proof.mode!=='transactional_multinet_review'||
+       proof.step_count!==copperQueued.length||
+       proof.after_unconnected!==proof.before_unconnected-copperQueued.length)
+       throw Error('Incomplete cumulative native DRC batch evidence');
+     copperId=started.id;
+     $('copperResultTitle').textContent=proof.distinct_nets.join(' + ')+' · '+proof.step_count+
+      ' native links · independent cumulative KiCad DRC · NOT APPROVED';
+     $('copperResultSummary').textContent='Unconnected: '+proof.before_unconnected+' → '+
+      proof.after_unconnected+' · Physical DRC: '+proof.before_violations+' → '+
+      proof.after_violations+' · Native parity unchanged at zero. '+
+      'Step-by-step KiCad DRC, exact SHA chain, through-via verification and private evidence ZIP. '+
+      'Zone refill NOT verified. No fabrication or electrical signoff.';
+     copperResult.hidden=false;renderCopperQueue();
+     const preview=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/PREVIEW.html',
+      {headers:{'X-Review-Token':token},cache:'no-store'});
+     if(!preview.ok)throw Error('Native multi-net route passed but preview unavailable');
+     $('copperPreview').srcdoc=await preview.text();
+     copperMessage('Cumulative KiCad 10 DRC verified every net. Download or discard private batch project.','success');
+     copperResult.scrollIntoView({behavior:'auto',block:'nearest'});
+     return;
+    }
+   }
+   throw Error('Batch DRC validation timed out; no fabrication or electrical approval.');
+  }catch(error){copperMessage(error?.message||'Native multi-net transaction rejected.','error');}
+  finally{copperBatchBusy=false;renderCopperQueue();copperRouteRun.disabled=Boolean(copperId)||!copperCandidates.length;}
+ });
  $('copperRouteForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  if(copperId){copperMessage('Discard the active copper draft before another edit.','error');return;}
-  const index=Number(copperPair.value),candidate=copperCandidates[index];
-  if(!candidate||!Number.isInteger(index)||index<0){copperMessage('Select a native KiCad connection first.','error');return;}
+  if(copperId||copperBatchBusy){copperMessage('Finish or discard the active copper draft before another edit.','error');return;}
   copperRouteRun.disabled=true;
   try{
-   const waypoints=JSON.parse($('copperWaypoints').value.trim()||'[]');
-   if(!Array.isArray(waypoints)||waypoints.length>4||waypoints.some(p=>!Array.isArray(p)||p.length!==2||
-       p.some(n=>typeof n!=='number'||!Number.isFinite(n))))
-    throw Error('Waypoints must be zero to four finite [x,y] coordinate pairs.');
-   const via_indices=JSON.parse($('copperViaIndices').value.trim()||'[]');
-   if(!Array.isArray(via_indices)||(via_indices.length!==0&&(
-       via_indices.length!==2||!via_indices.every(n=>Number.isInteger(n))||
-       via_indices[0]<1||via_indices[0]>=via_indices[1]||via_indices[1]>waypoints.length)))
-    throw Error('Via indices: [] (F.Cu only), or two ordered one-based waypoint indexes, e.g. [1,2].');
+   const {route}=selectedCopperRoute();
    const archive=await copperProjectPayload();
    copperMessage('Native KiCad is checking exact pad UUIDs, F/B copper and through-via geometry, physical DRC and saved copper identity…');
    const send=await fetch('/api/native-copper',{
     method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
-    body:JSON.stringify({...archive,start_pad_uuid:candidate.pads[0].uuid,
-     end_pad_uuid:candidate.pads[1].uuid,waypoints,via_indices}),cache:'no-store'
+    body:JSON.stringify({...archive,...route}),cache:'no-store'
    });
    const started=await send.json();
    if(!send.ok||started.state!=='running'||!started.id)throw Error(started.error||'Native route request rejected');

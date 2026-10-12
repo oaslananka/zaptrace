@@ -7,6 +7,7 @@ const zip=process.env.ZAPTRACE_COPPER_ZIP;
 const dir=process.env.ZAPTRACE_COPPER_DOWNLOAD_DIR;
 const viaMode=process.env.ZAPTRACE_COPPER_VIA_PAIR==='1';
 const customMode=process.env.ZAPTRACE_COPPER_CUSTOM_RULES==='1';
+const batchMode=process.env.ZAPTRACE_COPPER_BATCH==='1';
 if(!port||!zip||!dir)throw Error('Real localhost Chrome and portable KiCad ZIP required');
 const initialSha=createHash('sha256').update(await readFile(zip)).digest('hex');
 let pages=[];
@@ -64,7 +65,7 @@ const index=inspected.options.findIndex(label=>viaMode
  ? label.includes('Pad 2 [GND] of R3')&&label.includes('Pad 2 [GND] of R4')
  : label.includes('Pad 2 [VCC_3V3] of U1')&&label.includes('Pad 3 [VCC_3V3] of U1'));
 pass(index>=0,viaMode?'native exact R3.2↔R4.2 candidate':'native exact U1.2↔U1.3 electrical candidate exposed by real KiCad');
-if(viaMode){
+if(viaMode&&!batchMode){
  await evaluate("document.getElementById('copperPair').value="+JSON.stringify(String(index))+
   ";document.getElementById('copperWaypoints').value='[[72.51,58.8],[77.51,58.8]]';"+
   "document.getElementById('copperViaIndices').value='[1,1]';"+
@@ -79,9 +80,27 @@ if(viaMode){
  }
  pass(rejected,'Chrome rejects repeated/ambiguous through-via indices before launching a native job');
 }
-await evaluate("document.getElementById('copperPair').value="+JSON.stringify(String(index))+
- (viaMode?";document.getElementById('copperWaypoints').value='[[72.51,58.8],[77.51,58.8]]';document.getElementById('copperViaIndices').value='[1,2]'":"")+
- ";document.getElementById('copperRouteForm').requestSubmit();true");
+if(batchMode){
+ pass(viaMode,'batch Chrome acceptance begins with explicit 2-via GND route');
+ await evaluate("document.getElementById('copperPair').value="+JSON.stringify(String(index))+
+  ";document.getElementById('copperWaypoints').value='[[72.51,58.8],[77.51,58.8]]';"+
+  "document.getElementById('copperViaIndices').value='[1,2]';"+
+  "document.getElementById('copperQueueAdd').click();true");
+ const next=inspected.options.findIndex(label=>label.includes('Pad 2 [VCC_3V3] of U1')&&
+  label.includes('Pad 3 [VCC_3V3] of U1'));
+ pass(next>=0,'native VCC_3V3 second distinct electrical net is discoverable');
+ await evaluate("document.getElementById('copperPair').value="+JSON.stringify(String(next))+
+  ";document.getElementById('copperPair').dispatchEvent(new Event('change'));"+
+  "document.getElementById('copperQueueAdd').click();true");
+ pass(await evaluate("document.querySelectorAll('#copperQueued li').length===2&&"+
+  "!document.getElementById('copperBatchRun').disabled"),
+  'two real distinct nets with exact native pad UUIDs queued in browser');
+ await evaluate("document.getElementById('copperBatchRun').click();true");
+}else{
+ await evaluate("document.getElementById('copperPair').value="+JSON.stringify(String(index))+
+  (viaMode?";document.getElementById('copperWaypoints').value='[[72.51,58.8],[77.51,58.8]]';document.getElementById('copperViaIndices').value='[1,2]'":"")+
+  ";document.getElementById('copperRouteForm').requestSubmit();true");
+}
 let result={};
 for(let i=0;i<440;i++){
  result=await evaluate("(()=>({status:document.getElementById('copperStatus').textContent,running:document.getElementById('copperRouteRun').disabled,ready:!document.getElementById('copperResult').hidden,title:document.getElementById('copperResultTitle').textContent,summary:document.getElementById('copperResultSummary').textContent}))()");
@@ -89,12 +108,14 @@ for(let i=0;i<440;i++){
  if(!result.running&&!result.ready)throw Error('Native KiCad copper route rejected: '+result.status);
  await new Promise(resolve=>setTimeout(resolve,200));
 }
-console.log('CHROME_NATIVE_COPPER_VERIFICATION_STATE',JSON.stringify({result,viaMode,customMode}));
-pass(result.ready&&result.summary.includes('Unconnected: 37 → 36')&&
- result.summary.includes('Physical DRC: 16 → 16')&&result.summary.includes('0.20 mm width')&&
+console.log('CHROME_NATIVE_COPPER_VERIFICATION_STATE',JSON.stringify({result,viaMode,customMode,batchMode}));
+pass(result.ready&&result.summary.includes(batchMode?'Unconnected: 37 → 35':'Unconnected: 37 → 36')&&
+ result.summary.includes('Physical DRC: 16 → 16')&&
+ (batchMode?result.title.includes('2 native links'):result.summary.includes('0.20 mm width'))&&
  result.title.includes('NOT APPROVED')&&
- (!customMode||result.summary.includes('Custom .kicad_dru loader proof + independent default KiCad DRC passed'))&&
- (!viaMode||(result.title.includes('2 through-via(s)')&&result.summary.includes('F.Cu → B.Cu → F.Cu'))),
+ (!customMode||batchMode||result.summary.includes('Custom .kicad_dru loader proof + independent default KiCad DRC passed'))&&
+ (!viaMode||batchMode||(result.title.includes('2 through-via(s)')&&result.summary.includes('F.Cu → B.Cu → F.Cu'))),
+ batchMode?'Chrome native multi-net transaction 37→35, 16→16 native DRC and explicit no-fab result':
  viaMode?'Chrome native F/B two-through-via copy proved DRC 37→36 without new violations and explicitly blocked fab':
  'Chrome native selected copper route reduced open count without new physical DRC; fabrication explicitly blocked');
 let preview='';
@@ -121,7 +142,9 @@ for(const [name,selector] of [['native-copper-project.zip','copperDownload'],['E
   if(names.includes(name)&&!names.some(x=>x.endsWith('.crdownload'))){bytes=await readFile(path.join(dir,name));break;}
   await new Promise(resolve=>setTimeout(resolve,130));
  }
- pass(bytes!==null&&(name.endsWith('.zip')?bytes.subarray(0,2).toString()==='PK':JSON.parse(bytes.toString()).native_drc.after_unconnected===36),
+ pass(bytes!==null&&(name.endsWith('.zip')?bytes.subarray(0,2).toString()==='PK':
+ (batchMode?JSON.parse(bytes.toString()).cumulative_drc.after_unconnected===35:
+ JSON.parse(bytes.toString()).native_drc.after_unconnected===36)),
   'real Chrome downloaded authenticated private '+name+' with native KiCad DRC proof');
 }
 await evaluate("document.getElementById('copperDiscard').click();true");

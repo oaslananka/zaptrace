@@ -82,6 +82,58 @@ def checked_upload(payload: object, require_route: bool) -> tuple[bytes, str, tu
     return raw, wanted, pair, points, via_indices
 
 
+def checked_batch_routes(request: object) -> list[dict]:
+    """Strict shared HTTP/native schema for at most three explicit links."""
+    if not isinstance(request, list) or not 2 <= len(request) <= 3:
+        raise ValueError("Two or three explicit native copper links required")
+    seen: set[str] = set()
+    parsed = []
+    accepted = {"start_pad_uuid", "end_pad_uuid", "waypoints", "via_indices"}
+    for item in request:
+        if (
+            not isinstance(item, dict)
+            or not {"start_pad_uuid", "end_pad_uuid", "waypoints"} <= item.keys()
+            or set(item) - accepted
+        ):
+            raise ValueError("Batch link must contain only exact native pair and geometry fields")
+        start, end = item["start_pad_uuid"], item["end_pad_uuid"]
+        if (
+            not isinstance(start, str)
+            or not UUID.fullmatch(start)
+            or not isinstance(end, str)
+            or not UUID.fullmatch(end)
+            or start == end
+            or start in seen
+            or end in seen
+        ):
+            raise ValueError("Batch native pad identities must be valid, distinct and used only once")
+        seen.update((start, end))
+        waypoints = item["waypoints"]
+        if not isinstance(waypoints, list) or len(waypoints) > 4:
+            raise ValueError("Batch link allows no more than four intermediate millimetre coordinates")
+        for point in waypoints:
+            if (
+                not isinstance(point, list)
+                or len(point) != 2
+                or any(
+                    type(value) not in (int, float) or not math.isfinite(value) or abs(value) > 2000 for value in point
+                )
+            ):
+                raise ValueError("Batch waypoints must be finite millimetre coordinate pairs")
+        indices = item.get("via_indices", [])
+        if not isinstance(indices, list) or (
+            indices
+            and (
+                len(indices) != 2
+                or any(type(index) is not int for index in indices)
+                or not 1 <= indices[0] < indices[1] <= len(waypoints)
+            )
+        ):
+            raise ValueError("Batch via indices must specify exactly two ordered intermediate waypoints")
+        parsed.append({"start_pad_uuid": start, "end_pad_uuid": end, "waypoints": waypoints, "via_indices": indices})
+    return parsed
+
+
 def extract_project_zip(raw: bytes, destination: Path) -> Path:
     """Extract exact safe files, nothing else. Destination must be new and private."""
     if destination.exists() or destination.is_symlink():

@@ -46,6 +46,13 @@ def _write(dest: Path, data: bytes, executable: bool = False) -> None:
 def build(root: Path, output_dir: Path, *, epoch: int = 1700000000) -> Path:
     root = root.resolve()
     output_dir = output_dir.resolve()
+    # This source branch adds a multi-net endpoint that depends on a NEW
+    # native worker. Packaging it as the previously approved 0.1.11 release,
+    # or omitting the worker, would misrepresent the signed-off install.
+    # Fail before writing even to a new output folder. Only a separately
+    # numbered 0.1.12 release gate may lift this barrier.
+    if VERSION == "0.1.11" and (root / "scripts/review_studio_native_copper_batch.py").is_file():
+        raise ValueError("Post-0.1.11 multi-net source requires a new 0.1.12 release and full native QA")
     if not (root / "LICENSE").is_file():
         raise ValueError("Source license not present, distribution is blocked")
     if not shutil.which("dpkg-deb") or not shutil.which("desktop-file-validate"):

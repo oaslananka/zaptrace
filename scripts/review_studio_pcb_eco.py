@@ -76,7 +76,7 @@ def state(board: Any) -> dict:
             item.GetNetname(),
             vec(item.GetStart()),
             vec(item.GetEnd()),
-            item.GetWidth(),
+            item.GetWidth(pcb.F_Cu) if isinstance(item, pcb.PCB_VIA) else item.GetWidth(),
             item.GetLayer(),
             item.GetLayerSet().FmtBin(),
             vec(item.GetMid()) if isinstance(item, pcb.PCB_ARC) else None,

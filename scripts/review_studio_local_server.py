@@ -646,7 +646,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             except (ValueError, TypeError, UnicodeError, json.JSONDecodeError) as exc:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:175]})
             return
-        if self.path in {"/api/native-copper/inspect", "/api/native-copper"}:
+        if self.path in {"/api/native-copper/inspect", "/api/native-copper", "/api/native-copper/batch"}:
             self._native_copper_post()
             return
         if self.path == "/api/schematic-pcb-audit":
@@ -1281,6 +1281,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.CONFLICT, {"error": "Wait for the active native KiCad job"})
             return
         from review_studio_native_copper_bundle import (
+            checked_batch_routes,
             checked_upload,
             extract_project_zip,
             inspect_native_pairs,
@@ -1290,8 +1291,18 @@ class ReviewHandler(BaseHTTPRequestHandler):
         started = False
         try:
             inspect = self.path.endswith("/inspect")
+            batch = self.path.endswith("/batch")
             payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
-            raw, source_sha, pair, waypoints, via_indices = checked_upload(payload, require_route=not inspect)
+            if batch:
+                if not isinstance(payload, dict) or set(payload) != {"project_base64", "project_sha256", "routes"}:
+                    raise ValueError("Batch requires one portable KiCad project and explicit route array")
+                raw, source_sha, pair, waypoints, via_indices = checked_upload(
+                    {key: payload[key] for key in ("project_base64", "project_sha256")}, require_route=False
+                )
+                routes = checked_batch_routes(payload["routes"])
+            else:
+                raw, source_sha, pair, waypoints, via_indices = checked_upload(payload, require_route=not inspect)
+                routes = []
             self.review_server.workspace.mkdir(parents=True, exist_ok=True)
             if inspect:
                 with tempfile.TemporaryDirectory(
@@ -1304,7 +1315,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 # the browser is told that inspection has completed.
                 self._json(HTTPStatus.OK, report)
             else:
-                assert pair is not None
+                if not batch:
+                    assert pair is not None
                 job_id = uuid.uuid4().hex
                 stage = self.review_server.workspace / "native-copper-working" / job_id
                 stage.parent.mkdir(parents=True, exist_ok=True)
@@ -1322,8 +1334,12 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     self.review_server.jobs[job_id] = result
                     self.review_server.native_copper_outputs[job_id] = result_folder
                 thread = threading.Thread(
-                    target=self._run_native_copper_job,
-                    args=(job_id, project_path, result_folder, pair, waypoints, via_indices, source_sha),
+                    target=self._run_native_copper_batch_job if batch else self._run_native_copper_job,
+                    args=(
+                        (job_id, project_path, result_folder, routes, source_sha)
+                        if batch
+                        else (job_id, project_path, result_folder, pair, waypoints, via_indices, source_sha)
+                    ),
                     daemon=True,
                 )
                 thread.start()
@@ -1493,6 +1509,160 @@ class ReviewHandler(BaseHTTPRequestHandler):
                         "before_violations": counts["before_violations"],
                         "after_violations": counts["after_violations"],
                         "archive_sha256": archive_sha,
+                        "fabApproved": False,
+                        "automatic_complete_routing": False,
+                    },
+                }
+        except (OSError, ValueError, RuntimeError, KeyError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            pass
+        finally:
+            if result["state"] != "complete":
+                shutil.rmtree(output, ignore_errors=True)
+            shutil.rmtree(source.parent.parent, ignore_errors=True)
+            with self.review_server.lock:
+                self.review_server.jobs[job_id].update(result)
+                if result["state"] != "complete":
+                    self.review_server.native_copper_outputs.pop(job_id, None)
+            self.review_server.worker_lock.release()
+
+    def _run_native_copper_batch_job(
+        self, job_id: str, source: Path, output: Path, routes: list[dict], archive_sha: str
+    ) -> None:
+        """One atomic private result after 2–3 genuine staged native DRC proofs."""
+        result: dict = {
+            "state": "failed",
+            "message": "KiCad rejected a cumulative net route; no partial copper copy published",
+        }
+        try:
+            script = Path(__file__).with_name("review_studio_native_copper_batch.py")
+            command = subprocess.run(
+                [
+                    "/usr/bin/python3",
+                    "-B",
+                    str(script),
+                    "--board",
+                    str(source),
+                    "--output",
+                    str(output),
+                    "--routes-json",
+                    json.dumps(routes),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=570,
+                check=False,
+            )
+            if command.returncode != 0:
+                if "New physical KiCad DRC violation" in command.stderr:
+                    result["message"] = "A proposed route introduced native KiCad DRC findings; entire batch refused"
+                elif "not a unique native unconnected link" in command.stderr:
+                    result["message"] = "One requested pad pair is no longer a unique native unconnected link"
+            else:
+                evidence = json.loads((output / "EVIDENCE.json").read_text())
+                actual = output / "project" / source.name
+                counts = evidence["cumulative_drc"]
+                steps = evidence["steps"]
+                expected_nets = [step["link"]["net"] for step in steps]
+                expected_pairs = [
+                    (step["link"]["pad_uuids"], step["link"]["via_indices"], step["link"]["segment_count"])
+                    for step in steps
+                ]
+                requested_pairs = [
+                    (
+                        [route["start_pad_uuid"], route["end_pad_uuid"]],
+                        route["via_indices"],
+                        len(route["waypoints"]) + 1,
+                    )
+                    for route in routes
+                ]
+                if (
+                    evidence["source_sha256"] != hashlib.sha256(source.read_bytes()).hexdigest()
+                    or evidence["working_sha256"] != hashlib.sha256(actual.read_bytes()).hexdigest()
+                    or evidence["step_count"] != len(routes)
+                    or evidence["distinct_nets"] != expected_nets
+                    or len(set(expected_nets)) != len(routes)
+                    or expected_pairs != requested_pairs
+                    or counts["after_unconnected"] != counts["before_unconnected"] - len(routes)
+                    or counts["new_findings"] != 0
+                    or counts["schematic_parity"] != 0
+                    or evidence["zone_refill_verified"] is not False
+                    or evidence["fabApproved"] is not False
+                    or evidence["automatic_complete_routing"] is not False
+                    or any(
+                        step["rule_context"]["custom_rules_sha256"]
+                        != evidence["source_asset_sha256"].get(source.with_suffix(".kicad_dru").name)
+                        or (
+                            step["rule_context"]["custom_rules_sha256"] is not None
+                            and (
+                                step["rule_context"]["custom_rule_loader_probe_passed"] is not True
+                                or step["rule_context"]["default_drc_crosscheck_passed"] is not True
+                            )
+                        )
+                        for step in steps
+                    )
+                ):
+                    raise RuntimeError("Independent batch provenance/cumulative KiCad DRC gate failed")
+                for index, step in enumerate(steps, 1):
+                    earlier = evidence["source_sha256"] if index == 1 else steps[index - 2]["working_sha256"]
+                    if step["source_sha256"] != earlier:
+                        raise RuntimeError("Native batch contains a broken KiCad working-copy hash chain")
+                    if (
+                        not (output / f"step-{index}-evidence.json").is_file()
+                        or json.loads((output / f"step-{index}-evidence.json").read_text())["working_sha256"]
+                        != step["working_sha256"]
+                    ):
+                        raise RuntimeError("KiCad per-step evidence was not saved exactly")
+                cli = shutil.which("kicad-cli")
+                if not cli:
+                    raise RuntimeError("Native KiCad plot tool unavailable")
+                first_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+                last_sha = hashlib.sha256(actual.read_bytes()).hexdigest()
+                before_svg = native_copper_native_svg(cli, source, output / "before.svg")
+                after_svg = native_copper_native_svg(cli, actual, output / "after.svg")
+                if (
+                    hashlib.sha256(source.read_bytes()).hexdigest() != first_sha
+                    or hashlib.sha256(actual.read_bytes()).hexdigest() != last_sha
+                ):
+                    raise RuntimeError("Native KiCad copper preview mutated a source")
+                (output / "PREVIEW.html").write_text(
+                    native_copper_preview_html(before_svg, after_svg), encoding="utf-8"
+                )
+                archive = output / "native-copper-project.zip"
+                with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+                    for member in sorted((output / "project").rglob("*")):
+                        if member.is_file() and not member.is_symlink():
+                            bundle.write(member, arcname=member.relative_to(output / "project").as_posix())
+                    for member in sorted(output.glob("*.json")):
+                        bundle.write(member, arcname=member.name)
+                    for member in ("before.svg", "after.svg", "PREVIEW.html"):
+                        bundle.write(output / member, arcname=member)
+                downloads = (
+                    "native-copper-project.zip",
+                    "EVIDENCE.json",
+                    "baseline-drc.json",
+                    "candidate-drc.json",
+                    "PREVIEW.html",
+                )
+                result = {
+                    "state": "complete",
+                    "message": (
+                        "All distinct nets passed cumulative native KiCad DRC; review copy, NOT fabrication approval"
+                    ),
+                    "native_copper": {
+                        "id": job_id,
+                        "mode": "transactional_multinet_review",
+                        "download_sha256": {
+                            name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in downloads
+                        },
+                        "steps": steps,
+                        "step_count": len(steps),
+                        "distinct_nets": expected_nets,
+                        "before_unconnected": counts["before_unconnected"],
+                        "after_unconnected": counts["after_unconnected"],
+                        "before_violations": counts["before_violations"],
+                        "after_violations": counts["after_violations"],
+                        "archive_sha256": archive_sha,
+                        "zone_refill_verified": False,
                         "fabApproved": False,
                         "automatic_complete_routing": False,
                     },
