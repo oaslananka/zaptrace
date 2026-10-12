@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.9 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.10 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.9_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.10_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -80,6 +80,47 @@ change. No automatic PCB/BOM synchronization or fabrication approval is made.
 Only the experimental subset of safe native component value strings is
 accepted; unsupported projects fail closed. Source copies stay private on
 localhost and protected by origin + an ephemeral session token.
+
+## Guarded native copper connection — experimental authoring
+
+The authenticated **Native copper link** workspace action accepts a portable
+KiCad project ZIP, containing one matching `.kicad_pcb`, `.kicad_sch`,
+`.kicad_pro`, the project-local `fp-lib-table`, `sym-lib-table`,
+`ZapTrace.kicad_sym` and `ZapTrace.pretty/*.kicad_mod` files. The archive
+must contain these files at its root (not within an extra parent folder).
+Select **Inspect actual KiCad open links** to obtain real disconnected
+physical pad UUID pairs from freshly executed KiCad 10 native DRC.
+Select one exact pad pair. An optional list of up to four user-supplied
+`[x_mm,y_mm]` coordinates is interpreted in the chosen start/end order.
+
+Only a single 0.20 mm-width top-copper (F.Cu) track/polyline is supported
+per invocation. The KiCad engine creates a **separate portable working
+copy** and refuses all new native physical DRC findings, changed schematic
+parity, unexplained original-copper/pad changes and unconnected counts that
+do not decrease. The panel compares genuine native KiCad before/after
+F.Cu/SilkS/board-edge SVGs, and supplies a private source/DRC-backed
+project ZIP plus separately downloadable JSON evidence. Download the
+evidence ZIP before closing Review Studio; private copper drafts
+are removed when the server restarts. Source files remain untouched.
+
+**Limitations:** this is not automatic routing, zone filling, live
+copper dragging, design-source synchronization or physical/electrical
+acceptance. Only portable ZapTrace project-local libraries are supported,
+and original custom `.kicad_dru` rules, schematic hierarchy and
+arbitrary external footprint libraries are intentionally rejected by
+this bounded workflow. DRC results can still contain original
+manufacturing failures. No success message is PCB fabrication approval.
+
+**0.1.10 local QA status (12 October 2026):** the distinct, unsigned
+candidate passed its own 9/9 native release gate, deterministic .deb builds,
+authenticated real Chrome tests against both the extracted .deb and the app
+*actually installed in disposable Ubuntu 24.04.1*, genuine KiCad 10.0.7
+DRC/ERC/3D, 0.1.1 to 0.1.10 APT upgrade, legacy private ZIP restoration
+and APT uninstall without user-source mutation. The release acceptance
+report is bound to the exact .deb SHA-256
+`9ad5017adf3c7c7d00a6661a9e43aec13e0d6162f9fe77244899834d7f2d277f`.
+Prior **0.1.9** QA was not reused. The candidate is NOT public GA or a
+fabrication-approved EDA editor.
 
 ## Read-only schematic ↔ PCB parity audit
 
@@ -193,8 +234,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.9_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.9_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.10_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.10_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

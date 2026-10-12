@@ -140,6 +140,36 @@ Connected copper routing, complete schematic editing, arbitrary continuous
 vendor-model 3D MCAD, independently verified DRC rule semantics, physical
 human-user acceptance, independent signing and fabrication remain unverified.
 
+## 0.1.10 bounded native copper + physical KiCad pin parity
+
+The separate, unsigned **0.1.10** local candidate passed a fresh nine-stage
+native KiCad 10.0.7 gate and two identical deterministic .deb builds.
+Its physical-pin evidence now joins real Eeschema XML **pin numbers** to
+the embedded library's verified number/name records: **47 physical pin
+anchors**, **37 unique canonical logical pin functions**, **69 mapped PCB
+pads**, and **0 mapped pin-net discrepancies** on the ESP32 proof fixture.
+Repeated physical GND pads are not merged into an unverified arbitrary
+endpoint; conflicting native nets and incorrect pin numbers fail closed.
+
+The new authenticated single-link, fixed-width F.Cu working-copy operation
+generated actual KiCad before/after SVG, DRC and evidence ZIP:
+**37→36 unconnected**, **16→16 existing physical violations**, no new
+native DRC findings, no original-source overwrite, with permanent draft
+discard. Host Chrome exercised the actual APT-installed Ubuntu 24.04.1
+service for guarded copper, real PCB footprint rotation and schematic
+Value ECO; rootless exact-.deb Chrome independently passed. The
+0.1.1→0.1.10 signed-APT upgrade preserved 14 existing private review files
+by SHA-256; a genuine 0.1.1 backup ZIP was restored through new KiCad,
+and APT uninstall again preserved the original private review files.
+
+Exact package SHA-256:
+`9ad5017adf3c7c7d00a6661a9e43aec13e0d6162f9fe77244899834d7f2d277f`.
+Audited evidence:
+`build/distribution/CLEAN_UBUNTU_2404_0110_QA.txt` and
+`build/distribution/RELEASE_MANIFEST.json`. **NOT public GA, not signed,
+not full PCB autorouting, no vias, no arbitrary library/schematic wiring
+editor, no electrical/fabrication approval or independent physical-host QA.**
+
 ## Required milestones for full-featured EDA
 
 1. **Authentic schematic authoring.** Real component/library selection, net and

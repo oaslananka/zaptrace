@@ -275,7 +275,14 @@ def schematic_pin_anchors(source: str, symbols: dict[str, dict], nodes: list[dic
             raise RuntimeError("Mirrored schematic symbols not yet supported for pin-accurate overlay")
     if set(ref_map) != set(symbols):
         raise RuntimeError("Schematic pin reference list differs from symbol instances")
-    native_nodes = {(item["ref"], item["pin"]): item["net"] for item in nodes}
+    # KiCad XML exposes *physical* pin numbers (e.g. U1.2), while source
+    # symbols name their logical functions (e.g. U1.VCC). Joining those
+    # strings directly is incorrect and silently breaks supplier-pin proof.
+    # Require the exact physical native pin key and validate XML pinfunction
+    # against the actual embedded KiCad symbol's pin name.
+    native_nodes = {(item["ref"], item.get("physical_pin", item["pin"])): item for item in nodes}
+    if len(native_nodes) != len(nodes):
+        raise RuntimeError("KiCad XML netlist includes duplicated physical pin numbers")
     pins = []
     for ref, lib in ref_map.items():
         inst = symbols[ref]
@@ -295,30 +302,45 @@ def schematic_pin_anchors(source: str, symbols: dict[str, dict], nodes: list[dic
         pin_pattern = (
             r"\(pin\s+\w+\s+line\s+\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)"
             r'.*?\(name\s+"([^"\\]+)"'
+            r'.*?\(number\s+"([^"\\]+)"'
         )
         found = list(re.finditer(pin_pattern, block, re.S))
         if not found:
-            raise RuntimeError(f"No native pin anchors on {lib}")
+            raise RuntimeError(f"No native numbered pin anchors on {lib}")
+        native_names = [m.group(4) for m in found]
         for match_pin in found:
             local_x, local_y = float(match_pin.group(1)), float(match_pin.group(2))
-            name = match_pin.group(4)
-            key = (ref, name)
-            if key not in native_nodes:
-                raise RuntimeError(f"KiCad embedded pin {ref}.{name} missing in its XML netlist")
-            if any(p["ref"] == ref and p["logical_pin"] == name for p in pins):
-                raise RuntimeError(f"Duplicate embedded logical pin {ref}.{name}")
+            name, physical = match_pin.group(4), match_pin.group(5)
+            key = (ref, physical)
+            entry = native_nodes.get(key)
+            if entry is None:
+                raise RuntimeError(f"KiCad physical pin {ref}.{physical} ({name}) absent from native XML netlist")
+            # Eeschema may qualify a name with its physical number to avoid
+            # duplicate pinfunctions (notably four ESP32 GND pads). This
+            # correspondence is checked, never inferred from a net label.
+            function = entry.get("pinfunction", "")
+            if function and function not in (name, name + "_" + physical):
+                raise RuntimeError(f"KiCad XML pinfunction disagrees with embedded {ref}.{physical}")
+            if any(p["ref"] == ref and p["physical_pin"] == physical for p in pins):
+                raise RuntimeError(f"Duplicate embedded physical pin {ref}.{physical}")
+            identity = name if native_names.count(name) == 1 else name + "_" + physical
+            if any(p["ref"] == ref and p["logical_pin"] == identity for p in pins):
+                raise RuntimeError(f"Ambiguous embedded logical pin anchor {ref}.{identity}")
             pins.append(
                 {
                     "ref": ref,
-                    "logical_pin": name,
-                    "net": native_nodes[key],
+                    "logical_pin": identity,
+                    "canonical_pin": name,
+                    "physical_pin": physical,
+                    "pinfunction": function,
+                    "net": entry["net"],
                     "x": round(inst["x"] + local_x, 5),
                     "y": round(inst["y"] - local_y, 5),
-                    "source": "embedded KiCad library (pin at) + unrotated instance (at)",
+                    "source": "embedded KiCad library pin name/number/at + native Eeschema XML physical pin",
                 }
             )
-    if {(p["ref"], p["logical_pin"]) for p in pins} != set(native_nodes):
-        raise RuntimeError("KiCad embedded pin anchors differ from native Eeschema XML netlist")
+    if {(p["ref"], p["physical_pin"]) for p in pins} != set(native_nodes):
+        raise RuntimeError("KiCad physical pin anchors differ from native Eeschema XML netlist")
     return pins
 
 
@@ -353,7 +375,8 @@ def _read_schematic_netlist(cli: str, schematic: Path, output: Path) -> dict:
             ref, pin = node.attrib.get("ref", ""), node.attrib.get("pin", "")
             if not ref or not pin:
                 raise RuntimeError("Native Eeschema node lacks ref/pin")
-            logical_nodes.append({"ref": ref, "pin": pin, "net": normalized})
+            function = node.attrib.get("pinfunction", "")
+            logical_nodes.append({"ref": ref, "pin": pin, "pinfunction": function, "net": normalized})
     if len(nets) != len(set(nets)) or not nets:
         raise RuntimeError("Native Eeschema netlist contains duplicate/empty nets")
     if len({(n["ref"], n["pin"]) for n in logical_nodes}) != len(logical_nodes):
@@ -458,7 +481,16 @@ def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: boo
         "source_sha256": hashlib.sha256(schematic.read_bytes()).hexdigest(),
         "filename": schematic.name,
         "net_names": sorted(names["nets"]),
-        "logical_nodes": root_nodes,
+        "logical_nodes": [
+            {
+                "ref": anchor["ref"],
+                "pin": anchor["logical_pin"],
+                "canonical_pin": anchor["canonical_pin"],
+                "physical_pin": anchor["physical_pin"],
+                "net": anchor["net"],
+            }
+            for anchor in real_pin_anchors
+        ],
         "root_only": root_only,
         "pages": page_views,
         "pin_anchors": real_pin_anchors,
@@ -499,12 +531,34 @@ def physical_pin_parity(board: dict, schematic: dict, design_path: Path) -> dict
     if set(by_ref) != physical_refs or set(by_ref) != native_sch_refs:
         raise ValueError("Design, native PCB and native schematic component references do not match")
     native_nodes = {}
-    for node in schematic["logical_nodes"]:
-        key = (node["ref"], node["pin"])
-        if key in native_nodes:
-            raise RuntimeError("Native Eeschema pin-to-net assignment is not unique")
-        native_nodes[key] = node["net"]
+    physical_numbers: dict[tuple[str, str], str] = {}
+    original_keys = set()
     errors = []
+    for node in schematic["logical_nodes"]:
+        ref, alias = node["ref"], node["pin"]
+        key = (ref, alias)
+        if key in original_keys:
+            raise RuntimeError("Native Eeschema pin-to-net assignment is not unique")
+        original_keys.add(key)
+        canonical = node.get("canonical_pin", alias)
+        logical_key = (ref, canonical)
+        if logical_key in native_nodes and native_nodes[logical_key] != node["net"]:
+            errors.append(
+                {
+                    "ref": ref,
+                    "logical_pin": canonical,
+                    "reason": "native-logical-pin-has-conflicting-physical-nets",
+                    "expected": native_nodes[logical_key],
+                    "actual": node["net"],
+                }
+            )
+        native_nodes[logical_key] = node["net"]
+        number = node.get("physical_pin")
+        if number is not None:
+            physical_key = (ref, str(number))
+            if physical_key in physical_numbers:
+                raise RuntimeError("Duplicated physical Eeschema pad number")
+            physical_numbers[physical_key] = canonical
     links = []
     mapped = 0
     unassigned = 0
@@ -522,6 +576,16 @@ def physical_pin_parity(board: dict, schematic: dict, design_path: Path) -> dict
                 raise ValueError(f"Invalid logical pin assignment: {ref} {number}")
             if (ref, number) not in native_pad_keys:
                 missing_pad_numbers.append({"ref": ref, "pad": number, "logical_pin": logical})
+            if any(key[0] == ref for key in physical_numbers) and physical_numbers.get((ref, number)) != logical:
+                errors.append(
+                    {
+                        "ref": ref,
+                        "pad": number,
+                        "logical_pin": logical,
+                        "actual": physical_numbers.get((ref, number)),
+                        "reason": "native-physical-pin-number-name-mismatch",
+                    }
+                )
         for logical, details in pins.items():
             if not isinstance(details, dict):
                 raise ValueError(f"Invalid logical pin details: {ref}.{logical}")
@@ -587,7 +651,9 @@ def physical_pin_parity(board: dict, schematic: dict, design_path: Path) -> dict
         "mapped_pad_instances": mapped,
         "unmapped_pad_instances": unassigned,
         "total_pad_instances": len(board["pads"]),
-        "schematic_logical_pin_nodes": len(native_nodes),
+        "schematic_logical_pin_nodes": len(schematic["logical_nodes"]),
+        "unique_canonical_logical_functions": len(native_nodes),
+        "native_physical_pin_number_links": len(physical_numbers),
         "mismatch_count": len(errors),
         "mismatches": errors,
         "pad_links": links,

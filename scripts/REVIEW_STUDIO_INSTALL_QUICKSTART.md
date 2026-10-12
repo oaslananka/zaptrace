@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.9 — Ubuntu installation and acceptance kit
+# ZapTrace Review Studio 0.1.10 — Ubuntu installation and acceptance guide
 
 **Distribution status: local release candidate, unsigned. NOT public GA.**
 
@@ -32,13 +32,13 @@ automatically granted.
 2. Verify this kit's `.deb` before installation:
 
    ```sh
-   sha256sum -c zaptrace-review-studio_0.1.9_all.sha256
+   sha256sum -c zaptrace-review-studio_0.1.10_all.sha256
    ```
 
 3. Install in a terminal in the folder containing the `.deb`:
 
    ```sh
-   sudo apt install ./zaptrace-review-studio_0.1.9_all.deb
+   sudo apt install ./zaptrace-review-studio_0.1.10_all.deb
    zaptrace-review-studio --doctor
    ```
 
@@ -81,6 +81,28 @@ manufacturing readiness. The separate ZIP preserves the PCB/project/rule
 snapshots; no original file is changed. **Discard** erases only the local draft.
 Electrical function, live drag-routing, BOM/EDA synchronization and
 manufacturing acceptance are not guaranteed or supported here.
+
+## Experimental native copper link drafts
+
+Choose **Native copper link** in the authenticated local workspace. Select
+a ZIP of the **root contents** of a complete portable, project-local KiCad
+folder: matching PCB, schematic, project rules, library tables, symbol
+library and `ZapTrace.pretty/*.kicad_mod`. Choose **Inspect actual KiCad
+open links**: it reruns KiCad 10 DRC and lists actual physical disconnected
+pad UUID pairs, not guessed net labels. Select one pair and optionally
+specify up to four explicit intermediate `[x_mm,y_mm]` coordinates
+as a JSON array. KiCad may refuse unsafe geometry, existing copper
+conflicts, mismatched project/library context or any new DRC finding.
+
+A successful guarded link is **only a partial native F.Cu track copy**,
+never complete or automated routing. Two authentic native KiCad copper
+SVGs show the before/after PCB, and the separate downloadable ZIP
+contains the changed PCB, matching KiCad project inputs and actual
+native DRC/engineering evidence. Download before closing the server,
+because unretrieved private drafts are cleared on restart.
+Neither the original source ZIP nor original PCB is edited.
+The operation does not accept arbitrary external libraries or `.kicad_dru`
+custom rules and never establishes electrical or fabrication approval.
 
 ## Read-only schematic ↔ PCB correspondence
 
@@ -131,11 +153,19 @@ user projects**. Those are normally at:
 
 - `RELEASE_MANIFEST.json` names the exact package SHA-256, its bundled files,
   real local release-gate status and any *unverified* launch requirements.
-- `CLEAN_UBUNTU_2404_019_QA.txt` records **real Ubuntu 24.04 APT installation
-  of 0.1.1 and in-place upgrade to 0.1.9**, native two-sheet KiCad ERC/DRC,
-  authentic offscreen KiCad 3D isometric/top renders,
-  successful restore of an older ZIP, and `apt remove` preserving review data.
-- `zaptrace-review-studio_0.1.9_all.sha256` checks the exact `.deb` bytes.
+- `CLEAN_UBUNTU_2404_019_QA.txt` records the **historical 0.1.9**
+  Ubuntu 24.04 APT install, native KiCad acceptance and uninstall, NOT
+  verification of this new 0.1.10 candidate.
+- `CLEAN_UBUNTU_2404_0110_QA.txt` records the distinct, **completed
+  0.1.10 local candidate acceptance**, bound to the exact new .deb SHA-256,
+  including clean Ubuntu APT install/upgrade/remove, actual installed
+  KiCad 10.0.7 analysis, Chrome against the installed Ubuntu localhost
+  service, and independent rootless exact-package Chrome checks.
+  If this report is absent or its SHA differs from the .deb, the release
+  kit must be **rejected**. This does not constitute independent physical
+  host acceptance, a publisher signature or production qualification.
+- `zaptrace-review-studio_0.1.10_all.sha256` checks the new
+  exact `.deb` bytes; SHA is integrity checking, NOT publisher signing.
 
 **Unsigned:** A SHA-256 match is an integrity check, **not** a publisher
 signature. `PUBLISHER_PUBLIC_KEY.asc` and verified detached signatures are

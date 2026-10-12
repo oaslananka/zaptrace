@@ -39,7 +39,7 @@ for(let i=0;i<70;i++){
 }
 const loaded=await evaluate("(()=>({mode:document.getElementById('runtimeMode')?.textContent,skip:document.querySelector('.skip-to-content')?.getAttribute('href'),main:document.querySelector('main')?.id,info:document.getElementById('projectSearchFeedback')?.textContent,version:document.querySelector('.foot')?.textContent,status:document.querySelector('.gate')?.textContent,count:document.querySelectorAll('.project').length}))()");
 console.log('WORKSPACE A11Y',loaded);
-pass(loaded.mode==='LOCAL · GUARDED ECO'&&loaded.skip==='#workspaceMain'&&loaded.main==='workspaceMain'&&loaded.version.includes('0.1.9')&&loaded.status.includes('NOT FABRICATION APPROVED'),'truthful runtime, version, landmark and fab boundary');
+pass(loaded.mode==='LOCAL · GUARDED ECO'&&loaded.skip==='#workspaceMain'&&loaded.main==='workspaceMain'&&loaded.version.includes('0.1.10')&&loaded.status.includes('NOT FABRICATION APPROVED'),'truthful runtime, version, landmark and fab boundary');
 pass(loaded.info===loaded.count+' native snapshots available','project count accessible at first load');
 const nameless=await evaluate("(()=>{const items=[...document.querySelectorAll('a,button,input,select,textarea')];return items.filter(el=>{if(el.closest('[hidden]')||getComputedStyle(el).display==='none')return false;if(el.type==='hidden')return false;const name=el.getAttribute('aria-label')||el.getAttribute('aria-labelledby')||el.labels?.[0]?.textContent||el.textContent||el.getAttribute('title');return !name?.trim();}).map(el=>el.outerHTML.slice(0,160));})()");
 pass(nameless.length===0,'all visible workspace links, buttons and form inputs expose an accessible name: '+nameless.join(' | '));

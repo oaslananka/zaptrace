@@ -261,7 +261,7 @@ if(expectPins){
   notMapped:DATA.pin_parity.unmapped_pad_instances,nativePins:DATA.pin_parity.schematic_logical_pin_nodes,
   inputSHA:DATA.pin_parity.design_sha256,sample:DATA.pin_parity.pad_links.find(i=>i.ref==='U1'&&i.pad==='33')})`);
  check(nativeMapping.status==='mapped_net_consistent'&&nativeMapping.count===69&&
-  nativeMapping.notMapped===43&&nativeMapping.nativePins===37&&nativeMapping.inputSHA.length===64&&
+  nativeMapping.notMapped===43&&nativeMapping.nativePins===47&&nativeMapping.inputSHA.length===64&&
   nativeMapping.sample.logical_pin==='GPIO21'&&nativeMapping.sample.net==='I2C_SDA',
   'native physical pad U1.33 cross-checked to canonical GPIO21 and native KiCad SDA');
  let padSelection=await js(`(()=>{const match=[...document.querySelectorAll('.pad-hit')].find(e=>e.title.startsWith('U1.33 '));
@@ -333,8 +333,8 @@ check(localReport.href==='REVIEW_REPORT.html'&&localReport.visible,
  'user-accessible local evidence report link displayed with source-only file URL');
 const schPins=await js(`({pinCount:DATA.schematic.pin_anchors.length,markers:document.querySelectorAll('.sch-pin-hit').length,
  nativeSource:DATA.schematic.pin_anchors.every(p=>p.source.includes('embedded KiCad library'))})`);
-check(schPins.pinCount===37&&schPins.markers===37&&schPins.nativeSource,
- '37 real native Eeschema logical pin endpoint markers, no approximate component-centre pin positions');
+check(schPins.pinCount===47&&schPins.markers===47&&schPins.nativeSource,
+ '47 real native Eeschema physical pin endpoint markers, no approximate component-centre pin positions');
 const pinRoundtrip=await js(`(()=>{const pad=[...document.querySelectorAll('.pad-hit')].find(e=>e.title.startsWith('U1.33 '));
  pad.click();const toSch=[...document.querySelectorAll('#detail .crossnav')]
  .find(e=>e.textContent.includes('Locate exact schematic pin U1.GPIO21'));

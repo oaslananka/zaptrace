@@ -285,7 +285,9 @@ def test_native_physical_pad_mapping_is_exact_and_scoped() -> None:
     assert report["mapped_pad_instances"] == 69
     assert report["unmapped_pad_instances"] == 43
     assert report["total_pad_instances"] == 112
-    assert report["schematic_logical_pin_nodes"] == 37
+    assert report["schematic_logical_pin_nodes"] == 47
+    assert report["unique_canonical_logical_functions"] == 37
+    assert report["native_physical_pin_number_links"] == 47
     assert len(report["pad_links"]) == 69
     assert len({item["pad_index"] for item in report["pad_links"]}) == 69
     assert "no datasheet qualification" in report["scope"]
@@ -358,15 +360,78 @@ def test_real_native_schematic_pin_endpoint_geometry_and_xml_parity() -> None:
     board, schematic, _design = _local_pin_parity_sources()
     assert board["tracks"] == 61
     anchors = schematic["pin_anchors"]
-    assert len(anchors) == 37
-    assert len({(p["ref"], p["logical_pin"]) for p in anchors}) == 37
+    assert len(anchors) == 47
+    assert len({(p["ref"], p["logical_pin"]) for p in anchors}) == 47
+    assert len({(p["ref"], p["physical_pin"]) for p in anchors}) == 47
+    assert len({(p["ref"], p["canonical_pin"]) for p in anchors}) == 37
+    gnd = [p for p in anchors if p["ref"] == "U1" and p["canonical_pin"] == "GND"]
+    assert {p["physical_pin"] for p in gnd} == {"1", "15", "38", "39"}
+    assert {p["net"] for p in gnd} == {"GND"}
+    assert all(p["logical_pin"].startswith("GND_") for p in gnd)
+    assert next(p for p in anchors if p["ref"] == "U1" and p["physical_pin"] == "2")["canonical_pin"] == "VCC"
     assert {(p["ref"], p["logical_pin"], p["net"]) for p in anchors} == {
         (p["ref"], p["pin"], p["net"]) for p in schematic["logical_nodes"]
     }
     match = next(p for p in anchors if p["ref"] == "U1" and p["logical_pin"] == "GPIO21")
     assert match["net"] == "I2C_SDA"
-    assert match["x"] == pytest.approx(67.31)
-    assert match["y"] == pytest.approx(50.8)
+    assert match["x"] == pytest.approx(34.29)
+    assert match["y"] == pytest.approx(58.42)
+
+
+def test_kicad_native_xml_physical_pin_numbers_come_from_embedded_symbol(tmp_path: Path) -> None:
+    import shutil
+    from copy import deepcopy
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Native KiCad CLI not installed")
+    root = Path(__file__).resolve().parents[1]
+    source = root / "build/new-schematic-issue91-layout/kicad/ESP32_I2C_Sensor_Board.kicad_sch"
+    if not source.is_file():
+        pytest.skip("Generated native KiCad schematic not available")
+    report = native._read_schematic_netlist("kicad-cli", source, tmp_path)
+    symbols = native.schematic_symbols(source.read_text())
+    original_nodes = report["logical_nodes"]
+    anchors = native.schematic_pin_anchors(source.read_text(), symbols, original_nodes)
+    assert len(anchors) == len(original_nodes) == 47
+    assert len({(x["ref"], x["physical_pin"]) for x in anchors}) == 47
+    assert len({(x["ref"], x["canonical_pin"]) for x in anchors}) == 37
+    assert next(x for x in anchors if x["ref"] == "U1" and x["physical_pin"] == "33")["canonical_pin"] == "GPIO21"
+    assert next(x for x in anchors if x["ref"] == "U1" and x["physical_pin"] == "2")["net"] == "VCC_3V3"
+    assert all(x["source"].startswith("embedded KiCad library pin name/number") for x in anchors)
+    wrong_function = deepcopy(original_nodes)
+    pin = next(x for x in wrong_function if x["ref"] == "U1" and x["pin"] == "2")
+    pin["pinfunction"] = "GPIO21_2"
+    with pytest.raises(RuntimeError, match="pinfunction disagrees"):
+        native.schematic_pin_anchors(source.read_text(), symbols, wrong_function)
+    wrong_number = deepcopy(original_nodes)
+    pin = next(x for x in wrong_number if x["ref"] == "U1" and x["pin"] == "2")
+    pin["pin"] = "999"
+    with pytest.raises(RuntimeError, match="physical pin U1.2"):
+        native.schematic_pin_anchors(source.read_text(), symbols, wrong_number)
+
+
+def test_native_repeated_logical_grounds_cannot_disagree_on_physical_net() -> None:
+    from copy import deepcopy
+
+    board, schematic, design = _local_pin_parity_sources()
+    wrong = deepcopy(schematic)
+    real = next(x for x in wrong["logical_nodes"] if x["ref"] == "U1" and x.get("physical_pin") == "38")
+    real["net"] = "VCC_3V3"
+    report = native.physical_pin_parity(board, wrong, design)
+    assert report["state"] == "mismatch"
+    assert any(x["reason"] == "native-logical-pin-has-conflicting-physical-nets" for x in report["mismatches"])
+
+
+def test_schematic_physical_pin_function_number_crosswalk_rejects_wrong_pad_identity() -> None:
+    from copy import deepcopy
+
+    board, schematic, design = _local_pin_parity_sources()
+    wrong = deepcopy(schematic)
+    real = next(x for x in wrong["logical_nodes"] if x["ref"] == "U1" and x.get("physical_pin") == "2")
+    real["canonical_pin"] = "GPIO21"
+    report = native.physical_pin_parity(board, wrong, design)
+    assert report["state"] == "mismatch"
+    assert any(x["reason"] == "native-physical-pin-number-name-mismatch" for x in report["mismatches"])
 
 
 def test_unsupported_schematic_rotation_refuses_pin_overlay() -> None:
