@@ -32,7 +32,7 @@ def test_audit_lists_real_files_and_always_discloses_unsigned_and_not_ga(
     tmp_path: Path,
 ) -> None:
     report = manifest(release_artifact, gate_log(tmp_path))
-    assert report["version"] == "0.1.8"
+    assert report["version"] == "0.1.9"
     assert report["package"]["sha256"] == sha256(release_artifact)
     assert report["target"]["native_kicad"] == "10.x"
     assert report["validation"]["nine_stage_release_gate"]
@@ -71,13 +71,16 @@ def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
     accepted = (
         "PACKAGE_SHA256=" + sha256(release_artifact) + "\n"
         "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.1 = 0\n"
-        "Real APT in-place upgrade to installed 0.1.8 passed\n"
-        "Installed 0.1.8 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
-        "Installed 0.1.8 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
-        "Installed 0.1.8 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
+        "Real APT in-place upgrade to installed 0.1.9 passed\n"
+        "Installed 0.1.9 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
+        "Installed 0.1.9 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
+        "Installed 0.1.9 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
+        "Installed 0.1.9 native PCB quarter-turn and KiCad DRC: PASS\n"
+        "Installed 0.1.9 native schematic/PCB readonly comparison: PASS\n"
+        "Exact package 0.1.9 Chrome quarter-turn and private parity audit: PASS\n"
         "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
         "Native localhost startup/shutdown after upgrade passed\n"
-        "Actual APT remove 0.1.8 passed\n"
+        "Actual APT remove 0.1.9 passed\n"
     )
     qa.write_text(accepted)
     good = manifest(release_artifact, log, qa)
@@ -87,9 +90,13 @@ def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
     assert good["validation"]["clean_ubuntu_container_native_3d_eight_camera_orbit_frames"] is True
     assert good["validation"]["clean_ubuntu_localhost_schematic_value_eco_native_validation"] is True
     assert good["validation"]["clean_ubuntu_localhost_pcb_placement_eco_native_drc"] is True
+    assert good["validation"]["clean_ubuntu_native_footprint_quarter_turn"] is True
+    assert good["validation"]["clean_ubuntu_native_schematic_pcb_read_only_parity_audit"] is True
+    assert good["validation"]["clean_ubuntu_exact_package_browser_rotation_and_parity"] is True
+    assert good["validation"]["full_schematic_pcb_uuid_pin_net_sync_verified"] is False
     assert good["validation"]["native_3d_model_coverage_independently_verified"] is False
     assert good["validation"]["clean_ubuntu_container_apt_remove_preserves_user_data"] is True
-    assert good["validation"]["clean_ubuntu_container_inplace_011_to_018_upgrade"] is True
+    assert good["validation"]["clean_ubuntu_container_inplace_011_to_019_upgrade"] is True
     assert good["validation"]["clean_ubuntu_container_legacy_zip_restored_using_fresh_kicad"] is True
     assert good["validation"]["independent_clean_machine_real_apt_install"] is False
     assert good["validation"]["code_signed"] is False

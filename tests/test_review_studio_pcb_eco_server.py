@@ -249,3 +249,47 @@ def test_invalid_custom_kicad_rules_fail_closed_after_async_native_probe(tmp_pat
         assert status["state"] == "failed"
         assert not list((tmp_path / "workspace/pcb-eco-results").glob("*/source.kicad_pcb"))
         assert not list((tmp_path / "workspace/pcb-eco-working").glob("*/source.kicad_pcb"))
+
+
+def test_real_native_rotation_only_through_authorized_browser_api(tmp_path: Path) -> None:
+    """Native KiCad rotates a source-safe unrouted component without translation."""
+    original = CLEAN.read_bytes()
+    payload = {**make_payload(), "dx": 0, "dy": 0, "rotate": 90}
+    with local_studio(tmp_path) as (server, url):
+        status, body = fetch(url + "/api/pcb-eco", server.secret, data=payload)
+        assert status == 202, body
+        job = await_job(url, server.secret, json.loads(body)["id"])
+        assert job["state"] == "complete", job
+        data = job["pcb_eco"]
+        assert data["rotation_degrees"] == 90
+        assert data["old_mm"] == data["new_mm"] == [20.0, 20.0]
+        assert data["old_angle_degrees"] == 0 and data["new_angle_degrees"] == 90
+        assert data["fabApproved"] is False
+        report_url = url + "/api/pcb-eco/result/" + data["id"]
+        status, raw = fetch(report_url + "/ECO_EVIDENCE.json", server.secret)
+        assert status == 200
+        evidence = json.loads(raw)
+        assert evidence["rotation_degrees"] == 90
+        assert evidence["native_drc"]["new_drc_rules"] == 0
+        assert evidence["native_drc"]["before_open"] == evidence["native_drc"]["after_open"] == 0
+        status, png = fetch(report_url + "/PREVIEW.html", server.secret)
+        assert status == 200
+        assert "0.0°" in png.decode() and "90.0°" in png.decode()
+        status, board = fetch(report_url + "/source.kicad_pcb", server.secret)
+        assert status == 200 and board != original
+        status, rejected = fetch(report_url + "/source.kicad_pcb", "bad-token")
+        assert status == 403 and b"Local workspace capability" in rejected
+        assert CLEAN.read_bytes() == original
+        status, discarded = fetch(url + "/api/pcb-eco/discard", server.secret, data={"id": data["id"]})
+        assert status == 200 and json.loads(discarded)["state"] == "discarded"
+        assert fetch(report_url + "/source.kicad_pcb", server.secret)[0] == 404
+    assert CLEAN.read_bytes() == original
+
+
+@pytest.mark.parametrize("rotate", [45, 270, 360, -180, 1.5, True, "90", None, [], {}])
+def test_native_browser_rotation_schema_rejects_bad_angles_before_staging(tmp_path: Path, rotate: object) -> None:
+    with local_studio(tmp_path) as (server, url):
+        status, _ = fetch(url + "/api/pcb-eco", server.secret, data={**make_payload(), "rotate": rotate})
+        assert status == 400
+        assert not list((tmp_path / "workspace/pcb-eco-working").glob("*/source.kicad_pcb"))
+        assert not list((tmp_path / "workspace/pcb-eco-results").glob("*/source.kicad_pcb"))

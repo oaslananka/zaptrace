@@ -309,3 +309,46 @@ The product remains unsigned, local-only, noncommercially licensed, and
 connected copper routing, independent complete design-rule attestation,
 continuous vendor-model MCAD, physical user-host QA, code signing and DFM
 approval are NOT verified.
+
+
+## 0.1.9 real Ubuntu 24.04.1 source-bound acceptance
+
+The separately versioned **0.1.9** package was built reproducibly twice;
+the resulting SHA-256 is `cabe24ffa4d5a6138c8fd1abec2c5bb0ab73b2d5fcccea774a9712bf8005b11d`.
+The earlier 0.1.7 and 0.1.8 packages were left byte-identical to their
+original accepted versions. A disposable, initially blank Ubuntu 24.04.1
+container installed signed-PPA native KiCad 10.0.7 and APT-installed 0.1.1.
+That old version produced genuine native KiCad plots, two review records and
+a 49,929-byte private backup ZIP; 29 original user artifacts were hashed.
+
+APT then upgraded **0.1.1 → 0.1.9**, with all 29 hashes unchanged.
+Installed 0.1.9 verified real native 90-degree footprint rotation using
+matching `.kicad_pro` and `.kicad_dru` (KiCad DRC 0→0), actual schematic
+`R1` value ECO, and native XML/PCB parity showing 14 ESP32 components and
+five genuine `Value` mismatches. The parity report refused guessed UUID/pin
+associations and never authorized F8 automatic synchronization. Installed
+localhost APIs exercised both audit and guarded native 90-degree ECO with
+private discard. Native KiCad generated 10 genuine OpenGL PNGs (eight orbit,
+isometric and top). Real Chrome 155 on the host—not inside Docker—exercised
+the **bit-identical .deb extraction**, its original PCB translation, +90-degree
+rotation with custom rule loader, schematic value ECO and the private
+schematic↔PCB source audit; 390px mobile and private download/discard passed.
+A keyboard accessibility smoke also passed on the exact package contents.
+
+The genuine 0.1.1 ZIP was restored using installed 0.1.9 KiCad and remained
+source-hash accurate. `projects.json` and `index.html` changed legitimately
+to include the restored third record; 27 original noncatalog files and the
+legacy private ZIP stayed SHA-identical. Real `apt remove` removed the
+application and left KiCad and three user reviews intact. A benign dpkg
+warning concerned only QA-generated Python `__pycache__`, cleaned by
+destroying the disposable container. No original user files, global system
+packages, public repositories, or accepted older .deb archives were altered.
+
+The nine-stage release log, immutable exact SHA and Ubuntu QA markers are
+recorded under `build/distribution/LOCAL_019_RELEASE_GATE.log`,
+`build/distribution/CLEAN_UBUNTU_2404_019_QA.txt` and
+`build/distribution/RELEASE_MANIFEST.json`. Offline ZIP hash:
+`6ec912dec9a61d9d3eb5343bc7e7d08ad2291d266cd771dc7e7bfbf89191002f`. This remains an **unsigned, non-GA, non-fab-approved local
+release candidate**, not full-featured EDA, continuous 3D MCAD, robust
+copper drag routing or complete schematic/PCB synchronization. No independent
+physical device/human user acceptance has been performed.

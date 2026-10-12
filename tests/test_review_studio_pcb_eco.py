@@ -17,7 +17,7 @@ COPPER = SOURCE / "build/source-reference-readonly/ESP32_actual_copper_review.ki
 
 
 def run_eco(
-    board: Path, folder: Path, ref: str = "R1", dx: str = "1", dy: str = "0.5"
+    board: Path, folder: Path, ref: str = "R1", dx: str = "1", dy: str = "0.5", rotate: str = "0"
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -32,6 +32,7 @@ def run_eco(
             ref,
             f"--dx={dx}",
             f"--dy={dy}",
+            f"--rotate={rotate}",
         ],
         text=True,
         capture_output=True,
@@ -350,4 +351,186 @@ def test_custom_rule_existing_violation_getting_worse_is_rejected(tmp_path: Path
     assert result.returncode == 2, result.stdout + result.stderr
     assert "DRC violation" in result.stderr
     assert not (tmp_path / "must-block-worsening").exists()
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == digest
+
+
+@pytest.mark.parametrize("angle", ["90", "-90", "180"])
+def test_actual_native_footprint_rotation_updates_real_pad_centers_without_source_mutation(
+    tmp_path: Path, angle: str
+) -> None:
+    """Only the rotated unrouted footprint's native pad centers may change."""
+    original = CLEAN.read_bytes()
+    result_dir = tmp_path / ("rot-" + angle.replace("-", "minus"))
+    run = run_eco(CLEAN, result_dir, dx="0", dy="0", rotate=angle)
+    assert run.returncode == 0, run.stderr
+    evidence = json.loads((result_dir / "ECO_EVIDENCE.json").read_text())
+    assert evidence["rotation_degrees"] == int(angle)
+    assert evidence["old_angle_degrees"] == 0.0
+    assert evidence["native_drc"]["before_rules"] == evidence["native_drc"]["after_rules"] == 0
+    assert not evidence["fabApproved"]
+    native = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """
+import pcbnew as pcb,json,sys
+def read(path):
+    board=pcb.LoadBoard(path)
+    return {fp.GetReference():{
+      "angle":fp.GetOrientationDegrees(),
+      "pos":[fp.GetPosition().x,fp.GetPosition().y],
+      "pads":{p.GetNumber():[p.GetPosition().x,p.GetPosition().y] for p in fp.Pads()}
+    } for fp in board.GetFootprints()}
+print(json.dumps([read(sys.argv[1]),read(sys.argv[2])]))
+""",
+            str(CLEAN),
+            str(result_dir / "source.kicad_pcb"),
+        ],
+        text=True,
+        capture_output=True,
+        timeout=25,
+        check=False,
+    )
+    assert native.returncode == 0, native.stderr
+    before, after = json.loads(native.stdout)
+    assert after["R1"]["angle"] == float(angle)
+    assert after["R1"]["pos"] == before["R1"]["pos"]
+    assert all(after["R1"]["pads"][pad] != point for pad, point in before["R1"]["pads"].items())
+    assert after["R2"] == before["R2"]
+    assert CLEAN.read_bytes() == original
+
+
+@pytest.mark.parametrize("angle", ["45", "360", "270", "abc"])
+def test_rotation_rejects_unsupported_angles_fail_closed(tmp_path: Path, angle: str) -> None:
+    result = run_eco(CLEAN, tmp_path / "refuse", dx="0", dy="0", rotate=angle)
+    assert result.returncode != 0
+    assert not (tmp_path / "refuse").exists()
+
+
+def test_native_routed_footprint_rotation_is_rejected_before_publishing(tmp_path: Path) -> None:
+    assert COPPER.is_file()
+    original = hashlib.sha256(COPPER.read_bytes()).hexdigest()
+    result = run_eco(COPPER, tmp_path / "refuse", dx="0", dy="0", rotate="90")
+    assert result.returncode == 2 and "drag routing" in result.stderr
+    assert not (tmp_path / "refuse").exists()
+    assert hashlib.sha256(COPPER.read_bytes()).hexdigest() == original
+
+
+def test_rotated_native_pad_cannot_land_on_existing_track_without_drag_routing(tmp_path: Path) -> None:
+    """Existing track intersects only a 90° target pad, not the source pads."""
+    board = tmp_path / "original" / "rotation-copper.kicad_pcb"
+    board.parent.mkdir()
+    native = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """
+import pcbnew as pcb,sys
+board=pcb.LoadBoard(sys.argv[1])
+track=pcb.PCB_TRACK(board)
+track.SetLayer(pcb.F_Cu)
+track.SetWidth(pcb.FromMM(0.25))
+track.SetStart(pcb.VECTOR2I(pcb.FromMM(19.8),pcb.FromMM(20.825)))
+track.SetEnd(pcb.VECTOR2I(pcb.FromMM(20.2),pcb.FromMM(20.825)))
+board.Add(track)
+pcb.SaveBoard(sys.argv[2],board)
+""",
+            str(CLEAN),
+            str(board),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert native.returncode == 0, native.stderr
+    original = hashlib.sha256(board.read_bytes()).hexdigest()
+    out = tmp_path / "must-reject-rotated-copper-landing"
+    rotated = run_eco(board, out, dx="0", dy="0", rotate="90")
+    assert rotated.returncode == 2, rotated.stderr
+    assert "pad-adjacent copper" in rotated.stderr
+    assert not out.exists()
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == original
+
+
+def test_native_combined_translation_rotation_retains_pad_nets_and_uuid(tmp_path: Path) -> None:
+    output = tmp_path / "rotation-and-translation"
+    native = run_eco(CLEAN, output, dx="1", dy="0.5", rotate="90")
+    assert native.returncode == 0, native.stderr
+    evidence = json.loads((output / "ECO_EVIDENCE.json").read_text())
+    assert evidence["old_mm"] == [20, 20]
+    assert evidence["new_mm"] == [21, 20.5]
+    assert evidence["old_angle_degrees"] == 0
+    assert evidence["new_angle_degrees"] == 90
+    assert evidence["native_drc"]["new_drc_rules"] == 0
+    assert (output / "source.kicad_pcb").read_bytes() != CLEAN.read_bytes()
+    assert "0.0° → 90.0°" in (output / "PREVIEW.html").read_text()
+
+
+def test_native_rotation_accumulates_existing_footprint_angle_safely(tmp_path: Path) -> None:
+    """Do not assume the selected real KiCad footprint starts at 0°."""
+    board = tmp_path / "original" / "already-rotated.kicad_pcb"
+    board.parent.mkdir()
+    native = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """
+import pcbnew as pcb,sys
+board=pcb.LoadBoard(sys.argv[1])
+fp=board.FindFootprintByReference("R1")
+fp.SetOrientationDegrees(90)
+pcb.SaveBoard(sys.argv[2],board)
+""",
+            str(CLEAN),
+            str(board),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=25,
+        check=False,
+    )
+    assert native.returncode == 0, native.stderr
+    original = hashlib.sha256(board.read_bytes()).hexdigest()
+    out = tmp_path / "rotated-again"
+    run = run_eco(board, out, dx="0", dy="0", rotate="90")
+    assert run.returncode == 0, run.stderr
+    evidence = json.loads((out / "ECO_EVIDENCE.json").read_text())
+    assert evidence["old_angle_degrees"] == 90.0
+    assert evidence["new_angle_degrees"] == 180.0
+    assert evidence["native_drc"]["before_rules"] == evidence["native_drc"]["after_rules"] == 0
+    assert hashlib.sha256(board.read_bytes()).hexdigest() == original
+
+
+def test_locked_real_footprint_cannot_be_rotated(tmp_path: Path) -> None:
+    board = tmp_path / "original" / "locked.kicad_pcb"
+    board.parent.mkdir()
+    native = subprocess.run(
+        [
+            "/usr/bin/python3",
+            "-B",
+            "-c",
+            """
+import pcbnew as pcb,sys
+board=pcb.LoadBoard(sys.argv[1])
+board.FindFootprintByReference("R1").SetLocked(True)
+pcb.SaveBoard(sys.argv[2],board)
+""",
+            str(CLEAN),
+            str(board),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=25,
+        check=False,
+    )
+    assert native.returncode == 0, native.stderr
+    digest = hashlib.sha256(board.read_bytes()).hexdigest()
+    target = tmp_path / "cannot-rotate-locked"
+    result = run_eco(board, target, dx="0", dy="0", rotate="90")
+    assert result.returncode == 2 and "Locked footprint" in result.stderr
+    assert not target.exists()
     assert hashlib.sha256(board.read_bytes()).hexdigest() == digest

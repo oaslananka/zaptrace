@@ -93,6 +93,53 @@ navigation without exposing private original KiCad sources. This source work is
 **not present in the SHA-bound 0.1.8 .deb** and must receive a new version with
 independent package installation QA before it can be claimed as a release.
 
+## Post-0.1.8 native PCB footprint rotation (local source only)
+
+A second isolated native PCB authoring operation now supports quarter-turn
+rotation of a strictly unrouted/unlocked KiCad footprint (−90°, 90° or
+180°), optionally combined with bounded translation. Native KiCad 10 pad
+centers, physical pad attributes, before/after DRC, custom-rule loading and
+source-preserving SHA-256 are verified before offering a separate copy.
+Chrome tested actual rotation with and without custom project rules, sandboxed
+SVG preview and mobile/discard controls. This is a narrow placement ECO, not
+routing/editing or full schematic/PCB synchronization. It was qualified in the
+new versioned 0.1.9 local RC but is NOT in the older hash-qualified 0.1.8
+package. See the PCB ECO experiment ledger and 0.1.9 QA record.
+
+## Post-0.1.8 read-only native schematic ↔ PCB association audit
+
+A separate native KiCad 10 analysis now compares the actual schematic XML
+netlist and independently loaded PCB without editing either source.
+Reference, value and library-ID mismatches are reported from real KiCad data;
+UUID and pin/net linkage remain explicitly unverified whenever they cannot
+be proven (including the 14-component ESP32 example with five value
+discrepancies). An authenticated localhost UI presents native findings and
+offers the private JSON evidence download; real Chrome and 390px layout were
+exercised. Automatic F8 forward-annotation, schematic→PCB source update,
+net/pin guessing, route editing and fabrication signoff are **still blocked**.
+See `REVIEW_STUDIO_SCHEMATIC_PCB_AUDIT.md` for evidence scope.
+
+## 0.1.9 native local candidate: exact-package acceptance complete
+
+The new, unsigned 0.1.9 Debian candidate and offline ZIP passed the
+nine-stage release gate, deterministic byte-for-byte .deb rebuild, genuine
+Ubuntu 24.04.1/KiCad 10.0.7 signed-APT 0.1.1→0.1.9 upgrade, private legacy
+ZIP restore through native KiCad, source checksum verification, real
+`apt remove`, and matching-byte Chrome 155 PCB translation/rotation,
+custom-rule loader, schematic value ECO and read-only schematic/PCB parity.
+KiCad produced ten authentic native 3D PNGs (eight orbit, two fixed).
+The original 0.1.8 and 0.1.7 packages remain unchanged.
+Package SHA-256: `cabe24ffa4d5a6138c8fd1abec2c5bb0ab73b2d5fcccea774a9712bf8005b11d`.
+Offline kit SHA-256: `6ec912dec9a61d9d3eb5343bc7e7d08ad2291d266cd771dc7e7bfbf89191002f`.
+Source-bound acceptance: `build/distribution/CLEAN_UBUNTU_2404_019_QA.txt`
+and `build/distribution/RELEASE_MANIFEST.json`.
+
+This is an **unsigned local engineering release candidate, NOT public GA**.
+The audit explicitly refuses schematic↔PCB UUID/pin-net auto-sync.
+Connected copper routing, complete schematic editing, arbitrary continuous
+vendor-model 3D MCAD, independently verified DRC rule semantics, physical
+human-user acceptance, independent signing and fabrication remain unverified.
+
 ## Required milestones for full-featured EDA
 
 1. **Authentic schematic authoring.** Real component/library selection, net and

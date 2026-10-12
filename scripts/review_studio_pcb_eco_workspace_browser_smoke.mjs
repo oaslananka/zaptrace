@@ -5,6 +5,8 @@ const fixture=process.env.ZAPTRACE_PCB_ECO_SOURCE;
 const project=process.env.ZAPTRACE_PCB_ECO_PROJECT;
 const rules=process.env.ZAPTRACE_PCB_ECO_RULES;
 const shots=process.env.ZAPTRACE_PCB_ECO_SHOTS;
+const rotation=Number(process.env.ZAPTRACE_PCB_ECO_ROTATE||0);
+if(![0,90,-90,180].includes(rotation))throw Error('Unsupported browser ECO rotation');
 if(!port||!fixture||!shots)throw Error('Real Chrome port, native PCB source and screenshot path required');
 let pages=[];
 for(let i=0;i<90;i++){
@@ -44,8 +46,9 @@ if(rules){
  check(!!rulesInput.nodeId,'native KiCad custom DRC rule selector exists');
  await command('DOM.setFileInputFiles',{nodeId:rulesInput.nodeId,files:[rules]});
 }
-const chosen=await js(`(()=>{document.getElementById('pcbEcoRef').value='R1';document.getElementById('pcbEcoDx').value='1';
- document.getElementById('pcbEcoDy').value='.5';document.getElementById('pcbEcoForm').requestSubmit();
+const chosen=await js(`(()=>{document.getElementById('pcbEcoRef').value='R1';document.getElementById('pcbEcoDx').value='${rotation?'0':'1'}';
+ document.getElementById('pcbEcoDy').value='${rotation?'0':'.5'}';document.getElementById('pcbEcoRotate').value='${rotation}';
+ document.getElementById('pcbEcoForm').requestSubmit();
  return document.getElementById('pcbEcoSource').files?.[0]?.name})()`);
 check(chosen?.endsWith('.kicad_pcb'),'user-selected real local native PCB posted through Chrome file picker');
 let result;
@@ -65,8 +68,11 @@ for(let i=0;i<600;i++){
 }
 console.log('NATIVE KICAD PCB ECO LIVE',result);
 check(result.visible&&result.ready==='true'&&result.id?.length===32&&result.iframeBytes>10000&&
- result.title.includes('R1')&&result.title.includes('21')&&result.title.includes('20.5')&&
- result.title.includes('DRC verified'),'full Chrome native KiCad footprint R1 (20,20) -> (21,20.5) passed real DRC');
+ result.title.includes('R1')&&(rotation?result.title.includes(rotation+'°')&&result.title.includes('20, 20 → 20, 20'):
+ result.title.includes('21')&&result.title.includes('20.5'))&&
+ result.title.includes('DRC verified'),rotation?
+ 'full Chrome native KiCad footprint R1 rotation '+rotation+'° (20,20) passed real DRC':
+ 'full Chrome native KiCad footprint R1 (20,20) -> (21,20.5) passed real DRC');
 const context=await js(`(()=>({bundleLabel:document.getElementById('pcbEcoDownload').textContent,
   status:document.getElementById('pcbEcoStatus').textContent}))()`);
 check(rules ? context.bundleLabel.includes('ZIP')&&context.status.includes('loader probe passed') :

@@ -21,6 +21,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import uuid
 import zipfile
@@ -488,6 +489,92 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, {"state": "stopping", "message": "Local Review Studio is stopping"})
             threading.Thread(target=self.review_server.shutdown, daemon=True).start()
             return
+        if self.path == "/api/schematic-pcb-audit":
+            if not self._authorize():
+                return
+            length = self.headers.get("Content-Length", "")
+            if (
+                self.headers.get("Content-Type") != "application/json"
+                or not length.isdecimal()
+                or not 10 < int(length) <= MAX_PCB_ECO_REQUEST
+            ):
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Native schematic/PCB audit JSON under 22 MB required"})
+                return
+            if not self.review_server.worker_lock.acquire(blocking=False):
+                self._json(HTTPStatus.CONFLICT, {"error": "A native KiCad operation is already running"})
+                return
+            try:
+                data = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                expected = {"schematic_base64", "schematic_sha256", "pcb_base64", "pcb_sha256"}
+                if not isinstance(data, dict) or set(data) != expected:
+                    raise ValueError("Exact native schematic/PCB sources and SHA-256 required")
+                decoded = {}
+                for kind, signature, cap in (
+                    ("schematic", b"(kicad_sch", MAX_SCHEMATIC),
+                    ("pcb", b"(kicad_pcb", MAX_PCB),
+                ):
+                    encoded, wanted = data[kind + "_base64"], data[kind + "_sha256"]
+                    if (
+                        not isinstance(encoded, str)
+                        or not isinstance(wanted, str)
+                        or not re.fullmatch("[0-9a-f]{64}", wanted)
+                    ):
+                        raise ValueError("Invalid native KiCad source encoding or SHA")
+                    try:
+                        raw = base64.b64decode(encoded, validate=True)
+                    except (binascii.Error, ValueError) as exc:
+                        raise ValueError("Invalid native KiCad source data") from exc
+                    if not 100 < len(raw) <= cap or not raw.lstrip().startswith(signature):
+                        raise ValueError("Native KiCad source type/size mismatch")
+                    if hashlib.sha256(raw).hexdigest() != wanted:
+                        raise ValueError("Selected KiCad source hash mismatch")
+                    decoded[kind] = raw
+                with tempfile.TemporaryDirectory(prefix=".zaptrace-audit-") as temporary:
+                    folder = Path(temporary)
+                    sch, pcb_board = folder / "input.kicad_sch", folder / "input.kicad_pcb"
+                    sch.write_bytes(decoded["schematic"])
+                    pcb_board.write_bytes(decoded["pcb"])
+                    report = folder / "result.json"
+                    run = subprocess.run(
+                        [
+                            "/usr/bin/python3",
+                            "-B",
+                            str(Path(__file__).with_name("review_studio_schematic_pcb_parity.py")),
+                            "--schematic",
+                            str(sch),
+                            "--board",
+                            str(pcb_board),
+                            "--output",
+                            str(report),
+                        ],
+                        text=True,
+                        capture_output=True,
+                        timeout=115,
+                        check=False,
+                    )
+                    if run.returncode or not report.is_file():
+                        raise RuntimeError("Native schematic/PCB inspection could not prove a valid report")
+                    evidence = json.loads(report.read_text())
+                    if (
+                        evidence.get("source_sha256")
+                        != {
+                            "schematic": hashlib.sha256(decoded["schematic"]).hexdigest(),
+                            "pcb": hashlib.sha256(decoded["pcb"]).hexdigest(),
+                        }
+                        or evidence.get("automatic_sync_authorized") is not False
+                    ):
+                        raise RuntimeError("Native report provenance or safety boundary unavailable")
+                self._json(HTTPStatus.OK, evidence)
+            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError, OSError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:170]})
+            except (RuntimeError, subprocess.TimeoutExpired):
+                self._json(
+                    HTTPStatus.UNPROCESSABLE_ENTITY,
+                    {"error": "Native KiCad parity audit unavailable; no synchronization authorized"},
+                )
+            finally:
+                self.review_server.worker_lock.release()
+            return
         if self.path == "/api/pcb-eco/discard":
             if not self._authorize():
                 return
@@ -538,8 +625,11 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 project_fields = {"source_filename", "project_filename", "project_base64", "project_sha256"}
                 rules_fields = {"rules_filename", "rules_base64", "rules_sha256"}
                 allowed = (expected, expected | project_fields, expected | project_fields | rules_fields)
-                if not isinstance(payload, dict) or set(payload) not in allowed:
+                if not isinstance(payload, dict) or set(payload) - {"rotate"} not in allowed:
                     raise ValueError("Expected native PCB SHA, movement, and optional matched KiCad project context")
+                rotation = payload.get("rotate", 0)
+                if isinstance(rotation, bool) or not isinstance(rotation, int) or rotation not in (-90, 0, 90, 180):
+                    raise ValueError("PCB rotation must be -90, 0, 90 or 180 degrees")
                 ref, digest = payload["reference"], payload["original_sha256"]
                 if (
                     not isinstance(ref, str)
@@ -557,8 +647,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     if not math.isfinite(real) or abs(real) > 5 or abs(real * 20 - round(real * 20)) > 1e-7:
                         raise ValueError("PCB movement must follow a 0.05 mm grid within ±5 mm")
                     offsets.append(real)
-                if offsets == [0, 0]:
-                    raise ValueError("Choose a nonzero PCB footprint displacement")
+                if offsets == [0, 0] and rotation == 0:
+                    raise ValueError("Choose a nonzero PCB footprint translation or quarter-turn")
                 if not isinstance(payload["source_base64"], str):
                     raise ValueError("KiCad source encoding required")
                 try:
@@ -647,7 +737,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     self.review_server.pcb_eco_outputs[job_id] = output
                 thread = threading.Thread(
                     target=self._run_pcb_eco_job,
-                    args=(job_id, staged / "source.kicad_pcb", output, ref, *offsets),
+                    args=(job_id, staged / "source.kicad_pcb", output, ref, *offsets, rotation),
                     daemon=True,
                 )
                 thread.start()
@@ -1012,7 +1102,9 @@ class ReviewHandler(BaseHTTPRequestHandler):
             # local analysis, even if the browser disconnects mid-response.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Local import preparation failed"})
 
-    def _run_pcb_eco_job(self, job_id: str, source: Path, output: Path, ref: str, dx: float, dy: float) -> None:
+    def _run_pcb_eco_job(
+        self, job_id: str, source: Path, output: Path, ref: str, dx: float, dy: float, rotation: int = 0
+    ) -> None:
         result: dict = {"state": "failed", "message": "KiCad PCB ECO failed native checks; no copy published"}
         try:
             module = Path(__file__).with_name("review_studio_pcb_eco.py")
@@ -1029,6 +1121,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     ref,
                     f"--dx={dx}",
                     f"--dy={dy}",
+                    f"--rotate={rotation}",
                 ],
                 capture_output=True,
                 text=True,
@@ -1048,12 +1141,15 @@ class ReviewHandler(BaseHTTPRequestHandler):
                             bundle.write(artifact, arcname=name)
                 result = {
                     "state": "complete",
-                    "message": "One native unrouted footprint moved; DRC verified, NOT fab approved",
+                    "message": "One native unrouted footprint placed/rotated; DRC verified, NOT fab approved",
                     "pcb_eco": {
                         "id": job_id,
                         "ref": manifest["ref"],
                         "old_mm": manifest["old_mm"],
                         "new_mm": manifest["new_mm"],
+                        "rotation_degrees": manifest["rotation_degrees"],
+                        "old_angle_degrees": manifest["old_angle_degrees"],
+                        "new_angle_degrees": manifest["new_angle_degrees"],
                         "fabApproved": False,
                         "rule_context": manifest["rule_context"]["mode"],
                         "custom_rule_loader_probe_passed": manifest["rule_context"]["custom_rule_loader_probe_passed"],

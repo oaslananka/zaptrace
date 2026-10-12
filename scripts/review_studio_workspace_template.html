@@ -83,6 +83,8 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 .eco-fields{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(100px,.65fr) minmax(100px,.7fr) auto;gap:11px;align-items:end;margin-top:15px}
 .eco-fields label{display:flex;flex-direction:column;gap:7px;color:#bde6dd;font-size:11px;font-weight:820;min-width:0}
 .eco-fields input{width:100%;min-height:44px;min-width:0;padding:9px 11px;color:#e4fcf5;background:#091d2b;border:1px solid #4c7780;border-radius:8px;font:12px ui-monospace,monospace}
+.eco-fields select{width:100%;min-height:44px;min-width:0;padding:9px 11px;color:#e4fcf5;background:#091d2b;border:1px solid #4c7780;border-radius:8px;font:12px ui-monospace,monospace}
+.eco-fields select:focus-visible{outline:2px solid #72ebcb;outline-offset:2px}
 .eco-fields input:focus-visible{outline:2px solid #72ebcb;outline-offset:2px}
 .eco-fields button,.eco-result button{min-height:44px;padding:10px 13px;background:#70dfc3;border:1px solid #93f1da;border-radius:8px;color:#123c39;font-size:11px;font-weight:850;cursor:pointer}
 .eco-fields button:disabled,.eco-result button:disabled{opacity:.45;cursor:wait}
@@ -137,7 +139,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 <a class="skip-to-content" href="#workspaceMain">Skip to main content</a>
 <header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local" id="runtimeMode">OFFLINE · REVIEW ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
 <main id="workspaceMain" tabindex="-1"><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
-<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects (press slash to focus)" aria-controls="workspaceProjects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="search-hint" aria-hidden="true">Press / to search</span><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ Draft a PCB move</a></div>
+<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects (press slash to focus)" aria-controls="workspaceProjects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="search-hint" aria-hidden="true">Press / to search</span><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ PCB placement / rotate</a><a class="add-link eco-launch" id="pcbAuditLaunch" href="#pcbAuditLab" hidden>◎ Audit schematic ↔ PCB</a></div>
 <p class="search-feedback" id="projectSearchFeedback" role="status" aria-live="polite" aria-atomic="true"></p>
 <div class="compare-toolbar"><div><span class="overline">NATIVE EVIDENCE COMPARISON</span><p>Select exactly two source snapshots to compare observable evidence. Counts are never fabrication approval.</p></div><span id="compareSelection" role="status" aria-live="polite">__COMPARE_HINT__</span></div>
 <section class="compare-panel" id="comparePanel" hidden aria-label="Native snapshot comparison">
@@ -181,23 +183,43 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 </section>
 <section class="eco-lab" id="pcbEcoLab" hidden aria-label="Controlled native KiCad PCB footprint placement editor">
  <span class="eco-label">REAL NATIVE PCB AUTHORING / FOOTPRINT PLACEMENT ECO</span>
- <h2>Reposition an unrouted footprint</h2>
- <p>Move one existing <strong>unrouted</strong> footprint by a measured offset. Real KiCad 10 checks native copper bounding geometry at both positions, pad UUIDs, net ownership and before/after DRC. Only a separate verified PCB working copy can be downloaded. <strong>Connected copper, zones and new rule violations are blocked.</strong></p>
+ <h2>Reposition or rotate an unrouted footprint</h2>
+ <p>Translate or rotate one existing <strong>unrouted</strong> footprint by a measured offset and/or a 90° quarter-turn. Real KiCad 10 checks native copper bounding geometry at both positions, pad UUIDs, net ownership and before/after DRC. Only a separate verified PCB working copy can be downloaded. <strong>Connected copper, zones and new rule violations are blocked.</strong></p>
  <form id="pcbEcoForm" class="eco-fields">
-  <label>Original native KiCad PCB<input id="pcbEcoSource" type="file" accept=".kicad_pcb" required aria-label="Select KiCad PCB to prepare a footprint move"/></label>
+  <label>Original native KiCad PCB<input id="pcbEcoSource" type="file" accept=".kicad_pcb" required aria-label="Select native KiCad PCB for a guarded footprint placement or rotation"/></label>
   <label>Matching KiCad project rules (recommended)<input id="pcbEcoProject" type="file" accept=".kicad_pro" aria-label="Select original project rules with exactly the same base filename"/></label>
   <label>Custom design rules (requires matching project; native probe gate)<input id="pcbEcoRules" type="file" accept=".kicad_dru" aria-label="Disclose custom design rules that require independent validation"/></label>
   <label>Footprint reference<input id="pcbEcoRef" type="text" value="R1" maxlength="11" required spellcheck="false" autocomplete="off"/></label>
   <label>Move X / Y (mm)<span class="pcb-eco-offset"><input id="pcbEcoDx" type="number" min="-5" max="5" step="0.05" value="1" required aria-label="Footprint X movement in millimeters"/><input id="pcbEcoDy" type="number" min="-5" max="5" step="0.05" value="0" required aria-label="Footprint Y movement in millimeters"/></span></label>
+  <label>Rotation (degrees)<select id="pcbEcoRotate" aria-label="Rotate selected PCB footprint by a quarter turn"><option value="0">0° / keep angle</option><option value="90">+90°</option><option value="-90">−90°</option><option value="180">180°</option></select></label>
   <button id="pcbEcoCreate" type="submit">Check DRC &amp; preview</button>
  </form>
- <p class="eco-warning">Select matching .kicad_pro and .kicad_dru together when your design uses custom rules. KiCad must prove a separate temporary loader probe before accepting the edit. This verifies loading, not full rule semantics or GUI parity. Without a project file, KiCad defaults apply, not fabrication rules. Existing copper, copper zones and new rule violations block movement. DRC passing never establishes fabrication or electrical approval. Original files stay unchanged.</p>
+ <p class="eco-warning">Select matching .kicad_pro and .kicad_dru together when your design uses custom rules. KiCad must prove a separate temporary loader probe before accepting the edit. This verifies loading, not full rule semantics or GUI parity. Without a project file, KiCad defaults apply, not fabrication rules. Routed copper contacts, copper zones and new rule violations block placement and rotation. DRC passing never establishes fabrication or electrical approval. Original files stay unchanged.</p>
  <p id="pcbEcoStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
  <div class="eco-result" id="pcbEcoResult" hidden>
-  <div class="eco-result-head"><strong id="pcbEcoResultTitle">Native PCB move verification · not approved</strong>
+  <div class="eco-result-head"><strong id="pcbEcoResultTitle">Native PCB placement / rotation · not approved</strong>
    <div class="eco-result-actions"><button id="pcbEcoDownload" type="button">Download separate PCB copy</button>
-    <button id="pcbEcoDiscard" type="button">Discard PCB move draft</button></div></div>
+    <button id="pcbEcoDiscard" type="button">Discard PCB ECO draft</button></div></div>
   <iframe id="pcbEcoPreview" title="Actual KiCad PCB before and after copper plots with DRC evidence" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+ </div>
+</section>
+<section class="eco-lab" id="pcbAuditLab" hidden aria-label="Read-only native KiCad schematic to PCB parity evidence">
+ <span class="eco-label">SOURCE LINKAGE / READ-ONLY KICAD EVIDENCE · NO F8 UPDATES</span>
+ <h2>Audit schematic–PCB correspondence</h2>
+ <p>Select real native KiCad schematic and PCB files. This audit compares source reference designators, footprint library IDs, values and verifiable pin/net identities. It <strong>never changes either source, performs F8 synchronization or approves electrical/manufacturing release.</strong> Mismatched symbol-pin/pad numbering and absent UUID paths remain explicitly unverified.</p>
+ <form class="eco-fields" id="pcbAuditForm">
+  <label>Native KiCad schematic<input type="file" id="pcbAuditSch" accept=".kicad_sch" required aria-label="Choose actual KiCad schematic for parity audit"/></label>
+  <label>Native KiCad PCB<input type="file" id="pcbAuditPcb" accept=".kicad_pcb" required aria-label="Choose actual KiCad PCB for parity audit"/></label>
+  <button type="submit" id="pcbAuditRun">Compare native sources</button>
+ </form>
+ <p class="eco-warning">Read-only association findings are not an electrical test. Reference-only equality does not prove KiCad symbol-to-footprint UUID association, pin mapping, copper continuity, custom DRC or fabrication readiness. Use the original KiCad editor's F8 forward-annotation workflow for authoritative synchronization.</p>
+ <p id="pcbAuditStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
+ <div id="pcbAuditResult" class="eco-result" hidden>
+  <h3>Native schematic–PCB association evidence · NOT APPROVED</h3>
+  <p id="pcbAuditSummary"></p>
+  <ul id="pcbAuditDifferences"></ul>
+  <p id="pcbAuditLinkage"></p>
+  <button type="button" id="pcbAuditDownload">Download source-hashed audit JSON</button>
  </div>
 </section>
 <section class="onboarding" id="import"><span class="overline">BRING YOUR OWN DESIGN</span><h2>Open another native KiCad board</h2><p id="desktopOnboarding" hidden>Select your KiCad files using the controls below. Your original board is never changed; the local engine stores a separate evidence snapshot. There are no simulated example projects and no cloud upload.</p><p id="staticOnboarding">Import uses native KiCad installed on your computer. In static offline mode, run the terminal command shown below from the ZapTrace source directory, then refresh the project library. Disabled or unavailable checks remain explicitly unverified.</p>
@@ -262,7 +284,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
  <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
  <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
- <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.8 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.9 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
 </section>
 <dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
  <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
@@ -275,7 +297,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 </dialog>
 <div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
 <div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
-<div class="foot">ZapTrace Review Studio 0.1.8 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<div class="foot">ZapTrace Review Studio 0.1.9 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
 <script>
 // Direct native review is enabled only by the explicit localhost server.
 if(window.__REVIEW_LOCAL__?.token){
@@ -290,6 +312,8 @@ if(window.__REVIEW_LOCAL__?.token){
  document.getElementById('ecoLaunch').hidden=false;
  document.getElementById('pcbEcoLab').hidden=false;
  document.getElementById('pcbEcoLaunch').hidden=false;
+ document.getElementById('pcbAuditLab').hidden=false;
+ document.getElementById('pcbAuditLaunch').hidden=false;
  document.getElementById('nativeImport').hidden=false;
  document.getElementById('cliFallback').hidden=true;
  const $=id=>document.getElementById(id),token=window.__REVIEW_LOCAL__.token;
@@ -317,6 +341,63 @@ if(window.__REVIEW_LOCAL__?.token){
   const sha=[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
   return {source_base64:btoa(encoded),original_sha256:sha};
  }
+ let pcbAuditData=null;
+ const auditStatus=$('pcbAuditStatus'),auditRun=$('pcbAuditRun'),auditResult=$('pcbAuditResult');
+ function auditMessage(note,kind='info'){
+  auditStatus.hidden=false;auditStatus.textContent=note;
+  auditStatus.classList.toggle('error',kind==='error');
+  auditStatus.classList.toggle('success',kind==='success');
+  auditStatus.setAttribute('role',kind==='error'?'alert':'status');
+  auditStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ }
+ $('pcbAuditForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const sch=$('pcbAuditSch').files?.[0],pcb=$('pcbAuditPcb').files?.[0];
+  pcbAuditData=null;auditResult.hidden=true;auditRun.disabled=true;
+  try{
+   if(!sch||!pcb||!sch.name.endsWith('.kicad_sch')||!pcb.name.endsWith('.kicad_pcb')||
+      sch.size<101||sch.size>4*1024*1024||pcb.size<101||pcb.size>10*1024*1024)
+    throw Error('Select one real KiCad schematic ≤4 MB and PCB ≤10 MB.');
+   auditMessage('Hashing both local originals; running KiCad-native schematic netlist and PCB inspection…');
+   const [first,second]=await Promise.all([ecoUploadBase64(sch),ecoUploadBase64(pcb)]);
+   const request={schematic_base64:first.source_base64,schematic_sha256:first.original_sha256,
+    pcb_base64:second.source_base64,pcb_sha256:second.original_sha256};
+   const response=await fetch('/api/schematic-pcb-audit',{method:'POST',
+    headers:{'X-Review-Token':token,'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify(request)});
+   const report=await response.json();
+   if(!response.ok||report.automatic_sync_authorized!==false)throw Error(report.error||'Native audit cannot establish safe parity');
+   pcbAuditData=report;
+   const counts=report.component_counts;
+   $('pcbAuditSummary').textContent='Schematic: '+counts.schematic+' · PCB: '+counts.pcb+
+    ' · shared refs: '+counts.shared_references+' · field discrepancies: '+
+    report.component_field_discrepancies.length;
+   const items=$('pcbAuditDifferences');items.replaceChildren();
+   for(const issue of report.component_field_discrepancies){
+    const item=document.createElement('li');
+    item.textContent=issue.reference+' · '+issue.field+' · '+issue.issue+
+     (issue.schematic!==undefined?' · schematic: '+issue.schematic+' · PCB: '+issue.pcb:'');
+    items.append(item);
+   }
+   if(!items.children.length){
+    const ok=document.createElement('li');ok.textContent='Component fields match; this is NOT proof of pin/net linkage.';
+    items.append(ok);
+   }
+   $('pcbAuditLinkage').textContent='KiCad UUID linkage verified: NO · Pin/net association: '+
+     report.pin_net_correspondence+' · Automatic sync: BLOCKED · Fabrication: NOT APPROVED.';
+   auditResult.hidden=false;
+   auditMessage('Native source comparison complete; separate unresolved engineering checks remain.','success');
+  }catch(error){
+   auditMessage(error?.message||'KiCad native audit blocked; no source changed.','error');
+  }finally{auditRun.disabled=false;}
+ });
+ $('pcbAuditDownload').addEventListener('click',()=>{
+  if(!pcbAuditData)return;
+  const blob=new Blob([JSON.stringify(pcbAuditData,null,2)+'\n'],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='zaptrace-native-schematic-pcb-audit.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ });
  $('ecoForm').addEventListener('submit',async event=>{
   event.preventDefault();
   if(lastEcoId){ecoMessage('Discard the current local ECO draft before authoring another.','error');return;}
@@ -379,11 +460,11 @@ if(window.__REVIEW_LOCAL__?.token){
   event.preventDefault();
   if(pcbEcoId){pcbMessage('Discard the current PCB working copy before starting another move.','error');return;}
   const file=$('pcbEcoSource').files?.[0],reference=$('pcbEcoRef').value.trim();
-  const dx=Number($('pcbEcoDx').value),dy=Number($('pcbEcoDy').value);
+  const dx=Number($('pcbEcoDx').value),dy=Number($('pcbEcoDy').value),rotate=Number($('pcbEcoRotate').value);
   if(!file||!file.name.endsWith('.kicad_pcb')||file.size<200||file.size>10*1024*1024||
      !/^[A-Za-z]{1,5}[1-9][0-9]{0,5}$/.test(reference)||[dx,dy].some(x=>!Number.isFinite(x)||Math.abs(x)>5||Math.abs(x*20-Math.round(x*20))>1e-7)||
-     (dx===0&&dy===0)){
-   pcbMessage('Select a valid native PCB, unique reference and nonzero ±5 mm movement on 0.05 mm grid.','error');return;
+     ![0,90,-90,180].includes(rotate)||(dx===0&&dy===0&&rotate===0)){
+   pcbMessage('Select a valid native PCB, exact reference, ±5 mm on a 0.05 mm grid and/or quarter-turn.','error');return;
   }
   pcbButton.disabled=true;
   try{
@@ -394,7 +475,7 @@ if(window.__REVIEW_LOCAL__?.token){
       rules.size>512*1024||rules.size<11))throw Error('Custom .kicad_dru must match PCB basename and be under 512 KB.');
    if(project&&(project.name!==file.name.replace(/\.kicad_pcb$/,'.kicad_pro')||
       project.size>3*1024*1024||project.size<9))throw Error('Project .kicad_pro must match PCB basename and be under 3 MB.');
-   const payload={...await ecoUploadBase64(file),reference,dx,dy};
+   const payload={...await ecoUploadBase64(file),reference,dx,dy,rotate};
    if(project){
     const encoded=await ecoUploadBase64(project);
     Object.assign(payload,{source_filename:file.name,project_filename:project.name,
@@ -424,7 +505,8 @@ if(window.__REVIEW_LOCAL__?.token){
      pcbEcoBundle=['project','project_with_custom_rules'].includes(job.pcb_eco.rule_context);
      $('pcbEcoDownload').textContent=pcbEcoBundle?'Download PCB + project rules ZIP':'Download separate PCB copy';
      $('pcbEcoResultTitle').textContent=job.pcb_eco.ref+' · '+job.pcb_eco.old_mm.join(', ')+' → '+
-      job.pcb_eco.new_mm.join(', ')+' mm · native DRC verified · NOT fab approved';
+      job.pcb_eco.new_mm.join(', ')+' mm · '+job.pcb_eco.old_angle_degrees+'° → '+
+      job.pcb_eco.new_angle_degrees+'° · native DRC verified · NOT fab approved';
      const probed=job.pcb_eco.custom_rule_loader_probe_passed;
      pcbMessage(probed?'Native KiCad custom-rule loader probe passed; individual rule semantics and fabrication remain unverified. Matching PCB/project/rules are preserved in ZIP.':
       pcbEcoBundle?'Native PCB compared with the selected project file present; effective custom rule enforcement not independently certified. Download preserves that file.':

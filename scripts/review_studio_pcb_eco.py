@@ -2,8 +2,8 @@
 #!/usr/bin/python3
 """Copy-on-write KiCad 10 PCB footprint ECO; deny routed-pad moves and new DRC findings.
 
-Only a translation of one unrouted footprint is supported. Fabrication,
-electrical correctness, fit and source updates remain unapproved.
+Only a translation and/or quarter-turn of one unrouted footprint is supported.
+Fabrication, electrical correctness, fit and source updates remain unapproved.
 """
 
 from __future__ import annotations
@@ -53,10 +53,17 @@ def state(board: Any) -> dict:
                 pad.GetNetCode(),
                 vec(pad.GetPosition()),
                 pad.GetLayerSet().FmtBin(),
+                vec(pad.GetSize()),
+                vec(pad.GetDrillSize()),
+                int(pad.GetShape()),
+                int(pad.GetAttribute()),
+                pad.GetOrientationDegrees(),
             )
         footprints[ref] = {
             "uuid": fp.m_Uuid.AsString(),
             "value": fp.GetValue(),
+            "layer": fp.GetLayer(),
+            "library": fp.GetFPIDAsString(),
             "pos": vec(fp.GetPosition()),
             "angle": fp.GetOrientationDegrees(),
             "locked": fp.IsLocked(),
@@ -83,26 +90,31 @@ def state(board: Any) -> dict:
     return {"footprints": footprints, "tracks": traces, "zones": board.GetAreaCount()}
 
 
-def eligible(board: Any, reference: str, dx: int, dy: int) -> Any:
+def eligible(board: Any, reference: str, dx: int, dy: int, rotation: int = 0) -> Any:
     candidates = [fp for fp in board.GetFootprints() if fp.GetReference() == reference]
     if not REFERENCE.fullmatch(reference) or len(candidates) != 1:
         raise ValueError("Select an existing, unique native KiCad footprint reference")
     fp = candidates[0]
     if fp.IsLocked():
-        raise ValueError("Locked footprint cannot be moved")
+        raise ValueError("Locked footprint cannot be edited")
     if board.GetAreaCount():
-        raise ValueError("Copper zones require refill-aware routing; movement blocked")
-    move = pcb.VECTOR2I(dx, dy)
+        raise ValueError("Copper zones require refill-aware routing; footprint edit blocked")
     # KiCad's native shape bounding boxes include track width, arcs and vias.
     # Endpoint-only checks miss traces crossing a pad between their endpoints.
     # Block contacts at both locations: landing on same-net copper could create
     # an unintended connection without generating a DRC clearance violation.
     copper = [track.GetBoundingBox() for track in board.GetTracks()]
-    for pad in fp.Pads():
-        original = pad.GetBoundingBox()
-        destination = original.GetWithOffset(move)
-        if any(box.Intersects(original) or box.Intersects(destination) for box in copper):
-            raise ValueError(f"{reference} has pad-adjacent copper; real drag routing required")
+    if any(box.Intersects(pad.GetBoundingBox()) for pad in fp.Pads() for box in copper):
+        raise ValueError(f"{reference} has pad-adjacent copper; real drag routing required")
+    # Both the original and final native pad bounds must be clear. KiCad
+    # handles rotation of odd pad shapes and footprint-defined local origins.
+    # A DRC comparison alone can miss same-net copper connectivity changes.
+    original_pos = fp.GetPosition()
+    fp.SetPosition(pcb.VECTOR2I(original_pos.x + dx, original_pos.y + dy))
+    if rotation:
+        fp.SetOrientationDegrees(fp.GetOrientationDegrees() + rotation)
+    if any(box.Intersects(pad.GetBoundingBox()) for pad in fp.Pads() for box in copper):
+        raise ValueError(f"{reference} has pad-adjacent copper; real drag routing required")
     return fp
 
 
@@ -213,7 +225,15 @@ def plot(cli: str, source: Path, target: Path) -> str:
     return "data:image/svg+xml;base64," + base64.b64encode(image).decode()
 
 
-def verify_roundtrip(before: dict, after: dict, target: str, dx: int, dy: int) -> None:
+def verify_roundtrip(
+    before: dict,
+    after: dict,
+    target: str,
+    dx: int,
+    dy: int,
+    rotation: int = 0,
+    expected_target: dict | None = None,
+) -> None:
     if (
         before["tracks"] != after["tracks"]
         or before["zones"] != after["zones"]
@@ -226,19 +246,39 @@ def verify_roundtrip(before: dict, after: dict, target: str, dx: int, dy: int) -
         expected = (first["pos"][0] + delta[0], first["pos"][1] + delta[1])
         if second["pos"] != expected:
             raise RuntimeError("Native footprint coordinates differ beyond approved ECO")
-        for name in ("uuid", "value", "angle", "locked"):
+        for name in ("uuid", "value", "locked", "layer", "library"):
             if first[name] != second[name]:
                 raise RuntimeError("Native footprint metadata changed unexpectedly")
+        # KiCad normalizes 270° to -90° depending on version.
+        expected_angle = first["angle"] + (rotation if ref == target else 0)
+        if abs((second["angle"] - expected_angle + 180) % 360 - 180) > 1e-7:
+            raise RuntimeError("Native footprint orientation changed beyond approved ECO")
         if set(first["pads"]) != set(second["pads"]):
             raise RuntimeError("Native pad identity changed unexpectedly")
         for uid, old in first["pads"].items():
             new = second["pads"][uid]
             coords = (old[3][0] + delta[0], old[3][1] + delta[1])
-            if old[:3] != new[:3] or coords != new[3] or old[4] != new[4]:
-                raise RuntimeError("Native pad nets, layer sets or coordinates changed unexpectedly")
+            if ref == target and rotation:
+                # Capture native KiCad's expected transformed pad centers
+                # before serializing; verify saved PCB did not shift any pad.
+                if expected_target is None or uid not in expected_target["pads"]:
+                    raise RuntimeError("Native rotated pad identity unavailable")
+                coords = expected_target["pads"][uid][3]
+            if old[:3] != new[:3] or coords != new[3] or old[4:9] != new[4:9]:
+                raise RuntimeError("Native pad identity, dimensions, net, shape or layers changed")
+            expected_pad_angle = old[9] + (rotation if ref == target else 0)
+            if abs((new[9] - expected_pad_angle + 180) % 360 - 180) > 1e-7:
+                raise RuntimeError("Native pad angle changed beyond approved footprint rotation")
 
 
-def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: float) -> dict:
+def create(
+    source: Path,
+    output: Path,
+    reference: str,
+    dx_mm: float,
+    dy_mm: float,
+    rotation: int = 0,
+) -> dict:
     source = source.resolve(strict=True)
     output = output.absolute()
     if source.suffix != ".kicad_pcb" or not source.is_file() or source.stat().st_size > 10_000_000:
@@ -248,7 +288,9 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
     for x in (dx_mm, dy_mm):
         if not math.isfinite(x) or abs(x) > 5.0 or abs(x * 20 - round(x * 20)) > 1e-7:
             raise ValueError("Grid is 0.05 mm, offset must be ±5 mm or less")
-    if dx_mm == 0 and dy_mm == 0:
+    if isinstance(rotation, bool) or not isinstance(rotation, int) or rotation not in (-90, 0, 90, 180):
+        raise ValueError("Footprint rotation must be one quarter-turn: -90, 0, 90 or 180 degrees")
+    if dx_mm == 0 and dy_mm == 0 and rotation == 0:
         raise ValueError("Zero-distance ECO not allowed")
     if output.exists() or output.is_symlink() or output.resolve().is_relative_to(source.parent):
         raise ValueError("New, separate ECO output outside original source folder required")
@@ -289,15 +331,15 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
             raise ValueError("KiCad rejected PCB")
         before = state(board)
         dx, dy = pcb.FromMM(dx_mm), pcb.FromMM(dy_mm)
-        footprint = eligible(board, reference, dx, dy)
-        old = vec(footprint.GetPosition())
-        new = old[0] + dx, old[1] + dy
-        footprint.SetPosition(pcb.VECTOR2I(*new))
+        footprint = eligible(board, reference, dx, dy, rotation)
+        old = before["footprints"][reference]["pos"]
+        new = vec(footprint.GetPosition())
+        staged_target = state(board)["footprints"][reference]
         pcb.SaveBoard(str(changed), board)
         reopened = pcb.LoadBoard(str(changed))
         if reopened is None:
             raise RuntimeError("Cannot reopen authored KiCad PCB")
-        verify_roundtrip(before, state(reopened), reference, dx, dy)
+        verify_roundtrip(before, state(reopened), reference, dx, dy, rotation, staged_target)
         drc_original = drc(cli, raw, root / "before-drc.json")
         rule_loader_verified = (
             attest_custom_rule_loading(cli, root, raw, first / raw.with_suffix(".kicad_dru").name, original_sha)
@@ -326,6 +368,9 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
             result = {
                 "type": "PCB_UNROUTED_FOOTPRINT_PLACEMENT_ECO",
                 "status": "native_drc_verified_copy_not_original",
+                "rotation_degrees": rotation,
+                "old_angle_degrees": before["footprints"][reference]["angle"],
+                "new_angle_degrees": staged_target["angle"],
                 "ref": reference,
                 "old_mm": [pcb.ToMM(x) for x in old],
                 "new_mm": [pcb.ToMM(x) for x in new],
@@ -354,6 +399,8 @@ def create(source: Path, output: Path, reference: str, dx_mm: float, dy_mm: floa
                 "REF": reference,
                 "BEFORE_XY": str(result["old_mm"]),
                 "AFTER_XY": str(result["new_mm"]),
+                "BEFORE_ANGLE": str(result["old_angle_degrees"]),
+                "AFTER_ANGLE": str(result["new_angle_degrees"]),
                 "BEFORE_SVG": before_svg,
                 "AFTER_SVG": after_svg,
                 "BEFORE_DRC": str(summary["before_rules"]),
@@ -379,9 +426,10 @@ def main() -> int:
     parser.add_argument("--ref", required=True)
     parser.add_argument("--dx", required=True, type=float)
     parser.add_argument("--dy", required=True, type=float)
+    parser.add_argument("--rotate", default=0, type=int, choices=(-90, 0, 90, 180))
     args = parser.parse_args()
     try:
-        result = create(args.board, args.output, args.ref, args.dx, args.dy)
+        result = create(args.board, args.output, args.ref, args.dx, args.dy, args.rotate)
     except (OSError, RuntimeError, ValueError, UnicodeError, subprocess.TimeoutExpired) as exc:
         print("PCB ECO BLOCKED:", str(exc), file=sys.stderr)
         return 2

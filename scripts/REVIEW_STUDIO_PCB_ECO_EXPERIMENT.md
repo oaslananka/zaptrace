@@ -150,3 +150,52 @@ distinguishes KiCad defaults, project context and verified custom loader
 probe, with warnings about unverified effective rules. Native HTTP, actual
 Chrome desktop/390px and browser discard tests were run in the local source
 working tree. A verified SHA-bound packaged Ubuntu release needs separate QA.
+
+## Post-0.1.8 local-only source: native footprint quarter-turns
+
+**Not included in the old hash-bound 0.1.8 Debian package or offline ZIP.**
+Now included in the separately versioned, exact-tested **0.1.9 unsigned
+local release candidate** (SHA-256 `cabe24ffa4d5a6138c8fd1abec2c5bb0ab73b2d5fcccea774a9712bf8005b11d`) after real
+Ubuntu 24.04.1/KiCad 10.0.7 APT and native Chrome acceptance.
+In this version, footprint ECO additionally supports
+**−90°, +90° and 180° rotation**, including rotation-only operations with a
+zero X/Y offset and combined rotation plus 0.05 mm-grid translation.
+
+KiCad 10 native pcbnew.FOOTPRINT.SetOrientationDegrees transforms true pad
+centers. The engine rejects locked, missing or duplicate footprints, copper
+zones, and any track/arc/via bounding geometry intersecting either the
+original or transformed native pad bounding boxes. After saving only to a
+separate file it reloads the board and verifies footprint UUIDs, library ID,
+layer, value, untouched component positions, copper/zone state, and every
+pad's identity, net, layer, shape, physical size, drill and absolute
+orientation. Only the requested footprint angle and KiCad-transformed
+pad positions may differ; native DRC/open counts cannot regress.
+Original project and custom rules remain hash-identical, with custom
+rule loader sentinel required where applicable.
+
+The authenticated browser and HTTP API allow only supported integer angles.
+Native output evidence includes rotation_degrees, old_angle_degrees and
+new_angle_degrees, plus two authentic KiCad copper SVGs and hash checks.
+Legacy translation JSON requests remain accepted with default rotate=0.
+Real Chrome tests cover rotation-only, matching project/custom rules,
+opaque preview, download, 390px and explicit discard.
+
+Regression tests include positive +90/−90/180, combined translate-and-rotate,
+successive rotations from a nonzero starting angle and refusal of unsupported
+angles, locked footprints, destination copper contact and existing routed
+ESP32 source. All original design files are preserved.
+
+Example on a disposable new output path outside the source board folder:
+
+    /usr/bin/python3 -B scripts/review_studio_pcb_eco.py \
+      --board tests/fixtures/review_studio_native_eco_placement.kicad_pcb \
+      --output /tmp/user-owned-new-eco-output \
+      --ref R1 --dx 0 --dy 0 --rotate 90
+
+This is NOT a drag router and does not move connected tracks, refill zones,
+update the schematic/BOM or certify the board for manufacture. The KiCad 10
+SWIG API is deprecated; future IPC migrations require independent validation.
+
+Official KiCad reference:
+https://docs.kicad.org/doxygen-python-10.0/classpcbnew_1_1FOOTPRINT.html
+https://dev-docs.kicad.org/en/apis-and-binding/pcbnew/

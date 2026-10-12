@@ -2,15 +2,19 @@
 
 ## Scope and version boundary
 
-The existing **0.1.8 exact Debian package** is an already-tested,
-**unsigned, local-only, non-GA** distribution candidate. Its published local
-SHA-256 remains
+The earlier **0.1.8 exact Debian package** remains immutable,
+unsigned, local-only and non-GA, SHA-256
 `e78cf78c6cba3829aa3335793c5dba1ca4c77a311a9b9ae26a4e5f356953e1ec`.
-The changes and results below belong to **post-0.1.8 isolated local source**,
-not to that already QA-bound Debian package or ZIP. Every future distributed
-candidate must receive a distinct version and rerun the full release gate,
-exact-package Chrome testing, Ubuntu APT upgrade/restore/removal and SHA proof.
-This document does not assert full-featured EDA or general-availability status.
+These post-0.1.8 improvements are now in a separately versioned **0.1.9
+unsigned local release candidate**. The new exact .deb passed all nine
+release stages and a genuine Ubuntu 24.04.1/KiCad 10.0.7 APT
+0.1.1→0.1.9 upgrade, native workflows, SHA-bound private backup restore,
+real `apt remove`, and Chrome tests against identical package bytes.
+0.1.9 .deb SHA-256: `cabe24ffa4d5a6138c8fd1abec2c5bb0ab73b2d5fcccea774a9712bf8005b11d`.
+Offline 0.1.9 kit SHA-256: `6ec912dec9a61d9d3eb5343bc7e7d08ad2291d266cd771dc7e7bfbf89191002f`.
+Independent physical-user, publisher signing, full EDA and fabrication
+acceptance have NOT been established. Every future package revision must
+again receive separate versioning and actual exact-package qualification.
 
 ## Verified workspace UX improvements after 0.1.8
 
@@ -75,7 +79,7 @@ regressions remain separate engineering gates.
    wire/net/bus editing and hierarchy; route-aware PCB copper, via, keepout
    and zone editing; coherent schematic-to-PCB updates; undo/redo at every
    editable level. Existing value-only schematic and isolated unrouted
-   footprint placement drafts are not equivalent.
+   footprint translation/quarter-turn drafts are not equivalent.
 2. **Complete product-wide UX:** keyboard and screen-reader assisted
    journeys in every PCB/schematic/3D view, verified tab/focus ordering,
    dialog restoration, nonvisual engineering details, all hover/tooltips,
@@ -98,6 +102,17 @@ regressions remain separate engineering gates.
    https://dev-docs.kicad.org/en/apis-and-binding/pcbnew/
    A KiCad-11 migration must be explicit and tested, not assumed compatible.
 
-All post-0.1.8 checks are engineering milestones. The product may be improved
+All 0.1.9 acceptance results are engineering milestones. The product may be improved
 iteratively, but *“professional, flawless and completely working EDA”* must
 remain **NOT VERIFIED** until each outstanding acceptance item passes.
+
+
+## Post-0.1.8 native schematic↔PCB preflight UI
+
+An explicit local-only read-only analysis form now accepts a KiCad schematic
+and PCB. It uses authentic KiCad netlist/PCB data, displays detailed mismatches,
+and never silently associates pin/pad numbers or authorizes a source update.
+Actual Chrome demonstrated 14 shared references and five source-backed
+ESP32 `Value` differences, with clear `UUID linkage verified: NO`,
+`Automatic sync: BLOCKED`, and `NOT APPROVED` warnings at 390px.
+No evidence changes the CAD authoring/fabrication incompleteness above.

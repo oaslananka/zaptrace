@@ -1,4 +1,4 @@
-# ZapTrace Review Studio 0.1.8 — Ubuntu 24.04 / KiCad 10 edition
+# ZapTrace Review Studio 0.1.9 — Ubuntu 24.04 / KiCad 10 edition
 
 A locally installed KiCad PCB and schematic engineering *review* workspace.
 This product is **not** a PCB autorouter, fabrication approval, manufacturing
@@ -12,7 +12,7 @@ in the Debian package. Obtain KiCad 10 from a trusted packaging source compatibl
 with Ubuntu 24.04 before installing. Do not weaken native DRC to bypass errors.
 
 ```sh
-sudo apt install ./zaptrace-review-studio_0.1.8_all.deb
+sudo apt install ./zaptrace-review-studio_0.1.9_all.deb
 zaptrace-review-studio --doctor
 zaptrace-review-studio
 ```
@@ -45,9 +45,11 @@ ERC/DRC findings and NOT FABRICATION APPROVED warning remain visible even in
 
 ## Native PCB footprint placement — controlled copy-on-write ECO
 
-Use **Draft a PCB move** in the authenticated local workspace. Select a native
-`.kicad_pcb`, one existing **unrouted** footprint reference, and grid-snapped
-X/Y movement within ±5 mm (0.05 mm increments). Installed KiCad 10 writes a
+Use **PCB placement / rotate** in the authenticated local workspace. Select a
+native `.kicad_pcb`, one existing **unrouted** footprint reference, grid-snapped
+X/Y movement within ±5 mm (0.05 mm increments), and/or an exact −90°, +90° or
+180° native KiCad footprint rotation. A rotation-only change requires no X/Y
+movement. Installed KiCad 10 writes a
 separate working-copy PCB, checks tracks, all footprint and pad identities,
 net assignments, orientations, positions and original copper, and compares
 genuine before/after DRC report violation object IDs. Any *new* rule violation,
@@ -78,6 +80,20 @@ change. No automatic PCB/BOM synchronization or fabrication approval is made.
 Only the experimental subset of safe native component value strings is
 accepted; unsupported projects fail closed. Source copies stay private on
 localhost and protected by origin + an ephemeral session token.
+
+## Read-only schematic ↔ PCB parity audit
+
+Use **Audit schematic ↔ PCB** in the authenticated localhost workspace.
+Choose the original native `.kicad_sch` and `.kicad_pcb`; KiCad 10 exports
+a real schematic XML netlist and independently reads PCB footprint data. The
+result lists exact reference, `Value` and footprint-library ID differences
+with source SHA-256s and a private JSON download. UUID linkage, pin-net mapping,
+KiCad F8 forward annotation, electrical validation and fabrication approval
+remain **NOT VERIFIED / BLOCKED** unless independently proven; this feature
+never edits or automatically synchronizes the original sources. Actual native
+ESP32 fixtures demonstrate 14 shared references but five genuine component
+value discrepancies. More: `REVIEW_STUDIO_SCHEMATIC_PCB_AUDIT.md` (source
+repository documentation).
 
 ## First use and privacy
 
@@ -177,8 +193,8 @@ user PCB, source project, Gerber, private evidence, or development checkout.
 
 ```sh
 /usr/bin/python3 scripts/review_studio_build_deb.py
-sha256sum -c build/distribution/zaptrace-review-studio_0.1.8_all.sha256
-sudo apt install ./build/distribution/zaptrace-review-studio_0.1.8_all.deb
+sha256sum -c build/distribution/zaptrace-review-studio_0.1.9_all.sha256
+sudo apt install ./build/distribution/zaptrace-review-studio_0.1.9_all.deb
 ```
 
 For an **unsigned local release evidence report**, run the full gate and then

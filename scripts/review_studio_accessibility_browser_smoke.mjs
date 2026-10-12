@@ -39,7 +39,7 @@ for(let i=0;i<70;i++){
 }
 const loaded=await evaluate("(()=>({mode:document.getElementById('runtimeMode')?.textContent,skip:document.querySelector('.skip-to-content')?.getAttribute('href'),main:document.querySelector('main')?.id,info:document.getElementById('projectSearchFeedback')?.textContent,version:document.querySelector('.foot')?.textContent,status:document.querySelector('.gate')?.textContent,count:document.querySelectorAll('.project').length}))()");
 console.log('WORKSPACE A11Y',loaded);
-pass(loaded.mode==='LOCAL · GUARDED ECO'&&loaded.skip==='#workspaceMain'&&loaded.main==='workspaceMain'&&loaded.version.includes('0.1.8')&&loaded.status.includes('NOT FABRICATION APPROVED'),'truthful runtime, version, landmark and fab boundary');
+pass(loaded.mode==='LOCAL · GUARDED ECO'&&loaded.skip==='#workspaceMain'&&loaded.main==='workspaceMain'&&loaded.version.includes('0.1.9')&&loaded.status.includes('NOT FABRICATION APPROVED'),'truthful runtime, version, landmark and fab boundary');
 pass(loaded.info===loaded.count+' native snapshots available','project count accessible at first load');
 const nameless=await evaluate("(()=>{const items=[...document.querySelectorAll('a,button,input,select,textarea')];return items.filter(el=>{if(el.closest('[hidden]')||getComputedStyle(el).display==='none')return false;if(el.type==='hidden')return false;const name=el.getAttribute('aria-label')||el.getAttribute('aria-labelledby')||el.labels?.[0]?.textContent||el.textContent||el.getAttribute('title');return !name?.trim();}).map(el=>el.outerHTML.slice(0,160));})()");
 pass(nameless.length===0,'all visible workspace links, buttons and form inputs expose an accessible name: '+nameless.join(' | '));
@@ -53,6 +53,7 @@ if(process.env.ZAPTRACE_EXPECT_TWO){
   'two real snapshots compare without implying rule equivalence; clear returns selection to zero');
 }
 
+await evaluate("document.querySelector('.skip-to-content').focus();true");
 await cmd('Input.dispatchKeyEvent',{type:'keyDown',key:'/',code:'Slash',windowsVirtualKeyCode:191});
 await cmd('Input.dispatchKeyEvent',{type:'keyUp',key:'/',code:'Slash',windowsVirtualKeyCode:191});
 pass(await evaluate("document.activeElement.id==='filterProjects'"),'slash focuses project search');
@@ -64,7 +65,7 @@ result=await evaluate("(()=>({text:document.getElementById('filterProjects').val
 pass(result.text===''&&result.empty&&result.shown===loaded.count&&result.feedback===loaded.count+' native snapshots available','Escape restores search and project cards');
 const typing=await evaluate("(()=>{const input=document.getElementById('ecoRef');input.focus();input.value='R1';document.dispatchEvent(new KeyboardEvent('keydown',{key:'/',bubbles:true,cancelable:true}));return {active:document.activeElement.id,value:input.value};})()");
 pass(typing.active==='ecoRef'&&typing.value==='R1','shortcut never steals input focus');
-const rejected=await evaluate("(()=>{for(const id of ['ecoForm','pcbEcoForm'])document.getElementById(id).dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));return ['ecoStatus','pcbEcoStatus'].map(id=>{const el=document.getElementById(id);return {id,role:el.getAttribute('role'),live:el.getAttribute('aria-live'),error:el.classList.contains('error'),visible:!el.hidden,message:el.textContent};});})()");
+const rejected=await evaluate("(()=>{for(const id of ['ecoForm','pcbEcoForm']){const form=document.getElementById(id);form.reset();form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));}return ['ecoStatus','pcbEcoStatus'].map(id=>{const el=document.getElementById(id);return {id,role:el.getAttribute('role'),live:el.getAttribute('aria-live'),error:el.classList.contains('error'),visible:!el.hidden,message:el.textContent};});})()");
 pass(rejected.length===2&&rejected.every(x=>x.visible&&x.error&&x.role==='alert'&&x.live==='assertive'&&x.message.length>20),
  'invalid schematic and PCB drafts announce actionable errors without starting native authoring');
 
