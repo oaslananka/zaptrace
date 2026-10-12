@@ -139,7 +139,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
 <a class="skip-to-content" href="#workspaceMain">Skip to main content</a>
 <header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span style="color:#79e8d5">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local" id="runtimeMode">OFFLINE · REVIEW ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
 <main id="workspaceMain" tabindex="-1"><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
-<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects (press slash to focus)" aria-controls="workspaceProjects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="search-hint" aria-hidden="true">Press / to search</span><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ PCB placement / rotate</a><a class="add-link eco-launch" id="pcbAuditLaunch" href="#pcbAuditLab" hidden>◎ Audit schematic ↔ PCB</a></div>
+<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects (press slash to focus)" aria-controls="workspaceProjects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="search-hint" aria-hidden="true">Press / to search</span><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ PCB placement / rotate</a><a class="add-link eco-launch" id="pcbAuditLaunch" href="#pcbAuditLab" hidden>◎ Audit schematic ↔ PCB</a><a class="add-link eco-launch" id="copperLaunch" href="#copperLab" hidden>⌁ Native copper link</a></div>
 <p class="search-feedback" id="projectSearchFeedback" role="status" aria-live="polite" aria-atomic="true"></p>
 <div class="compare-toolbar"><div><span class="overline">NATIVE EVIDENCE COMPARISON</span><p>Select exactly two source snapshots to compare observable evidence. Counts are never fabrication approval.</p></div><span id="compareSelection" role="status" aria-live="polite">__COMPARE_HINT__</span></div>
 <section class="compare-panel" id="comparePanel" hidden aria-label="Native snapshot comparison">
@@ -201,6 +201,30 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
    <div class="eco-result-actions"><button id="pcbEcoDownload" type="button">Download separate PCB copy</button>
     <button id="pcbEcoDiscard" type="button">Discard PCB ECO draft</button></div></div>
   <iframe id="pcbEcoPreview" title="Actual KiCad PCB before and after copper plots with DRC evidence" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+ </div>
+</section>
+<section class="eco-lab" id="copperLab" hidden aria-label="Native KiCad PCB guarded copper route draft">
+ <span class="eco-label">KICAD 10 REAL COPPER / SAFE SEPARATE PROJECT COPY · EXPERIMENTAL</span>
+ <h2>Connect one verified native copper link</h2>
+ <p>Choose a <strong>ZIP of the contents</strong> of a portable ZapTrace KiCad project folder: matching .kicad_pcb, .kicad_sch, .kicad_pro, project-local library tables, ZapTrace.kicad_sym and ZapTrace.pretty/*.kicad_mod. The native KiCad engine independently lists unconnected pad pairs, then tests <strong>only one selected pair</strong>. Your original ZIP and local source files are never overwritten. No full autorouting or fabrication approval.</p>
+ <form id="copperInspectForm" class="eco-fields">
+  <label>Portable KiCad project ZIP (local, max 8 MB)<input id="copperZip" type="file" accept=".zip,application/zip" required aria-label="Select root contents of a complete portable KiCad project ZIP"/></label>
+  <button type="submit" id="copperInspectRun">Inspect actual KiCad open links</button>
+ </form>
+ <form id="copperRouteForm" class="eco-fields" hidden>
+  <label>Native KiCad unconnected pad pair<select id="copperPair" required aria-label="Choose exact native KiCad DRC unconnected pad pair"><option value="">Inspect a project first</option></select></label>
+  <label>Optional intermediate route coordinates (mm, JSON pairs)<input id="copperWaypoints" type="text" value="[]" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Up to four explicitly specified route waypoint coordinate pairs as JSON" placeholder="[[72.51,58.8],[77.51,58.8]]"/></label>
+  <button type="submit" id="copperRouteRun" disabled>Verify one real copper link &amp; create copy</button>
+ </form>
+ <p class="eco-warning">Source-only experimental feature: not present in the previously QA-qualified 0.1.9 installer. Download your private project/evidence ZIP before restarting Review Studio; unreachable copper drafts are erased on restart. Only KiCad 10, one exact F.Cu pad-to-pad net link at 0.20 mm track width, up to four explicit intermediate points, and complete portable verified library context. All source/asset hashes, schematic parity, native physical DRC and saved copper identity must be preserved. A new DRC violation rejects the entire draft. A passed link may still leave unrouted nets and real manufacturing violations. <strong>NOT fab or electrical approval.</strong></p>
+ <p class="eco-status" id="copperStatus" role="status" aria-live="polite" hidden></p>
+ <div class="eco-result" id="copperResult" hidden>
+  <div class="eco-result-head"><strong id="copperResultTitle">Separate native KiCad copper draft · NOT approved</strong>
+   <div class="eco-result-actions"><button type="button" id="copperDownload">Download verified project + evidence ZIP</button>
+    <button type="button" id="copperEvidence">Download native KiCad DRC evidence</button>
+    <button type="button" id="copperDiscard">Discard private copper draft</button></div></div>
+  <p id="copperResultSummary" aria-live="polite"></p>
+  <iframe id="copperPreview" title="Real KiCad native before and after F.Cu, silkscreen and board outline drawings" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
  </div>
 </section>
 <section class="eco-lab" id="pcbAuditLab" hidden aria-label="Read-only native KiCad schematic to PCB parity evidence">
@@ -320,6 +344,8 @@ if(window.__REVIEW_LOCAL__?.token){
  document.getElementById('pcbEcoLaunch').hidden=false;
  document.getElementById('pcbAuditLab').hidden=false;
  document.getElementById('pcbAuditLaunch').hidden=false;
+ document.getElementById('copperLab').hidden=false;
+ document.getElementById('copperLaunch').hidden=false;
  document.getElementById('nativeImport').hidden=false;
  document.getElementById('cliFallback').hidden=true;
  const $=id=>document.getElementById(id),token=window.__REVIEW_LOCAL__.token;
@@ -356,6 +382,154 @@ if(window.__REVIEW_LOCAL__?.token){
   auditStatus.setAttribute('role',kind==='error'?'alert':'status');
   auditStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
  }
+ const copperStatus=$('copperStatus'),copperInspectRun=$('copperInspectRun'),
+  copperRouteRun=$('copperRouteRun'),copperResult=$('copperResult'),copperPair=$('copperPair');
+ let copperArchive=null,copperCandidates=[],copperId=null;
+ const copperMessage=(message,kind='info')=>{
+  copperStatus.hidden=false;copperStatus.textContent=message;
+  copperStatus.classList.toggle('error',kind==='error');
+  copperStatus.classList.toggle('success',kind==='success');
+  copperStatus.setAttribute('role',kind==='error'?'alert':'status');
+  copperStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ };
+ const copperClear=()=>{
+  copperArchive=null;copperCandidates=[];copperPair.replaceChildren();
+  copperRouteRun.disabled=true;$('copperRouteForm').hidden=true;
+ };
+ $('copperZip').addEventListener('change',()=>{
+  copperClear();
+  if(copperId)copperMessage('Discard the existing verified draft before starting a new copper review.','error');
+ });
+ async function copperProjectPayload(){
+  const file=$('copperZip').files?.[0];
+  if(!file||!file.name.toLowerCase().endsWith('.zip')||file.size<100||file.size>8*1024*1024)
+   throw Error('Select a complete portable KiCad project ZIP under 8 MB.');
+  if(!copperArchive){
+   const hashed=await ecoUploadBase64(file);
+   copperArchive={project_base64:hashed.source_base64,project_sha256:hashed.original_sha256};
+  }
+  return copperArchive;
+ }
+ $('copperInspectForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(copperId){copperMessage('Discard the active copper copy before inspecting another project.','error');return;}
+  copperInspectRun.disabled=true;copperClear();copperResult.hidden=true;
+  try{
+   copperMessage('Reading source SHA-256 and checking native KiCad 10 DRC/parity. No copper changes…');
+   const payload=await copperProjectPayload();
+   const response=await fetch('/api/native-copper/inspect',{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload),cache:'no-store'
+   });
+   const report=await response.json();
+   if(!response.ok||report.mode!=='read_only_native_kicad_links')
+    throw Error(report.error||'Native KiCad refused portable project');
+   if(report.archive_sha256!==payload.project_sha256||report.schematic_parity_count!==0)
+    throw Error('Source integrity or native parity proof unavailable');
+   copperCandidates=report.links;
+   copperPair.replaceChildren();
+   for(let i=0;i<copperCandidates.length;i++){
+    const link=copperCandidates[i],item=document.createElement('option');
+    item.value=String(i);
+    item.textContent=link.pads[0].label+' → '+link.pads[1].label;
+    copperPair.append(item);
+   }
+   $('copperRouteForm').hidden=!copperCandidates.length;
+   copperRouteRun.disabled=!copperCandidates.length;
+   copperMessage('Native KiCad 10: '+report.unconnected_count+' open items · '+report.physical_drc_count+
+    ' physical DRC findings · 0 schematic-parity issues. '+copperCandidates.length+
+    ' exact pairs available. Select one; routing requires a new independent KiCad DRC.','success');
+   if(copperCandidates.length)copperPair.focus();
+  }catch(error){copperClear();copperMessage(error?.message||'Native KiCad project inspection failed.','error');}
+  finally{copperInspectRun.disabled=false;}
+ });
+ $('copperRouteForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(copperId){copperMessage('Discard the active copper draft before another edit.','error');return;}
+  const index=Number(copperPair.value),candidate=copperCandidates[index];
+  if(!candidate||!Number.isInteger(index)||index<0){copperMessage('Select a native KiCad connection first.','error');return;}
+  copperRouteRun.disabled=true;
+  try{
+   const waypoints=JSON.parse($('copperWaypoints').value.trim()||'[]');
+   if(!Array.isArray(waypoints)||waypoints.length>4||waypoints.some(p=>!Array.isArray(p)||p.length!==2||
+       p.some(n=>typeof n!=='number'||!Number.isFinite(n))))
+    throw Error('Waypoints must be zero to four finite [x,y] coordinate pairs.');
+   const archive=await copperProjectPayload();
+   copperMessage('Native KiCad is checking exact pad UUIDs, project geometry, all physical DRC findings and saved copper identity…');
+   const send=await fetch('/api/native-copper',{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({...archive,start_pad_uuid:candidate.pads[0].uuid,
+     end_pad_uuid:candidate.pads[1].uuid,waypoints}),cache:'no-store'
+   });
+   const started=await send.json();
+   if(!send.ok||started.state!=='running'||!started.id)throw Error(started.error||'Native route request rejected');
+   for(let attempt=0;attempt<500;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,450));
+    const response=await fetch('/api/jobs/'+encodeURIComponent(started.id),
+      {headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!response.ok)throw Error('Native KiCad route verification status unavailable');
+    const job=await response.json();
+    if(job.state==='failed')throw Error(job.message||'KiCad rejected route and kept original source');
+    if(job.state==='complete'){
+     const data=job.native_copper;
+     if(!data||data.fabApproved!==false)throw Error('Route evidence incomplete');
+     copperId=started.id;
+     $('copperResultTitle').textContent=data.link.net+' · '+data.link.segment_count+
+      ' F.Cu segment(s) · Native KiCad verified copy · NOT APPROVED';
+     $('copperResultSummary').textContent='Unconnected: '+data.before_unconnected+' → '+
+      data.after_unconnected+' · Physical DRC: '+data.before_violations+' → '+
+      data.after_violations+' · Native parity unchanged at zero. '+data.link.length_mm.toFixed(2)+
+      ' mm copper, 0.20 mm width. No fabrication or electrical signoff.';
+     copperResult.hidden=false;
+     try{
+      const previewReply=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/PREVIEW.html',
+       {headers:{'X-Review-Token':token},cache:'no-store'});
+      if(!previewReply.ok)throw Error('Native KiCad copper preview not available');
+      $('copperPreview').srcdoc=await previewReply.text();
+      copperMessage('Actual KiCad before/after copper plots and independent DRC evidence ready. Download or discard the private result.','success');
+     }catch(previewError){
+      copperMessage('Native DRC copy is available, but the optional copper plot could not load. '+(previewError?.message||''),'error');
+     }
+     copperResult.scrollIntoView({behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'),block:'nearest'});
+     return;
+    }
+   }
+   throw Error('Native KiCad validation timed out. Do not infer approval.');
+  }catch(error){copperMessage(error?.message||'Native KiCad copper route blocked.','error');}
+  finally{copperRouteRun.disabled=Boolean(copperId)||!copperCandidates.length;}
+ });
+ async function copperDownloadArtifact(filename){
+  if(!copperId)return;
+  const response=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/'+filename,
+   {headers:{'X-Review-Token':token},cache:'no-store'});
+  if(!response.ok)throw Error('Private native KiCad copper evidence unavailable');
+  const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2500);
+ }
+ $('copperDownload').addEventListener('click',async()=>{
+  try{await copperDownloadArtifact('native-copper-project.zip');}
+  catch(error){copperMessage(error?.message||'Native KiCad ZIP download failed.','error');}
+ });
+ $('copperEvidence').addEventListener('click',async()=>{
+  try{await copperDownloadArtifact('EVIDENCE.json');}
+  catch(error){copperMessage(error?.message||'Native copper DRC evidence unavailable.','error');}
+ });
+ $('copperDiscard').addEventListener('click',async()=>{
+  if(!copperId)return;
+  $('copperDiscard').disabled=true;
+  try{
+   const response=await fetch('/api/native-copper/discard',{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({id:copperId}),cache:'no-store'
+   });
+   const report=await response.json();
+   if(!response.ok||report.state!=='discarded')throw Error(report.error||'Private native copy not discarded');
+   copperId=null;copperResult.hidden=true;$('copperPreview').removeAttribute('srcdoc');
+   copperClear();copperMessage('Private native KiCad copper draft discarded. Original project ZIP remains unchanged.','success');
+  }catch(error){copperMessage(error?.message||'Private native copper draft discard failed.','error');}
+  finally{$('copperDiscard').disabled=false;}
+ });
  $('pcbAuditForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const sch=$('pcbAuditSch').files?.[0],pcb=$('pcbAuditPcb').files?.[0];

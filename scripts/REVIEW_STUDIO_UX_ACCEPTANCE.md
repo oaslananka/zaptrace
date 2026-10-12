@@ -171,3 +171,43 @@ errors and refusal to authorize automatic sync or fabrication. The
 corresponding independent KiCad DRC still has 16 physical violations
 and 37 unconnected items. These results are source-only and do not
 constitute an independently signed or GA 0.1.10 installer.
+
+
+## Post-0.1.9 real Chrome 155 guarded native copper editing controls
+
+Actual, authenticated localhost Chrome was used with a freshly generated
+SHA-pinned full portable ESP32 KiCad ZIP. Source-only Review Studio now
+reveals an **experimental native copper link** panel only in authenticated
+localhost mode, with accessible file selection, a select populated from
+37 genuine KiCad DRC unconnected pairs, bounded optional
+`[x_mm,y_mm]` waypoints, guarded single-link submission and
+private ZIP/evidence downloads plus discard. The selected U1.2↔U1.3
+connection lowered KiCad unconnected from **37 to 36**, with **16
+unchanged physical DRC failures, zero native schematic parity failures**
+and **no manufacturing/electrical approval**. The test downloaded both
+result files via real user-facing Chrome controls, checked the ZIP
+evidence, then discarded the draft and re-hashed the original uploaded
+ZIP; viewport 390px, no horizontal overflow, **zero JavaScript errors**.
+
+The earlier QA-qualified unsigned 0.1.9 .deb and kit remain byte-identical
+and **do not contain these newer controls**. This is an unfinished
+source-only candidate, requiring a **new version**, an exact-package
+browser/Ubuntu regression, and independent UX/fabrication review before
+distribution.
+
+
+### Real native KiCad copper visual acceptance on source-only localhost
+
+The guarded copper page was further extended with an accessible,
+sandboxed read-only **before/after native KiCad SVG comparison**.
+The installed KiCad 10.0.7 CLI independently exported the original
+and the route-bearing boards on F.Cu, F.SilkS and Edge.Cuts. Real
+Chrome 155 exercised actual native source ZIP upload and 37-link
+discovery, selected a 0.20 mm same-net route, then loaded **two genuine,
+different KiCad SVGs** into a source-only iframe with an explicit
+NOT FABRICATION APPROVED notice. Both plot files and their static HTML
+comparison were present in the downloaded authenticated project ZIP.
+390px no horizontal overflow, source ZIP SHA unchanged, successful
+private download/discard and zero browser JavaScript exceptions.
+The earlier 0.1.9 package/kit never had these controls and remains
+unchanged.

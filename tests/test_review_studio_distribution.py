@@ -41,6 +41,8 @@ def test_reproducible_native_deb_contains_only_vetted_sources(release_pkg: Path,
     assert "usr/bin/zaptrace-review-studio" in content
     assert "usr/share/applications/zaptrace-review-studio.desktop" in content
     assert "usr/share/doc/zaptrace-review-studio/copyright" in content
+    assert "usr/lib/zaptrace-review-studio/scripts/review_studio_native_copper_link.py" in content
+    assert "usr/lib/zaptrace-review-studio/scripts/review_studio_native_copper_bundle.py" in content
     for forbidden in (
         ".kicad_pcb",
         ".kicad_sch",
@@ -55,6 +57,20 @@ def test_reproducible_native_deb_contains_only_vetted_sources(release_pkg: Path,
         assert forbidden not in content
     for line in content.splitlines():
         assert not line.startswith("drwxrwx"), "system installation directories must never be group-writable"
+
+
+def test_pinned_versioned_deb_is_immutable_even_if_new_sources_change(tmp_path: Path) -> None:
+    destination = tmp_path / "accepted"
+    destination.mkdir()
+    prior = destination / f"{packager.PACKAGE}_{packager.VERSION}_all.deb"
+    sha = prior.with_suffix(".sha256")
+    prior.write_bytes(b"PREVIOUS_ACCEPTED_RELEASE_DO_NOT_OVERWRITE")
+    original_sha = sha_line = hashlib.sha256(prior.read_bytes()).hexdigest()
+    sha.write_text(f"{sha_line}  {prior.name}\n")
+    with pytest.raises(ValueError, match="bump version before packaging"):
+        packager.build(SCRIPTS.parent, destination)
+    assert prior.read_bytes() == b"PREVIOUS_ACCEPTED_RELEASE_DO_NOT_OVERWRITE"
+    assert sha.read_text() == f"{original_sha}  {prior.name}\n"
 
 
 def test_package_declares_native_kicad_and_noncommercial_license(release_pkg: Path, tmp_path: Path) -> None:

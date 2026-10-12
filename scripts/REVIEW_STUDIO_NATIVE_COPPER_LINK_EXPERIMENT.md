@@ -1,9 +1,12 @@
 # Native KiCad copper link: source-only, fail-closed experimental proof
 
-**Status:** local isolated post-0.1.9 source milestone. **Not** part of the
-SHA-qualified 0.1.9 Debian package, installed desktop GUI, released API, or
-public/general-availability editor. No copper-route automation, GUI F8
-synchronization, independent fabrication review or electrical signoff.
+**Status:** isolated **post-0.1.9 source-only** implementation. The guarded
+copper authoring engine now has a real authenticated localhost web UI and
+HTTP workflow **when running from this source branch**, but the SHA-qualified
+0.1.9 Debian package and offline kit are unchanged and **do not contain this
+GUI or API**. A newly numbered exact-package/Ubuntu qualification is still
+required before shipping. No full copper autorouter, GUI F8 synchronization,
+independent fabrication review or electrical signoff.
 
 ## What is genuinely implemented
 
@@ -99,12 +102,55 @@ guesses those IDs:
 ```
 
 Use `--waypoints-json '[]'` (default) for a single straight segment.
-The tool is experimental native KiCad source tooling and **is not yet
-exposed in the installed localhost Review Studio UI**. A separate GUI
-implementation, accessible visual route authoring, independent operator
-review, native route undo history, full physical continuous-net connectivity
-and manufacturing review are required before the product can be called
-full-featured.
+The guarded engine is also available in the **source-only, authenticated
+localhost UI** in `review_studio_workspace_template.html`. Select the ZIP
+of the *contents* of the generated portable KiCad folder (root-level
+matching `.kicad_pcb`, `.kicad_sch`, `.kicad_pro`, exact
+`fp-lib-table`/`sym-lib-table`, `ZapTrace.kicad_sym` and
+`ZapTrace.pretty/*.kicad_mod`). The native read-only inspection gives
+a list of real unconnected KiCad pad pairs; select one and optionally
+enter up to four `[x_mm,y_mm]` intermediate points in JSON. The server
+rechecks the original source/archive SHA, exact physical pad UUIDs, native
+KiCad 10 DRC parity, old and new copper inventories and complete supplier
+assets. It publishes **only a separate private project + DRC/evidence ZIP**,
+containing genuine pre/post KiCad 10 `F.Cu,F.SilkS,Edge.Cuts` SVG plots
+and a sandboxed, static side-by-side HTML comparison. These are native
+KiCad images, not an approximate router rendering; they are visual
+evidence only and cannot replace clearance, EMC or manufacturing
+qualification. An authorized browser may inspect the native comparison
+in its isolated preview frame and download the private evidence.
+Rejected routes publish nothing; users may discard their draft.
+**Un-downloadable private copper drafts are cleaned on restart**;
+users must download the ZIP before closing the local server.
+
+Only known KiCad input sources are extracted. Prior
+`*.kicad_netlist_evidence.json` is recognized by exact root basename
+and deliberately **discarded instead of trusted**; arbitrary extra ZIP
+members, symlinks, path traversal, ZIP bombs, wrong SHA, user-defined
+library tables and unverified `.kicad_dru` are rejected. A newly
+verified result is delivered via an authenticated capability and a
+**per-artifact SHA-256**; if the file changes before download, HTTP
+returns 404 rather than serving forged evidence. Discard deletes only
+the owned private native copper copy; on restart unreachable private
+drafts are removed without deleting registered project reviews.
+
+KiCad 10.0.7 / Chrome 155 real source-only acceptance exercised:
+native 37-item inspection, precise U1.2–U1.3 link,
+`37→36` unconnected, `16→16` physical DRC, zero parity,
+real source-bounded project ZIP and `EVIDENCE.json` browser downloads,
+two genuine independent native KiCad SVG exports compared in a
+sandboxed frame (and also stored in the evidence ZIP), 390px
+responsive layout, zero browser JavaScript errors, original
+archive SHA unchanged, and private draft discard. Authenticated server
+integration tests include unsafe ZIP paths/symlinks, hostile library
+references, wrong tokens, invalid pad/waypoints and private artifact
+hash tampering.
+
+**Still missing:** interactive canvas-based copper editing, full
+pad-to-track and track-to-track authoring, native route undo history,
+continuous net completion, manufacturing rules/provenance approval and
+independent external user acceptance. This is NOT shipped in the old
+0.1.9 package and is not fabrication ready.
 
 See KiCad 10 official CLI and interactive routing manuals:
 https://docs.kicad.org/10.0/en/cli/cli.pdf and

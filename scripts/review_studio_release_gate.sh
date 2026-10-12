@@ -17,6 +17,7 @@ PYTHONDONTWRITEBYTECODE=1 "$PY" -m pytest -q -p no:cacheprovider \
   tests/test_kicad_usb4105_oval_slots.py \
   tests/test_kicad_verified_embed.py \
   tests/test_review_studio_native_copper_link.py \
+  tests/test_review_studio_native_copper_server.py \
   tests/test_review_studio_native_kicad.py \
   tests/test_review_studio_native_3d.py \
   tests/test_review_studio_schematic_eco.py \
@@ -50,6 +51,7 @@ SOURCES=(
   scripts/review_studio_workspace.py
   scripts/review_studio_native_kicad.py
   scripts/review_studio_native_copper_link.py
+  scripts/review_studio_native_copper_bundle.py
   scripts/review_studio_schematic_eco.py
   scripts/review_studio_pcb_eco.py
   scripts/review_studio_schematic_pcb_parity.py
@@ -73,6 +75,7 @@ SOURCES=(
   tests/test_kicad_usb4105_oval_slots.py
   tests/test_kicad_verified_embed.py
   tests/test_review_studio_native_copper_link.py
+  tests/test_review_studio_native_copper_server.py
   tests/test_review_studio_desktop_entry.py
   zaptrace/export/kicad.py
   zaptrace/kicad/verified_vendor.py
@@ -86,7 +89,8 @@ echo '[3/9] Type safety'
   scripts/review_studio_release_kit.py scripts/review_studio_local_server.py scripts/review_studio_library.py \
   scripts/review_studio_workspace.py scripts/review_studio_native_kicad.py \
   scripts/review_studio_schematic_eco.py scripts/review_studio_pcb_eco.py \
-  scripts/review_studio_schematic_pcb_parity.py scripts/review_studio_desktop_entry.py zaptrace/export/kicad.py
+  scripts/review_studio_schematic_pcb_parity.py scripts/review_studio_native_copper_link.py \
+  scripts/review_studio_native_copper_bundle.py scripts/review_studio_desktop_entry.py zaptrace/export/kicad.py
 
 echo '[4/9] Real native KiCad baseline/copper evidence regeneration'
 bash scripts/review_studio_native_local_build.sh

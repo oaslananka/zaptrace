@@ -354,3 +354,45 @@ issues** under real KiCad 10.0.7. The remaining twelve are 3 GND,
 coordinates and candidate PCB have NOT been merged into the production
 engine or the existing 0.1.9 .deb. New general-purpose routes must not
 be inferred from this proof. Review-only and fabrication blocked.
+
+
+## Source-only authenticated Review Studio UI: guard a native copper link
+
+The standalone source-only native KiCad copper proof is now exposed through
+an authenticated localhost GUI and dedicated two-stage native HTTP workflow:
+strict SHA-bound portable KiCad project ZIP intake; native
+`kicad-cli pcb drc --schematic-parity --severity-all` discovery of
+actual disconnected pad UUID pairs; explicit selection + optional
+bounded intermediate points; asynchronous native KiCad copy-on-write
+route; private SHA-pinned ZIP/JSON downloads; and discard.
+
+Actual Chrome 155 verified the entire 37-pair discovery → U1.2–U1.3
+native F.Cu route → independent 37→36 unconnected, 16→16 unchanged
+physical DRC, zero schematic parity → full project ZIP and EVIDENCE.json
+download → deletion workflow at a 390px viewport with **zero JS
+exceptions**. The immutable source ZIP SHA and independent native DRC
+evidence were verified. HTTP integrations reject malicious ZIP paths,
+symlinks, extra library URIs, malformed SHA, untrusted evidence documents
+and privileged token failures. An altered result file cannot be downloaded
+under its prior SHA. Restart deletes unreachable native copper drafts,
+not registered reviews.
+
+The installed **0.1.9 SHA-qualified packages are unchanged**, and no new
+versioned package or real clean Ubuntu installed-build acceptance has been
+issued for this UI. The packager now stages the two new native-source
+modules for a future separately numbered release and **refuses to
+overwrite a previously built .deb or checksum under the same version**.
+This remains a source-only engineering milestone, not a commercially or
+fabrication approved product; all previous 16 genuine physical production
+failures and unconnected copper gaps are still blockers.
+
+
+The authenticated working-copy UI also includes a genuine **KiCad
+F.Cu/F.SilkS/Edge.Cuts before-and-after visual comparison**, never a
+fake autorouted diagram. The native KiCad CLI separately exports both
+SVG plots, refusing oversized or missing results. Original/copy source
+hashes must survive plotting and each browser artifact is bound to a
+private per-file SHA-256. Real Chrome 155 tested the sandboxed native
+plots and the offline ZIP contains the same `before.svg`,
+`after.svg` and static `PREVIEW.html` alongside exact DRC JSON.
+This is source-only and not 0.1.9 exact-package acceptance.

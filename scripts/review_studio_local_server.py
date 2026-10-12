@@ -119,6 +119,66 @@ def parse_multipart(content_type: str, data: bytes) -> dict[str, tuple[str, byte
     return fields
 
 
+def native_copper_native_svg(cli: str, board: Path, output: Path) -> bytes:
+    """Use real KiCad 10 F.Cu/F.SilkS/Edge.Cuts output, never sketch copper."""
+    run = subprocess.run(
+        [
+            cli,
+            "pcb",
+            "export",
+            "svg",
+            "--layers",
+            "F.Cu,F.SilkS,Edge.Cuts",
+            "--mode-single",
+            "--page-size-mode",
+            "2",
+            "--exclude-drawing-sheet",
+            "--output",
+            str(output),
+            str(board),
+        ],
+        text=True,
+        capture_output=True,
+        timeout=75,
+        check=False,
+    )
+    if run.returncode != 0 or not output.is_file():
+        raise RuntimeError("Native KiCad rejected copper preview export")
+    data = output.read_bytes()
+    if len(data) > 4_000_000 or b"<svg" not in data[:1200]:
+        raise RuntimeError("Native KiCad copper SVG invalid or oversized")
+    return data
+
+
+def native_copper_preview_html(before_svg: bytes, after_svg: bytes) -> str:
+    """Static authenticated source-only comparison; SVG is loaded as image."""
+    first = base64.b64encode(before_svg).decode("ascii")
+    second = base64.b64encode(after_svg).decode("ascii")
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta http-equiv="Content-Security-Policy" '
+        'content="default-src &apos;none&apos;; img-src data:; style-src &apos;unsafe-inline&apos;">'
+        "<title>KiCad native before and after F.Cu preview</title>"
+        "<style>body{margin:0;padding:16px;color:#eef9f8;background:#0d2030;"
+        "font:13px/1.5 system-ui}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));"
+        "gap:13px}.preview{min-width:0;border:1px solid #557c83;border-radius:10px;"
+        "background:#102e3c;padding:12px}h2{font-size:15px;color:#d3faec;margin:0 0 11px}"
+        "img{display:block;width:100%;height:auto;max-height:420px;object-fit:contain;"
+        "background:#f1f5f5;border-radius:7px}p{font-size:12px;color:#bbd5d7}"
+        "@media(max-width:600px){main{grid-template-columns:1fr}body{padding:10px}}"
+        '</style></head><body><main><section class="preview"><h2>BEFORE · original copper copy</h2>'
+        '<img alt="Real KiCad pre-route copper, silkscreen and board outline" src="data:image/svg+xml;base64,'
+        + first
+        + '"></section><section class="preview"><h2>AFTER · guarded route copy</h2>'
+        '<img alt="Real KiCad copper after the DRC-checked route" src="data:image/svg+xml;base64,'
+        + second
+        + '"></section></main><p>Native KiCad 10 plot. NOT FABRICATION APPROVED. '
+        "Actual connectivity and fabrication constraints are independently verified by native DRC JSON, "
+        "not by visual appearance.</p></body></html>"
+    )
+
+
 class ReviewLocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
@@ -129,6 +189,20 @@ class ReviewLocalServer(ThreadingHTTPServer):
         self.job_outputs: dict[str, Path] = {}
         self.eco_outputs: dict[str, Path] = {}
         self.pcb_eco_outputs: dict[str, Path] = {}
+        self.native_copper_outputs: dict[str, Path] = {}
+        # These copy-on-write drafts are addressable only by capabilities
+        # held in this process. After restart they are orphaned private source
+        # data, so remove only this feature's own UUID-named draft folders.
+        for name in ("native-copper-working", "native-copper-results"):
+            owned = self.workspace / name
+            if owned.is_symlink():
+                raise ValueError("Native copper private working path must not be a symlink")
+            if owned.is_dir():
+                for candidate in owned.iterdir():
+                    if candidate.is_symlink():
+                        raise ValueError("Native copper private draft must not be a symlink")
+                    if candidate.is_dir() and re.fullmatch(r"[0-9a-f]{32}", candidate.name):
+                        shutil.rmtree(candidate)
         self.lock = threading.Lock()
         self.worker_lock = threading.Lock()
         super().__init__(address, ReviewHandler)
@@ -285,6 +359,55 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.end_headers()
             self.wfile.write(payload)
+            return
+        if url.path.startswith("/api/native-copper/result/"):
+            if not self._authorize():
+                return
+            match = re.fullmatch(
+                r"/api/native-copper/result/([0-9a-f]{32})/(EVIDENCE\.json|baseline-drc\.json|candidate-drc\.json|native-copper-project\.zip|PREVIEW\.html)",
+                url.path,
+            )
+            if not match:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Unknown native copper result"})
+                return
+            job_id, filename = match.groups()
+            with self.review_server.lock:
+                output = self.review_server.native_copper_outputs.get(job_id)
+                job = self.review_server.jobs.get(job_id)
+                item = output / filename if output is not None else None
+                # Read the entire bounded result while holding the same lock
+                # as discard; downloads and secure deletion cannot race.
+                raw = (
+                    item.read_bytes()
+                    if item is not None
+                    and job is not None
+                    and job.get("state") == "complete"
+                    and item.is_file()
+                    and not item.is_symlink()
+                    and item.stat().st_size <= 28_000_000
+                    else None
+                )
+            if raw is None or hashlib.sha256(raw).hexdigest() != (job or {}).get("native_copper", {}).get(
+                "download_sha256", {}
+            ).get(filename):
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Verified native copper artifact unavailable"})
+                return
+            self.send_response(HTTPStatus.OK)
+            mime = (
+                "application/zip"
+                if filename.endswith(".zip")
+                else "text/html; charset=utf-8"
+                if filename.endswith(".html")
+                else "application/json"
+            )
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
             return
         if url.path.startswith("/api/pcb-eco/result/"):
             if not self._authorize():
@@ -489,91 +612,45 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, {"state": "stopping", "message": "Local Review Studio is stopping"})
             threading.Thread(target=self.review_server.shutdown, daemon=True).start()
             return
-        if self.path == "/api/schematic-pcb-audit":
+        if self.path == "/api/native-copper/discard":
             if not self._authorize():
                 return
             length = self.headers.get("Content-Length", "")
             if (
                 self.headers.get("Content-Type") != "application/json"
                 or not length.isdecimal()
-                or not 10 < int(length) <= MAX_PCB_ECO_REQUEST
+                or not 0 < int(length) <= 120
             ):
-                self._json(HTTPStatus.BAD_REQUEST, {"error": "Native schematic/PCB audit JSON under 22 MB required"})
-                return
-            if not self.review_server.worker_lock.acquire(blocking=False):
-                self._json(HTTPStatus.CONFLICT, {"error": "A native KiCad operation is already running"})
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "Expected native copper copy identifier"})
                 return
             try:
-                data = json.loads(self.rfile.read(int(length)).decode("utf-8"))
-                expected = {"schematic_base64", "schematic_sha256", "pcb_base64", "pcb_sha256"}
-                if not isinstance(data, dict) or set(data) != expected:
-                    raise ValueError("Exact native schematic/PCB sources and SHA-256 required")
-                decoded = {}
-                for kind, signature, cap in (
-                    ("schematic", b"(kicad_sch", MAX_SCHEMATIC),
-                    ("pcb", b"(kicad_pcb", MAX_PCB),
+                payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+                if (
+                    not isinstance(payload, dict)
+                    or set(payload) != {"id"}
+                    or not isinstance(payload["id"], str)
+                    or not re.fullmatch("[0-9a-f]{32}", payload["id"])
                 ):
-                    encoded, wanted = data[kind + "_base64"], data[kind + "_sha256"]
-                    if (
-                        not isinstance(encoded, str)
-                        or not isinstance(wanted, str)
-                        or not re.fullmatch("[0-9a-f]{64}", wanted)
-                    ):
-                        raise ValueError("Invalid native KiCad source encoding or SHA")
-                    try:
-                        raw = base64.b64decode(encoded, validate=True)
-                    except (binascii.Error, ValueError) as exc:
-                        raise ValueError("Invalid native KiCad source data") from exc
-                    if not 100 < len(raw) <= cap or not raw.lstrip().startswith(signature):
-                        raise ValueError("Native KiCad source type/size mismatch")
-                    if hashlib.sha256(raw).hexdigest() != wanted:
-                        raise ValueError("Selected KiCad source hash mismatch")
-                    decoded[kind] = raw
-                with tempfile.TemporaryDirectory(prefix=".zaptrace-audit-") as temporary:
-                    folder = Path(temporary)
-                    sch, pcb_board = folder / "input.kicad_sch", folder / "input.kicad_pcb"
-                    sch.write_bytes(decoded["schematic"])
-                    pcb_board.write_bytes(decoded["pcb"])
-                    report = folder / "result.json"
-                    run = subprocess.run(
-                        [
-                            "/usr/bin/python3",
-                            "-B",
-                            str(Path(__file__).with_name("review_studio_schematic_pcb_parity.py")),
-                            "--schematic",
-                            str(sch),
-                            "--board",
-                            str(pcb_board),
-                            "--output",
-                            str(report),
-                        ],
-                        text=True,
-                        capture_output=True,
-                        timeout=115,
-                        check=False,
-                    )
-                    if run.returncode or not report.is_file():
-                        raise RuntimeError("Native schematic/PCB inspection could not prove a valid report")
-                    evidence = json.loads(report.read_text())
-                    if (
-                        evidence.get("source_sha256")
-                        != {
-                            "schematic": hashlib.sha256(decoded["schematic"]).hexdigest(),
-                            "pcb": hashlib.sha256(decoded["pcb"]).hexdigest(),
-                        }
-                        or evidence.get("automatic_sync_authorized") is not False
-                    ):
-                        raise RuntimeError("Native report provenance or safety boundary unavailable")
-                self._json(HTTPStatus.OK, evidence)
-            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError, OSError) as exc:
-                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:170]})
-            except (RuntimeError, subprocess.TimeoutExpired):
+                    raise ValueError("Invalid native copper job identifier")
+                with self.review_server.lock:
+                    job = self.review_server.jobs.get(payload["id"])
+                    if job is None or job.get("state") == "running":
+                        raise ValueError("No completed native copper copy can be discarded")
+                    output = self.review_server.native_copper_outputs.pop(payload["id"], None)
+                    self.review_server.jobs.pop(payload["id"], None)
+                if output is not None:
+                    shutil.rmtree(output)
                 self._json(
-                    HTTPStatus.UNPROCESSABLE_ENTITY,
-                    {"error": "Native KiCad parity audit unavailable; no synchronization authorized"},
+                    HTTPStatus.OK, {"state": "discarded", "message": "Only isolated native copper working copy deleted"}
                 )
-            finally:
-                self.review_server.worker_lock.release()
+            except (ValueError, TypeError, UnicodeError, json.JSONDecodeError) as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:175]})
+            return
+        if self.path in {"/api/native-copper/inspect", "/api/native-copper"}:
+            self._native_copper_post()
+            return
+        if self.path == "/api/schematic-pcb-audit":
+            self._post_schematic_pcb_audit()
             return
         if self.path == "/api/pcb-eco/discard":
             if not self._authorize():
@@ -1101,6 +1178,298 @@ class ReviewHandler(BaseHTTPRequestHandler):
             # An already started worker remains responsible for finishing the
             # local analysis, even if the browser disconnects mid-response.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Local import preparation failed"})
+
+    def _post_schematic_pcb_audit(self) -> None:
+        if not self._authorize():
+            return
+        length = self.headers.get("Content-Length", "")
+        if (
+            self.headers.get("Content-Type") != "application/json"
+            or not length.isdecimal()
+            or not 10 < int(length) <= MAX_PCB_ECO_REQUEST
+        ):
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "Native schematic/PCB audit JSON under 22 MB required"})
+            return
+        if not self.review_server.worker_lock.acquire(blocking=False):
+            self._json(HTTPStatus.CONFLICT, {"error": "A native KiCad operation is already running"})
+            return
+        try:
+            data = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+            expected = {"schematic_base64", "schematic_sha256", "pcb_base64", "pcb_sha256"}
+            if not isinstance(data, dict) or set(data) != expected:
+                raise ValueError("Exact native schematic/PCB sources and SHA-256 required")
+            decoded = {}
+            for kind, signature, cap in (
+                ("schematic", b"(kicad_sch", MAX_SCHEMATIC),
+                ("pcb", b"(kicad_pcb", MAX_PCB),
+            ):
+                encoded, wanted = data[kind + "_base64"], data[kind + "_sha256"]
+                if (
+                    not isinstance(encoded, str)
+                    or not isinstance(wanted, str)
+                    or not re.fullmatch("[0-9a-f]{64}", wanted)
+                ):
+                    raise ValueError("Invalid native KiCad source encoding or SHA")
+                try:
+                    raw = base64.b64decode(encoded, validate=True)
+                except (binascii.Error, ValueError) as exc:
+                    raise ValueError("Invalid native KiCad source data") from exc
+                if not 100 < len(raw) <= cap or not raw.lstrip().startswith(signature):
+                    raise ValueError("Native KiCad source type/size mismatch")
+                if hashlib.sha256(raw).hexdigest() != wanted:
+                    raise ValueError("Selected KiCad source hash mismatch")
+                decoded[kind] = raw
+            with tempfile.TemporaryDirectory(prefix=".zaptrace-audit-") as temporary:
+                folder = Path(temporary)
+                sch, pcb_board = folder / "input.kicad_sch", folder / "input.kicad_pcb"
+                sch.write_bytes(decoded["schematic"])
+                pcb_board.write_bytes(decoded["pcb"])
+                report = folder / "result.json"
+                run = subprocess.run(
+                    [
+                        "/usr/bin/python3",
+                        "-B",
+                        str(Path(__file__).with_name("review_studio_schematic_pcb_parity.py")),
+                        "--schematic",
+                        str(sch),
+                        "--board",
+                        str(pcb_board),
+                        "--output",
+                        str(report),
+                    ],
+                    text=True,
+                    capture_output=True,
+                    timeout=115,
+                    check=False,
+                )
+                if run.returncode or not report.is_file():
+                    raise RuntimeError("Native schematic/PCB inspection could not prove a valid report")
+                evidence = json.loads(report.read_text())
+                if (
+                    evidence.get("source_sha256")
+                    != {
+                        "schematic": hashlib.sha256(decoded["schematic"]).hexdigest(),
+                        "pcb": hashlib.sha256(decoded["pcb"]).hexdigest(),
+                    }
+                    or evidence.get("automatic_sync_authorized") is not False
+                ):
+                    raise RuntimeError("Native report provenance or safety boundary unavailable")
+            self._json(HTTPStatus.OK, evidence)
+        except (ValueError, TypeError, UnicodeError, json.JSONDecodeError, OSError) as exc:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:170]})
+        except (RuntimeError, subprocess.TimeoutExpired):
+            self._json(
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                {"error": "Native KiCad parity audit unavailable; no synchronization authorized"},
+            )
+        finally:
+            self.review_server.worker_lock.release()
+        return
+
+    def _native_copper_post(self) -> None:
+        if not self._authorize():
+            return
+        length = self.headers.get("Content-Length", "")
+        if (
+            self.headers.get("Content-Type") != "application/json"
+            or not length.isdecimal()
+            or not 15 < int(length) <= 12 * 1024 * 1024
+        ):
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "Native KiCad portable ZIP request under 12 MB required"})
+            return
+        if not self.review_server.worker_lock.acquire(blocking=False):
+            self._json(HTTPStatus.CONFLICT, {"error": "Wait for the active native KiCad job"})
+            return
+        from review_studio_native_copper_bundle import (
+            checked_upload,
+            extract_project_zip,
+            inspect_native_pairs,
+        )
+
+        stage = None
+        started = False
+        try:
+            inspect = self.path.endswith("/inspect")
+            payload = json.loads(self.rfile.read(int(length)).decode("utf-8"))
+            raw, source_sha, pair, waypoints = checked_upload(payload, require_route=not inspect)
+            self.review_server.workspace.mkdir(parents=True, exist_ok=True)
+            if inspect:
+                with tempfile.TemporaryDirectory(
+                    prefix=".zaptrace-copper-inspect-", dir=self.review_server.workspace
+                ) as folder:
+                    project_path = extract_project_zip(raw, Path(folder) / "project")
+                    report = inspect_native_pairs(project_path, Path(folder) / "native.json")
+                    report["archive_sha256"] = source_sha
+                # Ensure all private transient source bytes are erased before
+                # the browser is told that inspection has completed.
+                self._json(HTTPStatus.OK, report)
+            else:
+                assert pair is not None
+                job_id = uuid.uuid4().hex
+                stage = self.review_server.workspace / "native-copper-working" / job_id
+                stage.parent.mkdir(parents=True, exist_ok=True)
+                stage.mkdir(mode=0o700)
+                project_path = extract_project_zip(raw, stage / "project")
+                result_folder = self.review_server.workspace / "native-copper-results" / job_id
+                result_folder.parent.mkdir(parents=True, exist_ok=True)
+                result = {
+                    "id": job_id,
+                    "state": "running",
+                    "phase": "native_drc",
+                    "message": "Verifying native pad identities, project rules and candidate copper DRC",
+                }
+                with self.review_server.lock:
+                    self.review_server.jobs[job_id] = result
+                    self.review_server.native_copper_outputs[job_id] = result_folder
+                thread = threading.Thread(
+                    target=self._run_native_copper_job,
+                    args=(job_id, project_path, result_folder, pair, waypoints, source_sha),
+                    daemon=True,
+                )
+                thread.start()
+                started = True
+                self._json(HTTPStatus.ACCEPTED, result)
+        except (ValueError, TypeError, UnicodeError, json.JSONDecodeError, OSError, zipfile.BadZipFile) as exc:
+            if not started:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)[:190]})
+        except (RuntimeError, subprocess.TimeoutExpired):
+            if not started:
+                self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": "Native KiCad inspection rejected this project"})
+        finally:
+            if not started:
+                if stage is not None:
+                    shutil.rmtree(stage, ignore_errors=True)
+                self.review_server.worker_lock.release()
+        return
+
+    def _run_native_copper_job(
+        self,
+        job_id: str,
+        source: Path,
+        output: Path,
+        pair: tuple[str, str],
+        waypoints: list,
+        archive_sha: str,
+    ) -> None:
+        result: dict = {
+            "state": "failed",
+            "message": "Native KiCad rejected the proposed copper route; no copy published",
+        }
+        try:
+            module = Path(__file__).with_name("review_studio_native_copper_link.py")
+            run = subprocess.run(
+                [
+                    "/usr/bin/python3",
+                    "-B",
+                    str(module),
+                    "--board",
+                    str(source),
+                    "--output",
+                    str(output),
+                    "--start-pad-uuid",
+                    pair[0],
+                    "--end-pad-uuid",
+                    pair[1],
+                    "--waypoints-json",
+                    json.dumps(waypoints),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=190,
+                check=False,
+            )
+            if run.returncode != 0:
+                if "New physical KiCad DRC violation" in run.stderr:
+                    result["message"] = "New physical KiCad DRC violation detected; copper copy rejected"
+                elif "not a unique native unconnected link" in run.stderr:
+                    result["message"] = "These pads are not a unique currently-unconnected native KiCad pair"
+                elif "Outside" in run.stderr or "outside native board outline" in run.stderr:
+                    result["message"] = "Proposed copper waypoints exceed the board outline"
+            else:
+                evidence_file = output / "EVIDENCE.json"
+                evidence = json.loads(evidence_file.read_text())
+                copper = output / "project" / source.name
+                counts = evidence["native_drc"]
+                if (
+                    evidence["working_sha256"] != hashlib.sha256(copper.read_bytes()).hexdigest()
+                    or evidence["source_sha256"] != hashlib.sha256(source.read_bytes()).hexdigest()
+                    or evidence["link"]["pad_uuids"] != list(pair)
+                    or counts["new_findings"] != 0
+                    or counts["schematic_parity"] != 0
+                    or counts["after_unconnected"] >= counts["before_unconnected"]
+                    or evidence["fabApproved"] is not False
+                ):
+                    raise RuntimeError("Independent native copper evidence integrity failed")
+                # Source SHA & genuine KiCad plot authenticity remain bounded:
+                # preserve original source bytes through BOTH plot operations.
+                kicad_cli = shutil.which("kicad-cli")
+                if not kicad_cli:
+                    raise RuntimeError("Native KiCad preview CLI unavailable")
+                original_before = hashlib.sha256(source.read_bytes()).hexdigest()
+                original_after = hashlib.sha256(copper.read_bytes()).hexdigest()
+                before_svg = native_copper_native_svg(kicad_cli, source, output / "before.svg")
+                after_svg = native_copper_native_svg(kicad_cli, copper, output / "after.svg")
+                if (
+                    hashlib.sha256(source.read_bytes()).hexdigest() != original_before
+                    or hashlib.sha256(copper.read_bytes()).hexdigest() != original_after
+                ):
+                    raise RuntimeError("Native KiCad preview changed the approved copper source")
+                (output / "PREVIEW.html").write_text(
+                    native_copper_preview_html(before_svg, after_svg), encoding="utf-8"
+                )
+                # Exactly the normalized project + native DRC evidence; ZIP paths
+                # are authored here, never read from an untrusted ZIP manifest.
+                bundle = output / "native-copper-project.zip"
+                with zipfile.ZipFile(bundle, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                    for member in sorted((output / "project").rglob("*")):
+                        if member.is_file() and not member.is_symlink():
+                            archive.write(member, arcname=member.relative_to(output / "project").as_posix())
+                    for name in (
+                        "EVIDENCE.json",
+                        "baseline-drc.json",
+                        "candidate-drc.json",
+                        "before.svg",
+                        "after.svg",
+                        "PREVIEW.html",
+                    ):
+                        archive.write(output / name, arcname=name)
+                download_files = (
+                    "native-copper-project.zip",
+                    "EVIDENCE.json",
+                    "baseline-drc.json",
+                    "candidate-drc.json",
+                    "PREVIEW.html",
+                )
+                source_bound_artifacts = {
+                    name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in download_files
+                }
+                result = {
+                    "state": "complete",
+                    "message": "Native KiCad verified an isolated partial copper link; fabrication remains blocked",
+                    "native_copper": {
+                        "id": job_id,
+                        "download_sha256": source_bound_artifacts,
+                        "link": evidence["link"],
+                        "before_unconnected": counts["before_unconnected"],
+                        "after_unconnected": counts["after_unconnected"],
+                        "before_violations": counts["before_violations"],
+                        "after_violations": counts["after_violations"],
+                        "archive_sha256": archive_sha,
+                        "fabApproved": False,
+                        "automatic_complete_routing": False,
+                    },
+                }
+        except (OSError, ValueError, RuntimeError, KeyError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            pass
+        finally:
+            if result["state"] != "complete":
+                shutil.rmtree(output, ignore_errors=True)
+            shutil.rmtree(source.parent.parent, ignore_errors=True)
+            with self.review_server.lock:
+                self.review_server.jobs[job_id].update(result)
+                if result["state"] != "complete":
+                    self.review_server.native_copper_outputs.pop(job_id, None)
+            self.review_server.worker_lock.release()
 
     def _run_pcb_eco_job(
         self, job_id: str, source: Path, output: Path, ref: str, dx: float, dy: float, rotation: int = 0

@@ -25,6 +25,8 @@ APP_FILES = (
     "review_studio_native_kicad.py",
     "review_studio_schematic_eco.py",
     "review_studio_pcb_eco.py",
+    "review_studio_native_copper_link.py",
+    "review_studio_native_copper_bundle.py",
     "review_studio_schematic_pcb_parity.py",
     "review_studio_pcb_eco_template.html",
     "review_studio_workspace_template.html",
@@ -100,16 +102,28 @@ def build(root: Path, output_dir: Path, *, epoch: int = 1700000000) -> Path:
             os.utime(path, (epoch, epoch), follow_symlinks=False)
         stage.chmod(0o755)
         os.utime(stage, (epoch, epoch))
+        candidate = Path(temporary) / archive.name
         subprocess.run(
-            ["dpkg-deb", "--root-owner-group", "--build", str(stage), str(archive)],
+            ["dpkg-deb", "--root-owner-group", "--build", str(stage), str(candidate)],
             check=True,
             capture_output=True,
             timeout=45,
             env={**os.environ, "SOURCE_DATE_EPOCH": str(epoch)},
         )
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    manifest = archive.with_suffix(".sha256")
-    manifest.write_text(f"{digest}  {archive.name}\n", encoding="ascii")
+        produced = candidate.read_bytes()
+        digest = hashlib.sha256(produced).hexdigest()
+        manifest = archive.with_suffix(".sha256")
+        statement = f"{digest}  {archive.name}\n"
+        # Prior QA-accepted packages are immutable. A material content
+        # change MUST use a new release version, never overwrite its bytes.
+        if archive.exists() and archive.read_bytes() != produced:
+            raise ValueError(f"Existing version {VERSION} archive has different bytes; bump version before packaging")
+        if manifest.exists() and manifest.read_text(encoding="ascii") != statement:
+            raise ValueError(f"Existing version {VERSION} SHA manifest differs; cannot overwrite")
+        if not archive.exists():
+            archive.write_bytes(produced)
+        if not manifest.exists():
+            manifest.write_text(statement, encoding="ascii")
     print("BUILT:", archive)
     print("SHA256:", digest)
     print("PACKAGE_BYTES:", archive.stat().st_size)
