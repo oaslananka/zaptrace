@@ -227,6 +227,9 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 .boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:105px;max-width:340px}
 @media(min-width:751px) and (max-width:1450px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{max-width:220px}}
 @media(max-width:750px){.sheet-thumbnails{grid-template-columns:repeat(2,minmax(0,1fr))}.sheet-thumb{grid-template-columns:1fr;gap:7px;min-width:0}.sheet-thumb-img{width:100%;height:78px}.schematic-sheet-dock{bottom:84px;right:10px;left:10px;grid-template-columns:43px minmax(0,1fr) 43px}.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:10px;max-width:none}}
+/* At 320px the original KiCad child-page stepper must clear the taller native
+   engineering caution panel, not merely avoid horizontal document overflow. */
+@media(max-width:340px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .schematic-sheet-dock{bottom:102px}}
 @media(max-width:420px){.sheet-thumbnails{grid-template-columns:1fr}.sheet-thumb{grid-template-columns:70px 1fr}.sheet-thumb-img{height:54px;width:70px}}
 
 .sheet-reference-panel[hidden]{display:none}.sheet-reference-panel{margin-top:15px;padding-top:14px;border-top:1px solid #34536b}
