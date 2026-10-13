@@ -397,6 +397,8 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: v
 .review-item strong { text-align: right; }
 .review-note { font-size: 11px; color: var(--text-secondary); line-height: 1.5; margin: 8px 0 10px; }
 .review-status .btn { width: 100%; }
+.review-status .btn-board-jump { display:none; margin-top:9px; background:transparent; border:1px solid var(--border); color:var(--text-primary); }
+.btn-board-jump:hover {background:var(--bg-hover);}
 .sidebar-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 8px; }
 .search-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 13px; outline: none; }
 .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
@@ -507,7 +509,7 @@ button:focus-visible,input:focus-visible,[tabindex]:focus-visible {outline:2px s
 .status-bar {height:32px;}
 .bom-panel {bottom:32px;height:min(330px,52%);}
 @media(max-width:1000px) {.local-badge{display:none;}.header-meta{max-width:22vw;}.app{grid-template-columns:286px minmax(0,1fr);}.sidebar{padding:16px 12px;}.canvas-head{top:14px;left:16px;}.canvas-bottom{left:16px;}}
-@media(max-width:650px) {.app{display:flex;flex-direction:column;height:auto;min-height:100dvh;overflow:visible;}.header{position:sticky;top:0;padding:10px 12px;flex-wrap:wrap;}.brand-mark{width:34px;height:34px;}.brand-title{font-size:14px;}.brand-subtitle{font-size:9px;}.header-meta{display:none;}.header-actions{gap:3px;}.header-actions .btn{padding:6px;font-size:11px;min-height:34px;}.sidebar{border-right:0;border-bottom:1px solid var(--border);overflow:visible;}.review-status{padding:14px;}.canvas-area{height:60vh;min-height:450px;}.canvas-title{font-size:18px;}.canvas-bottom{left:12px;right:12px;bottom:48px;}.info-panel{top:10px;right:10px;}}
+@media(max-width:650px) {.review-status .btn-board-jump{display:inline-flex;min-height:44px;}.canvas-area{scroll-margin-top:108px;} .app{display:flex;flex-direction:column;height:auto;min-height:100dvh;overflow:visible;}.header{position:sticky;top:0;padding:10px 12px;flex-wrap:wrap;}.brand-mark{width:34px;height:34px;}.brand-title{font-size:14px;}.brand-subtitle{font-size:9px;}.header-meta{display:none;}.header-actions{gap:3px;}.header-actions .btn{padding:6px;font-size:11px;min-height:34px;}.sidebar{border-right:0;border-bottom:1px solid var(--border);overflow:visible;}.review-status{padding:14px;}.canvas-area{height:60vh;min-height:450px;}.canvas-title{font-size:18px;}.canvas-bottom{left:12px;right:12px;bottom:48px;}.info-panel{top:10px;right:10px;}}
 @media(prefers-reduced-motion:reduce) {*{transition-duration:0s!important;}}
 </style>
 </head>
@@ -538,6 +540,7 @@ button:focus-visible,input:focus-visible,[tabindex]:focus-visible {outline:2px s
       <div class="review-item"><span>Fabrication</span><strong id="reviewFabrication">Human review required</strong></div>
       <p class="review-note" id="reviewNextAction">This viewer does not verify native KiCad DRC, physical continuity or manufacturing approval.</p>
       <button class="btn btn-primary" type="button" id="btnReviewFindings">Inspect DRC findings →</button>
+      <button class="btn btn-board-jump" type="button" id="btnJumpToBoard" aria-controls="canvasArea">View board preview ↓</button>
     </section>
     <div class="sidebar-section">
       <label class="sidebar-title search-label" for="searchInput">Find a component or net</label>
@@ -554,7 +557,7 @@ button:focus-visible,input:focus-visible,[tabindex]:focus-visible {outline:2px s
       <div id="tabContent" role="tabpanel" tabindex="0"></div>
     </div>
   </aside>
-  <main class="canvas-area" id="canvasArea" aria-label="Interactive board preview">
+  <main class="canvas-area" id="canvasArea" tabindex="-1" aria-label="Interactive board preview">
     <div class="canvas-head">
       <div class="canvas-kicker">Board inspection / preview</div>
       <div class="canvas-title" id="canvasDesignName"></div>
@@ -895,6 +898,13 @@ function bindEvents() {
     panX=mx-(mx-panX)*(zoom/old); panY=my-(my-panY)*(zoom/old);
     applyTx();
   }, {passive:false});
+  document.getElementById("btnJumpToBoard").addEventListener("click", function() {
+    // Navigation only: move to the *actual* source-bound preview. Never
+    // create geometry or alter the DRC/proof/fabrication state.
+    var board = document.getElementById("canvasArea");
+    board.scrollIntoView({behavior:"auto",block:"start"});
+    board.focus({preventScroll:true});
+  });
   document.getElementById("btnReviewFindings").addEventListener("click", function() {
     activeTab = "violations";
     document.getElementById("searchInput").value = "";
