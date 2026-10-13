@@ -15,6 +15,7 @@ from typing import Any, Literal
 from zaptrace.core.models import Design
 from zaptrace.erc.runner import ERCRunner
 from zaptrace.synthesis.architecture import ArchitecturePlan, build_architecture_design
+from zaptrace.synthesis.candidate_footprints import qualify_candidate_footprints
 from zaptrace.synthesis.requirements import (
     Requirements,
     freeze_requirements,
@@ -46,6 +47,7 @@ class CandidateReport:
     emitted_nets: list[dict[str, Any]]
     decisions: list[dict[str, Any]]
     internal_erc_evidence: dict[str, Any]
+    footprint_evidence: dict[str, Any]
     blockers: list[dict[str, str]]
     pending_assumptions: list[dict[str, Any]]
     verification: dict[str, str | bool]
@@ -65,6 +67,7 @@ class CandidateReport:
             "emitted_nets": self.emitted_nets,
             "decisions": self.decisions,
             "internal_erc_evidence": self.internal_erc_evidence,
+            "footprint_evidence": self.footprint_evidence,
             "blockers": self.blockers,
             "pending_assumptions": self.pending_assumptions,
             "verification": self.verification,
@@ -183,6 +186,7 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
     """Compile only supported canonical blocks; never assert ERC/DFM approval."""
     owners: dict[str, str] = {}
     design, plan, decision_log = build_architecture_design(requirements, name=name, component_owners=owners)
+    footprint_evidence = qualify_candidate_footprints(design, requirements)
     freeze = freeze_requirements(requirements)
     component_rows, net_rows, provenance_blockers, unverified_pin_refs = _emitted_provenance(
         design, plan, owners, requirements
@@ -197,6 +201,10 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
     )
     blockers.extend(provenance_blockers)
     blockers.extend(_interface_connectivity_blockers(design, plan, requirements))
+    # Never accept generic LDO pin claims: the library has no identified
+    # manufacturer device/pin map for LDO_3.3V.
+    for item in footprint_evidence.unresolved:
+        blockers.append({"code": "no_part_specific_footprint_evidence", "subject": item["ref"]})
     if not component_rows or not net_rows:
         blockers.append({"code": "no_usable_canonical_design", "subject": "design"})
     # Explicit low-confidence emission decisions must not count as verified.
@@ -222,6 +230,31 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
                     + "; native pin identity not confirmed"
                 ),
                 "risk": "high",
+                "requires_confirmation": True,
+            }
+        )
+    if any(item.get("mpn") for item in footprint_evidence.qualified):
+        assumptions.append(
+            {
+                "field": "selected_ldo_part_and_enable",
+                "assumption": (
+                    "Starter-library AP2112K-3.3TRG1 5-pin mapping selected for 3.3V USB-C pilot; "
+                    "EN tied to VBUS. Land pattern, load stability, manufacturer evidence, "
+                    "thermal, sourcing and procurement need independent review."
+                ),
+                "risk": "high",
+                "requires_confirmation": True,
+            }
+        )
+    if footprint_evidence.qualified:
+        assumptions.append(
+            {
+                "field": "generic_passive_footprint_qualification",
+                "assumption": (
+                    "0402 two-pad geometry resolved for generic passives; "
+                    "manufacturer part, voltage/current limits, tolerance and sourcing still unverified"
+                ),
+                "risk": "medium",
                 "requires_confirmation": True,
             }
         )
@@ -278,6 +311,7 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
         emitted_components=component_rows,
         emitted_nets=net_rows,
         decisions=decision_log.to_dicts(),
+        footprint_evidence=footprint_evidence.to_dict(),
         internal_erc_evidence={
             "checker": "zaptrace_internal_erc_not_native_kicad",
             "errors": erc.total_errors,

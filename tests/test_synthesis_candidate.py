@@ -26,13 +26,17 @@ def test_bounded_mcu_sensor_candidate_is_reproducible_and_not_fabrication_approv
     assert len(report.emitted_nets) == len(design.nets) == 8
     assert all(x["block_id"] and (x["requirement_ids"] or x["reusable_block"]) for x in report.emitted_components)
     assert all(x["block_ids"] and x["connected_nodes"] > 0 for x in report.emitted_nets)
-    assert any(x["field"] == "emitted_pin_inventory" for x in report.pending_assumptions)
+    assert not any(x["field"] == "emitted_pin_inventory" for x in report.pending_assumptions)
     assert all(x["id"] != "" for x in report.emitted_components)
     assert report.blockers == []
-    assert report.verification["internal_erc"] == "warning"
+    assert len(report.footprint_evidence["qualified"]) == 9
+    assert report.footprint_evidence["unresolved"] == []
+    assert any(item["field"] == "selected_ldo_part_and_enable" for item in report.pending_assumptions)
+    assert any(item["field"] == "generic_passive_footprint_qualification" for item in report.pending_assumptions)
+    assert report.verification["internal_erc"] == "passed_with_known_limitations"
     assert report.internal_erc_evidence["checks_run"] == 29
     assert report.internal_erc_evidence["errors"] == 0
-    assert report.internal_erc_evidence["warnings"] >= 1
+    assert report.internal_erc_evidence["warnings"] == 0
     assert report.verification["native_erc"] == "not_checked"
     assert report.verification["native_drc"] == "not_checked"
     assert report.verification["simulation"] == "not_checked"
@@ -190,7 +194,7 @@ def test_internal_erc_warning_never_turns_native_erc_or_simulation_green() -> No
     _, report = compile_intent(INTENT)
     assert report.internal_erc_evidence["checker"] == "zaptrace_internal_erc_not_native_kicad"
     assert report.internal_erc_evidence["coverage_gaps"]
-    assert report.verification["internal_erc"] == "warning"
+    assert report.verification["internal_erc"] == "passed_with_known_limitations"
     assert report.verification["simulation"] == "not_checked"
     assert report.verification["native_erc"] == "not_checked"
     assert report.verification["fabrication_approved"] is False
@@ -207,3 +211,93 @@ def test_raw_intent_change_invalidates_candidate_even_when_structured_fields_mat
     assert ca.requirements_hash == cb.requirements_hash
     assert ca.intent_hash != cb.intent_hash
     assert ca.candidate_id != cb.candidate_id
+
+
+def test_pilot_real_ap2112_uses_local_documented_physical_pin_map() -> None:
+    design, report = compile_intent(INTENT)
+    reg = design.components["U1"]
+    assert reg.mpn == "AP2112K-3.3TRG1"
+    assert reg.package_pin_map == {"1": "VIN", "2": "GND", "3": "EN", "4": "NC", "5": "VOUT"}
+    assert sorted(pad.id for pad in reg.footprint_def.pads) == ["1", "2", "3", "4", "5"]
+    expected = {"VIN": "VBUS", "EN": "VBUS", "GND": "GND", "VOUT": "VDD_3V3"}
+    assert {pin: design.get_net_for_pin("U1", pin).id for pin in expected} == expected
+    assert design.get_net_for_pin("U1", "NC") is None
+    assert report.internal_erc_evidence["warnings"] == 0
+    assert report.verification["native_erc"] == "not_checked"
+
+
+def test_different_power_budget_does_not_invent_part_compatibility() -> None:
+    _, report = compile_intent("USB-C powered STM32 MCU board, 3.3V rail at 700mA, I2C temperature sensor")
+    assert report.status == "blocked"
+    assert any(item["code"] == "no_part_specific_footprint_evidence" for item in report.blockers)
+
+
+def test_mismatched_ldo_source_library_pin_map_is_rejected(monkeypatch) -> None:
+    from zaptrace.library.loader import LibraryLoader
+
+    original = LibraryLoader.get
+
+    def corrupted(self, part_id):
+        spec = original(self, part_id)
+        if part_id == "ap2112k-3.3":
+            spec.package_pin_map = {"1": "VOUT", "2": "GND", "3": "EN", "4": "NC", "5": "VIN"}
+        return spec
+
+    monkeypatch.setattr(LibraryLoader, "get", corrupted)
+    design, report = compile_intent(INTENT)
+    assert design.components["U1"].mpn is None
+    assert report.status == "blocked"
+    assert any(item["code"] == "no_part_specific_footprint_evidence" for item in report.blockers)
+
+
+def test_pilot_footprint_resolution_covers_every_emitted_two_terminal_passive() -> None:
+    design, report = compile_intent(INTENT)
+    for component in design.components.values():
+        if component.type not in {"resistor", "capacitor"}:
+            continue
+        assert component.footprint == "0402"
+        assert sorted(component.pins) == ["1", "2"]
+        assert sorted(component.package_pin_map.items()) == [("1", "1"), ("2", "2")]
+        assert sorted(pad.id for pad in component.footprint_def.pads) == ["1", "2"]
+    assert report.footprint_evidence["unresolved"] == []
+    assert report.internal_erc_evidence["warnings"] == 0
+    assert not any(a["field"] == "emitted_pin_inventory" for a in report.pending_assumptions)
+
+
+def test_footprint_geometry_mismatch_is_not_faked(monkeypatch) -> None:
+    import zaptrace.synthesis.candidate_footprints as footprint_module
+
+    original = footprint_module.generate_footprint_for_component
+
+    def bogus(package, kind):
+        result = original(package, kind)
+        if kind == "resistor":
+            result.pads[1].id = "3"
+        return result
+
+    monkeypatch.setattr(footprint_module, "generate_footprint_for_component", bogus)
+    design, report = compile_intent(INTENT)
+    assert report.status == "blocked"
+    assert any(
+        x["reason"] == "passive_pad_number_or_connectivity_inconsistent"
+        for x in report.footprint_evidence["unresolved"]
+    )
+    assert design.components["R1"].pins == {}
+
+
+def test_source_pin_map_corruption_never_assigns_ldo_identity(monkeypatch) -> None:
+    from zaptrace.library.loader import LibraryLoader
+
+    original = LibraryLoader.get
+
+    def tampered(self, part_id):
+        record = original(self, part_id)
+        if part_id == "ap2112k-3.3":
+            record.package_pin_map["1"] = "VOUT"
+        return record
+
+    monkeypatch.setattr(LibraryLoader, "get", tampered)
+    design, report = compile_intent(INTENT)
+    assert design.components["U1"].mpn is None
+    assert report.status == "blocked"
+    assert report.internal_erc_evidence["warnings"] > 0
