@@ -65,6 +65,13 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     thermal_pad = next(p for p in sensor["pads"] if p["number"] == "9")
     assert thermal_pad["front_paste"] is False
     assert thermal_pad["back_paste"] is False
+    mcu = next(fp for fp in native["footprints"] if fp["ref"] == "U2")
+    assert mcu["footprint"] == "ZapTrace:LQFP-48_7x7mm_P0.5mm"
+    for number in ("5", "6"):
+        physical = [p for p in mcu["pads"] if p["number"] == number]
+        assert len(physical) == 1 and physical[0]["net"] == ""
+    regulator = next(fp for fp in native["footprints"] if fp["ref"] == "U1")
+    assert regulator["footprint"] == "ZapTrace:SOT-23-5"
     resistor = next(fp for fp in native["footprints"] if fp["ref"] == "R1")
     assert all(p["front_paste"] is True for p in resistor["pads"])
     assert len(native["s1_four_separate_uuid_net_associations"]) == 4
@@ -74,8 +81,8 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert (dest / "SynthesizedBoard.kicad_pcb").stat().st_size > 10_000
     assert (dest / "SynthesizedBoard.kicad_sch").stat().st_size > 10_000
     assert (dest / "fp-lib-table").is_file()
-    assert len(list((dest / "ZapTracePilot.pretty").glob("*.kicad_mod"))) == 11
-    assert len(list((dest / "ZapTrace.pretty").glob("*.kicad_mod"))) == 1
+    assert len(list((dest / "ZapTracePilot.pretty").glob("*.kicad_mod"))) == 9
+    assert len(list((dest / "ZapTrace.pretty").glob("*.kicad_mod"))) == 3
     assert (dest / "native-pcb-drc.json").is_file()
     for name, expected in report["artifact_sha256"].items():
         assert hashlib.sha256((dest / name).read_bytes()).hexdigest() == expected
@@ -129,6 +136,23 @@ print("U3_STENCIL_AND_COPPER_MUTATION_REJECTED")
     )
     assert result.returncode == 0, result.stderr[-1200:]
     assert "U3_STENCIL_AND_COPPER_MUTATION_REJECTED" in result.stdout
+
+
+def test_mcu_unmodeled_crystal_pads_cannot_be_assigned_a_fabricated_net(tmp_path: Path) -> None:
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    source = candidate / "design.json"
+    design = json.loads(source.read_text())
+    assert design["components"]["U2"]["package_pin_map"]["5"] == "PD0"
+    assert design["components"]["U2"]["package_pin_map"]["6"] == "PD1"
+    design["nets"]["GND"]["nodes"].append({"component_ref": "U2", "pin_name": "PD0"})
+    source.write_text(json.dumps(design))
+    manifest = json.loads((candidate / "manifest.json").read_text())
+    manifest["files_sha256"]["design.json"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    (candidate / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="Unmodeled U2 PD0/PD1 pins must remain electrically unconnected"):
+        create_baseline(candidate, tmp_path / "rejected")
+    assert not (tmp_path / "rejected").exists()
 
 
 def test_placement_rejects_source_tampering_and_existing_destination(tmp_path: Path) -> None:

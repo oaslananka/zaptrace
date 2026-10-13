@@ -94,7 +94,12 @@ def prepare_pilot_kicad_libraries(design: Design, folder: Path) -> list[dict[str
             raise ValueError("Unsafe or duplicate native footprint reference")
         refs.add(component.ref)
         if component.footprint_asset:
-            if component.ref != "U3" or component.footprint_asset != "sht31-dfn8":
+            expected_assets = {
+                "U1": "ap2112-sot23-5",
+                "U2": "stm32-lqfp48",
+                "U3": "sht31-dfn8",
+            }
+            if expected_assets.get(component.ref) != component.footprint_asset:
                 raise ValueError("Unexpected verified asset in isolated pilot")
             from zaptrace.kicad.verified_vendor import verified_footprint_bytes
 

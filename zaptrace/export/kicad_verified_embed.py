@@ -197,19 +197,16 @@ def render_verified_footprint(
         if kind == "pad" and len(child) >= 3:
             pad_id = str(child[1])
             logical_pin = component.package_pin_map.get(pad_id) if component.package_pin_map else pad_id
-            if logical_pin is not None and logical_pin in component.pins:
+            if logical_pin is not None and (pad_id in component.package_pin_map or logical_pin in component.pins):
+                # Keep physically mapped vendor pads even if the bounded logical
+                # model omits unconnected pins (e.g. STM32 PD0 and PD1).
+                # The canonical design netlist is authoritative: never invent a net.
                 mapped_pads.add(pad_id)
-                # Some design sources store connectivity in canonical design.nets
-                # rather than component.pins[*].net. The caller supplies the same
-                # physical-to-logical net oracle used by synthetic footprints.
-                pin_net = component.pins[logical_pin].net
-                num = (
-                    pin_net_number(pad_id)
-                    if pin_net_number is not None
-                    else net_index.get(pin_net, 0)
-                    if pin_net is not None
-                    else 0
-                )
+                if pin_net_number is not None:
+                    num = pin_net_number(pad_id)
+                else:
+                    pin = component.pins.get(logical_pin)
+                    num = net_index.get(pin.net, 0) if pin is not None and pin.net is not None else 0
                 if num > 0:
                     child.append(["net", str(num), net_name(num)])
         _instance_identity(child, component.ref, str(idx), uuid_for)

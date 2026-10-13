@@ -147,7 +147,7 @@ def audit(folder: Path) -> dict:
         raise ValueError("Missing, unknown or duplicate PCB footprint references")
     for ref, fp in refs.items():
         expected_id = components[ref]["footprint"]
-        if ref != "U3" and fp.GetFPIDAsString() == "zaptrace:" + components[ref]["type"]:
+        if not components[ref].get("footprint_asset") and fp.GetFPIDAsString() == "zaptrace:" + components[ref]["type"]:
             fp.SetFPID(pcb.LIB_ID("ZapTracePilot", "ZT_" + ref))
         if fp.GetFPIDAsString() != expected_id:
             raise ValueError("Physical footprint library ID is not source linked")
@@ -196,6 +196,17 @@ def audit(folder: Path) -> dict:
         stencil_pads = [p for p in pads if ref == "U3" and p.GetNumber() == ""]
         if ref == "U3":
             assert_native_u3_manufacturer_geometry(fp)
+        if ref == "U2" and (
+            comp.get("footprint_asset") != "stm32-lqfp48"
+            or any(
+                sum(p.GetNumber() == number for p in pads) != 1
+                or next(p for p in pads if p.GetNumber() == number).GetNetCode() != 0
+                for number in ("5", "6")
+            )
+        ):
+            raise ValueError("Unmodeled STM32 PD0/PD1 copper pads must stay netless")
+        if ref in ("U1", "U2") and not any(item.GetLayer() == pcb.F_CrtYd for item in fp.GraphicalItems()):
+            raise ValueError("Pinned U1/U2 original courtyard is absent")
         physical_pads = [p for p in pads if p not in stencil_pads]
         if Counter(p.GetNumber() for p in physical_pads) != Counter(p["id"] for p in source_pads):
             raise ValueError("Native PCB physical pad number inventory differs from source")

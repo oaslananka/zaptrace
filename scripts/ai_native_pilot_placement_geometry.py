@@ -65,12 +65,23 @@ def require_pinned_physical_packages(design: Design) -> dict[str, dict]:
         ):
             raise ValueError("SHT31 source thermal/paste pad contract not proven")
         comp.footprint_def = fp
-        if ref == "U3":
-            from zaptrace.kicad.verified_vendor import resolve_verified_footprint
+        from zaptrace.kicad.verified_vendor import resolve_verified_footprint
 
-            if fp != resolve_verified_footprint("sht31-dfn8"):
-                raise ValueError("SHT31 pinned native package does not match source pad model")
-            comp.footprint_asset = "sht31-dfn8"
+        asset = {"U1": "ap2112-sot23-5", "U2": "stm32-lqfp48", "U3": "sht31-dfn8"}.get(ref)
+        if asset is not None:
+            if fp != resolve_verified_footprint(asset):
+                raise ValueError(f"{ref} pinned native package differs from its source pad model")
+            if ref == "U2" and (
+                comp.package_pin_map.get("5") != "PD0"
+                or comp.package_pin_map.get("6") != "PD1"
+                or any(
+                    node.component_ref == "U2" and node.pin_name in {"PD0", "PD1"}
+                    for net in design.nets.values()
+                    for node in net.nodes
+                )
+            ):
+                raise ValueError("Unmodeled U2 PD0/PD1 pins must remain electrically unconnected")
+            comp.footprint_asset = asset
         report[ref] = {
             "part": mpn,
             "source": filename,
@@ -78,6 +89,23 @@ def require_pinned_physical_packages(design: Design) -> dict[str, dict]:
             "pad_count": pad_count,
             "evidence": "exact KiCad official vendored library geometry, not physical assembly approval",
         }
+    regulator = design.components["U1"]
+    from zaptrace.kicad.verified_vendor import resolve_verified_footprint
+
+    if (
+        regulator.mpn != "AP2112K-3.3TRG1"
+        or regulator.footprint_def != resolve_verified_footprint("ap2112-sot23-5")
+        or regulator.footprint_asset
+    ):
+        raise ValueError("Unverified regulator physical footprint inventory")
+    regulator.footprint_asset = "ap2112-sot23-5"
+    report["U1"] = {
+        "part": regulator.mpn,
+        "source": "SOT-23-5.kicad_mod",
+        "sha256": "2a5c9e030fb192cd2393b5f95872fe796deb29ae7570c83050e19f7b78ceea71",
+        "pad_count": 5,
+        "evidence": "exact source package artwork, regulator pinout/part fabrication NOT approved",
+    }
     return report
 
 

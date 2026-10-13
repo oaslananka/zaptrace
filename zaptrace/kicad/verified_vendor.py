@@ -45,6 +45,14 @@ _PINNED_FOOTPRINTS: dict[str, tuple[str, str]] = {
         "SOT-223-3_TabPin2.kicad_mod",
         "8ae5f03e2c16377abed15e51af6864e23a934e1457b97fb7ea930e17fa99f11d",
     ),
+    "stm32-lqfp48": (
+        "LQFP-48_7x7mm_P0.5mm.kicad_mod",
+        "ec36273cf5fa99acf022c2f5af17310d123fa4b5ccfe98a2f562fedabe7f3f46",
+    ),
+    "ap2112-sot23-5": (
+        "SOT-23-5.kicad_mod",
+        "2a5c9e030fb192cd2393b5f95872fe796deb29ae7570c83050e19f7b78ceea71",
+    ),
     "sht31-dfn8": (
         "Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod",
         "2380f3b4d6982902f05e8940603f19f7cfbc1bdfd6ae0f78ebd281c1a3f30a8f",
