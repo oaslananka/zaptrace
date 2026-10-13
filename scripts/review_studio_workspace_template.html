@@ -220,6 +220,7 @@ main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-we
  <div class="eco-result" id="pcbEcoResult" hidden>
   <div class="eco-result-head"><strong id="pcbEcoResultTitle">Native PCB placement / rotation · not approved</strong>
    <div class="eco-result-actions"><button id="pcbEcoDownload" type="button">Download separate PCB copy</button>
+    <button id="pcbEcoReviewDownload" type="button" hidden>Download source-bound decision review</button>
     <button id="pcbEcoDiscard" type="button">Discard PCB ECO draft</button></div></div>
   <iframe id="pcbEcoPreview" title="Actual KiCad PCB before and after copper plots with DRC evidence" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
  </div>
@@ -813,7 +814,7 @@ if(window.__REVIEW_LOCAL__?.token){
  });
  // Native PCB authoring lives in a separate security namespace from the
  // schematic-value ECO; neither editor can read the other's artifacts.
- let pcbEcoId=null,pcbEcoBundle=false;
+ let pcbEcoId=null,pcbEcoBundle=false,pcbEcoReviewSha=null;
  const pcbResult=$('pcbEcoResult'),pcbStatus=$('pcbEcoStatus'),pcbButton=$('pcbEcoCreate');
  const pcbMessage=(message,kind='info')=>{
   pcbStatus.hidden=false;pcbStatus.textContent=message;
@@ -874,6 +875,9 @@ if(window.__REVIEW_LOCAL__?.token){
      $('pcbEcoPreview').addEventListener('load',()=>{pcbResult.dataset.frameReady='true';},{once:true});
      $('pcbEcoPreview').srcdoc=html;
      pcbResult.dataset.id=started.id;pcbEcoId=started.id;pcbResult.hidden=false;
+     pcbEcoReviewSha=job.pcb_eco.change_review_available===true &&
+      /^[0-9a-f]{64}$/.test(job.pcb_eco.change_review_sha256)?job.pcb_eco.change_review_sha256:null;
+     $('pcbEcoReviewDownload').hidden=!pcbEcoReviewSha;
      pcbEcoBundle=['project','project_with_custom_rules'].includes(job.pcb_eco.rule_context);
      $('pcbEcoDownload').textContent=pcbEcoBundle?'Download PCB + project rules ZIP':'Download separate PCB copy';
      $('pcbEcoResultTitle').textContent=job.pcb_eco.ref+' · '+job.pcb_eco.old_mm.join(', ')+' → '+
@@ -889,6 +893,23 @@ if(window.__REVIEW_LOCAL__?.token){
    throw Error('Native PCB validation exceeded the local timeout; no approval or source overwrite.');
   }catch(error){pcbMessage(error?.message||'Native PCB placement refused; original remains unchanged.','error');}
   finally{pcbButton.disabled=false;}
+ });
+ $('pcbEcoReviewDownload').addEventListener('click',async()=>{
+  if(!pcbEcoId||!pcbEcoReviewSha)return;
+  try{
+   const response=await pcbFile(pcbEcoId,'CHANGE_REVIEW.html');
+   const bytes=await response.arrayBuffer();
+   if(bytes.byteLength>12*1024*1024)throw Error('Verified offline review exceeded the size limit');
+   const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
+    .map(x=>x.toString(16).padStart(2,'0')).join('');
+   if(hash!==pcbEcoReviewSha)throw Error('Native source-linked review SHA differs: download blocked');
+   const blob=new Blob([bytes],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=url;link.download='ZapTrace-Source-Bound-Change-Review.html';
+   document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),2500);
+   pcbMessage('Downloaded exact-state offline KiCad change review. Open locally to record a repair/reject/defer decision; fabrication and electrical approval remain blocked.','success');
+  }catch(error){pcbMessage(error?.message||'Native source-linked comparison unavailable.','error');}
  });
  $('pcbEcoDownload').addEventListener('click',async()=>{
   if(!pcbEcoId)return;
@@ -909,7 +930,8 @@ if(window.__REVIEW_LOCAL__?.token){
     body:JSON.stringify({id:pcbEcoId}),cache:'no-store'});
    const result=await reply.json();
    if(!reply.ok||result.state!=='discarded')throw Error(result.error||'Could not discard PCB copy');
-   pcbEcoId=null;pcbEcoBundle=false;
+   pcbEcoId=null;pcbEcoBundle=false;pcbEcoReviewSha=null;
+   $('pcbEcoReviewDownload').hidden=true;
    $('pcbEcoDownload').textContent='Download separate PCB copy';
    delete pcbResult.dataset.id;delete pcbResult.dataset.frameReady;
    pcbResult.hidden=true;$('pcbEcoPreview').removeAttribute('srcdoc');

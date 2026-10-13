@@ -413,7 +413,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             if not self._authorize():
                 return
             match = re.fullmatch(
-                r"/api/pcb-eco/result/([0-9a-f]{32})/(PREVIEW\.html|ECO_EVIDENCE\.json|source\.kicad_pcb|source\.project\.zip)",
+                r"/api/pcb-eco/result/([0-9a-f]{32})/(PREVIEW\.html|CHANGE_REVIEW\.html|ECO_EVIDENCE\.json|source\.kicad_pcb|source\.project\.zip)",
                 url.path,
             )
             if not match:
@@ -429,6 +429,22 @@ class ReviewHandler(BaseHTTPRequestHandler):
             item = output / filename
             if not item.is_file() or item.is_symlink() or item.stat().st_size > 12_000_000:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "PCB ECO artifact unavailable"})
+                return
+            if filename == "CHANGE_REVIEW.html":
+                raw = item.read_bytes()
+                if hashlib.sha256(raw).hexdigest() != job.get("pcb_eco", {}).get("change_review_sha256"):
+                    self._json(HTTPStatus.NOT_FOUND, {"error": "Change review proof no longer matches current ECO"})
+                    return
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header(
+                    "Content-Disposition", 'attachment; filename="ZapTrace-Source-Bound-Change-Review.html"'
+                )
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
                 return
             if filename in ("source.kicad_pcb", "source.project.zip"):
                 raw = item.read_bytes()
@@ -1711,6 +1727,49 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     raise RuntimeError("Native DRC did not certify PCB ECO copy")
                 if manifest["working_sha256"] != hashlib.sha256((output / "source.kicad_pcb").read_bytes()).hexdigest():
                     raise RuntimeError("KiCad PCB ECO copy SHA differs from native evidence")
+                change_review_sha = None
+                # Fail closed for the review *artifact*, not for an independently
+                # verified KiCad ECO copy. Rotations/complex proposals remain
+                # explicitly unsupported by this first source-bound decision UX.
+                if rotation == 0:
+                    review_module = Path(__file__).with_name("review_studio_change_diff.py")
+                    try:
+                        reviewed = subprocess.run(
+                            [
+                                "/usr/bin/python3",
+                                "-B",
+                                str(review_module),
+                                "--source",
+                                str(source),
+                                "--candidate",
+                                str(output / "source.kicad_pcb"),
+                                "--evidence",
+                                str(output / "ECO_EVIDENCE.json"),
+                                "--output",
+                                str(output / "CHANGE_REVIEW.html"),
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=220,
+                            check=False,
+                        )
+                        if reviewed.returncode == 0:
+                            proof_bytes = (output / "CHANGE_REVIEW.html").read_bytes()
+                            proof = json.loads((output / "CHANGE_REVIEW.state.json").read_text())
+                            if (
+                                proof.get("source_sha256") != manifest["source_sha256"]
+                                or proof.get("proposed_sha256") != manifest["working_sha256"]
+                                or proof.get("fabrication_approved") is not False
+                                or proof.get("approval_supported") is not False
+                            ):
+                                raise RuntimeError("Native design-change review proof missing exact-state identity")
+                            change_review_sha = hashlib.sha256(proof_bytes).hexdigest()
+                    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError):
+                        pass
+                    if change_review_sha is None:
+                        for optional in output.glob("CHANGE_REVIEW.*"):
+                            if optional.is_file() and not optional.is_symlink():
+                                optional.unlink()
                 with zipfile.ZipFile(output / "source.project.zip", "w", compression=zipfile.ZIP_DEFLATED) as bundle:
                     for name in ("source.kicad_pcb", "source.kicad_pro", "source.kicad_dru", "ECO_EVIDENCE.json"):
                         artifact = output / name
@@ -1722,6 +1781,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     "pcb_eco": {
                         "id": job_id,
                         "ref": manifest["ref"],
+                        "change_review_available": change_review_sha is not None,
+                        "change_review_sha256": change_review_sha,
                         "old_mm": manifest["old_mm"],
                         "new_mm": manifest["new_mm"],
                         "rotation_degrees": manifest["rotation_degrees"],

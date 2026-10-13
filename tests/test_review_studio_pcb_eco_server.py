@@ -55,6 +55,8 @@ def test_real_native_kicad_pcb_localhost_eco_safe_and_private(tmp_path: Path) ->
         assert result["pcb_eco"]["old_mm"] == [20, 20]
         assert result["pcb_eco"]["new_mm"] == [21, 20.5]
         assert result["pcb_eco"]["fabApproved"] is False
+        assert result["pcb_eco"]["change_review_available"] is True
+        assert len(result["pcb_eco"]["change_review_sha256"]) == 64
         route = url + "/api/pcb-eco/result/" + job["id"]
         code, manifest_raw = fetch(route + "/ECO_EVIDENCE.json", token)
         report = json.loads(manifest_raw)
@@ -63,6 +65,13 @@ def test_real_native_kicad_pcb_localhost_eco_safe_and_private(tmp_path: Path) ->
         code, html = fetch(route + "/PREVIEW.html", token)
         assert code == 200 and html.count(b"data:image/svg+xml;base64,") == 2
         assert b"NOT FABRICATION APPROVED" in html
+        code, offline = fetch(route + "/CHANGE_REVIEW.html", token)
+        assert code == 200
+        assert hashlib.sha256(offline).hexdigest() == result["pcb_eco"]["change_review_sha256"]
+        assert b"unsigned_local_design_change_decision_not_approval" in offline
+        assert b"Approve / fabricate (unavailable)" in offline
+        assert b"source_sha256" in offline and b"native_svg" in offline
+        assert fetch(route + "/CHANGE_REVIEW.html", "bogus-token")[0] == 403
         code, new = fetch(route + "/source.kicad_pcb", token)
         assert code == 200 and new != original and new.startswith(b"(kicad_pcb")
         assert new == (tmp_path / "workspace/pcb-eco-results" / job["id"] / "source.kicad_pcb").read_bytes()
@@ -151,6 +160,7 @@ def test_real_project_rule_context_browser_eco_returns_private_bundle(tmp_path: 
         code, removed = fetch(url + "/api/pcb-eco/discard", token, data={"id": job["id"]})
         assert code == 200 and json.loads(removed)["state"] == "discarded"
         assert fetch(route + "/source.project.zip", token)[0] == 404
+        assert fetch(route + "/CHANGE_REVIEW.html", token)[0] == 404
     assert (
         CLEAN.is_file()
         and original_project

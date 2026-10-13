@@ -34,6 +34,7 @@ ACCEPTED_LOCAL_VERSIONS = frozenset(
         "0.1.25",
         "0.1.26",
         "0.1.27",
+        "0.1.28",
     }
 )
 PACKAGE = "zaptrace-review-studio"
@@ -45,6 +46,8 @@ APP_FILES = (
     "review_studio_native_kicad.py",
     "review_studio_schematic_eco.py",
     "review_studio_pcb_eco.py",
+    "review_studio_change_diff.py",
+    "review_studio_change_diff_template.html",
     "review_studio_native_copper_link.py",
     "review_studio_native_copper_bundle.py",
     "review_studio_native_copper_batch.py",

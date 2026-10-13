@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>ZapTrace — native change decision review</title>
+<style>
+:root{color-scheme:dark;--bg:#080e18;--panel:#131f30;--panel2:#0e1928;--border:#31465c;--muted:#a6bac9;--ink:#f0f6fd;--blue:#57b6f3;--green:#79d7b5;--orange:#ffc382;--red:#ff9fa2}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif;margin:0;letter-spacing:.01em}button,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+header{border-bottom:1px solid var(--border);padding:16px clamp(16px,4vw,50px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:#0d1724}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);font-weight:750}h1{font-size:clamp(22px,2.4vw,30px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{margin:7px 0}.hash{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace;color:#b7d5e6}
+.status{border:1px solid var(--orange);color:#ffe6ca;border-radius:8px;padding:8px 12px;font-weight:700;max-width:350px}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.9fr);gap:18px;padding:22px clamp(16px,4vw,50px);max-width:1780px;margin:auto;align-items:start}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:0}.primary{border-color:#52769a}
+.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:17px 0}.metric{border:1px solid var(--border);border-radius:9px;padding:11px;background:var(--panel2)}.metric strong{font-size:22px;display:block}.metric small{display:block;color:var(--muted)}
+.overline{font-size:12px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.08em}.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.toolbar button{padding:10px 13px;min-height:44px;border-radius:8px;color:var(--ink);background:#192d42;border:1px solid #52677e}
+.toolbar button[aria-pressed="true"]{background:#27608a;border-color:#76cdff;font-weight:800}
+svg{display:block;background:#08111f;border:1px solid #3a5871;border-radius:10px;width:100%;height:auto;aspect-ratio:1.8;max-height:460px;touch-action:pan-y}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;color:var(--muted)}.swatch{display:inline-block;width:12px;height:12px;border:2px solid #fff;border-radius:3px;margin-right:4px;vertical-align:middle}.old{border-color:var(--blue)}.new{border-color:var(--orange)}
+details{border-top:1px solid var(--border);padding:12px 0}summary{cursor:pointer;font-weight:700}.status-line{border-left:3px solid var(--orange);padding:10px 12px;background:#251e20;margin:16px 0;color:#fff0e2}
+.row{display:flex;gap:10px;justify-content:space-between;align-items:start;border-top:1px solid #314158;padding:10px 0}.row span{color:var(--muted)}.row strong{text-align:right}
+select,textarea{width:100%;background:#0a1523;color:var(--ink);border:1px solid #68829d;border-radius:8px;padding:12px;min-height:44px}textarea{resize:vertical;min-height:88px}
+label{font-weight:750;display:block;margin:12px 0 5px}
+.action{border:1px solid #4d9d9c;background:#1e534a;color:#e9fff9;border-radius:8px;min-height:44px;padding:10px 15px;font-weight:750;margin-top:13px}
+.action[disabled]{opacity:.6;cursor:not-allowed;background:#34313b;border-color:#64525a}
+.muted{color:var(--muted)}.notice{background:#152a31;border:1px solid #456779;border-radius:8px;padding:12px;color:#d0eef6}.side{display:grid;gap:18px}
+code{font:12px ui-monospace,monospace;color:#d7eeff;overflow-wrap:anywhere}
+footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
+@media(max-width:930px){.layout{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:630px){.side{grid-template-columns:1fr}.card{padding:15px}.layout{padding:12px}.metric-grid{grid-template-columns:1fr 1fr}.toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar button{font-size:12px;padding:7px}svg{aspect-ratio:1.15}.row{display:block}.row strong{display:block;text-align:left}}
+
+.native-art{position:relative;min-height:165px;aspect-ratio:1.85;border:1px solid #3a5871;background:#f5f7f4;border-radius:9px;overflow:hidden;margin:10px 0}
+.native-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
+.native-art[data-view="current"] img[data-layer="proposed"],.native-art[data-view="proposed"] img[data-layer="current"],.native-art[data-view="changed"]{display:none}
+.native-art[data-view="overlay"] img[data-layer="proposed"]{opacity:.55}
+@media(max-width:630px){.native-art{aspect-ratio:1.15}}
+</style>
+</head>
+<body>
+<header>
+<div><div class="eyebrow">Source-verified · KiCad 10 · local evidence</div><h1>What changed in this PCB?</h1><p class="muted">Human decision workspace · read-only original and proposed native files</p></div>
+<div class="status" role="status">Human review required · No fabrication approval</div>
+</header>
+<main class="layout">
+<section class="card primary" aria-label="Exact proposed design change">
+<div class="overline">01 / Native design-state comparison</div>
+<h2 id="changeTitle">Loading source-linked change…</h2>
+<p id="changeExplanation" class="muted"></p>
+<div class="metric-grid">
+ <div class="metric"><small>Changed footprints</small><strong id="changedCount">—</strong></div>
+ <div class="metric"><small>New KiCad DRC violations</small><strong id="newDrc">—</strong></div>
+ <div class="metric"><small>Open copper connections</small><strong id="openDrc">—</strong></div>
+</div>
+<div class="status-line" id="riskMessage">Independent native DRC is not hardware certification.</div>
+<div class="overline">Genuine KiCad PCB SVG · F.Cu, F.SilkS, Edge.Cuts · not a production proof</div>
+<div class="native-art" id="nativeArtwork" data-view="overlay" role="group" aria-label="Native KiCad current and proposed vector plot">
+ <img id="nativeCurrent" data-layer="current" alt="Original native KiCad PCB drawing" />
+ <img id="nativeProposed" data-layer="proposed" alt="Proposed native KiCad PCB drawing" />
+</div>
+<p class="muted" id="nativeArtEvidence"></p>
+<div class="overline">PCB footprint anchors · native XY coordinates in mm, not shape geometry</div>
+<div class="toolbar" role="group" aria-label="Current proposed and changed-only PCB comparison">
+ <button type="button" data-view="current" aria-pressed="false">Current</button>
+ <button type="button" data-view="proposed" aria-pressed="false">Proposed</button>
+ <button type="button" data-view="overlay" aria-pressed="true">Overlay</button>
+ <button type="button" data-view="changed" aria-pressed="false">Changed only</button>
+</div>
+<svg id="board" viewBox="0 0 800 430" role="img" aria-label="Source-backed current and proposed footprint anchor locations; no trace or 3D geometry shown"></svg>
+<div class="legend"><span><i class="swatch old"></i>Current anchor</span><span><i class="swatch new"></i>Proposed anchor</span><span>Dashed vector = measured movement</span></div>
+<p class="muted">Only actual KiCad footprint anchors are plotted. Routing geometry, clearances, board fabrication and schematic/ERC are not inferred from this diagram.</p>
+<details><summary>Exact file identities and stale-decision boundary</summary>
+ <p><strong>Review state:</strong> <code id="stateHash"></code></p>
+ <p><strong>Original PCB SHA-256:</strong> <code id="fromHash"></code></p>
+ <p><strong>Proposed PCB SHA-256:</strong> <code id="toHash"></code></p>
+ <p class="muted">Exported decisions bind to all three hashes. Regenerating this review after changing either PCB file invalidates previous imported decisions. This offline bundle cannot monitor external files after generation.</p>
+</details>
+</section>
+<div class="side">
+<section class="card" aria-label="Actual native verification evidence">
+<div class="overline">02 / Engineering evidence</div><h2>What can be trusted?</h2>
+<div class="row"><span>Native PCB DRC checks</span><strong id="ruleCounts"></strong></div>
+<div class="row"><span>KiCad version</span><strong id="engine"></strong></div>
+<div class="row"><span>Rules explicitly ignored by KiCad</span><strong id="ignored"></strong></div>
+<div class="row"><span>Schematic ERC</span><strong>Not checked</strong></div>
+<div class="row"><span>Electrical approval</span><strong>Not approved</strong></div>
+<div class="row"><span>STEP fit / assembly</span><strong>Not checked</strong></div>
+<div class="row"><span>Fabrication authorization</span><strong>Blocked</strong></div>
+<p class="notice">A zero-new-violation PCB DRC result checks only the enabled native KiCad rules; it cannot authorize fabrication or imply schematic/ERC parity.</p>
+</section>
+<section class="card" aria-label="State-bound human review decision">
+<div class="overline">03 / Human decision · unsigned session</div><h2>What should happen next?</h2>
+<label for="decision">Review outcome</label>
+<select id="decision">
+ <option value="investigate">Defer · investigate missing evidence</option>
+ <option value="repair_required">Request engineering repair</option>
+ <option value="reject_proposal">Reject this proposed PCB copy</option>
+</select>
+<label for="note">Evidence or repair rationale</label>
+<textarea id="note" maxlength="600" placeholder="Which pin, pad, rule, or missing verification led to this decision?"></textarea>
+<button type="button" class="action" id="saveDecision">Save source-bound local decision JSON</button>
+<label for="importDecision">Restore previous exact-state review JSON</label>
+<input type="file" accept=".json,application/json" id="importDecision">
+<p id="decisionStatus" aria-live="polite" role="status" class="muted">Nothing approved. No review data sent to a server.</p>
+<button class="action" disabled type="button" title="Requires verified human identity, electrical/DFM evidence and a separate signed approval workflow">Approve / fabricate (unavailable)</button>
+<p class="muted">This is a local, unsigned review record, never a PCB waiver, design commit, electrical qualification, or manufacturing authorization.</p>
+</section>
+</div>
+</main>
+<footer>ZapTrace Review Studio · original and proposed PCB remain untouched · source-backed offline comparison · no hardware acceptance</footer>
+<script>
+"use strict";
+const DATA=__CHANGE_DATA__;
+const $=id=>document.getElementById(id);
+const svgNS="http://www.w3.org/2000/svg";
+let view="overlay";
+function el(tag,attributes={},txt=""){
+ const n=document.createElementNS(svgNS,tag);
+ for(const [k,v] of Object.entries(attributes))n.setAttribute(k,String(v));
+ if(txt)n.textContent=txt;
+ return n;
+}
+const changedRefs=new Set(DATA.changed.map(item=>item.ref));
+function draw(){
+ const b=$("board");while(b.firstChild)b.firstChild.remove();
+ const origin=DATA.board_origin_mm,size=DATA.board_size_mm;
+ const sx=x=>45+710*(x-origin[0])/size[0];
+ const sy=y=>35+360*(y-origin[1])/size[1];
+ b.append(el("rect",{x:40,y:30,width:720,height:370,rx:8,fill:"#102235",stroke:"#446480","stroke-width":2}));
+ const old=new Map(DATA.current.map(x=>[x.ref,x]));
+ const current=view!=="proposed";
+ const proposed=view!=="current";
+ const filtered=(xs)=>view==="changed"?xs.filter(x=>changedRefs.has(x.ref)):xs;
+ if(view==="overlay"||view==="changed"){
+  for(const ch of DATA.changed){
+   b.append(el("line",{x1:sx(ch.old_mm[0]),y1:sy(ch.old_mm[1]),x2:sx(ch.new_mm[0]),y2:sy(ch.new_mm[1]),stroke:"#ffe5a8","stroke-width":2.5,"stroke-dasharray":"6 5"}));
+  }
+ }
+ function dots(items, proposedFlag){
+  for(const x of filtered(items)){
+   const changed=changedRefs.has(x.ref);
+   const g=el("g",{});
+   const dot=el("circle",{cx:sx(x.x),cy:sy(x.y),r:changed?11:6,
+     stroke:proposedFlag?"#ffc382":"#57b6f3","stroke-width":changed?3:2,
+     fill:proposedFlag?"#614b32":"#163d63"});
+   const title=el("title",{},x.ref+" at "+x.x+", "+x.y+" mm "+(proposedFlag?"proposed":"current"));
+   dot.append(title);g.append(dot);
+   const label=el("text",{x:sx(x.x)+10,y:sy(x.y)-13,fill:"#eef8ff","font-size":13,
+      "font-family":"system-ui, sans-serif"},x.ref+(proposedFlag&&view!=="proposed"?"′":""));
+   g.append(label);b.append(g);
+  }
+ }
+ if(current)dots(DATA.current,false);
+ if(proposed)dots(DATA.proposed,true);
+}
+function update(){
+ document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===view)));
+ $("nativeArtwork").dataset.view=view;
+ draw();
+}
+for(const btn of document.querySelectorAll("[data-view]")){
+ btn.addEventListener("click",()=>{view=btn.dataset.view;update();});
+}
+function init(){
+ $("nativeCurrent").src=DATA.native_svg.current.uri;
+ $("nativeProposed").src=DATA.native_svg.proposed.uri;
+ $("nativeArtEvidence").textContent="Native KiCad vector SHA current "+DATA.native_svg.current.sha256.slice(0,16)+"… · proposed "+DATA.native_svg.proposed.sha256.slice(0,16)+"…";
+ const ch=DATA.changed[0];
+ $("changeTitle").textContent=ch.ref+" · footprint relocation";
+ $("changeExplanation").textContent=
+ "Real KiCad anchor: ("+ch.old_mm.join(", ")+") → ("+ch.new_mm.join(", ")+") mm; Δ ("+ch.delta_mm.join(", ")+") mm. "+ch.pad_count+" original pads checked for unchanged nets and translation.";
+ $("changedCount").textContent=String(DATA.changed.length);
+ $("newDrc").textContent=String(DATA.drc.new_drc_rules);
+ $("openDrc").textContent=DATA.drc.before_open+" → "+DATA.drc.after_open;
+ $("riskMessage").textContent="Native PCB DRC unchanged is not electrical, mechanical, or manufacturing approval. "+DATA.drc.ignored_checks+" KiCad checks ignored by the project.";
+ $("ruleCounts").textContent=DATA.drc.before_rules+" → "+DATA.drc.after_rules+" violations";
+ $("ignored").textContent=String(DATA.drc.ignored_checks);
+ $("engine").textContent=DATA.drc.engine;
+ $("stateHash").textContent=DATA.state_hash;
+ $("fromHash").textContent=DATA.source_sha256;
+ $("toHash").textContent=DATA.proposed_sha256;
+ update();
+}
+const OPTIONS=new Set(["investigate","repair_required","reject_proposal"]);
+function exportDecision(){
+ const status=$("decision").value,note=$("note").value.trim();
+ if(!OPTIONS.has(status)||note.length>600)return;
+ const payload={schema_version:1,kind:"local_unsigned_human_design_decision_not_approval",
+   source_sha256:DATA.source_sha256,proposed_sha256:DATA.proposed_sha256,
+   state_hash:DATA.state_hash,outcome:status,note,
+   fabrication_approved:false,electrically_approved:false,source_modified:false};
+ const bytes=new Blob([JSON.stringify(payload,null,2)+"\n"],{type:"application/json"});
+ const url=URL.createObjectURL(bytes),a=document.createElement("a");a.href=url;
+ a.download="zaptrace-change-review-"+DATA.state_hash.slice(0,16)+".json";document.body.append(a);
+ a.click();a.remove();URL.revokeObjectURL(url);
+ $("decisionStatus").textContent="Unsigned exact-state decision exported; no engineering authorization.";
+ return payload;
+}
+async function importDecision(file){
+ if(!file||file.size>1048576)throw Error("Decision JSON missing or too large");
+ const raw=JSON.parse(await file.text());
+ if(!raw||raw.schema_version!==1||raw.kind!=="local_unsigned_human_design_decision_not_approval"||
+    raw.source_sha256!==DATA.source_sha256||raw.proposed_sha256!==DATA.proposed_sha256||
+    raw.state_hash!==DATA.state_hash||raw.fabrication_approved!==false||
+    raw.electrically_approved!==false||raw.source_modified!==false||
+    !OPTIONS.has(raw.outcome)||typeof raw.note!=="string"||raw.note.length>600||
+    Object.keys(raw).sort().join("|")!==
+    ["schema_version","kind","source_sha256","proposed_sha256","state_hash","outcome","note","fabrication_approved","electrically_approved","source_modified"].sort().join("|")){
+  throw Error("Stale source/target state or invalid decision; nothing imported");
+ }
+ $("decision").value=raw.outcome;$("note").value=raw.note;
+ $("decisionStatus").textContent="Exact-state unsigned decision restored; no production approval.";
+ return true;
+}
+$("saveDecision").addEventListener("click",exportDecision);
+$("importDecision").addEventListener("change",async event=>{
+ try{await importDecision(event.target.files?.[0]);}
+ catch{$("decisionStatus").textContent="Import rejected: changed PCB state hash or invalid unsigned decision.";}
+ finally{event.target.value="";}
+});
+init();
+</script>
+</body>
+</html>
