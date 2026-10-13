@@ -514,6 +514,36 @@ def evidence_catalog(document: dict) -> list[dict]:
                     "summary": finding["message"],
                 }
             )
+    crossprobe = document.get("crossprobe")
+    if crossprobe is not None:
+        totals = crossprobe["totals"]
+        entries.append(
+            {
+                "id": "pin-net:summary",
+                "kind": "native_pin_pad_net_scoped_diagnostics",
+                "ref": None,
+                "rule": "scoped_pin_net_consistency_only",
+                "summary": (
+                    f"Native scoped pins: {totals['matched']} matched, "
+                    f"{totals['mismatch']} mismatched, {totals['unverifiable']} unverifiable; "
+                    "global board parity and electrical approval NOT verified"
+                ),
+            }
+        )
+        for index, finding in enumerate(crossprobe["rows"]):
+            entries.append(
+                {
+                    "id": f"pin-net:{index}",
+                    "kind": "native_pin_pad_net_scoped_diagnostics",
+                    "ref": finding["ref"],
+                    "rule": finding["reason"],
+                    "summary": (
+                        f"{finding['phase']} {finding['ref']} pin {finding['pin']}: "
+                        f"{finding['status']}; schematic {finding['schematic_net']}, "
+                        f"PCB {finding['pcb_net']}"
+                    ),
+                }
+            )
     return entries
 
 
@@ -597,6 +627,39 @@ def create_review(
         if schematic_source is not None and schematic_candidate is not None
         else None
     )
+    crossprobe = None
+    if schematic is not None:
+        from review_studio_pin_net_crossprobe import scoped_pin_net_crossprobe
+
+        prefix = output.with_suffix("")
+        net_before = prefix.with_name(prefix.name + ".sch-before-netlist.xml")
+        net_after = prefix.with_name(prefix.name + ".sch-after-netlist.xml")
+        expected_net_digests = schematic["native_export_sha256"]
+        if (
+            digest(net_before) != expected_net_digests["netlist_before"]
+            or digest(net_after) != expected_net_digests["netlist_after"]
+        ):
+            raise ValueError("Native KiCad exported netlist bytes changed during crossprobe")
+        pcb_pro = rule_context["project_sha256"]
+        pcb_dru = rule_context["custom_rules_sha256"]
+        project_linked = (
+            pcb_pro is not None
+            and pcb_pro == schematic["project_sha256"]
+            and pcb_dru == schematic["custom_rules_sha256"]
+        )
+        crossprobe = scoped_pin_net_crossprobe(
+            net_before,
+            net_after,
+            before,
+            after,
+            [change["ref"] for change in changes],
+            project_rules_crosslinked=project_linked,
+        )
+        if (
+            digest(net_before) != expected_net_digests["netlist_before"]
+            or digest(net_after) != expected_net_digests["netlist_after"]
+        ):
+            raise ValueError("Native netlist changed while crossprobe was evaluated")
     before_vector = native_svg(source, output.with_suffix(".current.svg"))
     after_vector = native_svg(candidate, output.with_suffix(".proposed.svg"))
     verified_rule_context(source, candidate, proof)
@@ -647,6 +710,9 @@ def create_review(
         "electrically_approved": False,
         "schematic_erc_verified": schematic is not None,
     }
+    # Preserve legacy PCB-only state identity with no optional schematic supplied.
+    if crossprobe is not None:
+        document["crossprobe"] = crossprobe
     document["audit_evidence_catalog"] = evidence_catalog(document)
     document["state_hash"] = canonical_decision_hash(document)
     template = TEMPLATE.read_text()

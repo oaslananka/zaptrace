@@ -61,6 +61,10 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 .sch-selection{border:1px solid var(--border);border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
 #schZoom{width:min(100%,330px);vertical-align:middle}
 #changeExplanation{white-space:pre-line}
+#pinNetResults{max-height:310px;margin:12px 0}
+#pinNetResults button[aria-current="true"]{border:2px solid #84d4ff;background:#265275}
+#pinNetResults:empty{display:none}
+
 #pcbChangePicker{margin:12px 0;display:flex;gap:9px;flex-wrap:wrap;max-height:none}
 #pcbChangePicker[hidden],#pcbSelectedDetail[hidden]{display:none}
 #pcbChangePicker button{flex:1 1 145px}
@@ -83,6 +87,15 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
  aria-label="Select an individually verified footprint movement" hidden></div>
 <p id="pcbSelectedDetail" class="sch-selection" tabindex="-1" aria-live="polite" hidden></p>
 
+<section id="pinNetPanel" class="sch-panel" aria-labelledby="pinNetTitle">
+ <div class="overline">04 / Source-linked schematic pin → PCB pad/net crossprobe</div>
+ <h3 id="pinNetTitle">Exact KiCad connectivity check · scope limited to moved footprints</h3>
+ <p class="notice" id="pinNetStatus">Not checked. No source-linked schematic netlist pair supplied.</p>
+ <p id="pinNetScope" class="muted">Without named nets and matching pin/pad numbers, electrical mapping is unverifiable, never approved.</p>
+ <div id="pinNetResults" class="sch-findings-list" role="group" aria-label="Choose native pin, pad and net diagnostic"></div>
+ <div id="pinNetSelected" class="sch-selection" tabindex="-1" aria-live="polite">Choose an actual native diagnostic to see its source, pad and net identity.</div>
+ <p class="muted">An exact match within moved references is NOT full board-to-schematic parity, ERC clearance, signed approval or fabrication permission.</p>
+</section>
 <div class="metric-grid">
  <div class="metric"><small>Changed footprints</small><strong id="changedCount">—</strong></div>
  <div class="metric"><small>New KiCad DRC violations</small><strong id="newDrc">—</strong></div>
@@ -479,6 +492,48 @@ function auditUpdate(){
   "Unattested browser-local elapsed "+elapsed+" ms · first evidence "+
   (localAudit.first===null?"not inspected":localAudit.first+" ms")+" · trustworthy decision time NOT MEASURED";
 }
+function initPinNetCrossprobe(){
+ const cp=DATA.crossprobe;
+ if(!cp){$("pinNetPanel").dataset.status="not-checked";return;}
+ const counts=cp.totals;
+ const status=cp.scoped_pin_net_consistent?"scoped-match":
+   counts.mismatch?"mismatch":"unverifiable";
+ $("pinNetPanel").dataset.status=status;
+ $("pinNetStatus").textContent=
+  "Exact native pin/pad/net crossprobe: "+status.toUpperCase()+" · "+
+  counts.matched+" matched · "+counts.mismatch+" mismatched · "+
+  counts.unverifiable+" unverifiable. Full PCB/schematic parity: NOT VERIFIED.";
+ $("pinNetScope").textContent=cp.scope+
+  " · No electrical approval. "+(cp.reasons_when_unverified.length?
+   "Blocking reasons: "+cp.reasons_when_unverified.join(", "):"All scoped pins named and matched; broader design still unverified.");
+ for(const [index,entry] of cp.rows.entries()){
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent=entry.phase.toUpperCase()+" · "+entry.ref+
+    " pin "+(entry.pin||"unknown")+" · "+entry.status.toUpperCase()+
+    " · "+entry.reason;
+  button.setAttribute("aria-current","false");
+  button.addEventListener("click",()=>{
+   for(const other of $("pinNetResults").querySelectorAll("button"))
+    other.setAttribute("aria-current",String(other===button));
+   $("pinNetSelected").textContent="Native "+entry.phase+
+    " state · component "+entry.ref+" · KiCad pin / pad "+(entry.pin||"unavailable")+
+    "\nSchematic named net: "+(entry.schematic_net??"UNVERIFIABLE")+
+    "\nActual PCB pad net: "+(entry.pcb_net??"UNVERIFIABLE")+
+    "\nResult: "+entry.status.toUpperCase()+" · "+entry.reason+
+    "\nMatching ref labels cannot prove electrical, routing or physical PCB parity.";
+   const move=[...document.querySelectorAll("#pcbChangePicker button")].find(
+    node=>node.textContent.startsWith(entry.ref+" ·"));
+   if(move)move.click();
+   const itemId="pin-net:"+index;
+   if([...$("auditEvidenceSelect").options].some(x=>x.value===itemId))
+    $("auditEvidenceSelect").value=itemId;
+   // Selection never counts as "inspected": explicit audit action is still required.
+   $("pinNetSelected").focus();
+  });
+  $("pinNetResults").append(button);
+ }
+}
 function initAudit(){
  const selector=$("auditEvidenceSelect");
  for(const item of DATA.audit_evidence_catalog){
@@ -579,6 +634,7 @@ $("importDecision").addEventListener("change",async event=>{
 });
 init();
 initAudit();
+initPinNetCrossprobe();
 </script>
 </body>
 </html>
