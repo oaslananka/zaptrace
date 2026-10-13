@@ -33,6 +33,11 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert summary["tracks"] == summary["zones"] == 0
     assert summary["unconnected"] > 0
     assert summary["drc_findings"] > 0
+    assert all(
+        native["drc_violations_by_type"].get(rule, 0) == 0
+        for rule in ("shorting_items", "clearance", "solder_mask_bridge")
+    )
+    assert summary["unconnected"] >= 40
     assert native["schematic_connected_pin_net_subset_verified"]
     assert native["all_physical_nets_verified_against_source"]
     assert native["uuid_path_parity"]["verified"]

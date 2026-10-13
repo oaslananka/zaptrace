@@ -10,6 +10,10 @@ import tempfile
 from pathlib import Path
 
 from scripts.ai_native_pilot_kicad_lib import prepare_pilot_kicad_libraries
+from scripts.ai_native_pilot_placement_geometry import (
+    place_gct_receptacle_at_provisional_board_edge,
+    require_pinned_physical_packages,
+)
 from zaptrace.algo.placer import place_components
 from zaptrace.core.models import Design
 from zaptrace.export.kicad import export_kicad_pcb, export_kicad_schematic
@@ -51,6 +55,7 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
     if design.components["J1"].footprint_def != resolve_verified_footprint("usb4105-16p"):
         raise ValueError("USB-C geometry does not match independent pinned GCT original")
     source_nets = {key: value.model_dump(mode="json") for key, value in design.nets.items()}
+    verified_packages = require_pinned_physical_packages(design)
     resolved = resolve_footprints(design)
     if not resolved.fully_resolved or len(resolved.resolved) != 12:
         raise ValueError("All 12 physical footprint inventories are required")
@@ -58,6 +63,7 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
     if set(proposed) != set(design.components):
         raise ValueError("Placement omitted a component")
     design.placement = proposed
+    connector_edge = place_gct_receptacle_at_provisional_board_edge(design)
     with tempfile.TemporaryDirectory(prefix=".zaptrace-pcb-place-", dir=dest.parent) as tmp:
         stage = Path(tmp)
         prepare_pilot_kicad_libraries(design, stage)
@@ -85,6 +91,8 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
             "source_candidate_pcb_not_previously_present": True,
             "placement_algorithm": "zaptrace.algo.placer.place_components",
             "physical_footprints_resolved": resolved.to_dict(),
+            "physically_source_checked_packages": verified_packages,
+            "provisional_usb_c_board_edge": connector_edge,
             "native": native,
             "artifact_sha256": {
                 f.relative_to(stage).as_posix(): sha(f)
