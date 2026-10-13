@@ -8,6 +8,7 @@ import base64
 import hashlib
 import json
 import math
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -197,7 +198,114 @@ def native_svg(board: Path, output: Path) -> dict:
     }
 
 
-def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -> dict:
+def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> dict:
+    """Optional native *netlist/ERC* comparison; never asserts PCB synchronization.
+
+    An exported KiCad netlist does not attest to drawing/layout geometry,
+    hidden implementation rules, or a qualified electrical review.
+    """
+    inputs = (source, candidate)
+    if any(
+        p.is_symlink() or not p.is_file() or p.suffix != ".kicad_sch" or p.stat().st_size > 4_000_000 for p in inputs
+    ):
+        raise ValueError("Unsafe, missing or oversized native schematic input")
+    source, candidate = (p.resolve(strict=True) for p in inputs)
+    if source == candidate or output.resolve() in (source, candidate):
+        raise ValueError("Schematic comparison requires two separate source files")
+    start = (digest(source), digest(candidate))
+    sidecars = {}
+    for suffix, max_size in ((".kicad_pro", 3_000_000), (".kicad_dru", 1_000_000)):
+        hashes = []
+        for sch in (source, candidate):
+            sidecar = sch.with_suffix(suffix)
+            if sidecar.is_symlink() or (sidecar.exists() and not sidecar.is_file()):
+                raise ValueError("Unsafe native schematic project-rule sidecar")
+            if sidecar.exists() and sidecar.stat().st_size > max_size:
+                raise ValueError("Oversized native schematic project-rule sidecar")
+            hashes.append(digest(sidecar) if sidecar.exists() else None)
+        if hashes[0] != hashes[1]:
+            raise ValueError("Native schematic source/proposal project-rule bytes differ")
+        sidecars[suffix] = hashes[0]
+
+    from review_studio_schematic_eco import _erc, _netlist, _snapshot
+
+    cli = shutil.which("kicad-cli")
+    if not cli:
+        raise RuntimeError("Native KiCad CLI required for schematic semantic comparison")
+    # Distinct outputs from the PCB DRC and source files; source inputs read only.
+    prefix = output.with_suffix("")
+    before_net = prefix.with_name(prefix.name + ".sch-before-netlist.xml")
+    after_net = prefix.with_name(prefix.name + ".sch-after-netlist.xml")
+    before_erc = prefix.with_name(prefix.name + ".sch-before-erc.rpt")
+    after_erc = prefix.with_name(prefix.name + ".sch-after-erc.rpt")
+    comps0, nets0 = _snapshot(_netlist(cli, source, before_net))
+    comps1, nets1 = _snapshot(_netlist(cli, candidate, after_net))
+    erc0, erc1 = _erc(cli, source, before_erc), _erc(cli, candidate, after_erc)
+    if not comps0 or not comps1:
+        raise ValueError("Native schematic netlist lacks reviewable components")
+
+    changed_values = [
+        {"ref": ref, "before": comps0[ref]["value"], "after": comps1[ref]["value"]}
+        for ref in sorted(comps0.keys() & comps1.keys())
+        if comps0[ref]["value"] != comps1[ref]["value"]
+    ]
+    metadata_changed = [
+        ref for ref in sorted(comps0.keys() & comps1.keys()) if comps0[ref]["unchanged"] != comps1[ref]["unchanged"]
+    ]
+
+    def named_nets(rows: list[tuple]) -> dict:
+        names = {name: nodes for name, nodes in rows}
+        if len(names) != len(rows) or None in names:
+            raise ValueError("Ambiguous KiCad exported net names")
+        return names
+
+    net0, net1 = named_nets(nets0), named_nets(nets1)
+    changed_nets = sorted(name for name in net0.keys() | net1.keys() if net0.get(name) != net1.get(name))
+    if (digest(source), digest(candidate)) != start:
+        raise ValueError("Schematic source changed during native comparison")
+    for suffix in sidecars:
+        for sch in (source, candidate):
+            sidecar = sch.with_suffix(suffix)
+            if sidecar.is_symlink() or (digest(sidecar) if sidecar.is_file() else None) != sidecars[suffix]:
+                raise ValueError("Schematic native rule sidecar changed during verification")
+    return {
+        "kind": "native_kicad_exported_netlist_and_erc_only",
+        "source_sha256": start[0],
+        "proposed_sha256": start[1],
+        "project_sha256": sidecars[".kicad_pro"],
+        "custom_rules_sha256": sidecars[".kicad_dru"],
+        "added_components": sorted(comps1.keys() - comps0.keys()),
+        "removed_components": sorted(comps0.keys() - comps1.keys()),
+        "changed_values": changed_values,
+        "changed_metadata_refs": metadata_changed,
+        "changed_nets": changed_nets,
+        "erc_before": {"total": erc0[0], "errors": erc0[1], "warnings": erc0[2]},
+        "erc_after": {"total": erc1[0], "errors": erc1[1], "warnings": erc1[2]},
+        "native_export_sha256": {
+            "netlist_before": digest(before_net),
+            "netlist_after": digest(after_net),
+            "erc_before": digest(before_erc),
+            "erc_after": digest(after_erc),
+        },
+        "pcb_schematic_parity_verified": False,
+        "electrical_approval": False,
+        "scope": (
+            "KiCad native exported component/netlist semantics and ERC counters only; "
+            "drawing geometry and PCB synchronization not established"
+        ),
+    }
+
+
+def create_review(
+    source: Path,
+    candidate: Path,
+    evidence: Path,
+    output: Path,
+    schematic_source: Path | None = None,
+    schematic_candidate: Path | None = None,
+) -> dict:
+    if (schematic_source is None) != (schematic_candidate is None):
+        raise ValueError("Both native schematic source and candidate must be provided together")
     source, candidate, evidence = (p.resolve(strict=True) for p in (source, candidate, evidence))
     if source == candidate or output.resolve() in (source, candidate, evidence):
         raise ValueError("ECO reviewer must not edit or compare the same source file")
@@ -227,9 +335,31 @@ def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -
         raise ValueError("Input board or ECO evidence changed during native verification")
     if any(proof.get("native_drc", {}).get(key) != value for key, value in native_result.items()):
         raise ValueError("Fresh independent KiCad DRC differs from ECO evidence")
+    schematic = (
+        native_schematic_comparison(schematic_source, schematic_candidate, output)
+        if schematic_source is not None and schematic_candidate is not None
+        else None
+    )
     before_vector = native_svg(source, output.with_suffix(".current.svg"))
     after_vector = native_svg(candidate, output.with_suffix(".proposed.svg"))
     verified_rule_context(source, candidate, proof)
+    if schematic is not None and schematic_source is not None and schematic_candidate is not None:
+        native_schematic_comparison_inputs = (schematic_source, schematic_candidate)
+        for sch_input in native_schematic_comparison_inputs:
+            for suffix, key in ((".kicad_pro", "project_sha256"), (".kicad_dru", "custom_rules_sha256")):
+                sidecar = sch_input.with_suffix(suffix)
+                actual = digest(sidecar) if sidecar.is_file() and not sidecar.is_symlink() else None
+                if sidecar.is_symlink() or (sidecar.exists() and not sidecar.is_file()) or actual != schematic[key]:
+                    raise ValueError("Schematic KiCad rule context changed during review rendering")
+        if any(
+            digest(p) != s
+            for p, s in zip(
+                native_schematic_comparison_inputs,
+                (schematic["source_sha256"], schematic["proposed_sha256"]),
+                strict=True,
+            )
+        ):
+            raise ValueError("Schematic state changed during review rendering")
     document = {
         "schema_version": 1,
         "kind": "unsigned_local_design_change_decision_not_approval",
@@ -243,6 +373,7 @@ def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -
         "current": before["footprints"],
         "proposed": after["footprints"],
         "changed": changes,
+        "schematic": schematic,
         "rule_context": rule_context,
         "board_origin_mm": before["origin"],
         "board_size_mm": before["size"],
@@ -255,7 +386,7 @@ def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -
         "approval_supported": False,
         "fabrication_approved": False,
         "electrically_approved": False,
-        "schematic_erc_verified": False,
+        "schematic_erc_verified": schematic is not None,
     }
     document["state_hash"] = hashlib.sha256(
         json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
@@ -273,8 +404,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "candidate", "evidence", "output"):
         parser.add_argument("--" + name, required=True, type=Path)
+    parser.add_argument("--schematic-source", type=Path)
+    parser.add_argument("--schematic-candidate", type=Path)
     args = parser.parse_args()
-    result = create_review(args.source, args.candidate, args.evidence, args.output)
+    result = create_review(
+        args.source,
+        args.candidate,
+        args.evidence,
+        args.output,
+        args.schematic_source,
+        args.schematic_candidate,
+    )
     print("REAL_KICAD_ECO_BEFORE_AFTER_STATE_BOUND_REVIEW=PASS", result["state_hash"])
 
 

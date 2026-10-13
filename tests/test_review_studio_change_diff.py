@@ -227,3 +227,88 @@ def test_rule_context_screens_make_hashes_visible_but_never_approve() -> None:
         assert evidence in screen
     assert "Approve / fabricate (unavailable)" in screen
     assert "does not independently certify all effective KiCad rules" in screen
+
+
+def test_native_schematic_diff_rejects_unpaired_inputs(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Both native schematic"):
+        change.create_review(
+            tmp_path / "source.kicad_pcb",
+            tmp_path / "after.kicad_pcb",
+            tmp_path / "evidence.json",
+            tmp_path / "review.html",
+            schematic_source=tmp_path / "before.kicad_sch",
+        )
+
+
+def test_schematic_semantic_screen_exposes_limitations_without_approving() -> None:
+    screen = change.TEMPLATE.read_text()
+    for required in (
+        'id="schErc"',
+        'id="schChanges"',
+        "sch.erc_before.errors",
+        "sch.erc_after.errors",
+        "sch.changed_nets",
+        "sch.changed_values",
+        "PCB parity not verified",
+        "No native schematic source",
+    ):
+        assert required in screen
+    assert "Approve / fabricate (unavailable)" in screen
+
+
+def test_native_schematic_comparison_real_value_delta_and_erc(tmp_path: Path) -> None:
+    import hashlib
+    import shutil
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Native KiCad 10 required for real schematic/erc acceptance")
+    from review_studio_schematic_eco import propose
+
+    fixture = ROOT / "tests/fixtures/review_studio_native_eco_sensor.kicad_sch"
+    before = tmp_path / "a" / "sensor.kicad_sch"
+    after = tmp_path / "b" / "sensor.kicad_sch"
+    for file in (before, after):
+        file.parent.mkdir()
+        file.write_bytes(fixture.read_bytes())
+    revision, original = propose(before.read_text(), "R1", "10k")
+    assert original == "4.7k"
+    after.write_text(revision)
+    start = (hashlib.sha256(before.read_bytes()).hexdigest(), hashlib.sha256(after.read_bytes()).hexdigest())
+    result = change.native_schematic_comparison(before, after, tmp_path / "review.html")
+    assert (result["source_sha256"], result["proposed_sha256"]) == start
+    assert result["changed_values"] == [{"ref": "R1", "before": "4.7k", "after": "10k"}]
+    assert result["changed_nets"] == []
+    assert result["added_components"] == result["removed_components"] == []
+    assert result["changed_metadata_refs"] == []
+    assert result["erc_before"] == result["erc_after"]
+    assert result["pcb_schematic_parity_verified"] is False
+    assert result["electrical_approval"] is False
+    assert len(result["native_export_sha256"]) == 4
+    assert before.read_bytes() == fixture.read_bytes()
+    assert (hashlib.sha256(before.read_bytes()).hexdigest(), hashlib.sha256(after.read_bytes()).hexdigest()) == start
+
+
+@pytest.mark.parametrize("variant", ["project_drift", "symlink", "oversized"])
+def test_native_schematic_rule_context_fails_closed(tmp_path: Path, variant: str) -> None:
+    from review_studio_schematic_eco import propose
+
+    fixture = ROOT / "tests/fixtures/review_studio_native_eco_sensor.kicad_sch"
+    before = tmp_path / "a" / "sensor.kicad_sch"
+    after = tmp_path / "b" / "sensor.kicad_sch"
+    for file in (before, after):
+        file.parent.mkdir()
+        file.write_bytes(fixture.read_bytes())
+    after.write_text(propose(after.read_text(), "R1", "10k")[0])
+    before.with_suffix(".kicad_pro").write_bytes(b"first")
+    if variant == "project_drift":
+        after.with_suffix(".kicad_pro").write_bytes(b"different")
+        error = "project-rule bytes differ"
+    elif variant == "symlink":
+        after.with_suffix(".kicad_pro").symlink_to(before.with_suffix(".kicad_pro"))
+        error = "Unsafe native schematic"
+    else:
+        after.with_suffix(".kicad_pro").write_bytes(b"x" * 3_000_001)
+        error = "Oversized native schematic"
+    with pytest.raises(ValueError, match=error):
+        change.native_schematic_comparison(before, after, tmp_path / "review.html")
+    assert not (tmp_path / "review.sch-before-netlist.xml").exists()

@@ -69,7 +69,7 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 </div>
 <svg id="board" viewBox="0 0 800 430" role="img" aria-label="Source-backed current and proposed footprint anchor locations; no trace or 3D geometry shown"></svg>
 <div class="legend"><span><i class="swatch old"></i>Current anchor</span><span><i class="swatch new"></i>Proposed anchor</span><span>Dashed vector = measured movement</span></div>
-<p class="muted">Only actual KiCad footprint anchors are plotted. Routing geometry, clearances, board fabrication and schematic/ERC are not inferred from this diagram.</p>
+<p class="muted">Only actual KiCad footprint anchors are plotted. Routing geometry, clearances, board fabrication and schematic/ERC are not inferred from this PCB anchor diagram.</p>
 <details><summary>Exact file identities and stale-decision boundary</summary>
  <p><strong>Review state:</strong> <code id="stateHash"></code></p>
  <p><strong>Original PCB SHA-256:</strong> <code id="fromHash"></code></p>
@@ -87,7 +87,17 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <div class="row"><span>Matching project SHA-256</span><code id="projectDigest"></code></div>
 <div class="row"><span>Matching custom rules SHA-256</span><code id="rulesDigest"></code></div>
 <div class="row"><span>Native custom-rule loader probe</span><strong id="ruleProbe"></strong></div>
-<div class="row"><span>Schematic ERC</span><strong>Not checked</strong></div>
+<div class="row"><span>Native schematic ERC</span><strong id="schErc">Not checked</strong></div>
+<div class="row"><span>KiCad component/net semantic changes</span><strong id="schSummary">Not checked</strong></div>
+<details aria-label="Native schematic and ERC semantic evidence">
+ <summary>Schematic / ERC evidence and limitations</summary>
+ <p id="schScope" class="muted">No native schematic source and proposed pair supplied; no ERC or electrical parity claim.</p>
+ <div class="row"><span>Original schematic SHA-256</span><code id="schBeforeSha">Not checked</code></div>
+ <div class="row"><span>Proposed schematic SHA-256</span><code id="schAfterSha">Not checked</code></div>
+ <div class="row"><span>KiCad project SHA-256</span><code id="schProjectSha">Not checked</code></div>
+ <p id="schNetSummary" class="muted"></p>
+ <ul id="schChanges"></ul>
+</details>
 <div class="row"><span>Electrical approval</span><strong>Not approved</strong></div>
 <div class="row"><span>STEP fit / assembly</span><strong>Not checked</strong></div>
 <div class="row"><span>Fabrication authorization</span><strong>Blocked</strong></div>
@@ -184,6 +194,36 @@ function init(){
  $("ruleContext").textContent=DATA.rule_context.mode.replaceAll("_"," ");
  $("projectDigest").textContent=DATA.rule_context.project_sha256||"No project file provided";
  $("rulesDigest").textContent=DATA.rule_context.custom_rules_sha256||"No custom rules provided";
+ const sch=DATA.schematic;
+ if(sch){
+  $("schErc").textContent=sch.erc_before.errors+" errors / "+sch.erc_before.warnings+
+   " warnings → "+sch.erc_after.errors+" errors / "+sch.erc_after.warnings+" warnings";
+  const deltas=sch.changed_values.length+sch.added_components.length+sch.removed_components.length+
+   sch.changed_metadata_refs.length+sch.changed_nets.length;
+  $("schSummary").textContent=deltas+" reported deltas · PCB parity not verified";
+  $("schScope").textContent=sch.scope+"; ERC only includes enabled checks.";
+  $("schBeforeSha").textContent=sch.source_sha256;
+  $("schAfterSha").textContent=sch.proposed_sha256;
+  $("schProjectSha").textContent=sch.project_sha256||"No KiCad project sidecar";
+  $("schNetSummary").textContent="Changed nets: "+sch.changed_nets.length+
+    " · Added components: "+sch.added_components.length+
+    " · Removed components: "+sch.removed_components.length+
+    " · Other component metadata changes: "+sch.changed_metadata_refs.length;
+  const items=[
+   ...sch.changed_values.map(x=>x.ref+": value "+x.before+" → "+x.after),
+   ...sch.changed_nets.map(x=>"Net changed: "+x),
+   ...sch.added_components.map(x=>"Added component: "+x),
+   ...sch.removed_components.map(x=>"Removed component: "+x),
+   ...sch.changed_metadata_refs.map(x=>"Component metadata changed: "+x)
+  ];
+  if(!items.length)items.push("No exported netlist semantic changes detected; drawing and PCB remain unverified.");
+  for(const item of items.slice(0,40)){
+   const li=document.createElement("li");li.textContent=item;$("schChanges").append(li);
+  }
+  if(items.length>40){
+   const li=document.createElement("li");li.textContent=(items.length-40)+" additional deltas; inspect native exported evidence.";$("schChanges").append(li);
+  }
+ }
  $("ruleProbe").textContent=DATA.rule_context.custom_rule_loader_probe_passed?"KiCad loading demonstrated; full rule semantics unverified":"Not performed / not applicable";
  $("stateHash").textContent=DATA.state_hash;
  $("fromHash").textContent=DATA.source_sha256;
