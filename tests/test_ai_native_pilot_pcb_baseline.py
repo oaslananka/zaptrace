@@ -48,6 +48,11 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert len({f["uuid"] for f in native["footprints"]}) == 12
     all_pads = [pad for fp in native["footprints"] for pad in fp["pads"]]
     assert len({pad["uuid"] for pad in all_pads}) == 100
+    art = native["usb_c_manufacturer_art"]
+    assert art["source_sha256"] == "db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c"
+    assert art["graphical_items"] == 7
+    assert art["three_d_model_qualified"] is False
+    assert art["manufacturer_mating_approved"] is False
     sensor = next(fp for fp in native["footprints"] if fp["ref"] == "U3")
     thermal_pad = next(p for p in sensor["pads"] if p["number"] == "9")
     assert thermal_pad["front_paste"] is False

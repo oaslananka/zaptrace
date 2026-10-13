@@ -20,6 +20,66 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _restore_verified_usb_c_art(folder: Path, components: dict, board: pcb.BOARD) -> dict:
+    """Copy original vendor graphics only; never replace physical pads or PCB nets."""
+    comp = components["J1"]
+    if (
+        comp.get("mpn") != "USB4105-15-A-120"
+        or comp.get("footprint_def", {}).get("source")
+        != "KiCad:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal"
+    ):
+        raise ValueError("Untrusted USB-C footprint source")
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "data/footprints/vendor"
+        / "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal.kicad_mod"
+    )
+    expected_sha = "db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c"
+    if source.is_symlink() or sha(source) != expected_sha:
+        raise ValueError("Pinned USB-C mechanical artwork changed")
+    original = pcb.FootprintLoad(str(source.parent), source.stem)
+    library_dir = folder / "ZapTracePilot.pretty"
+    library_file = library_dir / "ZT_J1.kicad_mod"
+    if library_dir.is_symlink() or library_file.is_symlink():
+        raise ValueError("Unsafe generated USB-C footprint path")
+    library = pcb.FootprintLoad(str(library_dir), "ZT_J1")
+    matches = [fp for fp in board.GetFootprints() if fp.GetReference() == "J1"]
+    if original is None or library is None or len(matches) != 1:
+        raise ValueError("Missing USB-C geometry")
+    instance = matches[0]
+    artwork = list(original.GraphicalItems())
+    if (
+        len(artwork) != 7
+        or list(library.GraphicalItems())
+        or list(instance.GraphicalItems())
+        or len(list(original.Pads())) != 22
+        or len(list(library.Pads())) != 22
+        or len(list(instance.Pads())) != 22
+        or abs(instance.GetOrientationDegrees()) > 1e-6
+    ):
+        raise ValueError("Unexpected native USB-C artwork, pads or orientation")
+    before = {pad.m_Uuid.AsString(): (pad.GetNumber(), pad.GetNetname()) for pad in instance.Pads()}
+    for item in artwork:
+        library.Add(item.Duplicate())
+        placed = item.Duplicate()
+        placed.Move(instance.GetPosition())
+        instance.Add(placed)
+    pcb.FootprintSave(str(library_dir), library)
+    saved = pcb.FootprintLoad(str(library_dir), "ZT_J1")
+    if (
+        saved is None
+        or len(list(saved.GraphicalItems())) != 7
+        or before != {pad.m_Uuid.AsString(): (pad.GetNumber(), pad.GetNetname()) for pad in instance.Pads()}
+    ):
+        raise ValueError("Native USB-C artwork copy damaged footprint parity")
+    return {
+        "source_sha256": expected_sha,
+        "graphical_items": 7,
+        "three_d_model_qualified": False,
+        "manufacturer_mating_approved": False,
+    }
+
+
 def audit(folder: Path) -> dict:
     source = folder / "placed-design.json"
     design = json.loads(source.read_text())
@@ -43,6 +103,7 @@ def audit(folder: Path) -> dict:
             fp.SetFPID(pcb.LIB_ID("ZapTracePilot", "ZT_" + ref))
         if fp.GetFPIDAsString() != expected_id:
             raise ValueError("Physical footprint library ID is not source linked")
+    vendor_art = _restore_verified_usb_c_art(folder, components, board)
     if not pcb.SaveBoard(str(board_file), board):
         raise ValueError("Native KiCad PCB save failed")
     board = pcb.LoadBoard(str(board_file))
@@ -51,6 +112,16 @@ def audit(folder: Path) -> dict:
     refs = {fp.GetReference(): fp for fp in board.GetFootprints()}
     if len(refs) != len(components) or set(refs) != set(components):
         raise ValueError("Native KiCad PCB lost a component on save/reload")
+    graphics = list(refs["J1"].GraphicalItems())
+    edge_lines = [item for item in graphics if isinstance(item, pcb.PCB_SHAPE) and item.GetLayer() == pcb.Dwgs_User]
+    if len(graphics) != 7 or len(edge_lines) != 1:
+        raise ValueError("USB-C drawing was lost in native KiCad PCB")
+    edge = edge_lines[0]
+    edge_endpoints = sorted(
+        (round(pcb.ToMM(point.x), 5), round(pcb.ToMM(point.y), 5)) for point in (edge.GetStart(), edge.GetEnd())
+    )
+    if edge_endpoints != [(45.0, 80.0), (55.0, 80.0)]:
+        raise ValueError("Verified USB-C PCB edge art does not coincide with outline")
     expected_node_nets: dict[tuple[str, str], str] = {}
     for net in nets.values():
         for node in net["nodes"]:
@@ -203,6 +274,7 @@ def audit(folder: Path) -> dict:
         "physical_copper_routing_verified": False,
         "pcb_drc_passed": False,
         "fabrication_approved": False,
+        "usb_c_manufacturer_art": vendor_art,
     }
 
 
