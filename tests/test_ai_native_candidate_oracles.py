@@ -54,3 +54,100 @@ def test_native_kicad_report_and_missing_simulation_remain_unapproved(tmp_path: 
         assert result["native_erc"]["ignored_checks"] or (
             result["native_erc"]["errors"] or result["native_erc"]["warnings"]
         )
+
+
+def test_portable_native_library_reimports_every_pad_including_mask(tmp_path: Path) -> None:
+    from scripts.ai_native_pilot_kicad_lib import prepare_pilot_kicad_libraries
+    from zaptrace.core.models import Design
+    from zaptrace.kicad.importer import load_kicad_footprint
+    from zaptrace.synthesis.candidate import compile_intent
+    from zaptrace.synthesis.footprint_resolver import resolve_footprints
+
+    source_design, _ = compile_intent(INTENT)
+    source_hash = hashlib.sha256(json.dumps(source_design.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+    design = Design.model_validate(source_design.model_dump(mode="json"))
+    assert resolve_footprints(design).fully_resolved
+    folder = tmp_path / "kicad"
+    folder.mkdir()
+    library = prepare_pilot_kicad_libraries(design, folder)
+    assert len(library) == 12
+    assert (folder / "fp-lib-table").is_file()
+    assert len(list((folder / "ZapTracePilot.pretty").glob("*.kicad_mod"))) == 12
+    sensor = load_kicad_footprint(folder / "ZapTracePilot.pretty/ZT_U3.kicad_mod")
+    assert sensor is not None
+    source_sensor = design.components["U3"].footprint_def
+    assert source_sensor is not None
+    assert any(pad.id == "9" and not pad.solder_paste for pad in sensor.pads)
+    assert any(pad.id == "9" and not pad.solder_paste for pad in source_sensor.pads)
+    assert all(item["status"].endswith("not_fabrication_approved") for item in library)
+    assert (
+        hashlib.sha256(json.dumps(source_design.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+        == source_hash
+    )
+
+
+def test_pilot_native_library_rejects_unresolved_geometry_or_malicious_pad_id(tmp_path: Path) -> None:
+    from scripts.ai_native_pilot_kicad_lib import prepare_pilot_kicad_libraries
+    from zaptrace.synthesis.candidate import compile_intent
+    from zaptrace.synthesis.footprint_resolver import resolve_footprints
+
+    design, _ = compile_intent(INTENT)
+    assert resolve_footprints(design).fully_resolved
+    design.components["C1"].footprint_def.pads[0].id = '1") (pad "FAKE'
+    folder = tmp_path / "invalid"
+    folder.mkdir()
+    with pytest.raises(ValueError, match="unsafe or anonymous physical pad"):
+        prepare_pilot_kicad_libraries(design, folder)
+
+
+def test_native_pin_pad_parser_rejects_false_match_and_preserves_true_scoped_result(tmp_path: Path) -> None:
+    from scripts.ai_native_pilot_pin_parity import crosscheck_native_pin_pad_net
+    from zaptrace.core.models import Net, NetNode
+    from zaptrace.synthesis.candidate import compile_intent
+
+    design, _ = compile_intent(INTENT)
+    design.components = {"R1": design.components["R1"]}
+    design.nets = {"CC1": Net(id="CC1", name="CC1", nodes=[NetNode(component_ref="R1", pin_name="1")])}
+    target = tmp_path / "native.xml"
+    target.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<export version="E"><design><source>isolated-native-example</source></design>'
+        '<nets><net name="CC1"><node ref="R1" pin="1"/></net></nets></export>\n'
+    )
+    correct = crosscheck_native_pin_pad_net(design, target)
+    assert correct["status"] == "scoped_pin_pad_net_match_not_engineering_approval"
+    assert correct["matched_native_nodes"] == correct["native_nodes"] == 1
+    assert correct["full_project_electrically_approved"] is False
+    target.write_text(target.read_text().replace('pin="1"', 'pin="9"'))
+    wrong = crosscheck_native_pin_pad_net(design, target)
+    assert wrong["status"] == "blocked"
+    assert "unexpected_native_net_node" in {reason["code"] for reason in wrong["reasons"]}
+    assert "expected_net_node_missing_from_native" in {reason["code"] for reason in wrong["reasons"]}
+
+
+def test_native_pilot_requires_complete_actual_component_pin_maps(tmp_path: Path) -> None:
+    from scripts.ai_native_pilot_pin_parity import crosscheck_native_pin_pad_net
+    from zaptrace.core.models import Design
+    from zaptrace.synthesis.footprint_resolver import resolve_footprints
+
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    design = Design.model_validate_json((candidate / "design.json").read_bytes())
+    assert resolve_footprints(design).fully_resolved
+    oracle = run_local_oracles(candidate, tmp_path / "oracle")
+    native_xml = tmp_path / "oracle/kicad/native-netlist.xml"
+    if oracle["native_erc"]["status"] == "not_checked":
+        pytest.skip("Native KiCad executable absent")
+    parity = crosscheck_native_pin_pad_net(design, native_xml)
+    assert parity["status"] == oracle["native_pin_pad_net_parity"]["status"] == "blocked"
+    assert parity["full_project_electrically_approved"] is False
+    assert parity["native_nodes"] == 48
+    reasons = {x["code"] for x in parity["reasons"]}
+    assert "missing_part_specific_pin_to_pad_map" in reasons
+    assert "pin_maps_to_absent_physical_pad" in reasons
+    assert "unexpected_native_net_node" in reasons
+    assert oracle["native_erc"]["errors"] == 0
+    if str(oracle["native_erc"].get("kicad_version", "")).startswith("10."):
+        assert oracle["native_erc"]["warnings"] == 0
+        assert oracle["native_erc"]["status"] == "blocked"
+    assert oracle["fabrication_approved"] is False

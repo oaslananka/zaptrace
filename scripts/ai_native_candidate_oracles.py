@@ -16,9 +16,12 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from scripts.ai_native_pilot_kicad_lib import prepare_pilot_kicad_libraries
+from scripts.ai_native_pilot_pin_parity import crosscheck_native_pin_pad_net
 from zaptrace.analysis.spice_orchestrator import orchestrate_spice
 from zaptrace.core.models import Design
 from zaptrace.export.kicad import export_kicad_schematic
+from zaptrace.synthesis.footprint_resolver import resolve_footprints
 
 
 def _sha(p: Path) -> str:
@@ -50,15 +53,34 @@ def run_local_oracles(candidate_dir: Path, output_dir: Path) -> dict[str, Any]:
     ):
         raise ValueError("Untrusted candidate status or identity")
     design = Design.model_validate_json((candidate_dir / "design.json").read_bytes())
+    footprint_resolution = resolve_footprints(design)
+    if not footprint_resolution.fully_resolved:
+        raise ValueError(
+            "No physical pad geometry for: " + ", ".join(x["ref"] for x in footprint_resolution.unresolved)
+        )
     cli = shutil.which("kicad-cli")
     with tempfile.TemporaryDirectory(prefix=".zaptrace-native-oracle-", dir=output.parent) as tmp:
         stage = Path(tmp)
         native_dir = stage / "kicad"
         native_dir.mkdir()
+        library_inventory = prepare_pilot_kicad_libraries(design, native_dir)
         files = export_kicad_schematic(design, native_dir)
         original = files["schematic"]
         native: dict[str, Any] = {"status": "not_checked", "why": "kicad_cli_unavailable"}
+        pin_parity: dict[str, Any] = {"status": "not_checked", "why": "kicad_cli_unavailable"}
         if cli is not None:
+            netlist = native_dir / "native-netlist.xml"
+            exported = subprocess.run(
+                [cli, "sch", "export", "netlist", "--format", "kicadxml", "-o", str(netlist), str(original)],
+                capture_output=True,
+                text=True,
+                timeout=90,
+                check=False,
+            )
+            if exported.returncode != 0:
+                raise ValueError("Native KiCad schematic netlist export failed")
+            pin_parity = crosscheck_native_pin_pad_net(design, netlist)
+            pin_parity["native_netlist_sha256"] = _sha(netlist)
             result = subprocess.run(
                 [
                     cli,
@@ -116,7 +138,14 @@ def run_local_oracles(candidate_dir: Path, output_dir: Path) -> dict[str, Any]:
             "kind": "local_unapproved_native_kicad_and_simulation_evidence",
             "candidate_id": manifest["candidate_id"],
             "source_sha256": manifest["files_sha256"],
+            "local_inspection_library": {
+                "component_count": len(library_inventory),
+                "geometry_resolution": footprint_resolution.to_dict(),
+                "manifest_sha256": _sha(native_dir / "portable-library-manifest.json"),
+                "status": "generated_pad_geometry_only_unqualified",
+            },
             "native_erc": native,
+            "native_pin_pad_net_parity": pin_parity,
             "simulation": {"status": simulation_status, "dc_evidence": sim_raw},
             "physical_routing_drc": "not_checked",
             "fabrication_approved": False,
