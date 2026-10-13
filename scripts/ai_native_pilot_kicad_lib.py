@@ -52,7 +52,16 @@ def _checked_native_pad_contents(component: Component, dest: Path, name: str) ->
         "  (attr smd)",
     ]
     for ordinal, pad in enumerate(geometry.pads):
-        if not _PAD_ID.fullmatch(pad.id):
+        # KiCad's SHA-pinned GCT USB4105 has two anonymous non-plated
+        # alignment holes. A blank copper/plated pad is never permitted.
+        mechanical = (
+            pad.id == ""
+            and component.mpn == "USB4105-15-A-120"
+            and not pad.plated
+            and (pad.drill is not None or pad.drill_slot is not None)
+            and geometry.source == "KiCad:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal"
+        )
+        if not _PAD_ID.fullmatch(pad.id) and not mechanical:
             raise ValueError(f"{component.ref}: unsafe or anonymous physical pad identifier")
         if not all(math.isfinite(v) and abs(v) < 10000 for v in (*pad.position, *pad.size, pad.rotation)):
             raise ValueError(f"{component.ref}: non-finite or out-of-bounds physical geometry")

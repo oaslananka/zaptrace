@@ -301,3 +301,82 @@ def test_source_pin_map_corruption_never_assigns_ldo_identity(monkeypatch) -> No
     assert design.components["U1"].mpn is None
     assert report.status == "blocked"
     assert report.internal_erc_evidence["warnings"] > 0
+
+
+def test_stm32_i2c_matches_st_datasheet_lqfp48_and_rm0008_function_map() -> None:
+    design, report = compile_intent(INTENT)
+    mcu = design.components["U2"]
+    assert mcu.mpn == "STM32F103C8T6"
+    assert len(mcu.package_pin_map) == 48
+    assert set(mcu.package_pin_map) == {str(i) for i in range(1, 49)}
+    assert mcu.package_pin_map["42"] == "PB6"
+    assert mcu.package_pin_map["43"] == "PB7"
+    assert mcu.package_pin_map["44"] == "BOOT0"
+    assert {mcu.package_pin_map[k] for k in ("23", "35", "47")} == {"GND"}
+    assert {mcu.package_pin_map[k] for k in ("24", "36", "48")} == {"VDD"}
+    assert [(n.component_ref, n.pin_name) for n in design.nets["SDA"].nodes if n.component_ref == "U2"] == [
+        ("U2", "PB7")
+    ]
+    assert [(n.component_ref, n.pin_name) for n in design.nets["SCL"].nodes if n.component_ref == "U2"] == [
+        ("U2", "PB6")
+    ]
+    assert report.status == "review_required"
+    assert report.footprint_evidence["device_pin_source_evidence"]["blockers"] == []
+    assert report.verification["fabrication_approved"] is False
+
+
+def test_usb4105_geometry_is_sha_pinned_and_reversible_power_contacts_resolve() -> None:
+    from collections import Counter
+
+    from zaptrace.kicad.verified_vendor import resolve_verified_footprint, verified_footprint_bytes
+
+    design, report = compile_intent(INTENT)
+    usb = design.components["J1"]
+    expected = resolve_verified_footprint("usb4105-16p")
+    _, trusted_bytes = verified_footprint_bytes("usb4105-16p")
+    assert len(trusted_bytes) > 1000
+    assert usb.mpn == "USB4105-15-A-120"
+    assert usb.footprint_def == expected
+    counts = Counter(pad.id for pad in usb.footprint_def.pads)
+    assert counts["S1"] == 4 and counts[""] == 2
+    assert all(counts[pin] == 1 for pin in usb.package_pin_map if pin != "S1")
+    assert all(usb.package_pin_map[pin] == "VBUS" for pin in ("A4", "A9", "B4", "B9"))
+    assert all(usb.package_pin_map[pin] == "GND" for pin in ("A1", "A12", "B1", "B12"))
+    assert usb.package_pin_map["A5"] == "CC1"
+    assert usb.package_pin_map["B5"] == "CC2"
+    assert report.status == "review_required"
+    assert report.verification["fabrication_approved"] is False
+
+
+def test_stm32_malformed_datasheet_source_fails_closed(monkeypatch) -> None:
+    from zaptrace.library.loader import LibraryLoader
+
+    original = LibraryLoader.get
+
+    def corrupted(self, part_id):
+        spec = original(self, part_id)
+        if part_id == "stm32f103c8t6":
+            spec.datasheet = "https://not-a-manufacturer.example"
+        return spec
+
+    monkeypatch.setattr(LibraryLoader, "get", corrupted)
+    _, report = compile_intent(INTENT)
+    assert report.status == "blocked"
+    assert any(x["code"] == "stm32_source_and_package_contract_not_proven" for x in report.blockers)
+
+
+def test_usb4105_corrupt_mapped_contact_is_not_approved(monkeypatch) -> None:
+    from zaptrace.library.loader import LibraryLoader
+
+    original = LibraryLoader.get
+
+    def corrupted(self, part_id):
+        spec = original(self, part_id)
+        if part_id == "usb-c-16p":
+            spec.package_pin_map["A4"] = "GND"  # forged VBUS contact
+        return spec
+
+    monkeypatch.setattr(LibraryLoader, "get", corrupted)
+    _, report = compile_intent(INTENT)
+    assert report.status == "blocked"
+    assert any(x["code"] == "usb4105_pad_map_or_geometry_mismatch" for x in report.blockers)

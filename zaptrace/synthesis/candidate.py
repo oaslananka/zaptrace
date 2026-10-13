@@ -16,6 +16,7 @@ from zaptrace.core.models import Design
 from zaptrace.erc.runner import ERCRunner
 from zaptrace.synthesis.architecture import ArchitecturePlan, build_architecture_design
 from zaptrace.synthesis.candidate_footprints import qualify_candidate_footprints
+from zaptrace.synthesis.candidate_physical import qualify_pilot_physical_pins
 from zaptrace.synthesis.requirements import (
     Requirements,
     freeze_requirements,
@@ -187,6 +188,7 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
     owners: dict[str, str] = {}
     design, plan, decision_log = build_architecture_design(requirements, name=name, component_owners=owners)
     footprint_evidence = qualify_candidate_footprints(design, requirements)
+    physical_pin_evidence = qualify_pilot_physical_pins(design, requirements)
     freeze = freeze_requirements(requirements)
     component_rows, net_rows, provenance_blockers, unverified_pin_refs = _emitted_provenance(
         design, plan, owners, requirements
@@ -200,6 +202,7 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
         {"code": "unsupported_architecture_block", "subject": block.block_id} for block in plan.unrealized_blocks
     )
     blockers.extend(provenance_blockers)
+    blockers.extend(physical_pin_evidence["blockers"])
     blockers.extend(_interface_connectivity_blockers(design, plan, requirements))
     # Never accept generic LDO pin claims: the library has no identified
     # manufacturer device/pin map for LDO_3.3V.
@@ -228,6 +231,20 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
                     "Pin inventories missing for emitted components "
                     + ", ".join(unverified_pin_refs)
                     + "; native pin identity not confirmed"
+                ),
+                "risk": "high",
+                "requires_confirmation": True,
+            }
+        )
+    if physical_pin_evidence["qualified"]:
+        assumptions.append(
+            {
+                "field": "source_documented_stm32_and_usb_pin_geometry",
+                "assumption": (
+                    "ST DS5319 LQFP48 and RM0008 I2C1 function mapping, plus GCT USB4105 "
+                    "SHA-vetted KiCad pad geometry are source documented only. "
+                    "Physical assembly, alternate functions, orientation and engineering "
+                    "review must still be independently qualified."
                 ),
                 "risk": "high",
                 "requires_confirmation": True,
@@ -311,7 +328,7 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
         emitted_components=component_rows,
         emitted_nets=net_rows,
         decisions=decision_log.to_dicts(),
-        footprint_evidence=footprint_evidence.to_dict(),
+        footprint_evidence={**footprint_evidence.to_dict(), "device_pin_source_evidence": physical_pin_evidence},
         internal_erc_evidence={
             "checker": "zaptrace_internal_erc_not_native_kicad",
             "errors": erc.total_errors,

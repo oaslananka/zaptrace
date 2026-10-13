@@ -141,11 +141,12 @@ def test_native_pilot_requires_complete_actual_component_pin_maps(tmp_path: Path
     parity = crosscheck_native_pin_pad_net(design, native_xml)
     assert parity["status"] == oracle["native_pin_pad_net_parity"]["status"] == "blocked"
     assert parity["full_project_electrically_approved"] is False
-    assert parity["native_nodes"] == 48
+    assert parity["matched_native_nodes"] == parity["native_nodes"] == 52
     reasons = {x["code"] for x in parity["reasons"]}
-    assert "missing_part_specific_pin_to_pad_map" in reasons
-    assert "pin_maps_to_absent_physical_pad" in reasons
-    assert "unexpected_native_net_node" in reasons
+    assert reasons == {"repeated_physical_pad_id_requires_more_evidence"}
+    assert any(x["ref"] == "J1" for x in parity["reasons"])
+    assert parity["full_project_electrically_approved"] is False
+    assert oracle["local_inspection_library"]["component_count"] == 12
     assert oracle["native_erc"]["errors"] == 0
     if str(oracle["native_erc"].get("kicad_version", "")).startswith("10."):
         assert oracle["native_erc"]["warnings"] == 0
