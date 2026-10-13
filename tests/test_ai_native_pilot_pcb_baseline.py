@@ -56,6 +56,11 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert art["graphical_items"] == 7
     assert art["three_d_model_qualified"] is False
     assert art["manufacturer_mating_approved"] is False
+    passive = native["passive_source_courtyards"]
+    assert passive["refs"] == ["C1", "C2", "C3", "R1", "R2", "R3", "R4", "R5"]
+    assert passive["courtyard_mm"] == [2.0, 1.5]
+    assert passive["min_pad_edge_margin_mm"] == 0.15
+    assert passive["fabrication_approved"] is False
     sensor = next(fp for fp in native["footprints"] if fp["ref"] == "U3")
     assert len(sensor["pads"]) == 10
     paste_only = [p for p in sensor["pads"] if p["number"] == ""]
@@ -83,6 +88,10 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert (dest / "fp-lib-table").is_file()
     assert len(list((dest / "ZapTracePilot.pretty").glob("*.kicad_mod"))) == 9
     assert len(list((dest / "ZapTrace.pretty").glob("*.kicad_mod"))) == 3
+    for ref in passive["refs"]:
+        local = (dest / "ZapTracePilot.pretty" / f"ZT_{ref}.kicad_mod").read_text()
+        assert local.count('(layer "F.CrtYd")') == 1
+        assert "(start -1 -0.75) (end 1 0.75)" in local
     assert (dest / "native-pcb-drc.json").is_file()
     for name, expected in report["artifact_sha256"].items():
         assert hashlib.sha256((dest / name).read_bytes()).hexdigest() == expected
@@ -153,6 +162,26 @@ def test_mcu_unmodeled_crystal_pads_cannot_be_assigned_a_fabricated_net(tmp_path
     with pytest.raises(ValueError, match="Unmodeled U2 PD0/PD1 pins must remain electrically unconnected"):
         create_baseline(candidate, tmp_path / "rejected")
     assert not (tmp_path / "rejected").exists()
+
+
+@pytest.mark.parametrize("modification", ["undersized_courtyard", "changed_copper"])
+def test_passive_0402_source_courtyard_contract_rejects_mutation(tmp_path: Path, modification: str) -> None:
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    source = candidate / "design.json"
+    design = json.loads(source.read_text())
+    footprint = design["components"]["R1"]["footprint_def"]
+    if modification == "undersized_courtyard":
+        footprint["courtyard"] = [1.7, 1.5]
+    else:
+        footprint["pads"][0]["size"][0] += 0.01
+    source.write_text(json.dumps(design))
+    manifest = json.loads((candidate / "manifest.json").read_text())
+    manifest["files_sha256"]["design.json"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    (candidate / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="0402"):
+        create_baseline(candidate, tmp_path / "must-not-exist")
+    assert not (tmp_path / "must-not-exist").exists()
 
 
 def test_placement_rejects_source_tampering_and_existing_destination(tmp_path: Path) -> None:

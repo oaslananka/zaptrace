@@ -128,6 +128,66 @@ def assert_native_u3_manufacturer_geometry(footprint: pcb.FOOTPRINT) -> None:
             raise ValueError("SHT31 source stencil-only pad cannot carry a net or copper")
 
 
+_PILOT_0402 = {f"R{i}" for i in range(1, 6)} | {f"C{i}" for i in range(1, 4)}
+
+
+def _preserve_source_bounded_passive_courtyards(folder: Path, components: dict, board: pcb.BOARD) -> dict:
+    """Copy candidate-derived original courtyard graphics; never alter native pads/nets."""
+    library_dir = folder / "ZapTracePilot.pretty"
+    if library_dir.is_symlink():
+        raise ValueError("Unsafe synthetic pilot KiCad footprint directory")
+    footprints = {footprint.GetReference(): footprint for footprint in board.GetFootprints()}
+    if not _PILOT_0402.issubset(footprints):
+        raise ValueError("Missing pilot passive physical components")
+    for ref in sorted(_PILOT_0402):
+        comp = components[ref]
+        model = comp.get("footprint_def") or {}
+        if (
+            comp.get("type") not in ("resistor", "capacitor")
+            or model.get("source") != "IPC-7351B"
+            or model.get("courtyard") != [2.0, 1.5]
+            or comp.get("footprint") != "ZapTracePilot:ZT_" + ref
+        ):
+            raise ValueError(f"Source-bound 0402 courtyard identity invalid: {ref}")
+        library_file = library_dir / ("ZT_" + ref + ".kicad_mod")
+        if library_file.is_symlink():
+            raise ValueError("Unsafe local 0402 library file")
+        source = pcb.FootprintLoad(str(library_dir), "ZT_" + ref)
+        placed = footprints[ref]
+        if source is None:
+            raise ValueError(f"Missing local 0402 footprint source: {ref}")
+        art = list(source.GraphicalItems())
+        if (
+            len(art) != 1
+            or art[0].GetLayer() != pcb.F_CrtYd
+            or len(list(placed.GraphicalItems())) != 0
+            or len(list(source.Pads())) != 2
+            or len(list(placed.Pads())) != 2
+        ):
+            raise ValueError(f"Untrusted 0402 courtyard geometry: {ref}")
+        # Verify the source rectangle really matches the bounded candidate.
+        rect = art[0]
+        endpoints = sorted(
+            (round(pcb.ToMM(point.x), 5), round(pcb.ToMM(point.y), 5)) for point in (rect.GetStart(), rect.GetEnd())
+        )
+        if endpoints != [(-1.0, -0.75), (1.0, 0.75)] or abs(pcb.ToMM(rect.GetWidth()) - 0.05) > 1e-6:
+            raise ValueError(f"0402 courtyard differs from model-specified 2x1.5 mm: {ref}")
+        before = {pad.m_Uuid.AsString(): (pad.GetNumber(), pad.GetNetname()) for pad in placed.Pads()}
+        original_art = rect.Duplicate()
+        original_art.Move(placed.GetPosition())
+        placed.Add(original_art)
+        after = {pad.m_Uuid.AsString(): (pad.GetNumber(), pad.GetNetname()) for pad in placed.Pads()}
+        if before != after:
+            raise ValueError(f"0402 courtyard propagation altered pad-net identity: {ref}")
+    return {
+        "refs": sorted(_PILOT_0402),
+        "source": "canonical_ipc_0402_model_and_KiCad_KLC_F5.3_not_manufacturer_approved",
+        "courtyard_mm": [2.0, 1.5],
+        "min_pad_edge_margin_mm": 0.15,
+        "fabrication_approved": False,
+    }
+
+
 def audit(folder: Path) -> dict:
     source = folder / "placed-design.json"
     design = json.loads(source.read_text())
@@ -152,6 +212,7 @@ def audit(folder: Path) -> dict:
         if fp.GetFPIDAsString() != expected_id:
             raise ValueError("Physical footprint library ID is not source linked")
     vendor_art = _restore_verified_usb_c_art(folder, components, board)
+    passive_courtyards = _preserve_source_bounded_passive_courtyards(folder, components, board)
     if not pcb.SaveBoard(str(board_file), board):
         raise ValueError("Native KiCad PCB save failed")
     board = pcb.LoadBoard(str(board_file))
@@ -207,6 +268,21 @@ def audit(folder: Path) -> dict:
             raise ValueError("Unmodeled STM32 PD0/PD1 copper pads must stay netless")
         if ref in ("U1", "U2") and not any(item.GetLayer() == pcb.F_CrtYd for item in fp.GraphicalItems()):
             raise ValueError("Pinned U1/U2 original courtyard is absent")
+        if ref in _PILOT_0402:
+            drawings = [item for item in fp.GraphicalItems() if item.GetLayer() == pcb.F_CrtYd]
+            if len(drawings) != 1:
+                raise ValueError(f"0402 source courtyard lost in KiCad roundtrip: {ref}")
+            rectangle = drawings[0]
+            center = fp.GetPosition()
+            relative = sorted(
+                (
+                    round(pcb.ToMM(point.x - center.x), 5),
+                    round(pcb.ToMM(point.y - center.y), 5),
+                )
+                for point in (rectangle.GetStart(), rectangle.GetEnd())
+            )
+            if relative != [(-1.0, -0.75), (1.0, 0.75)]:
+                raise ValueError(f"0402 source courtyard dimension changed after reload: {ref}")
         physical_pads = [p for p in pads if p not in stencil_pads]
         if Counter(p.GetNumber() for p in physical_pads) != Counter(p["id"] for p in source_pads):
             raise ValueError("Native PCB physical pad number inventory differs from source")
@@ -342,6 +418,7 @@ def audit(folder: Path) -> dict:
         "pcb_drc_passed": False,
         "fabrication_approved": False,
         "usb_c_manufacturer_art": vendor_art,
+        "passive_source_courtyards": passive_courtyards,
     }
 
 

@@ -37,6 +37,57 @@ def _pad_signature(pad: Pad) -> tuple[Any, ...]:
     )
 
 
+_PASSIVE_REFS = {f"R{i}" for i in range(1, 6)} | {f"C{i}" for i in range(1, 4)}
+
+
+def _verified_pilot_0402_courtyard(component: Component) -> tuple[float, float] | None:
+    """Only replay the candidate's bounded 0402 courtyard, not donor copper art.
+
+    The physical pad model is an inspection-only IPC-style seed. The small-
+    component 0.15 mm minimum is KiCad KLC F5.3, not a fab approval.
+    """
+    if component.ref not in _PASSIVE_REFS:
+        return None
+    fp = component.footprint_def
+    if fp is None or fp.source != "IPC-7351B" or fp.courtyard != (2.0, 1.5):
+        raise ValueError(f"{component.ref}: unsupported source-derived 0402 courtyard")
+    expected = {
+        "1": ((-0.55, 0.0), (0.6, 0.7)),
+        "2": ((0.55, 0.0), (0.6, 0.7)),
+    }
+    if (
+        component.type not in {"resistor", "capacitor"}
+        or len(fp.pads) != 2
+        or {
+            pad.id: (tuple(pad.position), tuple(pad.size))
+            for pad in fp.pads
+            if pad.rotation == 0 and str(pad.shape) == "rect"
+        }
+        != expected
+    ):
+        raise ValueError(f"{component.ref}: 0402 pad model changed without courtyard qualification")
+    width, height = fp.courtyard
+    for pad in fp.pads:
+        if (
+            width / 2 - abs(pad.position[0]) - pad.size[0] / 2 < 0.14999
+            or height / 2 - abs(pad.position[1]) - pad.size[1] / 2 < 0.14999
+        ):
+            raise ValueError(f"{component.ref}: 0402 courtyard violates 0.15 mm pad envelope clearance")
+    if (
+        len(fp.outline) != 1
+        or fp.outline[0].type != "rect"
+        or fp.outline[0].params
+        != {
+            "x": -0.7,
+            "y": -0.45,
+            "width": 1.4,
+            "height": 0.9,
+        }
+    ):
+        raise ValueError(f"{component.ref}: 0402 source body envelope changed")
+    return width, height
+
+
 def _checked_native_pad_contents(component: Component, dest: Path, name: str) -> None:
     geometry = component.footprint_def
     if geometry is None or not geometry.pads or len(geometry.pads) > 128:
@@ -66,6 +117,14 @@ def _checked_native_pad_contents(component: Component, dest: Path, name: str) ->
         if any(v <= 0 for v in pad.size):
             raise ValueError(f"{component.ref}: physical pad must have positive dimensions")
         _build_pad(lines, pad, component, {}, None, pad_ordinal=ordinal)
+    courtyard = _verified_pilot_0402_courtyard(component)
+    if courtyard is not None:
+        width, height = courtyard
+        lines.append(
+            f"  (fp_rect (start {-width / 2:g} {-height / 2:g})"
+            f" (end {width / 2:g} {height / 2:g})"
+            ' (stroke (width 0.05) (type solid)) (fill none) (layer "F.CrtYd"))'
+        )
     lines.append(")")
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
     exported = load_kicad_footprint(dest)
@@ -75,6 +134,8 @@ def _checked_native_pad_contents(component: Component, dest: Path, name: str) ->
     reimported_signatures = Counter(_pad_signature(p) for p in exported.pads)
     if original_signatures != reimported_signatures:
         raise ValueError(f"{component.ref}: generated KiCad pads do not match source geometry")
+    if courtyard is not None and exported.courtyard != courtyard:
+        raise ValueError(f"{component.ref}: generated native 0402 courtyard differs from source")
 
 
 def prepare_pilot_kicad_libraries(design: Design, folder: Path) -> list[dict[str, str]]:
