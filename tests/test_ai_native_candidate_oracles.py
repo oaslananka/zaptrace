@@ -93,6 +93,7 @@ def test_pilot_native_library_rejects_unresolved_geometry_or_malicious_pad_id(tm
 
     design, _ = compile_intent(INTENT)
     assert resolve_footprints(design).fully_resolved
+    assert design.components["C1"].footprint_def is not None
     design.components["C1"].footprint_def.pads[0].id = '1") (pad "FAKE'
     folder = tmp_path / "invalid"
     folder.mkdir()
@@ -152,3 +153,73 @@ def test_native_pilot_requires_complete_actual_component_pin_maps(tmp_path: Path
         assert oracle["native_erc"]["warnings"] == 0
         assert oracle["native_erc"]["status"] == "blocked"
     assert oracle["fabrication_approved"] is False
+
+
+def test_strict_native_erc_enables_default_ignored_checks_without_waiving_anything(tmp_path: Path) -> None:
+
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    result = run_local_oracles(candidate, tmp_path / "native-oracle")
+    strict = result["native_erc_four_default_ignored_enabled"]
+    if strict["status"] == "not_checked":
+        pytest.skip("No native KiCad CLI")
+    assert set(strict["rule_severities_after"]) == {
+        "footprint_filter",
+        "simulation_model_issue",
+        "single_global_label",
+        "four_way_junction",
+    }
+    assert set(strict["rule_severities_after"].values()) == {"warning"}
+    assert strict["ignored_checks"] == []
+    assert strict["violations"] == []
+    assert strict["cli_exit"] == 0
+    assert strict["status"] == "scoped_native_erc_complete_not_electrical_signoff"
+    assert strict["source_schematic_sha256"] == result["native_erc"]["schematic_sha256"]
+    assert strict["strict_schematic_sha256"] == result["native_erc"]["schematic_sha256"]
+    assert strict["simulation_run"] is False
+    assert strict["fabrication_approved"] is False
+    assert result["native_erc"]["status"] == "blocked"  # default KiCad ignored four
+    assert result["native_pin_pad_net_parity"]["status"] == "blocked"
+    assert result["fabrication_approved"] is False
+
+
+def test_strict_native_erc_fails_closed_on_unexpected_ignored_check(tmp_path: Path, monkeypatch) -> None:
+    from scripts import ai_native_pilot_strict_erc as module
+    from scripts.ai_native_pilot_kicad_lib import prepare_pilot_kicad_libraries
+    from zaptrace.export.kicad import export_kicad_schematic
+    from zaptrace.synthesis.candidate import compile_intent
+    from zaptrace.synthesis.footprint_resolver import resolve_footprints
+
+    design, _ = compile_intent(INTENT)
+    resolve_footprints(design)
+    original_dir = tmp_path / "real-source"
+    original_dir.mkdir()
+    prepare_pilot_kicad_libraries(design, original_dir)
+    schematic = export_kicad_schematic(design, original_dir)["schematic"]
+    real_run = module.subprocess.run
+
+    def malformed_extra_ignore(args, **kwargs):
+        output_path = Path(args[args.index("-o") + 1])
+        output_path.write_text(
+            json.dumps(
+                {
+                    "$schema": "https://schemas.kicad.org/erc.v1.json",
+                    "sheets": [{"violations": []}],
+                    "ignored_checks": [{"key": "unexpected_security_rule", "description": "not checked"}],
+                    "included_severities": ["error", "warning", "exclusion"],
+                    "kicad_version": "10.0.7",
+                }
+            )
+        )
+        return subprocess.CompletedProcess(args, 0)
+
+    import subprocess
+
+    monkeypatch.setattr(module.subprocess, "run", malformed_extra_ignore)
+    try:
+        report = module.verify_expanded_erc(schematic, "kicad-cli", tmp_path / "test")
+    finally:
+        monkeypatch.setattr(module.subprocess, "run", real_run)
+    assert report["status"] == "blocked"
+    assert report["ignored_checks"]
+    assert report["fabrication_approved"] is False

@@ -18,6 +18,7 @@ from typing import Any
 
 from scripts.ai_native_pilot_kicad_lib import prepare_pilot_kicad_libraries
 from scripts.ai_native_pilot_pin_parity import crosscheck_native_pin_pad_net
+from scripts.ai_native_pilot_strict_erc import verify_expanded_erc
 from zaptrace.analysis.spice_orchestrator import orchestrate_spice
 from zaptrace.core.models import Design
 from zaptrace.export.kicad import export_kicad_schematic
@@ -68,6 +69,7 @@ def run_local_oracles(candidate_dir: Path, output_dir: Path) -> dict[str, Any]:
         original = files["schematic"]
         native: dict[str, Any] = {"status": "not_checked", "why": "kicad_cli_unavailable"}
         pin_parity: dict[str, Any] = {"status": "not_checked", "why": "kicad_cli_unavailable"}
+        stricter: dict[str, Any] = {"status": "not_checked", "why": "kicad_cli_unavailable"}
         if cli is not None:
             netlist = native_dir / "native-netlist.xml"
             exported = subprocess.run(
@@ -111,6 +113,7 @@ def run_local_oracles(candidate_dir: Path, output_dir: Path) -> dict[str, Any]:
             ignored = erc.get("ignored_checks", [])
             # No success if warning/exclusion rules, unrun checks or nonzero exit.
             status = "passed" if result.returncode == 0 and not findings and not ignored else "blocked"
+            stricter = verify_expanded_erc(original, cli, stage)
             native = {
                 "status": status,
                 "kicad_version": erc.get("kicad_version"),
@@ -145,6 +148,7 @@ def run_local_oracles(candidate_dir: Path, output_dir: Path) -> dict[str, Any]:
                 "status": "generated_pad_geometry_only_unqualified",
             },
             "native_erc": native,
+            "native_erc_four_default_ignored_enabled": stricter,
             "native_pin_pad_net_parity": pin_parity,
             "simulation": {"status": simulation_status, "dc_evidence": sim_raw},
             "physical_routing_drc": "not_checked",
