@@ -312,3 +312,129 @@ def test_native_schematic_rule_context_fails_closed(tmp_path: Path, variant: str
     with pytest.raises(ValueError, match=error):
         change.native_schematic_comparison(before, after, tmp_path / "review.html")
     assert not (tmp_path / "review.sch-before-netlist.xml").exists()
+
+
+def test_decision_hash_ignores_volatile_native_render_export_but_not_semantics() -> None:
+    from copy import deepcopy
+
+    base = {
+        "schema_version": 1,
+        "source_sha256": "s" * 64,
+        "proposed_sha256": "p" * 64,
+        "evidence_sha256": "e" * 64,
+        "decision_hash_contract": "native_source_and_semantic_evidence_v2",
+        "rule_context": {"project_sha256": "a" * 64},
+        "drc": {"before_rules": 1, "after_rules": 1},
+        "native_svg": {"current": {"uri": "time 01"}, "proposed": {"uri": "time 01"}},
+        "schematic": {
+            "source_sha256": "b" * 64,
+            "proposed_sha256": "c" * 64,
+            "erc_before": {"warnings": 28},
+            "erc_after": {"warnings": 28},
+            "erc_findings_after": [{"ref": "R1", "rule": "lib_symbol_issues"}],
+            "svg": {"current": {"sha256": "fresh export 01"}},
+            "native_export_sha256": {"erc_before": "timestamp 01"},
+        },
+    }
+    first = change.canonical_decision_hash(base)
+    another = deepcopy(base)
+    another["native_svg"]["current"]["uri"] = "time 02"
+    another["schematic"]["svg"]["current"]["sha256"] = "fresh export 02"
+    another["schematic"]["native_export_sha256"]["erc_before"] = "timestamp 02"
+    assert change.canonical_decision_hash(another) == first
+    for field, payload in (
+        ("rule", "b" * 64),
+        ("erc", 29),
+        ("source", "d" * 64),
+        ("evidence", "f" * 64),
+    ):
+        modified = deepcopy(another)
+        if field == "rule":
+            modified["rule_context"]["project_sha256"] = payload
+        elif field == "erc":
+            modified["schematic"]["erc_after"]["warnings"] = payload
+        elif field == "source":
+            modified["schematic"]["source_sha256"] = payload
+        else:
+            modified["evidence_sha256"] = payload
+        assert change.canonical_decision_hash(modified) != first
+
+
+def test_native_erc_finding_links_verified_reference_and_rule_only() -> None:
+    report = """ERC report (2026, Encoding UTF8)
+***** Sheet /
+[lib_symbol_issues]: Library unresolved
+    ; warning
+    @(317.50 mm, 50.80 mm): Symbol R1 [ZapTrace_R1]
+** ERC messages: 1 Errors 0 Warnings 1
+"""
+    result = change.erc_findings(report, {"R1"}, 1)
+    assert result == [
+        {
+            "rule": "lib_symbol_issues",
+            "message": "Library unresolved",
+            "severity": "warning",
+            "ref": "R1",
+            "coordinate_mm": [317.5, 50.8],
+        }
+    ]
+    assert change.erc_findings(report, {"R2"}, 1)[0]["ref"] is None
+    with pytest.raises(ValueError, match="count"):
+        change.erc_findings(report, {"R1"}, 2)
+    with pytest.raises(ValueError, match="Unsupported"):
+        change.erc_findings(report.replace("; warning", "; unknown"), {"R1"}, 1)
+
+
+@pytest.mark.parametrize("bad", ["<script/>", '<image href="https://attacker.example/test" />'])
+def test_native_schematic_svg_does_not_embed_active_or_remote_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bad: str
+) -> None:
+    import subprocess
+
+    def generate(argv, **kwargs):
+        output = Path(argv[argv.index("--output") + 1])
+        (output / "preview.svg").write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm" viewBox="0 0 10 10">{bad}</svg>'
+        )
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(change.subprocess, "run", generate)
+    target = tmp_path / "result.svg"
+    with pytest.raises(ValueError, match="unsupported active"):
+        change.native_schematic_svg("kicad-cli", tmp_path / "source.kicad_sch", target)
+    assert not target.exists()
+
+
+def test_schematic_symbol_navigation_requires_source_and_native_plot_provenance() -> None:
+    template = change.TEMPLATE.read_text()
+    for term in (
+        'id="schAnchorCurrent"',
+        'id="schAnchorProposed"',
+        'id="schJumpToSymbol"',
+        "sch.symbol_anchors?.proposed?.[ref]",
+        "highlightNativeSymbol(side,ref)",
+        "PCB schematic electrical parity: NOT VERIFIED",
+    ):
+        assert term in template
+
+
+def test_native_svg_target_symlink_is_rejected_without_touching_owner_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    def generate(argv, **kwargs):
+        directory = Path(argv[argv.index("--output") + 1])
+        (directory / "native.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm" viewBox="0 0 10 10"/>'
+        )
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(change.subprocess, "run", generate)
+    user_data = tmp_path / "protected.txt"
+    user_data.write_text("unchanged")
+    target = tmp_path / "review.svg"
+    target.symlink_to(user_data)
+    with pytest.raises(ValueError, match="Unsafe native schematic SVG target"):
+        change.native_schematic_svg("kicad-cli", tmp_path / "source.kicad_sch", target)
+    assert user_data.read_text() == "unchanged"

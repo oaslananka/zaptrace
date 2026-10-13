@@ -8,8 +8,11 @@ import base64
 import hashlib
 import json
 import math
+import re
 import shutil
 import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from review_studio_native_kicad import _read_kicad
@@ -198,6 +201,88 @@ def native_svg(board: Path, output: Path) -> dict:
     }
 
 
+def erc_findings(report: str, references: set[str], expected: int) -> list[dict]:
+    """Read actual KiCad text ERC rule and object references, not invented positions."""
+    entries = re.split(r"(?m)^(?=\[[a-z_0-9]+\]:)", report)
+    parsed = []
+    for item in entries[1:]:
+        match = re.match(r"\[([a-z_0-9]+)\]: ([^\r\n]{1,500})", item)
+        severity = re.search(r"(?m)^\s*; (error|warning)\s*$", item)
+        target = re.search(r"@\((-?\d+(?:\.\d+)?) mm, (-?\d+(?:\.\d+)?) mm\): Symbol ([A-Za-z0-9]+)\b", item)
+        if match is None or severity is None:
+            raise ValueError("Unsupported KiCad ERC finding record; review blocked")
+        ref = target.group(3) if target and target.group(3) in references else None
+        parsed.append(
+            {
+                "rule": match.group(1),
+                "message": match.group(2),
+                "severity": severity.group(1),
+                "ref": ref,
+                "coordinate_mm": [float(target.group(1)), float(target.group(2))]
+                if ref and target is not None
+                else None,
+            }
+        )
+    if len(parsed) != expected:
+        raise ValueError("KiCad ERC count and parsed native findings disagree")
+    return parsed
+
+
+def native_schematic_svg(cli: str, source: Path, target: Path) -> dict:
+    """One actual sheet only; reject unsafe embedded SVG content and external links."""
+    with tempfile.TemporaryDirectory(prefix=".review-sch-svg-", dir=target.parent) as scratch:
+        command = [cli, "sch", "export", "svg", "--output", scratch + "/", str(source)]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=85, check=False)
+        pages = list(Path(scratch).glob("*.svg"))
+        if result.returncode != 0 or len(pages) != 1:
+            raise RuntimeError("Native schematic SVG requires exactly one verified plotted sheet")
+        payload = pages[0].read_bytes()
+    if len(payload) > 4_000_000 or b"<svg" not in payload[:1000]:
+        raise ValueError("Invalid or oversized native schematic SVG")
+    low = payload.lower()
+    if any(
+        token in low
+        for token in (
+            b"<script",
+            b"<foreignobject",
+            b"<iframe",
+            b"<image",
+            b"<use ",
+            b"onload=",
+            b"onclick=",
+            b"javascript:",
+            b"data:text/html",
+            b"href=",
+            b"url(",
+            b"@import",
+            b"<style",
+        )
+    ):
+        raise ValueError("Native schematic SVG contains unsupported active or linked content")
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError as exc:
+        raise ValueError("Invalid native schematic SVG markup") from exc
+    if root.tag != "{http://www.w3.org/2000/svg}svg" or not root.get("viewBox"):
+        raise ValueError("Missing native schematic SVG viewport")
+    if not root.get("width", "").endswith("mm") or not root.get("height", "").endswith("mm"):
+        raise ValueError("Native KiCad schematic plot unit is not millimeters")
+    try:
+        x0, y0, width, height = (float(x) for x in root.attrib["viewBox"].split())
+    except (ValueError, KeyError) as exc:
+        raise ValueError("Invalid KiCad SVG coordinate viewport") from exc
+    if not all(math.isfinite(x) for x in (x0, y0, width, height)) or width <= 0 or height <= 0:
+        raise ValueError("Unbounded native schematic SVG viewport")
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        raise ValueError("Unsafe native schematic SVG target")
+    target.write_bytes(payload)
+    return {
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "viewbox": root.get("viewBox"),
+        "uri": "data:image/svg+xml;base64," + base64.b64encode(payload).decode("ascii"),
+    }
+
+
 def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> dict:
     """Optional native *netlist/ERC* comparison; never asserts PCB synchronization.
 
@@ -261,6 +346,22 @@ def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> 
 
     net0, net1 = named_nets(nets0), named_nets(nets1)
     changed_nets = sorted(name for name in net0.keys() | net1.keys() if net0.get(name) != net1.get(name))
+    findings0 = erc_findings(before_erc.read_text(encoding="utf-8"), set(comps0), erc0[0])
+    findings1 = erc_findings(after_erc.read_text(encoding="utf-8"), set(comps1), erc1[0])
+    svg0 = native_schematic_svg(cli, source, prefix.with_name(prefix.name + ".sch-before.svg"))
+    svg1 = native_schematic_svg(cli, candidate, prefix.with_name(prefix.name + ".sch-after.svg"))
+    if svg0["viewbox"] != svg1["viewbox"]:
+        raise ValueError("KiCad schematic plot viewports differ: unsafe visual overlay")
+    from review_studio_native_kicad import schematic_symbols
+
+    anchors0 = schematic_symbols(source.read_text(encoding="utf-8"))
+    anchors1 = schematic_symbols(candidate.read_text(encoding="utf-8"))
+    if set(anchors0) != set(comps0) or set(anchors1) != set(comps1):
+        raise ValueError("Single-page native schematic symbols and netlist references disagree")
+    px, py, pw, ph = (float(value) for value in svg0["viewbox"].split())
+    for symbol in (*anchors0.values(), *anchors1.values()):
+        if not (px <= symbol["x"] <= px + pw and py <= symbol["y"] <= py + ph):
+            raise ValueError("KiCad symbol position outside verified plotted viewport")
     if (digest(source), digest(candidate)) != start:
         raise ValueError("Schematic source changed during native comparison")
     for suffix in sidecars:
@@ -279,6 +380,18 @@ def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> 
         "changed_values": changed_values,
         "changed_metadata_refs": metadata_changed,
         "changed_nets": changed_nets,
+        "symbol_anchors": {
+            "current": anchors0,
+            "proposed": anchors1,
+            "scope": "Actual single-sheet KiCad source instance XY in millimeters; graphical highlight only",
+        },
+        "erc_findings_before": findings0,
+        "erc_findings_after": findings1,
+        "svg": {
+            "current": svg0,
+            "proposed": svg1,
+            "scope": "One verified native KiCad sheet; no geometric symbol cross-probe or electrical parity claim",
+        },
         "erc_before": {"total": erc0[0], "errors": erc0[1], "warnings": erc0[2]},
         "erc_after": {"total": erc1[0], "errors": erc1[1], "warnings": erc1[2]},
         "native_export_sha256": {
@@ -294,6 +407,21 @@ def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> 
             "drawing geometry and PCB synchronization not established"
         ),
     }
+
+
+def canonical_decision_hash(document: dict) -> str:
+    """Stable same-state identity, excluding KiCad CLI export timestamps.
+
+    Raw SVG/netlist/ERC bytes and their digests stay available as evidence,
+    but are volatile even for byte-identical source and equivalent outputs.
+    """
+    canonical = {key: value for key, value in document.items() if key not in ("native_svg", "schematic", "state_hash")}
+    schematic = document.get("schematic")
+    if schematic is not None:
+        canonical["schematic"] = {
+            key: value for key, value in schematic.items() if key not in ("svg", "native_export_sha256")
+        }
+    return hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def create_review(
@@ -318,6 +446,27 @@ def create_review(
     changes = check_native_board_transition(before, after, proof, source_sha, candidate_sha)
     rule_context = verified_rule_context(source, candidate, proof)
     output.parent.mkdir(parents=True, exist_ok=True)
+    # Refuse symlinked output artifacts, including reports that native KiCad CLI
+    # would otherwise open for writing and the offline HTML decision destination.
+    planned = [output, output.with_suffix(".state.json")]
+    planned += [
+        output.with_suffix(suffix)
+        for suffix in (".before-drc.json", ".after-drc.json", ".current.svg", ".proposed.svg")
+    ]
+    prefix = output.with_suffix("")
+    planned += [
+        prefix.with_name(prefix.name + suffix)
+        for suffix in (
+            ".sch-before-netlist.xml",
+            ".sch-after-netlist.xml",
+            ".sch-before-erc.rpt",
+            ".sch-after-erc.rpt",
+            ".sch-before.svg",
+            ".sch-after.svg",
+        )
+    ]
+    if any(p.is_symlink() or (p.exists() and not p.is_file()) for p in planned):
+        raise ValueError("Unsafe native review output artifact")
     a = native_drc(source, output.with_suffix(".before-drc.json"))
     b = native_drc(candidate, output.with_suffix(".after-drc.json"))
     if any(
@@ -365,6 +514,8 @@ def create_review(
         "kind": "unsigned_local_design_change_decision_not_approval",
         "source_sha256": source_sha,
         "proposed_sha256": candidate_sha,
+        "evidence_sha256": evidence_sha,
+        "decision_hash_contract": "native_source_and_semantic_evidence_v2",
         "native_svg": {
             "current": before_vector,
             "proposed": after_vector,
@@ -388,9 +539,7 @@ def create_review(
         "electrically_approved": False,
         "schematic_erc_verified": schematic is not None,
     }
-    document["state_hash"] = hashlib.sha256(
-        json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    document["state_hash"] = canonical_decision_hash(document)
     template = TEMPLATE.read_text()
     if template.count("__CHANGE_DATA__") != 1:
         raise ValueError("Unsafe HTML review template contract")

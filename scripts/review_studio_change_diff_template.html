@@ -36,6 +36,31 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 .native-art[data-view="current"] img[data-layer="proposed"],.native-art[data-view="proposed"] img[data-layer="current"],.native-art[data-view="changed"]{display:none}
 .native-art[data-view="overlay"] img[data-layer="proposed"]{opacity:.55}
 @media(max-width:630px){.native-art{aspect-ratio:1.15}}
+
+.sch-panel{margin-top:24px;padding-top:22px;border-top:1px solid var(--border)}
+.sch-plots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.sch-plot{min-width:0;margin:0;border:1px solid #52708c;border-radius:10px;overflow:hidden;background:#ecf0eb}
+.sch-plot figcaption{padding:8px 12px;background:var(--panel2);color:var(--ink);font-weight:750}
+.sch-scroll{height:clamp(230px,35vw,420px);overflow:auto;overscroll-behavior:contain}
+.sch-canvas{position:relative;width:100%;height:auto}
+.sch-scroll img{display:block;width:100%;height:auto;max-width:none}
+.sch-anchor{position:absolute;z-index:2;width:20px;height:20px;border:3px solid #b50000;
+ border-radius:50%;background:rgba(255,218,37,.4);box-shadow:0 0 0 3px white;
+ transform:translate(-50%,-50%);pointer-events:none}
+.sch-anchor[hidden]{display:none}
+.sch-plots[data-mode="current"],.sch-plots[data-mode="proposed"]{grid-template-columns:minmax(0,1fr)}
+.sch-plots[data-mode="current"] .sch-plot[data-layer="proposed"],.sch-plots[data-mode="proposed"] .sch-plot[data-layer="current"]{display:none}
+.sch-plots[data-mode="overlay"]{display:block;position:relative}
+.sch-plots[data-mode="overlay"] .sch-plot[data-layer="proposed"]{position:absolute;inset:0;pointer-events:none;opacity:.50}
+.sch-plots[data-mode="overlay"] .sch-plot[data-layer="proposed"] figcaption{visibility:hidden}
+.sch-plots[data-mode="overlay"] .sch-plot[data-layer="proposed"] .sch-scroll{overflow:hidden}
+.sch-findings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:18px}
+.sch-findings-list{max-height:270px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px}
+.sch-findings-list button{display:block;text-align:left;width:100%;background:#152b40;color:var(--ink);border:1px solid #4e6a7f;padding:10px;border-radius:6px;margin:4px 0;min-height:44px;overflow-wrap:anywhere}
+.sch-findings-list button[aria-current="true"]{border:2px solid #84d4ff;background:#265275}
+.sch-selection{border:1px solid var(--border);border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+#schZoom{width:min(100%,330px);vertical-align:middle}
+@media(max-width:730px){.sch-plots[data-mode="split"],.sch-findings{grid-template-columns:1fr}.sch-scroll{height:300px}}
 </style>
 </head>
 <body>
@@ -70,6 +95,51 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <svg id="board" viewBox="0 0 800 430" role="img" aria-label="Source-backed current and proposed footprint anchor locations; no trace or 3D geometry shown"></svg>
 <div class="legend"><span><i class="swatch old"></i>Current anchor</span><span><i class="swatch new"></i>Proposed anchor</span><span>Dashed vector = measured movement</span></div>
 <p class="muted">Only actual KiCad footprint anchors are plotted. Routing geometry, clearances, board fabrication and schematic/ERC are not inferred from this PCB anchor diagram.</p>
+
+<section id="schematicPanel" class="sch-panel" aria-labelledby="schematicTitle" hidden>
+ <div class="overline">Native KiCad schematic / evidence-linked review · optional</div>
+ <h3 id="schematicTitle">Source vs proposal — actual KiCad SVG sheets</h3>
+ <p class="muted" id="schematicVisualScope">Native SVG drawings are for visual comparison, not a verified pin-to-PCB link. Finding coordinates are native KiCad reports, not guessed pixels.</p>
+ <div class="toolbar" role="group" aria-label="Schematic plot comparison mode">
+  <button type="button" data-sch-mode="split" aria-pressed="true">Side by side</button>
+  <button type="button" data-sch-mode="current" aria-pressed="false">Original</button>
+  <button type="button" data-sch-mode="proposed" aria-pressed="false">Proposed</button>
+  <button type="button" data-sch-mode="overlay" aria-pressed="false">Overlay</button>
+ </div>
+ <label for="schZoom">Schematic visual zoom: <output id="schZoomAmount">100%</output></label>
+ <input id="schZoom" type="range" min="100" max="300" step="25" value="100" />
+ <div class="sch-plots" id="schematicPlots" data-mode="split">
+  <figure class="sch-plot" data-layer="current">
+   <figcaption>Original KiCad schematic</figcaption>
+   <div class="sch-scroll" id="schScrollCurrent"><div class="sch-canvas" id="schCanvasCurrent">
+    <img id="schCurrentSvg" alt="Original schematic exported by native KiCad 10"/>
+    <span id="schAnchorCurrent" class="sch-anchor" aria-hidden="true" hidden></span>
+   </div></div>
+  </figure>
+  <figure class="sch-plot" data-layer="proposed">
+   <figcaption>Proposed KiCad schematic</figcaption>
+   <div class="sch-scroll" id="schScrollProposed"><div class="sch-canvas" id="schCanvasProposed">
+    <img id="schProposedSvg" alt="Proposed schematic exported by native KiCad 10"/>
+    <span id="schAnchorProposed" class="sch-anchor" aria-hidden="true" hidden></span>
+   </div></div>
+  </figure>
+ </div>
+ <p id="schematicVectorHashes" class="hash"></p>
+ <div class="sch-findings">
+  <div>
+   <h3>Semantic changes and actual ERC findings</h3>
+   <p class="muted" id="schematicFindingCount"></p>
+   <div id="schematicFindingList" class="sch-findings-list" role="group" aria-label="Choose a schematic change or native ERC finding"></div>
+  </div>
+  <div>
+   <h3>Selected object · rule · evidence</h3>
+   <div id="schematicSelection" tabindex="-1" class="sch-selection" aria-live="polite">Select a change or ERC finding to inspect the exact native reference and rule.</div>
+   <button id="schJumpToSymbol" class="action" type="button" disabled>Go to highlighted native symbol</button>
+  </div>
+ </div>
+ <p class="notice">Selecting a reference links native exported netlist/ERC objects to their rule evidence. SVG pixels are not cross-probed to an unverified symbol location. Identical PCB and schematic reference labels do not prove electrical pin, net, or production parity.</p>
+</section>
+
 <details><summary>Exact file identities and stale-decision boundary</summary>
  <p><strong>Review state:</strong> <code id="stateHash"></code></p>
  <p><strong>Original PCB SHA-256:</strong> <code id="fromHash"></code></p>
@@ -196,6 +266,7 @@ function init(){
  $("rulesDigest").textContent=DATA.rule_context.custom_rules_sha256||"No custom rules provided";
  const sch=DATA.schematic;
  if(sch){
+  initNativeSchematic(sch);
   $("schErc").textContent=sch.erc_before.errors+" errors / "+sch.erc_before.warnings+
    " warnings → "+sch.erc_after.errors+" errors / "+sch.erc_after.warnings+" warnings";
   const deltas=sch.changed_values.length+sch.added_components.length+sch.removed_components.length+
@@ -230,6 +301,124 @@ function init(){
  $("toHash").textContent=DATA.proposed_sha256;
  update();
 }
+
+let schematicMode="split";
+function updateSchematicMode(){
+ $("schematicPlots").dataset.mode=schematicMode;
+ for(const b of document.querySelectorAll("[data-sch-mode]"))
+  b.setAttribute("aria-pressed",String(b.dataset.schMode===schematicMode));
+}
+for(const button of document.querySelectorAll("[data-sch-mode]")){
+ button.addEventListener("click",()=>{schematicMode=button.dataset.schMode;updateSchematicMode();});
+}
+$("schZoom").addEventListener("input",()=>{
+ const amount=Number($("schZoom").value);
+ $("schZoomAmount").textContent=amount+"%";
+ for(const id of ["schCanvasCurrent","schCanvasProposed"])$(id).style.width=amount+"%";
+});
+let syncingSchematic=false;
+for(const [id,other] of [["schScrollCurrent","schScrollProposed"],["schScrollProposed","schScrollCurrent"]]){
+ $(id).addEventListener("scroll",()=>{
+  if(syncingSchematic)return;
+  syncingSchematic=true;
+  const a=$(id),b=$(other);
+  const fractionX=a.scrollLeft/Math.max(1,a.scrollWidth-a.clientWidth);
+  const fractionY=a.scrollTop/Math.max(1,a.scrollHeight-a.clientHeight);
+  b.scrollLeft=fractionX*Math.max(0,b.scrollWidth-b.clientWidth);
+  b.scrollTop=fractionY*Math.max(0,b.scrollHeight-b.clientHeight);
+  requestAnimationFrame(()=>{syncingSchematic=false;});
+ });
+}
+
+function highlightNativeSymbol(side,ref){
+ const sch=DATA.schematic,anchor=sch?.symbol_anchors?.[side]?.[ref];
+ const marker=$("schAnchor"+(side==="current"?"Current":"Proposed"));
+ if(!anchor){marker.hidden=true;return false;}
+ const box=sch.svg[side].viewbox.split(/\s+/).map(Number);
+ const px=(anchor.x-box[0])/box[2],py=(anchor.y-box[1])/box[3];
+ if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>1||py<0||py>1){
+  marker.hidden=true;return false;
+ }
+ marker.style.left=(px*100)+"%";marker.style.top=(py*100)+"%";
+ marker.hidden=false;
+ const scroller=$(side==="current"?"schScrollCurrent":"schScrollProposed");
+ const canvas=$(side==="current"?"schCanvasCurrent":"schCanvasProposed");
+ requestAnimationFrame(()=>{
+  scroller.scrollLeft=Math.max(0,px*canvas.clientWidth-scroller.clientWidth/2);
+  scroller.scrollTop=Math.max(0,py*canvas.clientHeight-scroller.clientHeight/2);
+ });
+ return true;
+}
+$("schJumpToSymbol").addEventListener("click",()=>{
+ const first=document.querySelector('.sch-plot[data-layer="current"]');
+ first.scrollIntoView({block:"center"});
+});
+function focusNativeFinding(item,sourceButton){
+ const sch=DATA.schematic;
+ const ref=item.ref||"No verified symbol reference";
+ const isBoardRef=ref!=="No verified symbol reference"&&DATA.current.some(x=>x.ref===ref);
+ const value=sch.changed_values.find(x=>x.ref===ref);
+ const lines=[
+  "KiCad source: "+item.phase,
+  "Rule / semantic evidence: "+item.rule,
+  "Object reference: "+ref,
+  "Severity: "+item.severity,
+  "Native finding: "+item.message,
+  "Reported KiCad coordinate: "+(item.coordinate_mm?item.coordinate_mm.join(", ")+" mm":"not provided / not safely linked"),
+  "Exported netlist value change: "+(value?value.before+" → "+value.after:"none shown for this reference"),
+  "PCB reference-label match: "+(isBoardRef?"yes, identity label only":"not established"),
+  "PCB schematic electrical parity: NOT VERIFIED",
+  "Native schematic source SHA: "+sch.source_sha256,
+  "Native schematic proposed SHA: "+sch.proposed_sha256,
+  "Native project-rule SHA: "+(sch.project_sha256||"not provided"),
+  "Native KiCad ERC count: "+sch.erc_before.total+" → "+sch.erc_after.total
+ ];
+ lines.push("Native schematic symbol XY: "+(sch.symbol_anchors?.proposed?.[ref]?
+   sch.symbol_anchors.proposed[ref].x+", "+sch.symbol_anchors.proposed[ref].y+" mm":"not safely available"));
+ $("schematicSelection").textContent=lines.join("\n");
+ const nativeAnchor=sch.symbol_anchors?.proposed?.[ref];
+ if(nativeAnchor&&Number($("schZoom").value)<200){
+  $("schZoom").value="200";$("schZoom").dispatchEvent(new Event("input"));
+ }
+ const linked=["current","proposed"].map(side=>highlightNativeSymbol(side,ref)).some(Boolean);
+ $("schJumpToSymbol").disabled=!linked;
+ for(const b of document.querySelectorAll("#schematicFindingList button"))
+  b.setAttribute("aria-current",String(b===sourceButton));
+ $("schematicSelection").focus();
+}
+function initNativeSchematic(sch){
+ if(!sch?.svg)return;
+ $("schematicPanel").hidden=false;
+ $("schCurrentSvg").src=sch.svg.current.uri;
+ $("schProposedSvg").src=sch.svg.proposed.uri;
+ $("schematicVisualScope").textContent=sch.svg.scope+"; native ERC references link to details, not unverified SVG coordinates.";
+ $("schematicVectorHashes").textContent="KiCad SVG original SHA-256: "+sch.svg.current.sha256+
+  " · proposed SHA-256: "+sch.svg.proposed.sha256;
+ const list=$("schematicFindingList");
+ const entries=[
+  ...sch.changed_values.map(x=>({phase:"Netlist semantic value diff",ref:x.ref,rule:"component_value_changed",
+   severity:"human review required",message:x.ref+": "+x.before+" → "+x.after,coordinate_mm:null})),
+  ...sch.erc_findings_after.map(x=>({...x,phase:"Proposed KiCad ERC"}))
+ ];
+ $("schematicFindingCount").textContent=sch.erc_findings_after.length+" genuine proposed ERC messages · "+
+  sch.changed_values.length+" value changes · source ERC: "+sch.erc_findings_before.length+
+  ". Select a record for its object/rule context.";
+ for(const [index,item] of entries.slice(0,100).entries()){
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent=(index<sch.changed_values.length?"Value diff: ":"KiCad "+item.severity+": ")+
+   (item.ref||"Unlinked object")+" · "+item.rule;
+  button.setAttribute("aria-current","false");
+  button.addEventListener("click",()=>focusNativeFinding(item,button));
+  list.append(button);
+ }
+ if(entries.length>100){
+  const msg=document.createElement("p");msg.textContent=(entries.length-100)+" additional records; native source reports are authoritative.";
+  list.append(msg);
+ }
+ updateSchematicMode();
+}
+
 const OPTIONS=new Set(["investigate","repair_required","reject_proposal"]);
 function exportDecision(){
  const status=$("decision").value,note=$("note").value.trim();
