@@ -126,3 +126,104 @@ def test_decision_export_is_not_a_signed_approval_or_drc_waiver() -> None:
     assert "raw.proposed_sha256!==DATA.proposed_sha256" in js
     assert "raw.state_hash!==DATA.state_hash" in js
     assert "Object.keys(raw).sort().join" in js
+
+
+def test_rule_context_defaults_are_bound_without_inventing_custom_rules(tmp_path: Path) -> None:
+    before, after = (tmp_path / name / "source.kicad_pcb" for name in ("original", "proposed"))
+    for board in (before, after):
+        board.parent.mkdir()
+        board.write_text("(kicad_pcb)\n")
+    claim = {
+        "rule_context": {
+            "mode": "defaults_without_project",
+            "project_sha256": None,
+            "custom_rules_sha256": None,
+            "custom_rule_loader_probe_passed": False,
+            "effective_rules_independently_verified": False,
+        }
+    }
+    context = change.verified_rule_context(before, after, claim)
+    assert context["mode"] == "defaults_without_project"
+    assert context["production_rule_approval"] is False
+    (after.with_suffix(".kicad_pro")).write_text("altered native KiCad rules")
+    with pytest.raises(ValueError, match="Unexpected native KiCad project-rule"):
+        change.verified_rule_context(before, after, claim)
+
+
+@pytest.mark.parametrize("mode", ["project", "project_with_custom_rules"])
+def test_rule_bytes_are_bound_on_both_original_and_proposed_native_pcb(tmp_path: Path, mode: str) -> None:
+    import hashlib
+
+    first, second = (tmp_path / name / "source.kicad_pcb" for name in ("original", "proposed"))
+    for board in (first, second):
+        board.parent.mkdir()
+        board.write_text("(kicad_pcb)\n")
+        board.with_suffix(".kicad_pro").write_bytes(b'{"board": {"design_settings": "original"}}')
+        if mode == "project_with_custom_rules":
+            board.with_suffix(".kicad_dru").write_bytes(b"(version 1)\n(rule clearance)\n")
+
+    def sha(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    context = {
+        "mode": mode,
+        "project_sha256": sha(first.with_suffix(".kicad_pro")),
+        "custom_rules_sha256": sha(first.with_suffix(".kicad_dru")) if mode == "project_with_custom_rules" else None,
+        "custom_rule_loader_probe_passed": mode == "project_with_custom_rules",
+        "effective_rules_independently_verified": False,
+    }
+    proof = {"rule_context": context}
+    assert change.verified_rule_context(first, second, proof)["project_sha256"] == context["project_sha256"]
+    for side in (first, second):
+        change.verified_rule_context(first, second, proof)
+        project = side.with_suffix(".kicad_pro")
+        project.write_bytes(project.read_bytes() + b"changed rule")
+        with pytest.raises(ValueError, match="Stale or altered native KiCad project-rule"):
+            change.verified_rule_context(first, second, proof)
+        project.write_bytes(b'{"board": {"design_settings": "original"}}')
+    if mode == "project_with_custom_rules":
+        rules = second.with_suffix(".kicad_dru")
+        rules.write_bytes(rules.read_bytes() + b"(rule unexpected)\n")
+        with pytest.raises(ValueError, match="Stale or altered native KiCad project-rule"):
+            change.verified_rule_context(first, second, proof)
+        rules.unlink()
+        with pytest.raises(ValueError, match="Stale or altered native KiCad project-rule"):
+            change.verified_rule_context(first, second, proof)
+
+
+@pytest.mark.parametrize("corrupt", ["missing", "loader", "approval", "extra", "mode"])
+def test_forged_project_rule_claims_fail_closed(tmp_path: Path, corrupt: str) -> None:
+    import hashlib
+
+    before, after = (tmp_path / name / "source.kicad_pcb" for name in ("old", "new"))
+    for board in (before, after):
+        board.parent.mkdir()
+        board.write_text("(kicad_pcb)\n")
+        board.with_suffix(".kicad_pro").write_bytes(b"project")
+    context = {
+        "mode": "project",
+        "project_sha256": hashlib.sha256(b"project").hexdigest(),
+        "custom_rules_sha256": None,
+        "custom_rule_loader_probe_passed": False,
+        "effective_rules_independently_verified": False,
+    }
+    if corrupt == "missing":
+        context.pop("project_sha256")
+    elif corrupt == "loader":
+        context["custom_rule_loader_probe_passed"] = True
+    elif corrupt == "approval":
+        context["effective_rules_independently_verified"] = True
+    elif corrupt == "extra":
+        context["signed_approval"] = True
+    else:
+        context["mode"] = "project_with_custom_rules"
+    with pytest.raises(ValueError, match="native KiCad|Native KiCad"):
+        change.verified_rule_context(before, after, {"rule_context": context})
+
+
+def test_rule_context_screens_make_hashes_visible_but_never_approve() -> None:
+    screen = change.TEMPLATE.read_text()
+    for evidence in ("projectDigest", "rulesDigest", "ruleProbe", "DATA.rule_context"):
+        assert evidence in screen
+    assert "Approve / fabricate (unavailable)" in screen
+    assert "does not independently certify all effective KiCad rules" in screen

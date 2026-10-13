@@ -50,11 +50,17 @@ external files after download. Regenerate from current original and proposed
 PCB files to revalidate hashes. No push, PR merge, public GA or fabrication
 authorization follows from this review.
 
-### Known rule-context approval gap
+### Rule-context integrity: next local candidate (0.1.29)
 
-The state hash binds the two PCB byte hashes, native SVG hashes and DRC count/
-ignored-check count. It does **not** yet cryptographically bind the entire
-matching KiCad project and custom-rule file contents or all effective rule
-details. Changes only to project design rules may require a fresh manual review
-even when both board SHAs match. Fully authenticated design approval therefore
-remains unsupported and intentionally disabled.
+The decision state's hash now binds the exact matching `.kicad_pro` and
+`.kicad_dru` file SHA-256 digests from the original native ECO proof, and
+verifies both copies **before and after** the real native KiCad rendering. An
+unexpected, missing, altered, or symlinked rule sidecar fails closed; defaults
+without a project are explicitly distinguished. The UI shows rule provenance,
+file hashes, and whether KiCad custom-rule loading was demonstrated.
+
+**This is not effective-rule or fabrication certification.** The native ECO
+attests that custom-rule loading occurred but does not independently establish
+every effective rule. No external rules, supplier libraries, schematic/ERC,
+STEP fit, electrical or physical approval may be inferred. Original local
+0.1.28 bytes are frozen; this change requires a new immutable candidate.

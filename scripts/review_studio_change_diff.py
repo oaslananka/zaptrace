@@ -77,6 +77,63 @@ def check_native_board_transition(
     return changes
 
 
+def verified_rule_context(source: Path, candidate: Path, proof: dict) -> dict:
+    """Bind both native KiCad rule sidecars to a reviewed design state.
+
+    A board SHA alone is not enough: two different .kicad_pro/.kicad_dru
+    files can give different DRC meaning for the exact same PCB bytes.
+    """
+    claim = proof.get("rule_context")
+    if not isinstance(claim, dict) or set(claim) != {
+        "mode",
+        "project_sha256",
+        "custom_rules_sha256",
+        "custom_rule_loader_probe_passed",
+        "effective_rules_independently_verified",
+    }:
+        raise ValueError("Missing or unexpected native KiCad project-rule evidence")
+    mode = claim["mode"]
+    if mode not in ("defaults_without_project", "project", "project_with_custom_rules"):
+        raise ValueError("Unsupported native KiCad rule context")
+    expected = (claim["project_sha256"], claim["custom_rules_sha256"])
+    if any(
+        value is not None
+        and (not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value))
+        for value in expected
+    ):
+        raise ValueError("Invalid KiCad project/rule SHA-256 claim")
+    if (
+        (mode == "defaults_without_project" and expected != (None, None))
+        or (mode == "project" and (expected[0] is None or expected[1] is not None))
+        or (mode == "project_with_custom_rules" and None in expected)
+        or type(claim["custom_rule_loader_probe_passed"]) is not bool
+        or claim["custom_rule_loader_probe_passed"] != (mode == "project_with_custom_rules")
+        or claim["effective_rules_independently_verified"] is not False
+    ):
+        raise ValueError("Native KiCad project/rule mode conflicts with verified ECO evidence")
+    for suffix, expected_sha, limit in (
+        (".kicad_pro", expected[0], 3_000_000),
+        (".kicad_dru", expected[1], 1_000_000),
+    ):
+        for board in (source, candidate):
+            sidecar = board.with_suffix(suffix)
+            if sidecar.is_symlink() or (sidecar.exists() and not sidecar.is_file()):
+                raise ValueError("Unsafe KiCad design-rule sidecar")
+            if expected_sha is None:
+                if sidecar.exists():
+                    raise ValueError("Unexpected native KiCad project-rule sidecar")
+            elif not sidecar.is_file() or sidecar.stat().st_size > limit or digest(sidecar) != expected_sha:
+                raise ValueError("Stale or altered native KiCad project-rule state")
+    return {
+        "mode": mode,
+        "project_sha256": expected[0],
+        "custom_rules_sha256": expected[1],
+        "custom_rule_loader_probe_passed": claim["custom_rule_loader_probe_passed"],
+        "effective_rules_independently_verified": False,
+        "production_rule_approval": False,
+    }
+
+
 def native_drc(board: Path, report: Path) -> dict:
     run = subprocess.run(
         ["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all", "--output", str(report), str(board)],
@@ -151,6 +208,7 @@ def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -
     proof = json.loads(evidence.read_text())
     before, after = _read_kicad(source), _read_kicad(candidate)
     changes = check_native_board_transition(before, after, proof, source_sha, candidate_sha)
+    rule_context = verified_rule_context(source, candidate, proof)
     output.parent.mkdir(parents=True, exist_ok=True)
     a = native_drc(source, output.with_suffix(".before-drc.json"))
     b = native_drc(candidate, output.with_suffix(".after-drc.json"))
@@ -164,12 +222,14 @@ def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -
     native_result = compare_drc(a, b)
     # A local file may change between hashing and invoking KiCad; reject stale
     # results rather than emitting a misleading source-hash-bound decision view.
+    verified_rule_context(source, candidate, proof)
     if (digest(source), digest(candidate), digest(evidence)) != (source_sha, candidate_sha, evidence_sha):
         raise ValueError("Input board or ECO evidence changed during native verification")
     if any(proof.get("native_drc", {}).get(key) != value for key, value in native_result.items()):
         raise ValueError("Fresh independent KiCad DRC differs from ECO evidence")
     before_vector = native_svg(source, output.with_suffix(".current.svg"))
     after_vector = native_svg(candidate, output.with_suffix(".proposed.svg"))
+    verified_rule_context(source, candidate, proof)
     document = {
         "schema_version": 1,
         "kind": "unsigned_local_design_change_decision_not_approval",
@@ -183,6 +243,7 @@ def create_review(source: Path, candidate: Path, evidence: Path, output: Path) -
         "current": before["footprints"],
         "proposed": after["footprints"],
         "changed": changes,
+        "rule_context": rule_context,
         "board_origin_mm": before["origin"],
         "board_size_mm": before["size"],
         "drc": {

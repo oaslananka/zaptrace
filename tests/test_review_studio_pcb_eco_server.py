@@ -149,6 +149,12 @@ def test_real_project_rule_context_browser_eco_returns_private_bundle(tmp_path: 
         report = json.loads(evidence)
         assert report["rule_context"]["mode"] == "project"
         assert report["rule_context"]["project_sha256"] == hashlib.sha256(original_project).hexdigest()
+        assert result["pcb_eco"]["change_review_available"] is True
+        code, rendered = fetch(route + "/CHANGE_REVIEW.html", token)
+        assert code == 200
+        assert hashlib.sha256(rendered).hexdigest() == result["pcb_eco"]["change_review_sha256"]
+        assert hashlib.sha256(original_project).hexdigest().encode() in rendered
+        assert b"Native KiCad project rule context" in rendered
         status, bundle = fetch(route + "/source.project.zip", token)
         assert status == 200
         with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
@@ -218,7 +224,13 @@ def test_custom_kicad_rules_browser_probe_preserves_original_and_downloads_bundl
         assert done["state"] == "complete", done
         assert done["pcb_eco"]["rule_context"] == "project_with_custom_rules"
         assert done["pcb_eco"]["custom_rule_loader_probe_passed"] is True
+        assert done["pcb_eco"]["change_review_available"] is True
         route = url + "/api/pcb-eco/result/" + job["id"]
+        status, rendered = fetch(route + "/CHANGE_REVIEW.html", server.secret)
+        assert status == 200
+        assert hashlib.sha256(rules).hexdigest().encode() in rendered
+        assert hashlib.sha256(project).hexdigest().encode() in rendered
+        assert b"custom_rule_loader_probe_passed" in rendered
         code, packed = fetch(route + "/source.project.zip", server.secret)
         assert code == 200
         with zipfile.ZipFile(io.BytesIO(packed)) as archive:

@@ -83,11 +83,15 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <div class="row"><span>Native PCB DRC checks</span><strong id="ruleCounts"></strong></div>
 <div class="row"><span>KiCad version</span><strong id="engine"></strong></div>
 <div class="row"><span>Rules explicitly ignored by KiCad</span><strong id="ignored"></strong></div>
+<div class="row"><span>Native KiCad project rule context</span><strong id="ruleContext"></strong></div>
+<div class="row"><span>Matching project SHA-256</span><code id="projectDigest"></code></div>
+<div class="row"><span>Matching custom rules SHA-256</span><code id="rulesDigest"></code></div>
+<div class="row"><span>Native custom-rule loader probe</span><strong id="ruleProbe"></strong></div>
 <div class="row"><span>Schematic ERC</span><strong>Not checked</strong></div>
 <div class="row"><span>Electrical approval</span><strong>Not approved</strong></div>
 <div class="row"><span>STEP fit / assembly</span><strong>Not checked</strong></div>
 <div class="row"><span>Fabrication authorization</span><strong>Blocked</strong></div>
-<p class="notice">A zero-new-violation PCB DRC result checks only the enabled native KiCad rules; it cannot authorize fabrication or imply schematic/ERC parity.</p>
+<p class="notice">The original and proposed project/custom-rule files are individually checked against matching SHA-256 hashes when present. This binds the local decision state to those rule bytes, but does not independently certify all effective KiCad rules. A zero-new-violation PCB DRC result cannot authorize fabrication or imply schematic/ERC parity.</p>
 </section>
 <section class="card" aria-label="State-bound human review decision">
 <div class="overline">03 / Human decision · unsigned session</div><h2>What should happen next?</h2>
@@ -177,6 +181,10 @@ function init(){
  $("ruleCounts").textContent=DATA.drc.before_rules+" → "+DATA.drc.after_rules+" violations";
  $("ignored").textContent=String(DATA.drc.ignored_checks);
  $("engine").textContent=DATA.drc.engine;
+ $("ruleContext").textContent=DATA.rule_context.mode.replaceAll("_"," ");
+ $("projectDigest").textContent=DATA.rule_context.project_sha256||"No project file provided";
+ $("rulesDigest").textContent=DATA.rule_context.custom_rules_sha256||"No custom rules provided";
+ $("ruleProbe").textContent=DATA.rule_context.custom_rule_loader_probe_passed?"KiCad loading demonstrated; full rule semantics unverified":"Not performed / not applicable";
  $("stateHash").textContent=DATA.state_hash;
  $("fromHash").textContent=DATA.source_sha256;
  $("toHash").textContent=DATA.proposed_sha256;
