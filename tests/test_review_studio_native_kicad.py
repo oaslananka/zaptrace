@@ -568,7 +568,11 @@ def test_professional_workspace_uses_real_metrics_and_operable_local_controls() 
     assert "function setFocusMode(next)" in template
     assert "function bindShortcuts()" in template
     assert "DATA.drc_state==='not_run'?'—'" in template
-    assert "DATA.erc.state==='not_run'?'—'" in template
+    # Unknown/unsupported ERC is not displayed as zero/success, and reported
+    # warning-only ERC does not become a fabrication clearance or red error.
+    assert "const ercVerified=['reported','no_reported_findings'].includes(er.state)" in template
+    assert "er.state==='not_run'?'Not checked':'Unavailable · check native KiCad'" in template
+    assert "('kpiErc').textContent=ercVerified&&!ercUnclassified?String(er.count):'—'" in template
     assert 'data-tab="opens"' in template
     assert "Local workspace" in template
     assert "Fabrication blocked" in template
