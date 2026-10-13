@@ -32,7 +32,10 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert summary["named_net_pads"] == 55
     assert summary["tracks"] == summary["zones"] == 0
     assert summary["unconnected"] > 0
-    assert summary["drc_findings"] > 0
+    # The four manufacturer-pattern hole-clearance violations still block PCB acceptance.
+    # All library/instance mismatches must instead be resolved at their source.
+    assert summary["drc_findings"] == 4
+    assert native["drc_violations_by_type"] == {"hole_clearance": 4}
     assert all(
         native["drc_violations_by_type"].get(rule, 0) == 0
         for rule in ("shorting_items", "clearance", "solder_mask_bridge")
@@ -45,6 +48,12 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert len({f["uuid"] for f in native["footprints"]}) == 12
     all_pads = [pad for fp in native["footprints"] for pad in fp["pads"]]
     assert len({pad["uuid"] for pad in all_pads}) == 100
+    sensor = next(fp for fp in native["footprints"] if fp["ref"] == "U3")
+    thermal_pad = next(p for p in sensor["pads"] if p["number"] == "9")
+    assert thermal_pad["front_paste"] is False
+    assert thermal_pad["back_paste"] is False
+    resistor = next(fp for fp in native["footprints"] if fp["ref"] == "R1")
+    assert all(p["front_paste"] is True for p in resistor["pads"])
     assert len(native["s1_four_separate_uuid_net_associations"]) == 4
     assert {pad["net"] for pad in native["s1_four_separate_uuid_net_associations"]} == {"GND"}
     assert native["drc_cli_exit"] != 0

@@ -46,10 +46,8 @@ def _checked_native_pad_contents(component: Component, dest: Path, name: str) ->
         "  (version 20241229)",
         '  (generator "zaptrace_local_oracle")',
         '  (layer "F.Cu")',
-        '  (descr "LOCAL inspection geometry only - NOT qualified for production")',
-        '  (property "Reference" "REF**" (at 0 -3 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))',
+        '  (property "Reference" "REF**" (at 0 -2 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))',
         f'  (property "Value" "{name}" (at 0 3 0) (layer "F.Fab") (effects (font (size 1 1) (thickness 0.15))))',
-        "  (attr smd)",
     ]
     for ordinal, pad in enumerate(geometry.pads):
         # KiCad's SHA-pinned GCT USB4105 has two anonymous non-plated
@@ -67,16 +65,7 @@ def _checked_native_pad_contents(component: Component, dest: Path, name: str) ->
             raise ValueError(f"{component.ref}: non-finite or out-of-bounds physical geometry")
         if any(v <= 0 for v in pad.size):
             raise ValueError(f"{component.ref}: physical pad must have positive dimensions")
-        start = len(lines)
         _build_pad(lines, pad, component, {}, None, pad_ordinal=ordinal)
-        if not pad.solder_paste:
-            # Shared PCB pad writer currently adds paste to all TOP/BOTTOM SMD
-            # pads. Keep the vendor's no-paste pad exactly intact in this
-            # inspection-only library and prove it by KiCad reimport below.
-            for index in range(start, len(lines)):
-                if lines[index].lstrip().startswith("(layers "):
-                    lines[index] = lines[index].replace(' "F.Paste"', "").replace(' "B.Paste"', "")
-                    break
     lines.append(")")
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
     exported = load_kicad_footprint(dest)

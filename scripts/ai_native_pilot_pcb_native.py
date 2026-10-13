@@ -100,6 +100,8 @@ def audit(folder: Path) -> dict:
                     "number": number,
                     "net": actual,
                     "uuid": uid,
+                    "front_paste": pad.GetLayerSet().Contains(pcb.F_Paste),
+                    "back_paste": pad.GetLayerSet().Contains(pcb.B_Paste),
                     "at_mm": [round(pcb.ToMM(position.x), 5), round(pcb.ToMM(position.y), 5)],
                 }
             )

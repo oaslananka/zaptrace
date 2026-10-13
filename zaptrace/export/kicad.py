@@ -1030,6 +1030,9 @@ def _build_pad(
         layers_str = '"*.Cu" "*.Mask"' if pad.plated else '"F&B.Cu" "*.Mask"'
         if pad.solder_paste:
             layers_str += ' "F.Paste"'
+    elif not pad.solder_paste:
+        # Preserve supplier no-paste SMD pads in both the PCB instance and library.
+        layers_str = layers_str.replace(' "F.Paste"', "").replace(' "B.Paste"', "")
     lines.append(f"      (layers {layers_str})")
     if pad.shape == PadShape.ROUNDRECT and pad.roundrect_rratio is not None:
         lines.append(f"      (roundrect_rratio {pad.roundrect_rratio})")
