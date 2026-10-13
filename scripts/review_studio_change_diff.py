@@ -409,6 +409,55 @@ def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> 
     }
 
 
+def evidence_catalog(document: dict) -> list[dict]:
+    """Stable source-derived review references, no free-text/fabrication claims."""
+    entries = []
+    for index, change in enumerate(document["changed"]):
+        entries.append(
+            {
+                "id": f"pcb-change:{index}",
+                "kind": "native_pcb_eco",
+                "ref": change["ref"],
+                "rule": "verified_footprint_translation",
+                "summary": f"Footprint {change['ref']} translated; native PCB DRC evidence is separate",
+            }
+        )
+    entries.append(
+        {
+            "id": "pcb-drc:summary",
+            "kind": "native_pcb_drc",
+            "ref": None,
+            "rule": "native_drc_scope",
+            "summary": (
+                f"Native PCB DRC violations {document['drc']['before_rules']} to {document['drc']['after_rules']}"
+            ),
+        }
+    )
+    schematic = document.get("schematic")
+    if schematic is not None:
+        for index, change in enumerate(schematic["changed_values"]):
+            entries.append(
+                {
+                    "id": f"schematic-value:{index}",
+                    "kind": "native_netlist_value",
+                    "ref": change["ref"],
+                    "rule": "component_value_changed",
+                    "summary": f"{change['ref']} value {change['before']} to {change['after']}",
+                }
+            )
+        for index, finding in enumerate(schematic["erc_findings_after"]):
+            entries.append(
+                {
+                    "id": f"schematic-erc:{index}",
+                    "kind": "native_schematic_erc",
+                    "ref": finding["ref"],
+                    "rule": finding["rule"],
+                    "summary": finding["message"],
+                }
+            )
+    return entries
+
+
 def canonical_decision_hash(document: dict) -> str:
     """Stable same-state identity, excluding KiCad CLI export timestamps.
 
@@ -539,6 +588,7 @@ def create_review(
         "electrically_approved": False,
         "schematic_erc_verified": schematic is not None,
     }
+    document["audit_evidence_catalog"] = evidence_catalog(document)
     document["state_hash"] = canonical_decision_hash(document)
     template = TEMPLATE.read_text()
     if template.count("__CHANGE_DATA__") != 1:

@@ -21,7 +21,7 @@ svg{display:block;background:#08111f;border:1px solid #3a5871;border-radius:10px
 .legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;color:var(--muted)}.swatch{display:inline-block;width:12px;height:12px;border:2px solid #fff;border-radius:3px;margin-right:4px;vertical-align:middle}.old{border-color:var(--blue)}.new{border-color:var(--orange)}
 details{border-top:1px solid var(--border);padding:12px 0}summary{cursor:pointer;font-weight:700}.status-line{border-left:3px solid var(--orange);padding:10px 12px;background:#251e20;margin:16px 0;color:#fff0e2}
 .row{display:flex;gap:10px;justify-content:space-between;align-items:start;border-top:1px solid #314158;padding:10px 0}.row span{color:var(--muted)}.row strong{text-align:right}
-select,textarea{width:100%;background:#0a1523;color:var(--ink);border:1px solid #68829d;border-radius:8px;padding:12px;min-height:44px}textarea{resize:vertical;min-height:88px}
+select,textarea,input[type="text"]{width:100%;background:#0a1523;color:var(--ink);border:1px solid #68829d;border-radius:8px;padding:12px;min-height:44px;font:inherit}textarea{resize:vertical;min-height:88px}
 label{font-weight:750;display:block;margin:12px 0 5px}
 .action{border:1px solid #4d9d9c;background:#1e534a;color:#e9fff9;border-radius:8px;min-height:44px;padding:10px 15px;font-weight:750;margin-top:13px}
 .action[disabled]{opacity:.6;cursor:not-allowed;background:#34313b;border-color:#64525a}
@@ -189,6 +189,20 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <p id="decisionStatus" aria-live="polite" role="status" class="muted">Nothing approved. No review data sent to a server.</p>
 <button class="action" disabled type="button" title="Requires verified human identity, electrical/DFM evidence and a separate signed approval workflow">Approve / fabricate (unavailable)</button>
 <p class="muted">This is a local, unsigned review record, never a PCB waiver, design commit, electrical qualification, or manufacturing authorization.</p>
+<details id="auditPanel" open>
+<summary>Evidence-linked local statement · self-declared identity only</summary>
+<p class="notice">Offline user claim only. No login, identity authentication, signature, independent witness or fabrication authorization.</p>
+<label for="reviewerLabel">Reviewer label (unverified)</label>
+<input id="reviewerLabel" type="text" autocomplete="off" maxlength="80" placeholder="Unverified self-declared label">
+<button id="auditStart" class="action" type="button">Start local review timer</button>
+<label for="auditEvidenceSelect">Native evidence reference</label>
+<select id="auditEvidenceSelect"></select>
+<button id="auditInspect" class="action" type="button" disabled>Inspect and link evidence</button>
+<p id="auditEvidenceDescription" class="sch-selection" aria-live="polite">No evidence inspected.</p>
+<p id="auditTiming" class="muted">Browser timing not started. Trustworthy decision time not measured.</p>
+<button id="auditExport" class="action" type="button" disabled>Export unsigned evidence-linked statement</button>
+<p id="auditStatus" role="status" aria-live="polite">No statement recorded.</p>
+</details>
 </section>
 </div>
 </main>
@@ -420,6 +434,78 @@ function initNativeSchematic(sch){
 }
 
 const OPTIONS=new Set(["investigate","repair_required","reject_proposal"]);
+const localAudit={start:null,first:null,selected:[]};
+function auditElapsed(){return localAudit.start===null?null:Math.round(Math.max(0,performance.now()-localAudit.start));}
+function auditUpdate(){
+ const elapsed=auditElapsed();
+ $("auditInspect").disabled=elapsed===null;
+ $("auditExport").disabled=elapsed===null||localAudit.selected.length===0;
+ $("auditTiming").textContent=elapsed===null?"Browser task timing not started. Trustworthy decision time NOT MEASURED":
+  "Unattested browser-local elapsed "+elapsed+" ms · first evidence "+
+  (localAudit.first===null?"not inspected":localAudit.first+" ms")+" · trustworthy decision time NOT MEASURED";
+}
+function initAudit(){
+ const selector=$("auditEvidenceSelect");
+ for(const item of DATA.audit_evidence_catalog){
+  const opt=document.createElement("option");opt.value=item.id;
+  opt.textContent=item.id+" · "+(item.ref||item.rule);
+  selector.append(opt);
+ }
+ auditUpdate();
+}
+$("auditStart").addEventListener("click",()=>{
+ localAudit.start=performance.now();localAudit.first=null;localAudit.selected=[];
+ $("auditEvidenceDescription").textContent="No evidence inspected in this task.";
+ $("auditStatus").textContent="Timer started; reviewer identity not verified.";auditUpdate();
+});
+function inspectAuditEvidence(){
+ if(localAudit.start===null)throw Error("Start the timer first");
+ const item=DATA.audit_evidence_catalog.find(x=>x.id===$("auditEvidenceSelect").value);
+ if(!item)throw Error("No source evidence selected");
+ if(localAudit.selected.length>=8&&!localAudit.selected.includes(item.id))
+  throw Error("Maximum eight references");
+ if(!localAudit.selected.includes(item.id))localAudit.selected.push(item.id);
+ if(localAudit.first===null)localAudit.first=auditElapsed();
+ $("auditEvidenceDescription").textContent=
+  "Source: "+item.kind+" · object: "+(item.ref||"unlinked")+
+  " · rule: "+item.rule+" · summary: "+item.summary+
+  "\nRecorded references: "+localAudit.selected.join(", ")+
+  "\nSelection is not evidence of reviewer competence or source approval.";
+ auditUpdate();return item;
+}
+$("auditInspect").addEventListener("click",()=>{
+ try{inspectAuditEvidence();}catch(e){$("auditStatus").textContent=String(e.message);}
+});
+function exportAuditedReview(){
+ const label=$("reviewerLabel").value.trim(),note=$("note").value.trim();
+ if(localAudit.start===null||localAudit.first===null||!localAudit.selected.length||
+   label.length<2||label.length>80||!OPTIONS.has($("decision").value)||
+   note.length<12||note.length>600)
+  throw Error("Enter a label and reason, start timer and inspect native evidence");
+ const elapsed=auditElapsed();
+ if(!Number.isInteger(elapsed)||elapsed<localAudit.first||elapsed>3600000)
+  throw Error("Inconsistent browser timer; start again");
+ const record={
+  schema_version:2,kind:"local_self_declared_evidence_review_not_identity_verified",
+  review_state_hash:DATA.state_hash,source_sha256:DATA.source_sha256,
+  proposed_sha256:DATA.proposed_sha256,evidence_sha256:DATA.evidence_sha256,
+  reviewer:{label,identity_verified:false,declaration:"self_declared_unverified"},
+  outcome:$("decision").value,note,evidence_ids:[...localAudit.selected],
+  timing:{source:"local_browser_monotonic_unattested",first_evidence_ms:localAudit.first,
+   elapsed_ms:elapsed,time_to_trustworthy_decision_ms:null},
+  fabrication_approved:false,electrically_approved:false,source_modified:false
+ };
+ const bytes=new Blob([JSON.stringify(record,null,2)+"\n"],{type:"application/json"});
+ const url=URL.createObjectURL(bytes),link=document.createElement("a");link.href=url;
+ link.download="zaptrace-unsigned-audit-"+DATA.state_hash.slice(0,16)+".json";
+ document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+ $("auditStatus").textContent="Self-declared unsigned statement exported. Not authenticated or approved.";
+ auditUpdate();return record;
+}
+$("auditExport").addEventListener("click",()=>{
+ try{exportAuditedReview();}catch(e){$("auditStatus").textContent=String(e.message);}
+});
+
 function exportDecision(){
  const status=$("decision").value,note=$("note").value.trim();
  if(!OPTIONS.has(status)||note.length>600)return;
@@ -457,6 +543,7 @@ $("importDecision").addEventListener("change",async event=>{
  finally{event.target.value="";}
 });
 init();
+initAudit();
 </script>
 </body>
 </html>
