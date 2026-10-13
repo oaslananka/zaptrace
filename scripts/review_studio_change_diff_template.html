@@ -60,6 +60,12 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 .sch-findings-list button[aria-current="true"]{border:2px solid #84d4ff;background:#265275}
 .sch-selection{border:1px solid var(--border);border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
 #schZoom{width:min(100%,330px);vertical-align:middle}
+#changeExplanation{white-space:pre-line}
+#pcbChangePicker{margin:12px 0;display:flex;gap:9px;flex-wrap:wrap;max-height:none}
+#pcbChangePicker[hidden],#pcbSelectedDetail[hidden]{display:none}
+#pcbChangePicker button{flex:1 1 145px}
+#pcbChangePicker button[aria-pressed="true"]{border:2px solid #84d4ff;background:#265275}
+
 @media(max-width:730px){.sch-plots[data-mode="split"],.sch-findings{grid-template-columns:1fr}.sch-scroll{height:300px}}
 </style>
 </head>
@@ -73,6 +79,10 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <div class="overline">01 / Native design-state comparison</div>
 <h2 id="changeTitle">Loading source-linked change…</h2>
 <p id="changeExplanation" class="muted"></p>
+<div id="pcbChangePicker" class="sch-findings-list" role="group"
+ aria-label="Select an individually verified footprint movement" hidden></div>
+<p id="pcbSelectedDetail" class="sch-selection" tabindex="-1" aria-live="polite" hidden></p>
+
 <div class="metric-grid">
  <div class="metric"><small>Changed footprints</small><strong id="changedCount">—</strong></div>
  <div class="metric"><small>New KiCad DRC violations</small><strong id="newDrc">—</strong></div>
@@ -213,6 +223,7 @@ const DATA=__CHANGE_DATA__;
 const $=id=>document.getElementById(id);
 const svgNS="http://www.w3.org/2000/svg";
 let view="overlay";
+let focusedRef=null;
 function el(tag,attributes={},txt=""){
  const n=document.createElementNS(svgNS,tag);
  for(const [k,v] of Object.entries(attributes))n.setAttribute(k,String(v));
@@ -238,9 +249,10 @@ function draw(){
  function dots(items, proposedFlag){
   for(const x of filtered(items)){
    const changed=changedRefs.has(x.ref);
+   const focused=x.ref===focusedRef;
    const g=el("g",{});
-   const dot=el("circle",{cx:sx(x.x),cy:sy(x.y),r:changed?11:6,
-     stroke:proposedFlag?"#ffc382":"#57b6f3","stroke-width":changed?3:2,
+   const dot=el("circle",{cx:sx(x.x),cy:sy(x.y),r:focused?14:changed?11:6,
+     stroke:proposedFlag?"#ffc382":"#57b6f3","stroke-width":focused?5:changed?3:2,
      fill:proposedFlag?"#614b32":"#163d63"});
    const title=el("title",{},x.ref+" at "+x.x+", "+x.y+" mm "+(proposedFlag?"proposed":"current"));
    dot.append(title);g.append(dot);
@@ -264,10 +276,33 @@ function init(){
  $("nativeCurrent").src=DATA.native_svg.current.uri;
  $("nativeProposed").src=DATA.native_svg.proposed.uri;
  $("nativeArtEvidence").textContent="Native KiCad vector SHA current "+DATA.native_svg.current.sha256.slice(0,16)+"… · proposed "+DATA.native_svg.proposed.sha256.slice(0,16)+"…";
- const ch=DATA.changed[0];
- $("changeTitle").textContent=ch.ref+" · footprint relocation";
- $("changeExplanation").textContent=
- "Real KiCad anchor: ("+ch.old_mm.join(", ")+") → ("+ch.new_mm.join(", ")+") mm; Δ ("+ch.delta_mm.join(", ")+") mm. "+ch.pad_count+" original pads checked for unchanged nets and translation.";
+ const list=DATA.changed;
+ const summary=ch=>"Native KiCad "+ch.ref+": ("+ch.old_mm.join(", ")+") → ("+
+  ch.new_mm.join(", ")+") mm; Δ ("+ch.delta_mm.join(", ")+") mm · "+
+  ch.pad_count+" original pads checked for unchanged nets and translation";
+ $("changeTitle").textContent=list.length===1?
+   list[0].ref+" · footprint relocation":
+   list.length+" independently checked footprint movements";
+ $("changeExplanation").textContent=list.map(summary).join("\n");
+ if(list.length>1){
+  const picker=$("pcbChangePicker");picker.hidden=false;
+  const detail=$("pcbSelectedDetail");detail.hidden=false;
+  for(const change of list){
+   const button=document.createElement("button");
+   button.type="button";button.textContent=change.ref+" · measured translation";
+   button.setAttribute("aria-pressed","false");
+   button.addEventListener("click",()=>{
+    focusedRef=change.ref;
+    for(const b of picker.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===button));
+    detail.textContent="Selected native object "+change.ref+"\n"+summary(change)+
+     "\nAll remaining footprints, pad numbers/nets and copper were independently checked."+
+     "\nNo schematic pin/net parity or fabrication authorization is inferred.";
+    update();detail.focus();
+   });
+   picker.append(button);
+  }
+  picker.querySelector("button").click();
+ }
  $("changedCount").textContent=String(DATA.changed.length);
  $("newDrc").textContent=String(DATA.drc.new_drc_rules);
  $("openDrc").textContent=DATA.drc.before_open+" → "+DATA.drc.after_open;

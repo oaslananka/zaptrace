@@ -27,8 +27,13 @@ def digest(path: Path) -> str:
 def check_native_board_transition(
     before: dict, after: dict, proof: dict, sha_before: str, sha_after: str
 ) -> list[dict]:
+    kind = proof.get("type")
     if (
-        proof.get("type") != "PCB_UNROUTED_FOOTPRINT_PLACEMENT_ECO"
+        kind
+        not in (
+            "PCB_UNROUTED_FOOTPRINT_PLACEMENT_ECO",
+            "PCB_UNROUTED_MULTI_FOOTPRINT_PLACEMENT_ECO",
+        )
         or proof.get("status") != "native_drc_verified_copy_not_original"
     ):
         raise ValueError("Unsupported native engineering change type")
@@ -74,10 +79,64 @@ def check_native_board_transition(
                     "risk": "human_review_required",
                 }
             )
-    if len(changes) != 1 or changes[0]["ref"] != proof.get("ref"):
-        raise ValueError("Exactly one source-linked physical footprint movement required")
-    if changes[0]["old_mm"] != proof.get("old_mm") or changes[0]["new_mm"] != proof.get("new_mm"):
-        raise ValueError("Saved ECO evidence footprint positions differ from actual PCB")
+    if kind == "PCB_UNROUTED_FOOTPRINT_PLACEMENT_ECO":
+        if len(changes) != 1 or changes[0]["ref"] != proof.get("ref"):
+            raise ValueError("Exactly one source-linked physical footprint movement required")
+        if changes[0]["old_mm"] != proof.get("old_mm") or changes[0]["new_mm"] != proof.get("new_mm"):
+            raise ValueError("Saved ECO evidence footprint positions differ from actual PCB")
+    else:
+        declared = proof.get("moves")
+        steps = proof.get("steps")
+        if (
+            not 2 <= len(changes) <= 4
+            or not isinstance(declared, list)
+            or not isinstance(steps, list)
+            or len(declared) != len(changes)
+            or len(steps) != len(changes)
+        ):
+            raise ValueError("Multi-ECO requires 2–4 distinct source-proven footprint translations")
+        planned = {}
+        for move in declared:
+            if (
+                not isinstance(move, dict)
+                or set(move) != {"ref", "old_mm", "new_mm"}
+                or not isinstance(move["ref"], str)
+                or move["ref"] in planned
+            ):
+                raise ValueError("Invalid or duplicate multi-ECO reference")
+            planned[move["ref"]] = move
+        if set(planned) != {change["ref"] for change in changes}:
+            raise ValueError("Multi-ECO references differ from native footprint transitions")
+        for change in changes:
+            move = planned[change["ref"]]
+            if move["old_mm"] != change["old_mm"] or move["new_mm"] != change["new_mm"]:
+                raise ValueError("Multi-ECO positions differ from native KiCad footprints")
+        if len({step["ref"] for step in steps if isinstance(step, dict) and "ref" in step}) != len(changes):
+            raise ValueError("Multi-ECO step identities cannot be duplicated")
+        for index, step in enumerate(steps):
+            if (
+                not isinstance(step, dict)
+                or set(step)
+                != {"ref", "dx_mm", "dy_mm", "source_sha256", "working_sha256", "old_mm", "new_mm", "native_drc"}
+                or step["ref"] not in planned
+                or step["old_mm"] != planned[step["ref"]]["old_mm"]
+                or step["new_mm"] != planned[step["ref"]]["new_mm"]
+                or any(
+                    type(step[key]) not in (float, int) or not math.isfinite(step[key]) for key in ("dx_mm", "dy_mm")
+                )
+                or any(
+                    abs((step["new_mm"][i] - step["old_mm"][i]) - step[key]) > 1e-6
+                    for i, key in enumerate(("dx_mm", "dy_mm"))
+                )
+                or not isinstance(step["native_drc"], dict)
+                or step["native_drc"].get("new_drc_rules") != 0
+            ):
+                raise ValueError("Invalid per-step native multi-ECO evidence")
+            expected_source = sha_before if index == 0 else steps[index - 1]["working_sha256"]
+            if step["source_sha256"] != expected_source:
+                raise ValueError("Multi-ECO SHA chain does not link original source")
+        if steps[-1]["working_sha256"] != sha_after:
+            raise ValueError("Multi-ECO SHA chain does not match proposed PCB")
     return changes
 
 
