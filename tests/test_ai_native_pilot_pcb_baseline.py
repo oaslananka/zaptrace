@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,8 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     summary = native["summary"]
     assert summary["footprints"] == 12
     assert summary["physical_pads"] == 100
+    assert summary["native_pad_objects"] == 101
+    assert summary["non_copper_stencil_only"] == 1
     assert summary["nets"] == 8
     assert summary["named_net_pads"] == 55
     assert summary["tracks"] == summary["zones"] == 0
@@ -47,13 +50,18 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert len(native["footprints"]) == 12
     assert len({f["uuid"] for f in native["footprints"]}) == 12
     all_pads = [pad for fp in native["footprints"] for pad in fp["pads"]]
-    assert len({pad["uuid"] for pad in all_pads}) == 100
+    assert len({pad["uuid"] for pad in all_pads}) == 101
     art = native["usb_c_manufacturer_art"]
     assert art["source_sha256"] == "db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c"
     assert art["graphical_items"] == 7
     assert art["three_d_model_qualified"] is False
     assert art["manufacturer_mating_approved"] is False
     sensor = next(fp for fp in native["footprints"] if fp["ref"] == "U3")
+    assert len(sensor["pads"]) == 10
+    paste_only = [p for p in sensor["pads"] if p["number"] == ""]
+    assert len(paste_only) == 1
+    assert paste_only[0]["net"] == ""
+    assert paste_only[0]["front_paste"] is True
     thermal_pad = next(p for p in sensor["pads"] if p["number"] == "9")
     assert thermal_pad["front_paste"] is False
     assert thermal_pad["back_paste"] is False
@@ -66,12 +74,61 @@ def test_real_native_full_placement_has_all_source_uuid_pads_and_blocking_drc(tm
     assert (dest / "SynthesizedBoard.kicad_pcb").stat().st_size > 10_000
     assert (dest / "SynthesizedBoard.kicad_sch").stat().st_size > 10_000
     assert (dest / "fp-lib-table").is_file()
-    assert len(list((dest / "ZapTracePilot.pretty").glob("*.kicad_mod"))) == 12
+    assert len(list((dest / "ZapTracePilot.pretty").glob("*.kicad_mod"))) == 11
+    assert len(list((dest / "ZapTrace.pretty").glob("*.kicad_mod"))) == 1
     assert (dest / "native-pcb-drc.json").is_file()
     for name, expected in report["artifact_sha256"].items():
         assert hashlib.sha256((dest / name).read_bytes()).hexdigest() == expected
     for name, expected in original.items():
         assert hashlib.sha256((candidate / name).read_bytes()).hexdigest() == expected
+
+
+def test_u3_native_oracle_rejects_stencil_loss_and_copper_shape_tampering(tmp_path: Path) -> None:
+    """Adversarially alter an actual KiCad board *in memory* after successful export."""
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    dest = tmp_path / "native-placement"
+    create_baseline(candidate, dest)
+    python_code = """
+import pcbnew as pcb
+from pathlib import Path
+from scripts.ai_native_pilot_pcb_native import assert_native_u3_manufacturer_geometry
+
+board_path = Path(__import__("sys").argv[1]).resolve()
+board = pcb.LoadBoard(str(board_path))
+u3 = next(fp for fp in board.GetFootprints() if fp.GetReference() == "U3")
+assert_native_u3_manufacturer_geometry(u3)
+
+stencil = next(p for p in u3.Pads() if p.GetNumber() == "")
+u3.Remove(stencil)
+try:
+    assert_native_u3_manufacturer_geometry(u3)
+except ValueError as exc:
+    assert "stencil pad" in str(exc)
+else:
+    raise AssertionError("Missing manufacturer paste-only stencil pad was accepted")
+
+board = pcb.LoadBoard(str(board_path))
+u3 = next(fp for fp in board.GetFootprints() if fp.GetReference() == "U3")
+thermal = next(p for p in u3.Pads() if p.GetNumber() == "9")
+thermal.SetShape(pcb.PAD_SHAPE_RECT)
+try:
+    assert_native_u3_manufacturer_geometry(u3)
+except ValueError as exc:
+    assert "polygon" in str(exc)
+else:
+    raise AssertionError("Modified SHT31 thermal copper primitive was accepted")
+print("U3_STENCIL_AND_COPPER_MUTATION_REJECTED")
+"""
+    result = subprocess.run(
+        ["/usr/bin/python3", "-B", "-c", python_code, str(dest / "SynthesizedBoard.kicad_pcb")],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr[-1200:]
+    assert "U3_STENCIL_AND_COPPER_MUTATION_REJECTED" in result.stdout
 
 
 def test_placement_rejects_source_tampering_and_existing_destination(tmp_path: Path) -> None:

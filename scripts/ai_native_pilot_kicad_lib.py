@@ -94,7 +94,23 @@ def prepare_pilot_kicad_libraries(design: Design, folder: Path) -> list[dict[str
             raise ValueError("Unsafe or duplicate native footprint reference")
         refs.add(component.ref)
         if component.footprint_asset:
-            raise ValueError("Verified asset-backed components need original validated export")
+            if component.ref != "U3" or component.footprint_asset != "sht31-dfn8":
+                raise ValueError("Unexpected verified asset in isolated pilot")
+            from zaptrace.kicad.verified_vendor import verified_footprint_bytes
+
+            filename, _content = verified_footprint_bytes(component.footprint_asset)
+            original_library_hint = component.footprint
+            component.footprint = "ZapTrace:" + filename.removesuffix(".kicad_mod")
+            inventory.append(
+                {
+                    "ref": component.ref,
+                    "original_hint": original_library_hint,
+                    "local_id": component.footprint,
+                    "geometry_source": component.footprint_def.source if component.footprint_def else "",
+                    "status": "sha_pinned_original_complete_land_pattern_not_fabrication_approved",
+                }
+            )
+            continue
         stem = "ZT_" + component.ref
         mod = pretty / (stem + ".kicad_mod")
         original_library_hint = component.footprint

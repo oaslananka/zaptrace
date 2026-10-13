@@ -139,6 +139,7 @@ def render_verified_footprint(
     copper_layers: list[str],
     *,
     schematic_symbol_path: str,
+    pin_net_number: Callable[[str], int] | None = None,
 ) -> str:
     """Build a KiCad board footprint from a digest-pinned, unmodified source.
 
@@ -197,11 +198,20 @@ def render_verified_footprint(
             pad_id = str(child[1])
             logical_pin = component.package_pin_map.get(pad_id) if component.package_pin_map else pad_id
             if logical_pin is not None and logical_pin in component.pins:
+                mapped_pads.add(pad_id)
+                # Some design sources store connectivity in canonical design.nets
+                # rather than component.pins[*].net. The caller supplies the same
+                # physical-to-logical net oracle used by synthetic footprints.
                 pin_net = component.pins[logical_pin].net
-                if pin_net in net_index:
-                    num = net_index[pin_net]
+                num = (
+                    pin_net_number(pad_id)
+                    if pin_net_number is not None
+                    else net_index.get(pin_net, 0)
+                    if pin_net is not None
+                    else 0
+                )
+                if num > 0:
                     child.append(["net", str(num), net_name(num)])
-                    mapped_pads.add(pad_id)
         _instance_identity(child, component.ref, str(idx), uuid_for)
         if kind == "pad":
             # Vendor libraries commonly omit pad UUIDs. pcbnew otherwise
@@ -235,6 +245,6 @@ def render_verified_footprint(
 
     expected = set(component.package_pin_map) if component.package_pin_map else set(component.pins)
     if not expected.issubset(mapped_pads):
-        raise ValueError(f"Verified footprint failed to bind all mapped nets: {component.ref!r}")
+        raise ValueError(f"Verified footprint missing physical pin identifiers: {component.ref!r}")
 
     return _kicad_format(footprint)

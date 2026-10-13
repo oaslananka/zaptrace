@@ -65,6 +65,12 @@ def require_pinned_physical_packages(design: Design) -> dict[str, dict]:
         ):
             raise ValueError("SHT31 source thermal/paste pad contract not proven")
         comp.footprint_def = fp
+        if ref == "U3":
+            from zaptrace.kicad.verified_vendor import resolve_verified_footprint
+
+            if fp != resolve_verified_footprint("sht31-dfn8"):
+                raise ValueError("SHT31 pinned native package does not match source pad model")
+            comp.footprint_asset = "sht31-dfn8"
         report[ref] = {
             "part": mpn,
             "source": filename,

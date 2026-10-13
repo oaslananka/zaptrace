@@ -80,6 +80,54 @@ def _restore_verified_usb_c_art(folder: Path, components: dict, board: pcb.BOARD
     }
 
 
+def assert_native_u3_manufacturer_geometry(footprint: pcb.FOOTPRINT) -> None:
+    """Fail closed on U3 source copper/stencil loss, even with an unchanged DRC."""
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "data/footprints/vendor/Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod"
+    )
+    digest = "2380f3b4d6982902f05e8940603f19f7cfbc1bdfd6ae0f78ebd281c1a3f30a8f"
+    if source.is_symlink() or sha(source) != digest:
+        raise ValueError("SHT31 original manufacturer pad geometry checksum changed")
+    original = pcb.FootprintLoad(str(source.parent), source.stem)
+    if original is None:
+        raise ValueError("Cannot load pinned SHT31 KiCad footprint")
+    original_pads, placed_pads = list(original.Pads()), list(footprint.Pads())
+    source_ids = Counter(pad.GetNumber() for pad in original_pads)
+    if (
+        len(original_pads) != 10
+        or len(placed_pads) != 10
+        or Counter(pad.GetNumber() for pad in placed_pads) != source_ids
+    ):
+        raise ValueError("SHT31 source paste-only stencil pad is missing or duplicated")
+
+    def polygon_vertices(pad: pcb.PAD) -> tuple[tuple[int, int], ...]:
+        polygon = pad.GetCustomShapeAsPolygon()
+        if polygon.OutlineCount() != 1:
+            raise ValueError("SHT31 custom pad polygon outline changed")
+        outline = polygon.Outline(0)
+        return tuple((outline.CPoint(i).x, outline.CPoint(i).y) for i in range(outline.PointCount()))
+
+    for name in ("", "9"):
+        source_pad = next(pad for pad in original_pads if pad.GetNumber() == name)
+        native_pad = next(pad for pad in placed_pads if pad.GetNumber() == name)
+        for layer in (pcb.F_Cu, pcb.B_Cu, pcb.F_Mask, pcb.B_Mask, pcb.F_Paste, pcb.B_Paste):
+            if source_pad.GetLayerSet().Contains(layer) != native_pad.GetLayerSet().Contains(layer):
+                raise ValueError(f"SHT31 source copper/stencil layers changed on pad {name!r}")
+        if (
+            native_pad.GetShape() != source_pad.GetShape()
+            or native_pad.GetSize() != source_pad.GetSize()
+            or polygon_vertices(native_pad) != polygon_vertices(source_pad)
+        ):
+            raise ValueError(f"SHT31 source copper/stencil polygon changed on pad {name!r}")
+        if name == "" and (
+            native_pad.GetNetCode() != 0
+            or native_pad.GetLayerSet().Contains(pcb.F_Cu)
+            or not native_pad.GetLayerSet().Contains(pcb.F_Paste)
+        ):
+            raise ValueError("SHT31 source stencil-only pad cannot carry a net or copper")
+
+
 def audit(folder: Path) -> dict:
     source = folder / "placed-design.json"
     design = json.loads(source.read_text())
@@ -98,8 +146,8 @@ def audit(folder: Path) -> dict:
     if len(refs) != len(components) or set(refs) != set(components):
         raise ValueError("Missing, unknown or duplicate PCB footprint references")
     for ref, fp in refs.items():
-        expected_id = "ZapTracePilot:ZT_" + ref
-        if fp.GetFPIDAsString() == "zaptrace:" + components[ref]["type"]:
+        expected_id = components[ref]["footprint"]
+        if ref != "U3" and fp.GetFPIDAsString() == "zaptrace:" + components[ref]["type"]:
             fp.SetFPID(pcb.LIB_ID("ZapTracePilot", "ZT_" + ref))
         if fp.GetFPIDAsString() != expected_id:
             raise ValueError("Physical footprint library ID is not source linked")
@@ -135,7 +183,7 @@ def audit(folder: Path) -> dict:
     connected = 0
     for ref, fp in sorted(refs.items()):
         comp = components[ref]
-        if fp.GetFPIDAsString() != "ZapTracePilot:ZT_" + ref:
+        if fp.GetFPIDAsString() != comp["footprint"]:
             raise ValueError("Native PCB library identity changed after reload")
         if fp.GetValue() != (comp.get("value") or comp["type"] or ref):
             raise ValueError("Physical component value differs from schematic")
@@ -143,7 +191,13 @@ def audit(folder: Path) -> dict:
             raise ValueError("Footprint missing schematic UUID association")
         source_pads = comp["footprint_def"]["pads"]
         pads = list(fp.Pads())
-        if Counter(p.GetNumber() for p in pads) != Counter(p["id"] for p in source_pads):
+        # U3 has a tenth *unnumbered* F.Paste-only manufacturing primitive,
+        # absent from the canonical electrical footprint model by design.
+        stencil_pads = [p for p in pads if ref == "U3" and p.GetNumber() == ""]
+        if ref == "U3":
+            assert_native_u3_manufacturer_geometry(fp)
+        physical_pads = [p for p in pads if p not in stencil_pads]
+        if Counter(p.GetNumber() for p in physical_pads) != Counter(p["id"] for p in source_pads):
             raise ValueError("Native PCB physical pad number inventory differs from source")
         uuid = fp.m_Uuid.AsString()
         if not uuid or uuid in all_footprints:
@@ -161,7 +215,7 @@ def audit(folder: Path) -> dict:
             actual = pad.GetNetname() or ""
             if actual != expected:
                 raise ValueError(f"PCB pad/net mismatch: {ref}.{number}: {actual!r} != {expected!r}")
-            if number == "" and (pad.GetNetCode() != 0 or pad.GetAttribute() != pcb.PAD_ATTRIB_NPTH):
+            if number == "" and ref != "U3" and (pad.GetNetCode() != 0 or pad.GetAttribute() != pcb.PAD_ATTRIB_NPTH):
                 raise ValueError("Anonymous mechanical pad assigned to copper")
             if actual:
                 connected += 1
@@ -196,8 +250,8 @@ def audit(folder: Path) -> dict:
                 "pads": sorted(pad_list, key=lambda x: (x["number"], x["uuid"])),
             }
         )
-    if len(all_pads) != 100:
-        raise ValueError("Expected 100 real physical pads across exact 12-part pilot")
+    if len(all_pads) != 101:
+        raise ValueError("Expected 100 source physical pads plus one U3 paste-only pad")
     j1 = next(x for x in inventory if x["ref"] == "J1")
     s1 = [p for p in j1["pads"] if p["number"] == "S1"]
     if len(s1) != 4 or len({p["uuid"] for p in s1}) != 4 or any(p["net"] != "GND" for p in s1):
@@ -252,7 +306,9 @@ def audit(folder: Path) -> dict:
         "kicad_version": pcb.GetBuildVersion(),
         "summary": {
             "footprints": len(inventory),
-            "physical_pads": len(all_pads),
+            "physical_pads": len(all_pads) - 1,
+            "native_pad_objects": len(all_pads),
+            "non_copper_stencil_only": 1,
             "named_net_pads": connected,
             "nets": len(nets),
             "unconnected": len(drc["unconnected_items"]),

@@ -932,6 +932,7 @@ def _build_footprint(
             _uuid4,
             _copper_layers(canonical_board_definition(design).layers),
             schematic_symbol_path=f"/{_schematic_uuid(design, 'symbol', comp.ref)}",
+            pin_net_number=lambda pad_id: _pin_net_number(comp, pad_id, net_idx, design),
         )
         lines.append("  " + instance.replace("\n", "\n  "))
         return

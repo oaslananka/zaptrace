@@ -69,6 +69,18 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
         prepare_pilot_kicad_libraries(design, stage)
         export_kicad_schematic(design, stage)
         export_kicad_pcb(design, stage)
+        # The native pilot has both locally synthesized and SHA-verified vendor
+        # libraries. Preserve both nicknames after the standard exporter writes
+        # its single-library fp-lib-table.
+        (stage / "fp-lib-table").write_text(
+            "(fp_lib_table\n"
+            '  (lib (name "ZapTracePilot")(type "KiCad")'
+            '(uri "${KIPRJMOD}/ZapTracePilot.pretty")(options "")(descr "Inspected model geometry"))\n'
+            '  (lib (name "ZapTrace")(type "KiCad")'
+            '(uri "${KIPRJMOD}/ZapTrace.pretty")(options "")(descr "SHA-verified vendor artwork"))\n'
+            ")\n",
+            encoding="utf-8",
+        )
         if source_nets != {key: value.model_dump(mode="json") for key, value in design.nets.items()}:
             raise ValueError("Placement altered original netlist")
         (stage / "placed-design.json").write_text(

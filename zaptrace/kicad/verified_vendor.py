@@ -45,6 +45,10 @@ _PINNED_FOOTPRINTS: dict[str, tuple[str, str]] = {
         "SOT-223-3_TabPin2.kicad_mod",
         "8ae5f03e2c16377abed15e51af6864e23a934e1457b97fb7ea930e17fa99f11d",
     ),
+    "sht31-dfn8": (
+        "Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod",
+        "2380f3b4d6982902f05e8940603f19f7cfbc1bdfd6ae0f78ebd281c1a3f30a8f",
+    ),
     "usb4105-16p": (
         "USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal.kicad_mod",
         "db924af7ac6b9ed7b16df1f598a56268c6a32ec33583557b6e5d8aa5056e3b2c",
