@@ -12,6 +12,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
   <a href="https://github.com/oaslananka/zaptrace/actions/workflows/security-scan.yml"><img src="https://github.com/oaslananka/zaptrace/actions/workflows/security-scan.yml/badge.svg?branch=main" alt="Security" /></a>
   <a href="https://github.com/oaslananka/zaptrace/actions/workflows/docs.yml"><img src="https://github.com/oaslananka/zaptrace/actions/workflows/docs.yml/badge.svg?branch=main" alt="Docs" /></a>
   <a href="https://github.com/oaslananka/zaptrace/actions/workflows/scorecard.yml"><img src="https://github.com/oaslananka/zaptrace/actions/workflows/scorecard.yml/badge.svg?branch=main" alt="OpenSSF Scorecard" /></a>
+  <a href="https://app.codspeed.io/oaslananka/zaptrace?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed"/></a>
 </p>
 
 <p>

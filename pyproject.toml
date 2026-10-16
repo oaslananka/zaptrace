@@ -129,5 +129,6 @@ typecheck = [
 test = [
     "hypothesis>=6.168.5",
     "pytest-asyncio>=1.4.0",
+    "pytest-codspeed>=5.0.3",
     "pytest-cov>=7.1.0",
 ]
