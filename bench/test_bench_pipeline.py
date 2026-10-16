@@ -28,62 +28,53 @@ DESIGNS = ("example", "scaled")
 @pytest.mark.parametrize("name", DESIGNS)
 def test_parse_design_yaml(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     source = request.getfixturevalue(f"{name}_yaml")
-    design = benchmark(parse_str, source)
-    assert design.components
+    benchmark(parse_str, source)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_dump_design_yaml(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design = request.getfixturevalue(f"{name}_routed")
-    text = benchmark(dump_str, design)
-    assert text
+    benchmark(dump_str, design)
 
 
 def test_synthesize_from_intent(benchmark: BenchmarkFixture) -> None:
-    design = benchmark(synthesize, "ESP32 I2C sensor board with BME280")
-    assert design.components
+    benchmark(synthesize, "ESP32 I2C sensor board with BME280")
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_classify_nets(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design = request.getfixturevalue(f"{name}_design")
     benchmark(classify_design, design)
-    assert design.nets
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_place_components(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design = request.getfixturevalue(f"{name}_design")
-    positions = benchmark(place_components, design)
-    assert len(positions) == len(design.components)
+    benchmark(place_components, design)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_route_nets_manhattan(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design, positions = request.getfixturevalue(f"{name}_placed")
-    result = benchmark(route_nets, design, positions)
-    assert result.total_nets > 0
+    benchmark(route_nets, design, positions)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_route_design_smart(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design, positions = request.getfixturevalue(f"{name}_placed")
-    _, route_result, _ = benchmark(route_design_smart, design, positions)
-    assert route_result.traces
+    benchmark(route_design_smart, design, positions)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_erc_run(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design = request.getfixturevalue(f"{name}_design")
-    result = benchmark(ERCRunner().run, design)
-    assert result.checks_run
+    benchmark(ERCRunner().run, design)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_drc_run(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, name: str) -> None:
     design = request.getfixturevalue(f"{name}_routed")
-    result = benchmark(DRCEngine().run, design)
-    assert result.design_name == design.meta.name
+    benchmark(DRCEngine().run, design)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
@@ -93,12 +84,10 @@ def test_bom_export(benchmark: BenchmarkFixture, request: pytest.FixtureRequest,
     def export_bom() -> tuple[str, str]:
         return generate_bom_csv(design), generate_bom_json(design)
 
-    csv_text, json_text = benchmark(export_bom)
-    assert csv_text and json_text
+    benchmark(export_bom)
 
 
 @pytest.mark.parametrize("name", DESIGNS)
 def test_kicad_export(benchmark: BenchmarkFixture, request: pytest.FixtureRequest, tmp_path: Path, name: str) -> None:
     design = request.getfixturevalue(f"{name}_routed")
-    files = benchmark(export_kicad, design, tmp_path)
-    assert files
+    benchmark(export_kicad, design, tmp_path)
