@@ -20,3 +20,17 @@ DRC JSON source-object UUIDs and millimeter positions reach the native SVG
 Review Canvas. These markers identify referenced KiCad source objects,
 **not the exact physical centers of rule violations**. Fabrication approval
 is not part of this fixture. The previous SVG source files are unchanged.
+
+## Controlled source-marker positive fixture (2026-10-20)
+
+**Test-only intentional defect.** To exercise native KiCad UUID-to-visual-marker
+mapping under the same zone-refill policy as the live CLI, a synthetic 0.25 mm
+F.Cu track (net SW_Left) was added between SW2 pad 1 (SW_Left) and SW2
+pad 2 (GND). This deliberately **shorts two different nets**. KiCad DRC
+with zone refilling verifies shorting_items, tracks_crossing, and
+solder_mask_bridge on F.Cu, with actual source-object UUID/positions.
+
+This is a test fixture ONLY: **never manufacture, approve, fabricate, or
+merge it to Zaptrace main**. No changes to the BoardReadyOps production
+readiness decision are implied. Inspect real source-object positions rather
+than asserting the exact short-circuit geometry from any anchor.

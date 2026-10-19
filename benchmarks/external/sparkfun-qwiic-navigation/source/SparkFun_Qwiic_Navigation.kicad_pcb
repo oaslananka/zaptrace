@@ -18287,4 +18287,12 @@
 		(layer "F.SilkS")
 		(uuid "e64a93e8-7151-4d54-9e68-010203116100")
 	)
+	(segment
+		(start 144.631598 106.118503)
+		(end 145.621548 107.108452)
+		(width 0.25)
+		(layer "F.Cu")
+		(net 18)
+		(uuid "f3ac9cc3-d541-4acc-ad4d-039b712e1172")
+	)
 )
