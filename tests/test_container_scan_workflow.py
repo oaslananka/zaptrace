@@ -184,7 +184,7 @@ def test_container_workflow_verifies_lock_and_image_provenance() -> None:
     workflow = _workflow()
 
     assert "astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39" in workflow
-    assert "version: 0.11.29" in workflow
+    assert "version: 0.13.4" in workflow
     assert "scripts/ci_container_reproducibility.py check-lock" in workflow
     assert "--manifest requirements/container-runtime.txt" in workflow
     assert "--build-arg SOURCE_COMMIT=" in workflow

@@ -71,12 +71,12 @@ def test_docker_builder_tools_use_hash_locked_manifest() -> None:
     manifest = manifest_path.read_text(encoding="utf-8")
 
     assert "maturin==1.13.3" in manifest
-    assert "uv==0.11.29" in manifest
+    assert "uv==0.13.4" in manifest
     assert manifest.count("--hash=sha256:") >= 2
     assert "COPY requirements/container-builder.txt /build/requirements/container-builder.txt" in dockerfile
     assert "pip install --no-cache-dir --require-hashes --only-binary=:all:" in dockerfile
     assert "-r /build/requirements/container-builder.txt" in dockerfile
-    assert "pip install --no-cache-dir maturin==1.13.3 uv==0.11.29" not in dockerfile
+    assert "pip install --no-cache-dir maturin==1.13.3 uv==0.13.4" not in dockerfile
 
 
 def test_docker_builder_manifest_digest_defaults_match_committed_file() -> None:

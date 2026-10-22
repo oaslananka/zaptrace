@@ -97,7 +97,7 @@ def _bound_provenance(tmp_path: Path) -> tuple[Path, Path, Path]:
 def test_committed_builder_manifest_is_hash_locked() -> None:
     manifest = Path("requirements/container-builder.txt")
 
-    assert policy.parse_hashed_manifest(manifest) == ["maturin==1.13.3", "uv==0.11.29"]
+    assert policy.parse_hashed_manifest(manifest) == ["maturin==1.13.3", "uv==0.13.4"]
 
 
 def test_committed_alpine_runtime_manifest_matches_pinned_base_repository() -> None:
