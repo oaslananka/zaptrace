@@ -10,6 +10,7 @@ PCB manufacturers (JLCPCB, PCBWay, etc.).
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from zaptrace.core.models import Design
@@ -36,6 +37,7 @@ _GENERATED_LEADER = "ZapTrace generated Excellon drill file"
 _COMBINED_LEADER = "ZapTrace combined drill file"
 
 _DrillHole = tuple[float, float, float, bool]
+_DrillSlot = tuple[float, float, float, float, float, bool]  # x1, y1, x2, y2, tool width, plated
 _DrillCoordinate = tuple[float, float, float]
 _ToolCoordinates = dict[int, list[tuple[float, float]]]
 
@@ -101,6 +103,31 @@ def _component_drill_holes(design: Design) -> list[_DrillHole]:
     return holes
 
 
+def _component_drill_slots(design: Design) -> list[_DrillSlot]:
+    """Use genuine routed slot centerlines; never collapse them to round hits."""
+    slots: list[_DrillSlot] = []
+    for component in design.components.values():
+        if component.footprint_def is None or component.position is None:
+            continue
+        cx, cy = component.position
+        for pad in component.footprint_def.pads:
+            if pad.drill_slot is None:
+                continue
+            if pad.drill is not None:
+                raise ValueError(f"Pad {component.ref}.{pad.id} defines both round and slotted drills")
+            width, height = pad.drill_slot
+            tool_width = min(width, height)
+            run = (max(width, height) - tool_width) / 2
+            axis_x, axis_y = (run, 0.0) if width > height else (0.0, run)
+            angle = math.radians(pad.rotation)
+            dx = axis_x * math.cos(angle) - axis_y * math.sin(angle)
+            dy = axis_x * math.sin(angle) + axis_y * math.cos(angle)
+            x = cx + pad.position[0]
+            y = cy + pad.position[1]
+            slots.append((x - dx, y - dy, x + dx, y + dy, tool_width, pad.plated))
+    return slots
+
+
 def _mounting_drill_holes(design: Design) -> list[_DrillHole]:
     if design.board_def is None:
         return []
@@ -150,6 +177,36 @@ def _render_drill_file(holes: list[_DrillCoordinate], *, filename: str, leader: 
     return "".join(lines)
 
 
+def _render_drill_with_slots(
+    holes: list[_DrillCoordinate],
+    slots: list[_DrillSlot],
+    *,
+    filename: str,
+    leader: str,
+) -> str:
+    """Render round holes and G85 canned routed slots with distinct tool widths."""
+    if not slots:
+        return _render_drill_file(holes, filename=filename, leader=leader)
+    tools = _ToolManager()
+    grouped = _group_holes_by_tool(holes, tools)
+    routes: dict[int, list[tuple[float, float, float, float]]] = {}
+    for x1, y1, x2, y2, diameter, _plated in slots:
+        tool = tools.get_or_create(diameter)
+        routes.setdefault(tool, []).append((x1, y1, x2, y2))
+    lines = ["M48\n", f"; {leader}\n", f";FILE={filename}\n", _UNITS_MM, "%\n"]
+    lines.extend(tools.tool_defs_lines())
+    lines.extend(_coordinate_lines(grouped))
+    for tool in sorted(routes):
+        lines.append(f"T{tool:02d}\n")
+        for x1, y1, x2, y2 in sorted(routes[tool]):
+            coords = (round(v * 1_000_000) for v in (x1, y1, x2, y2))
+            a, b, c, d = coords
+            lines.append(f"X{a}Y{b}G85X{c}Y{d}\n")
+            lines.append("G05\n")
+    lines.append(_TRAILER)
+    return "".join(lines)
+
+
 def _prepare_output(output_dir: str | Path | None) -> tuple[bool, Path]:
     use_files = output_dir is not None
     out_dir = Path(output_dir) if output_dir else Path()
@@ -169,13 +226,14 @@ def _add_drill_result(
     *,
     key: str,
     holes: list[_DrillCoordinate],
+    slots: list[_DrillSlot],
     filename: str,
     use_files: bool,
     out_dir: Path,
 ) -> None:
-    if not holes:
+    if not holes and not slots:
         return
-    content = _render_drill_file(holes, filename=filename, leader=_GENERATED_LEADER)
+    content = _render_drill_with_slots(holes, slots, filename=filename, leader=_GENERATED_LEADER)
     result[key] = _write_drill_file(out_dir, filename, content) if use_files else content
 
 
@@ -203,12 +261,16 @@ def generate_excellon(design: Design, output_dir: str | Path | None = None, pref
     holes = _collect_drill_holes(design)
     plated = [(x, y, diameter) for x, y, diameter, is_plated in holes if is_plated]
     non_plated = [(x, y, diameter) for x, y, diameter, is_plated in holes if not is_plated]
+    slots = _component_drill_slots(design)
+    plated_slots = [slot for slot in slots if slot[-1]]
+    non_plated_slots = [slot for slot in slots if not slot[-1]]
 
     result: dict[str, str | Path] = {}
     _add_drill_result(
         result,
         key="plated",
         holes=plated,
+        slots=plated_slots,
         filename=f"{safe_prefix}.DRL",
         use_files=use_files,
         out_dir=out_dir,
@@ -217,6 +279,7 @@ def generate_excellon(design: Design, output_dir: str | Path | None = None, pref
         result,
         key="non_plated",
         holes=non_plated,
+        slots=non_plated_slots,
         filename=f"{safe_prefix}-NPTH.DRL",
         use_files=use_files,
         out_dir=out_dir,
@@ -233,7 +296,12 @@ def generate_composite_drill(design: Design, output_dir: str | Path | None = Non
     safe_prefix = safe_export_stem(prefix or design.meta.name or "board")
     holes = [(x, y, diameter) for x, y, diameter, _is_plated in _collect_drill_holes(design)]
     filename = f"{safe_prefix}-ALL.DRL"
-    content = _render_drill_file(holes, filename=filename, leader=_COMBINED_LEADER)
+    content = _render_drill_with_slots(
+        holes,
+        _component_drill_slots(design),
+        filename=filename,
+        leader=_COMBINED_LEADER,
+    )
     if use_files:
         return _write_drill_file(out_dir, filename, content)
     return content

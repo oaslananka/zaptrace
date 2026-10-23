@@ -37,6 +37,7 @@ class PadShape(StrEnum):
     RECT = "rect"
     CIRCLE = "circle"
     OVAL = "oval"
+    ROUNDRECT = "roundrect"
     CUSTOM = "custom"
 
 
@@ -269,10 +270,22 @@ class Pad(BaseModel):
     shape: PadShape = Field(default=PadShape.RECT, description="Pad geometry shape")
     position: tuple[float, float] = Field(default=(0.0, 0.0), description="Pad position (x, y) in mm")
     size: tuple[float, float] = Field(default=(1.0, 1.0), description="Pad size (width, height) in mm")
-    drill: float | None = Field(default=None, description="Drill hole diameter in mm (None for SMD)")
+    drill: float | None = Field(default=None, description="Round hole diameter in mm (None for SMD or slot)")
+    drill_slot: tuple[float, float] | None = Field(default=None, description="Oval routed-hole (width, height) in mm")
+    roundrect_rratio: float | None = Field(default=None, description="KiCad rounded rectangle corner ratio")
     plated: bool = Field(default=True, description="Whether the hole is plated (PTH)")
     solder_paste: bool = Field(default=True, description="Whether solder paste is applied")
     rotation: float = Field(default=0.0, description="Pad rotation in degrees")
+
+    @field_validator("drill_slot")
+    @classmethod
+    def validate_slot(cls, value: tuple[float, float] | None) -> tuple[float, float] | None:
+        if value is not None:
+            import math
+
+            if any(not math.isfinite(v) or v <= 0 for v in value) or value[0] == value[1]:
+                raise ValueError("Oval drill must have distinct finite positive width/height")
+        return value
 
 
 class FootprintDef(BaseModel):

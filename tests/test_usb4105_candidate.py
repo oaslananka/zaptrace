@@ -132,7 +132,8 @@ def test_usb4105_vendored_footprint_is_pinned_and_covers_all_unique_physical_pad
 
     footprint = resolve_vendored_footprint(_FOOTPRINT_NAME)
     assert footprint is not None
-    assert {pad.id for pad in footprint.pads} == set(_EXPECTED_PACKAGE_MAP)
+    assert {pad.id for pad in footprint.pads if pad.id} == set(_EXPECTED_PACKAGE_MAP)
+    assert sum(pad.id == "" and not pad.plated and pad.drill == 0.65 for pad in footprint.pads) == 2
 
     source = FootprintSourceProvenance(
         source_type=FootprintSourceType.VENDORED,
@@ -153,7 +154,7 @@ def test_usb4105_vendored_footprint_is_pinned_and_covers_all_unique_physical_pad
 
     assert validation.blocked is False
     assert proof.pin_count == 17
-    assert proof.pad_count == 20
+    assert proof.pad_count == 22
 
     risky = validate_risky_package_policy(proof)
     assert risky.family == "USB-C"
