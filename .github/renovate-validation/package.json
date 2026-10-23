@@ -6,7 +6,7 @@
     "node": "24.21.0"
   },
   "devDependencies": {
-    "renovate": "^44.163.0"
+    "renovate": "^44.167.5"
   },
   "overrides": {
     "simple-git": "^4.0.2",
