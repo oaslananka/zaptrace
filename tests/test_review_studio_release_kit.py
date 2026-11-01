@@ -84,3 +84,39 @@ def test_release_kit_refuses_package_tampering_or_unqualified_manifest(local_evi
     with pytest.raises(ValueError, match="hash"):
         create(directory, guide)
     assert not (directory / VERSIONED_KIT).exists()
+
+
+def test_release_kit_replaces_output_links_without_touching_their_targets(
+    local_evidence: tuple[Path, Path], tmp_path: Path
+) -> None:
+    directory, guide = local_evidence
+    destination = directory / VERSIONED_KIT
+    checksum = destination.with_suffix(destination.suffix + ".sha256")
+    outside_zip = tmp_path / "external.zip"
+    outside_hash = tmp_path / "external.sha256"
+    outside_zip.write_bytes(b"protected-zip")
+    outside_hash.write_bytes(b"protected-hash")
+    destination.symlink_to(outside_zip)
+    checksum.symlink_to(outside_hash)
+
+    kit = create(directory, guide)
+
+    assert kit.is_file() and not kit.is_symlink()
+    assert checksum.is_file() and not checksum.is_symlink()
+    assert outside_zip.read_bytes() == b"protected-zip"
+    assert outside_hash.read_bytes() == b"protected-hash"
+
+
+def test_release_kit_rejects_symlinked_evidence_and_guide(local_evidence: tuple[Path, Path], tmp_path: Path) -> None:
+    directory, guide = local_evidence
+    linked_guide = tmp_path / "guide.md"
+    linked_guide.symlink_to(guide)
+    with pytest.raises(ValueError, match="installation guide"):
+        create(directory, linked_guide)
+
+    manifest = directory / "RELEASE_MANIFEST.json"
+    backup = directory / "manifest.saved"
+    manifest.rename(backup)
+    manifest.symlink_to(backup)
+    with pytest.raises(ValueError, match="nonregular QA release evidence"):
+        create(directory, guide)

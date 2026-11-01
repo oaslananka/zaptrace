@@ -6,8 +6,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import tempfile
 import zipfile
 from pathlib import Path
+
+from review_studio_local_file_guard import read_regular_bytes
 
 FILES = (
     "zaptrace-review-studio_0.1.12_all.deb",
@@ -20,15 +24,18 @@ TIMESTAMP = (2023, 11, 15, 1, 13, 20)
 
 
 def create(distribution: Path, quickstart: Path) -> Path:
-    if not quickstart.is_file():
+    if not quickstart.is_file() or quickstart.is_symlink():
         raise ValueError("Review Studio installation guide must be available")
-    origin = distribution.resolve()
+    origin = distribution.resolve(strict=True)
+    if not origin.is_dir():
+        raise ValueError("Review Studio release directory must exist")
     mapped: dict[str, bytes] = {}
     for name in FILES:
         file = origin / name
-        if not file.is_file() or file.is_symlink():
-            raise ValueError("Missing or nonregular QA release evidence: " + name)
-        mapped[name] = file.read_bytes()
+        try:
+            mapped[name] = read_regular_bytes(file, max_size=128 * 1024 * 1024)
+        except ValueError as exc:
+            raise ValueError("Missing or nonregular QA release evidence: " + name) from exc
     package = mapped[FILES[0]]
     actual = hashlib.sha256(package).hexdigest()
     if mapped[FILES[1]].decode("ascii").strip() != actual + "  " + FILES[0]:
@@ -64,7 +71,7 @@ def create(distribution: Path, quickstart: Path) -> Path:
     qa = mapped[FILES[3]].decode("utf-8")
     if f"PACKAGE_SHA256={actual}" not in qa or "Actual APT remove 0.1.12 passed" not in qa:
         raise ValueError("Clean Ubuntu QA does not belong to this package")
-    readme = quickstart.read_bytes()
+    readme = read_regular_bytes(quickstart, max_size=1 * 1024 * 1024)
     if (
         b"local release candidate, unsigned" not in readme
         or b"NOT public GA" not in str(metadata.get("status")).encode()
@@ -72,16 +79,23 @@ def create(distribution: Path, quickstart: Path) -> Path:
         raise ValueError("Do not omit release-candidate and unsigned disclosures")
     mapped["INSTALL_AND_RELEASE_NOTES.md"] = readme
     output = origin / VERSIONED_KIT
-    with zipfile.ZipFile(
-        output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6, strict_timestamps=False
-    ) as archive:
-        for name in sorted(mapped):
-            info = zipfile.ZipInfo(name, date_time=TIMESTAMP)
-            info.external_attr = 0o100644 << 16
-            info.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(info, mapped[name], compress_type=zipfile.ZIP_DEFLATED, compresslevel=6)
-    checksum = hashlib.sha256(output.read_bytes()).hexdigest()
-    output.with_suffix(output.suffix + ".sha256").write_text(f"{checksum}  {output.name}\n", encoding="ascii")
+    with tempfile.TemporaryDirectory(prefix=".zaptrace-kit-", dir=origin) as staging:
+        staged = Path(staging) / VERSIONED_KIT
+        with zipfile.ZipFile(
+            staged, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6, strict_timestamps=False
+        ) as archive:
+            for name in sorted(mapped):
+                info = zipfile.ZipInfo(name, date_time=TIMESTAMP)
+                info.external_attr = 0o100644 << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(info, mapped[name], compress_type=zipfile.ZIP_DEFLATED, compresslevel=6)
+        checksum = hashlib.sha256(staged.read_bytes()).hexdigest()
+        staged_checksum = staged.with_suffix(staged.suffix + ".sha256")
+        staged_checksum.write_text(f"{checksum}  {output.name}\n", encoding="ascii")
+        # Atomic replacement never follows an attacker-substituted output
+        # symlink and retains deterministic rebuilds of an existing kit.
+        os.replace(staged, output)
+        os.replace(staged_checksum, output.with_suffix(output.suffix + ".sha256"))
     print("OFFLINE LOCAL-ONLY REVIEW RELEASE KIT:", output)
     print("KIT SHA256:", checksum)
     print("PACKAGE SHA256:", actual)

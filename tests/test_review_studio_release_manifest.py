@@ -114,3 +114,28 @@ def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
     qa.write_text(accepted.replace(sha256(release_artifact), "0" * 64))
     with pytest.raises(ValueError, match="Container|QA"):
         manifest(release_artifact, log, qa)
+
+
+def test_manifest_rejects_symlinked_release_input_and_checksum(release_artifact: Path, tmp_path: Path) -> None:
+    log = gate_log(tmp_path)
+    bad_log = tmp_path / "gate-link.log"
+    bad_log.symlink_to(log)
+    with pytest.raises(ValueError, match="regular files"):
+        manifest(release_artifact, bad_log)
+
+    package_link = tmp_path / "zaptrace-review-studio_0.1.12_all.deb"
+    package_link.symlink_to(release_artifact)
+    with pytest.raises(ValueError, match="regular files"):
+        manifest(package_link, log)
+
+    checksum = release_artifact.with_suffix(".sha256")
+    actual = checksum.read_bytes()
+    backup = checksum.with_name("release-checksum-backup")
+    checksum.rename(backup)
+    checksum.symlink_to(backup)
+    try:
+        with pytest.raises(ValueError, match="unsafe"):
+            manifest(release_artifact, log)
+    finally:
+        checksum.unlink()
+        checksum.write_bytes(actual)

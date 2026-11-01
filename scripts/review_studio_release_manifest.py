@@ -15,16 +15,20 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from review_studio_local_file_guard import read_regular_bytes
+
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) -> dict:
-    package, gate_log = package.resolve(), gate_log.resolve()
+    if package.is_symlink() or gate_log.is_symlink():
+        raise ValueError("Release package and completed gate log must be regular files")
+    package, gate_log = package.resolve(strict=True), gate_log.resolve(strict=True)
     if not package.is_file() or not gate_log.is_file():
         raise ValueError("Release package and completed gate log must exist")
-    evidence = gate_log.read_text(encoding="utf-8")
+    evidence = read_regular_bytes(gate_log, max_size=10_000_000).decode("utf-8")
     if "RELEASE GATE: PASS" not in evidence or not all(f"[{i}/9]" in evidence for i in range(1, 10)):
         raise ValueError("Complete nine-stage local engineering release gate was not verified")
     if "0 errors, 0 warnings, 0 informations" not in evidence:
@@ -34,7 +38,8 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
     recorded_sha = package.with_suffix(".sha256")
     if (
         not recorded_sha.is_file()
-        or recorded_sha.read_text(encoding="ascii").strip() != f"{sha256(package)}  {package.name}"
+        or read_regular_bytes(recorded_sha, max_size=512).decode("ascii").strip()
+        != f"{sha256(package)}  {package.name}"
     ):
         raise ValueError("Release package and registered SHA256 checksum do not match")
     fields = {}
@@ -48,7 +53,7 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
     if container_qa is not None:
         if not container_qa.is_file():
             raise ValueError("Container acceptance report unavailable")
-        log = container_qa.read_text(encoding="utf-8")
+        log = read_regular_bytes(container_qa, max_size=20_000_000).decode("utf-8")
         markers = (
             "PACKAGE_SHA256=" + sha256(package),
             "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.11 = 0",
