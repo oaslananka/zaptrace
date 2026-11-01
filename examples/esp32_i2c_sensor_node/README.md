@@ -42,6 +42,10 @@ an approved VBUS protection design.
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
 fabricator or certify their safety.
+When routing evidence is available, the CLI reports unresolved physical nets and
+marks continuity and fabrication readiness as unverified. The corresponding
+tool result provides additive routing_evidence; completed pipeline stages
+are not evidence that all PCB connections have been routed.
 
 ## Run the strict Proof Pack — expected to block
 
@@ -132,8 +136,7 @@ This is **not** a complete board: J1's four logical net nodes still lack
 validated physical pad assignments. Two distinct 5.1 kΩ Rd resistors, R3 and
 R4, now logically terminate J1.CC1 and J1.CC2 to ground on separate USB_CC1
 and USB_CC2 nets. This follows the GCT USB4105 contact assignment (A5/B5)
-and ST AN5225 fixed-sink termination guidance, but J1's plated oval shell
-slots are not safely represented by the current round-hole-only importer.
+and ST AN5225 fixed-sink termination guidance, but physical shell-slot representation is not fabrication approval.
 Therefore the new CC terminations are **source topology only**; real copper
 continuity, slot/drill manufacturing data, receptacle orientation, LDO
 capacitor stability/thermal performance, and protection qualification still
