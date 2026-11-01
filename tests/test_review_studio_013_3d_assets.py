@@ -25,10 +25,22 @@ def test_013_native_models_fail_closed_with_source_sha_and_no_geometry_signoff()
     assert report["footprints"] == 14
     assert report["footprints_with_model_references"] == 12
     assert report["declared_model_links"] == 12
-    assert report["locally_present_model_files"] == 10
-    assert report["unresolved_references"] == ["J1", "U1"]
     assert report["no_model_link_declared"] == ["TP1", "TP2"]
-    assert report["exact_stem_step_alternatives_only"] == ["J1", "U1"]
+    if report["locally_present_model_files"] == 10:
+        # Native workstation with the optional KiCad 3D library installed.
+        assert report["unresolved_references"] == ["J1", "U1"]
+        assert report["exact_stem_step_alternatives_only"] == ["J1", "U1"]
+    else:
+        # Minimal CI KiCad installation must report absent 3D assets as
+        # unresolved, never as real geometry proof or fabricated models.
+        assert report["locally_present_model_files"] == 0
+        assert report["unresolved_references"] == [item["reference"] for item in report["details"] if item["models"]]
+        assert report["exact_stem_step_alternatives_only"] == []
+        assert all(
+            not model["installed_file_exists_with_matching_relative_path"]
+            for item in report["details"]
+            for model in item["models"]
+        )
     assert report["physical_assembly_fit_certified"] is False
     assert report["all_models_independently_geometry_verified"] is False
     assert report["fabrication_approved"] is False

@@ -121,7 +121,7 @@ jobs:
       - name: Install external test tools
         if: inputs.test_mode != 'docs' && matrix.install_external
         run: |
-          bash scripts/ci_install_kicad.sh kicad ngspice
+          bash scripts/ci_install_kicad.sh kicad ngspice desktop-file-utils
 
       - name: Build native extension for native lane
         if: inputs.test_mode != 'docs' && matrix.build_native

@@ -157,6 +157,7 @@
         "tests/test_kicad_step_export.py",
         "tests/test_review_studio_013_3d_assets.py",
         "tests/test_review_studio_014_models.py",
+        "tests/test_review_studio_distribution.py",
         "tests/test_review_studio_native_copper_batch_server.py",
         "tests/test_review_studio_native_copper_server.py",
         "tests/test_review_studio_pcb_eco.py",
