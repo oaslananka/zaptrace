@@ -54,6 +54,20 @@ def bounded_log(text: str, *, secrets: tuple[str, ...], limit: int = _MAX_LOG_BY
     return f"{prefix}\n...[truncated]\n"
 
 
+def bounded_error(text: str, *, secrets: tuple[str, ...], limit: int = 4096) -> str:
+    """Retain the error-bearing end of a long build failure, without secrets."""
+    redacted = text
+    for secret in secrets:
+        if secret:
+            redacted = redacted.replace(secret, "[REDACTED]")
+    encoded = redacted.encode("utf-8", errors="replace")
+    if len(encoded) <= limit:
+        return redacted
+    marker = "...[truncated build output]\n"
+    tail = encoded[-(limit - len(marker.encode())) :].decode("utf-8", errors="ignore")
+    return marker + tail
+
+
 def package_version() -> str:
     """Read the authoritative package version without importing the project."""
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -387,7 +401,7 @@ def execute() -> dict[str, Any]:
         report["checks"]["mcp_oauth_profile"] = mcp_oauth_profile_checks(mcp_port)
         report["passed"] = True
     except Exception as exc:  # noqa: BLE001 - CI boundary converts all failures into evidence
-        report["error"] = bounded_log(str(exc), secrets=secrets_to_redact, limit=4096).strip()
+        report["error"] = bounded_error(str(exc), secrets=secrets_to_redact, limit=4096).strip()
     finally:
         try:
             logs = compose(["logs", "--no-color", "--timestamps"], env=env, check=False)

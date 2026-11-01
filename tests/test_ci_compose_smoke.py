@@ -45,6 +45,18 @@ def test_bounded_log_redacts_tokens_and_truncates() -> None:
     assert len(bounded.encode("utf-8")) <= 96
 
 
+def test_bounded_error_retains_build_failure_tail_without_secrets() -> None:
+    module = _module()
+    secret_value = secrets.token_urlsafe(32)
+    large_log = f"build started with {secret_value}\n" + ("progress\n" * 1500)
+    tail = f"BUILD FAILED: package wheel unavailable {secret_value}"
+    result = module.bounded_error(large_log + tail, secrets=(secret_value,), limit=512)
+    assert result.startswith("...[truncated build output]")
+    assert "BUILD FAILED: package wheel unavailable [REDACTED]" in result
+    assert secret_value not in result
+    assert len(result.encode("utf-8")) <= 512
+
+
 def test_parse_mcp_discover_response_returns_server_identity() -> None:
     module = _module()
     payload = (
