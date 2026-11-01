@@ -1,4 +1,5 @@
 // Real Chrome: source-only native schematic/PCB association with no synchronization.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,readdir} from 'node:fs/promises';
 import path from 'node:path';
@@ -16,7 +17,7 @@ for(let i=0;i<90;i++){
 }
 const tab=pages.find(x=>x.type==='page'&&x.url?.startsWith('http://127.0.0.1:'))||pages.find(x=>x.type==='page');
 if(!tab)throw Error('Chrome native workspace not found');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, port));
 await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
 let id=0;
 const pending=new Map(),errors=[];

@@ -1,4 +1,5 @@
 // Real Chrome 155 source-only localhost native KiCad guarded copper UX acceptance.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,readdir} from 'node:fs/promises';
 import path from 'node:path';
@@ -17,7 +18,7 @@ for(let i=0;i<85;i++){
 }
 const tab=pages.find(x=>x.type==='page'&&x.url?.startsWith('http://127.0.0.1:'))||pages.find(x=>x.type==='page');
 if(!tab)throw Error('Actual Chrome localhost Review Studio page unavailable');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, port));
 await new Promise((resolve,reject)=>{
  ws.addEventListener('open',resolve,{once:true});
  ws.addEventListener('error',reject,{once:true});

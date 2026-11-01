@@ -1,4 +1,5 @@
 // Real offline Chromium verification of KiCad-created before/after ECO SVGs.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const shots=process.env.ZAPTRACE_ECO_SHOTS||'build/eco-native-R1-value-zoom-v2';
@@ -9,7 +10,7 @@ for(let i=0;i<80;i++){
  await new Promise(r=>setTimeout(r,100));
 }
 const tab=pages.find(p=>p.type==='page');if(!tab)throw Error('Native KiCad ECO viewer Chrome unavailable');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, port));
 await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
 let id=0;const callbacks=new Map(),exceptions=[];
 ws.addEventListener('message',e=>{const x=JSON.parse(e.data);if(x.method==='Runtime.exceptionThrown')exceptions.push(x.params.exceptionDetails.text);

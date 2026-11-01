@@ -1,4 +1,5 @@
 // Authentic offscreen native KiCad 10 model preview, never synthetic 3D.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT);
 const snapshots=process.env.ZAPTRACE_3D_SHOTS||'build/native-3d-eda-review';
@@ -10,7 +11,7 @@ for(let i=0;i<95;i++){
  await new Promise(r=>setTimeout(r,110));
 }
 const p=pages.find(x=>x.type==='page');if(!p)throw Error('KiCad preview Chrome unavailable');
-const ws=new WebSocket(p.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(p.webSocketDebuggerUrl, port));
 await new Promise((res,rej)=>{ws.addEventListener('open',res,{once:true});ws.addEventListener('error',rej,{once:true});});
 let id=0;const requests=new Map(),errors=[];
 ws.addEventListener('message',evt=>{const x=JSON.parse(evt.data);if(x.method==='Runtime.exceptionThrown')errors.push(x.params.exceptionDetails.text);

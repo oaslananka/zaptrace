@@ -1,5 +1,6 @@
 // Installed end-user ZIP restoration: select real backup in Chromium, import
 // *native KiCad sources only*, and independently regenerate ERC + DRC.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {existsSync,writeFileSync} from 'node:fs';
 const debug=Number(process.env.ZAPTRACE_CHROME_PORT);
 const zip=process.env.ZAPTRACE_RESTORE_ZIP;
@@ -11,7 +12,7 @@ for(let i=0;i<100;i++){
  await new Promise(r=>setTimeout(r,110));
 }
 const page=pages.find(x=>x.type==='page');if(!page)throw Error('Chrome debug browser not available');
-const ws=new WebSocket(page.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(page.webSocketDebuggerUrl, debug));
 await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
 let next=0;const pending=new Map(),errors=[];
 ws.addEventListener('message',e=>{const v=JSON.parse(e.data);

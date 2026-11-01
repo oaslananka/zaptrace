@@ -1,5 +1,6 @@
 // Real native KiCad SVG sheet gallery / canvas navigation / root-only scope.
 // Uses the installed Chrome devtools protocol; never invokes an external CDN.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const kind=process.env.ZAPTRACE_GALLERY_KIND||'multi';
@@ -11,7 +12,7 @@ for(let i=0;i<100;i++){
  await new Promise(r=>setTimeout(r,110));
 }
 const tab=pages.find(p=>p.type==='page');if(!tab)throw Error('Real Chrome KiCad native preview unavailable');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, port));
 await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
 let seq=0;const requests=new Map(),errors=[];
 ws.addEventListener('message',ev=>{const item=JSON.parse(ev.data);if(item.method==='Runtime.exceptionThrown')errors.push(item.params.exceptionDetails.text);

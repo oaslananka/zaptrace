@@ -1,4 +1,5 @@
 // Real Chrome GUI acceptance: packaged end-user onboarding, privacy and Stop.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const debug=Number(process.env.ZAPTRACE_CHROME_PORT||46600);
 const output=process.env.ZAPTRACE_RELEASE_SHOTS||'build/distribution';
@@ -8,7 +9,7 @@ for(let i=0;i<120;i++){
  await new Promise(r=>setTimeout(r,100));
 }
 const page=pages.find(p=>p.type==='page');if(!page)throw Error('Real Chrome release page unavailable');
-const ws=new WebSocket(page.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(page.webSocketDebuggerUrl, debug));
 await new Promise((res,rej)=>{ws.addEventListener('open',res,{once:true});ws.addEventListener('error',rej,{once:true});});
 let id=0;const pending=new Map(),exceptions=[];
 ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')exceptions.push(m.params.exceptionDetails.text);if(m.id&&pending.has(m.id)){pending.get(m.id)(m);pending.delete(m.id);}});

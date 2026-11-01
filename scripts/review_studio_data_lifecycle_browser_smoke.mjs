@@ -1,5 +1,6 @@
 // Actual local packaged Review Studio: native ZIP download, typed deletion,
 // original KiCad source preservation, and empty-library refresh.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {existsSync,mkdirSync,readFileSync,statSync,writeFileSync} from 'node:fs';
 const debug=Number(process.env.ZAPTRACE_CHROME_PORT);
 const download=process.env.ZAPTRACE_BACKUP_DIR;
@@ -12,7 +13,7 @@ for(let i=0;i<90;i++){
  await new Promise(r=>setTimeout(r,120));
 }
 const tab=tabs.find(x=>x.type==='page');if(!tab)throw Error('Chrome page unavailable');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, debug));
 await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
 let seq=0;const queue=new Map(),exceptions=[];
 ws.addEventListener('message',e=>{const v=JSON.parse(e.data);if(v.method==='Runtime.exceptionThrown')exceptions.push(v.params.exceptionDetails.text);if(v.id&&queue.has(v.id)){queue.get(v.id)(v);queue.delete(v.id);}});

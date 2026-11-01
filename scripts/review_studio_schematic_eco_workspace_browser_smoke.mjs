@@ -1,5 +1,6 @@
 // Real Chromium native localhost file-upload -> KiCad ECO -> sandboxed preview -> discard.
 // Only listens to the locally launched Review Studio; zero network/cloud access.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const chromePort=Number(process.env.ZAPTRACE_CHROME_PORT);
 const source=process.env.ZAPTRACE_ECO_SOURCE;
@@ -11,7 +12,7 @@ for(let i=0;i<100;i++){
  await new Promise(r=>setTimeout(r,100));
 }
 const tab=pages.find(p=>p.type==='page');if(!tab)throw Error('Real localhost Review Studio Chrome not available');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, chromePort));
 await new Promise((res,rej)=>{ws.addEventListener('open',res,{once:true});ws.addEventListener('error',rej,{once:true});});
 let id=0;const callbacks=new Map(),errors=[];
 ws.addEventListener('message',e=>{const x=JSON.parse(e.data);if(x.method==='Runtime.exceptionThrown')errors.push(x.params.exceptionDetails.text);

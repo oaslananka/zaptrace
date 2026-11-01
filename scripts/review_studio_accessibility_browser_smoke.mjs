@@ -1,4 +1,5 @@
 // Real Chrome workspace keyboard, accessibility and small-viewport regression.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 if(!port)throw Error('Real Chrome CDP port required');
@@ -10,9 +11,9 @@ for(let i=0;i<90;i++){
 const auditUrl=process.env.ZAPTRACE_AUDIT_URL;
 const tab=auditUrl?tabs.find(t=>t.type==='page'&&t.url===auditUrl):
  tabs.find(t=>t.type==='page'&&t.url?.startsWith('http://127.0.0.1:'))||tabs.find(t=>t.type==='page');
-console.log('CHROME TAB',tab?.url);
+console.log('CHROME TAB', 'local debugger page selected');
 if(!tab)throw Error('No Chrome workspace tab');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, port));
 await new Promise((resolve,reject)=>{
  ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});
 });

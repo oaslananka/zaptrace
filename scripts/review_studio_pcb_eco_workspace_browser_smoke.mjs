@@ -1,4 +1,5 @@
 // Live local Chrome: real native .kicad_pcb -> KiCad pad/copper/DRC -> visual copy.
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 const fixture=process.env.ZAPTRACE_PCB_ECO_SOURCE;
@@ -14,7 +15,7 @@ for(let i=0;i<90;i++){
  await new Promise(r=>setTimeout(r,110));
 }
 const tab=pages.find(x=>x.type==='page');if(!tab)throw Error('Live Chrome localhost PCB workspace unavailable');
-const ws=new WebSocket(tab.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(tab.webSocketDebuggerUrl, port));
 await new Promise((ok,fail)=>{ws.addEventListener('open',ok,{once:true});ws.addEventListener('error',fail,{once:true})});
 let id=0;const pending=new Map(),errors=[];
 ws.addEventListener('message',event=>{const r=JSON.parse(event.data);if(r.method==='Runtime.exceptionThrown')errors.push(r.params.exceptionDetails.text);

@@ -1,3 +1,4 @@
+import {localChromeSocketUrl} from './review_studio_chrome_debugger_url.mjs';
 import {writeFileSync} from 'node:fs';
 const cdp=Number(process.env.CDP_PORT),host=Number(process.env.HTTP_PORT);
 const shots=process.env.ZAPTRACE_027_SCREEN_DIR||'build/qa-027-visual';
@@ -7,7 +8,7 @@ let pages=[];
 for(let i=0;i<130;i++) {try{pages=await(await fetch(`http://127.0.0.1:${cdp}/json/list`)).json();if(pages.length)break;}catch{}await sleep(100)}
 const page=pages.find(p=>p.url?.includes('index.html'));
 if(!page)throw Error('No native source-backed KiCad 3D browser tab');
-const ws=new WebSocket(page.webSocketDebuggerUrl);
+const ws=new WebSocket(localChromeSocketUrl(page.webSocketDebuggerUrl, cdp));
 await new Promise((ok,no)=>{ws.addEventListener('open',ok,{once:true});ws.addEventListener('error',no,{once:true})});
 let id=0;const pending=new Map(),faults=[];
 ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')faults.push(m.params.exceptionDetails.text);if(pending.has(m.id)){pending.get(m.id)(m);pending.delete(m.id)}});
