@@ -17,8 +17,9 @@ def test_native_three_d_mobile_readable_warning_must_span_grid_row() -> None:
     assert 'id="render3dModelDiagnostics"' in html
     assert 'id="render3dModelDetails"' in html
     smoke = (ROOT / "scripts/review_studio_015_model_browser_smoke.mjs").read_text()
-    assert "mobile.warningWidth>=mobile.actionGridWidth*.88" in smoke
-    assert "mobile.warningHeight<85" in smoke
+    shared = (ROOT / "scripts/review_studio_model_browser_smoke_shared.mjs").read_text()
+    assert "mobile.warningWidth>=mobile.actionGridWidth*.88" in shared
+    assert "mobile.warningHeight<85" in shared
     assert "EXACT_015_SOURCE_LINKED_3D_MODEL_DIAGNOSTIC_CHROME=PASS" in smoke
 
 

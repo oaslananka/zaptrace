@@ -1,6 +1,6 @@
 // Exact installed-package real-Chrome mechanical file diagnostics (not certification).
 import {writeFileSync} from 'node:fs';
-export async function runSmoke(shot, marker) {
+export async function runSmoke(shot, marker, legacy=false) {
 const port=Number(process.env.ZAPTRACE_CHROME_PORT||0);
 if(!port||!shot)throw Error('Chrome CDP and disposable QA screenshot required');
 const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();
@@ -91,12 +91,14 @@ const narrow=await evalJs(`(()=>{const p=document.querySelector('.render3d-diagn
 console.log('320PX_REAL_3D_DIAGNOSTICS',narrow);
 const toolbarOverlap=Math.max(0,Math.min(narrow.toolbar.bottom,narrow.controls.bottom)-Math.max(narrow.toolbar.top,narrow.controls.top));
 console.log('320PX_3D_CONTROL_TOOLBAR_VERTICAL_OVERLAP_PX',toolbarOverlap);
-pass(toolbarOverlap<=1,'320px real native 3D model disclosure does not cover the PCB mode and tool controls');
+pass(toolbarOverlap<=1,legacy?'v0.1.15 must fail closed on its real 320px PCB toolbar occlusion':
+ '320px real native 3D model disclosure does not cover the PCB mode and tool controls');
 pass(narrow.client===320&&narrow.scroll<=320&&narrow.panel.width>240&&
  narrow.panel.left>=0&&narrow.panel.right<=321&&narrow.warning.width>=narrow.actions.width*.85&&
  narrow.warning.height<95&&narrow.open,'320px narrow-phone model panel and safety disclaimer remain readable with no horizontal scroll');
 const narrowShot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
 writeFileSync(shot.replace('-390.png','-320.png'),Buffer.from(narrowShot.data,'base64'));
+if(!legacy){
 for(const width of [340,360,375,380,381,385,390]){
  await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
  const box=await evalJs(`(()=>{const tools=document.querySelector('.boardactions').getBoundingClientRect();
@@ -108,6 +110,7 @@ for(const width of [340,360,375,380,381,385,390]){
  console.log('RESPONSIVE_NATIVE_3D',width,box);
  pass(box.viewport===width&&box.overflow<=0&&box.overlap<=1&&box.popupLeft>=0&&box.popupRight<=width+1,
   `real ${width}px Chrome 3D controls do not occlude navigation or exceed viewport`);
+}
 }
 const scope=await evalJs(`(()=>{document.getElementById('modePcb').click();
  const panel=document.getElementById('render3dModelDiagnostics');
