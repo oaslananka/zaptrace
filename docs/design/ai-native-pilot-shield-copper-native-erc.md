@@ -1,6 +1,8 @@
 # AI-native #33: native USB-C S1 copper fixture and KiCad ERC coverage
 
-Scope: USER-APPROVED MSI LOCAL ONLY. No GitHub mutation or manufacturing approval.
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
+Scope: USER-APPROVED local workstation LOCAL ONLY. No GitHub mutation or manufacturing approval.
 This is NOT an actual placed/routed board. Source candidate remains unchanged.
 
 ## Four physically separate USB-C shield pads
@@ -25,7 +27,7 @@ with native KiCad. J1 has four distinct S1 UUIDs, all on GND.
 - This is a connector-only experiment, NOT copper on the actual full source
   candidate board. Actual candidate S1 routing remains NOT VERIFIED.
 
-Run from MSI checkout using system KiCad Python:
+Run from local workstation checkout using system KiCad Python:
 
     /usr/bin/python3 -B scripts/ai_native_pilot_shield_pcb_oracle.py \
       --candidate-dir build/qa-038-physical-pin-source/candidate \

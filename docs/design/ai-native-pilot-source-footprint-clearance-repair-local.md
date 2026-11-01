@@ -1,5 +1,7 @@
 # AI-native pilot — physical footprint root-cause repair (MSI local)
 
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
 This is a SOURCE-BOUND **unrouted** KiCad placement experiment. It is not
 production approval, physical-device signoff, a release or a GitHub update.
 

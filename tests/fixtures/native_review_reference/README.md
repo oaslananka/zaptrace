@@ -6,3 +6,5 @@ The YAML, PCB and schematic retain their verified local SHA-256 digests. Run `sh
 
 The original local build-script checksum file, `checksums.sha256`, is retained and
 covered by the outer `SHA256SUMS` manifest.
+
+Text-only project metadata and one upstream footprint file use canonical LF/EOF formatting in the committed test fixture; the original ignored local source files remain unchanged. The manifest hashes describe the committed fixture bytes.

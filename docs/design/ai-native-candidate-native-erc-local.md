@@ -1,6 +1,8 @@
 # AI-native architecture pilot: local footprints and native oracle
 
-**MSI only, no GitHub mutations.** Follow-up to the initial candidate compiler
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
+**local workstation only, no GitHub mutations.** Follow-up to the initial candidate compiler
 for a 12-component/8-net USB-C, STM32, 3.3V 100mA, I2C sensor board.
 
 ## Component qualification
@@ -28,7 +30,7 @@ for a 12-component/8-net USB-C, STM32, 3.3V 100mA, I2C sensor board.
   library link problems), 4 ignored checks. Status BLOCKED. The regular
   CLI exit code can be zero despite violations; the oracle demands a fully
   clean JSON and uses --exit-code-violations.
-- MSI has no ngspice: simulation NOT CHECKED. Physical routing, KiCad PCB
+- local workstation has no ngspice: simulation NOT CHECKED. Physical routing, KiCad PCB
   DRC, transient models, KiCad/EasyEDA roundtrip and production review remain
   unverified, not represented as passes.
 - Exact local source hash and candidate identity are protected by the

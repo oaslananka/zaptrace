@@ -1,6 +1,8 @@
 # AI-native #33 — STM32F103 and USB4105 physical pin check (LOCAL)
 
-This is MSI local-only source verification, not manufacturing, procurement,
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
+This is local workstation local-only source verification, not manufacturing, procurement,
 board-routing or electronic engineering sign-off.
 
 ## Primary documentary basis
@@ -47,7 +49,7 @@ replaced with separate KiCad adapter output.
   test confirms each shell pad independently. Do not mark globally passed.
 - Genuine ERC: zero errors / zero warnings; four KiCad ignored checks,
   so ERC overall remains BLOCKED and no check was waived.
-- SPICE not checked: MSI lacks ngspice; routed PCB DRC, simulation,
+- SPICE not checked: local workstation lacks ngspice; routed PCB DRC, simulation,
   two-EDA interchange, manufacturing and human sign-off all pending.
 - ST and GCT manufacturer source data do not imply lifecycle,
   orderable-part qualification, correct fabrication land pattern, or

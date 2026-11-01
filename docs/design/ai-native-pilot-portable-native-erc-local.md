@@ -1,6 +1,8 @@
 # AI-native pilot: portable KiCad inspection library and strict native oracle
 
-**Scope:** User-approved #33 MSI-only vertical slice. The project-local
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
+**Scope:** User-approved #33 local workstation-only vertical slice. The project-local
 footprint library below is NOT a general EDA exporter change or a
 fabrication/engineering approval. No GitHub writes, packages, user GUI
 operations or new dependencies.
@@ -47,7 +49,7 @@ absent from the selected geometry. Counts overlap: they are diagnostics,
 not percentages of total electrical completeness. The pin/net gate is
 BLOCKED. KiCad ERC 0 warnings does not certify real MCU or USB wiring.
 
-SPICE is NOT CHECKED because MSI lacks ngspice; no new dependency installed.
+SPICE is NOT CHECKED because local workstation lacks ngspice; no new dependency installed.
 
 ## Evidence and reproduction
 
@@ -56,7 +58,7 @@ Native report: build/qa-037-native-portable/oracle-mask-preserved/oracle-evidenc
 Actual native KiCad XML, ERC JSON, .pretty footprints and tables:
 build/qa-037-native-portable/oracle-mask-preserved/kicad/
 
-From MSI repository root, use a new (non-existing) target directory:
+From local workstation repository root, use a new (non-existing) target directory:
 
     .venv/bin/python -m scripts.ai_native_candidate_oracles \
       --candidate-dir build/qa-036-passive-footprints/qualified-candidate \

@@ -1,5 +1,7 @@
 # AI-native / EDA-neutral architecture candidate — local stage 1 (#33)
 
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
 Status: SOURCE ONLY, not a release, GitHub update or manufacturing authorization.
 
 ## Supported local workflow

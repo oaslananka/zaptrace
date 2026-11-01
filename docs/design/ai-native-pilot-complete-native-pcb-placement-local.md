@@ -1,6 +1,8 @@
 # AI-native #33 → #35: first complete native PCB placement baseline
 
-**MSI local only. Source-only engineering experiment, not completed routing, DRC acceptance, independent human signoff or a fabrication release.** No GitHub writes or changes to the user's open KiCad GUI.
+> **Historical engineering experiment (October 2026).** This page records an earlier local-only investigation, not the current publication, validation or manufacturing status. The original no-GitHub-change statements describe the experiment at that time; its source was later included in the recovery integration PR. No fabrication approval is implied.
+
+**local workstation local only. Source-only engineering experiment, not completed routing, DRC acceptance, independent human signoff or a fabrication release.** No GitHub writes or changes to the user's open KiCad GUI.
 
 The exact source candidate is generated from the USB-C-powered 3.3 V / 100 mA STM32F103C8T6 + I²C temperature-sensor request. Unlike the earlier USB-C connector-only experiment, this produces one **complete 12-component, 8-net native KiCad schematic + PCB** with a real Edge.Cuts 100×80 mm outline.
 
@@ -30,7 +32,7 @@ The exact source candidate is generated from the USB-C-powered 3.3 V / 100 mA ST
 
 Typical native PCB findings include 277 clearance, 131 solder-mask bridges, 12 footprint-library mismatches, 12 silk-over-copper, nine shorting-items, four hole-clearance findings. This proves the **seeded placement is not a professionally routable/qualified design yet**. The existing footprint models and physical clearances require actual remediation before accepting any routing, DFM or multi-EDA transfer. The board outline is a provisional 100×80 mm design envelope, **not a fabricator-approved mechanical drawing or verified USB-C edge placement**.
 
-## Run on MSI
+## Run on local workstation
 
 From the repository root, with the already installed `.venv` and native KiCad 10 (no new installations):
 
@@ -40,7 +42,7 @@ From the repository root, with the already installed `.venv` and native KiCad 10
   --output-dir build/qa-040-native-placement/new-unique-placement
 ```
 
-Open the resulting `SynthesizedBoard.kicad_pcb` using KiCad PCB Editor on MSI **only when you choose to inspect it**; the agent does not change the live GUI. The same directory also contains `SynthesizedBoard.kicad_sch`, `SynthesizedBoard.kicad_pro`, portable KiCad libraries and `placement-evidence.json` / `native-pcb-drc.json`.
+Open the resulting `SynthesizedBoard.kicad_pcb` using KiCad PCB Editor on local workstation **only when you choose to inspect it**; the agent does not change the live GUI. The same directory also contains `SynthesizedBoard.kicad_sch`, `SynthesizedBoard.kicad_pro`, portable KiCad libraries and `placement-evidence.json` / `native-pcb-drc.json`.
 
 ## Open engineering work
 
