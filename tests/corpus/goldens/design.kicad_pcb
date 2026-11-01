@@ -54,6 +54,7 @@
   (footprint "zaptrace:resistor"
     (layer "F.Cu")
     (uuid "<UUID>")
+    (path "/<UUID>")
     (at 20.0 40.0 0)
     (property "Reference" "R1"
       (at 0 -2 0)
@@ -66,6 +67,11 @@
       (layer "F.Fab")
       (uuid "<UUID>")
       (effects (font (size 1 1) (thickness 0.15)))
+    )
+    (property "Description" "ZapTrace generated connectivity symbol"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (hide yes)
     )
     (property "Footprint" "0805 resistor"
       (at 20.0 40.0 0)
@@ -90,6 +96,7 @@
   (footprint "zaptrace:resistor"
     (layer "F.Cu")
     (uuid "<UUID>")
+    (path "/<UUID>")
     (at 40.0 40.0 0)
     (property "Reference" "R2"
       (at 0 -2 0)
@@ -102,6 +109,11 @@
       (layer "F.Fab")
       (uuid "<UUID>")
       (effects (font (size 1 1) (thickness 0.15)))
+    )
+    (property "Description" "ZapTrace generated connectivity symbol"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (hide yes)
     )
     (property "Footprint" "0805 resistor"
       (at 40.0 40.0 0)
@@ -125,6 +137,7 @@
   (footprint "zaptrace:capacitor"
     (layer "F.Cu")
     (uuid "<UUID>")
+    (path "/<UUID>")
     (at 30.0 60.0 0)
     (property "Reference" "C1"
       (at 0 -2 0)
@@ -137,6 +150,11 @@
       (layer "F.Fab")
       (uuid "<UUID>")
       (effects (font (size 1 1) (thickness 0.15)))
+    )
+    (property "Description" "ZapTrace generated connectivity symbol"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (hide yes)
     )
     (property "Footprint" "0805 resistor"
       (at 30.0 60.0 0)
@@ -160,6 +178,7 @@
   (footprint "zaptrace:connector"
     (layer "F.Cu")
     (uuid "<UUID>")
+    (path "/<UUID>")
     (at 80.0 40.0 0)
     (property "Reference" "J1"
       (at 0 -2 0)
@@ -173,6 +192,11 @@
       (uuid "<UUID>")
       (effects (font (size 1 1) (thickness 0.15)))
     )
+    (property "Description" "ZapTrace generated connectivity symbol"
+      (at 0 0 0)
+      (layer "F.Fab")
+      (hide yes)
+    )
     (property "Footprint" "2-pin header"
       (at 80.0 40.0 0)
       (layer "F.Fab")
@@ -182,14 +206,14 @@
       (at -3.0 0.0 0.0)
       (size 2.5 2.5)
       (drill 1.0)
-      (layers "F.Cu" "F.Paste" "F.Mask")
+      (layers "*.Cu" "*.Mask" "F.Paste")
       (uuid "<UUID>")
     )
     (pad "2" thru_hole circle
       (at 3.0 0.0 0.0)
       (size 2.5 2.5)
       (drill 1.0)
-      (layers "F.Cu" "F.Paste" "F.Mask")
+      (layers "*.Cu" "*.Mask" "F.Paste")
       (uuid "<UUID>")
     )
   )

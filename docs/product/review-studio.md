@@ -303,6 +303,19 @@ Scenario: ESP32 sensor board release review.
 10. Commit and release-export controls become enabled because permission scope, validation gates, and approval evidence are present.
 11. CI publishes a static review bundle attached to the pull request.
 
+## Review-first viewer increment (October 2026)
+
+The current **local interactive browser viewer** now starts with an inspection-only
+**Review readiness** summary and a keyboard-focusable **Inspect DRC findings** action.
+The summary deliberately distinguishes the design's *embedded* DRC report from
+external native KiCad validation: missing embedded DRC reports show **Not checked**,
+recorded warnings/errors remain visible, and zero embedded findings are **not**
+labeled as production readiness. Supplying a `proof.yaml` config shows **Manifest
+only — not verified**, never an executed proof verdict; **Human review required**
+is always visible for fabrication. This is a small, tested usability improvement,
+**not** the planned authenticated Review Studio approval workflow or a complete
+end-user design app. User studies and visual-diff interactions remain future work.
+
 ## First Implementation Slice
 
 Build static proof-pack/design review bundle generation before building an interactive app.
@@ -325,3 +338,30 @@ Milestone slice:
 - Static proof-pack/design review bundle is the first implementation slice.
 - Approval, rollback, and commit UX depends on transaction-safe state and permission-scoped writes.
 - End-to-end ESP32 benchmark review scenario is documented.
+
+## Inspectable, reproducible browser prototype (October 2026)
+
+The existing local/offline viewer has a **review-first dashboard**, responsive
+board preview, component/net search, layer visibility, DRC inspection,
+provenance-limited status, part details and keyboard focus controls. A
+reproducible [synthetic UX fixture](https://github.com/oaslananka/zaptrace/tree/main/examples/review_studio_ux_fixture)
+contains eight displayed components, five nets, nine illustrative segments and
+two **synthetic** blocking/warning markers to make the interactions visible.
+
+![Live Chrome rendering of the *synthetic* Review Studio UX fixture](images/review-studio-preview.png)
+
+This is **an actual headless Chrome screenshot of a generated HTML viewer**,
+not a render of proposed features. Screenshot data intentionally has no
+engineering credibility. On unplaced source designs, components are *not*
+fabricated at an artificial `(0,0)` coordinate. Missing placements and no
+routes are explicitly labeled as missing geometry. The embedded DRC record
+has no claim to have run a native KiCad oracle; a `proof.yaml` remains a
+manifest, regardless of any `pass` field. The viewer cannot fabricate, edit,
+approve or quietly make an incomplete PCB "ready".
+
+This incremental prototype is suitable for hands-on UX feedback on **clarity,
+performance and safe decisions**, not product-market-fit validation or
+production use. The next product tests should measure five actual hardware
+practitioners' ability to identify a finding, distinguish missing evidence,
+and identify their next engineering action, in addition to keyboard and screen
+size reviews. There have been **no such participant tests yet**.

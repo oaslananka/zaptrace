@@ -1,0 +1,1873 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ZapTrace Review Studio — Native KiCad workspace</title>
+<style>
+:root { color-scheme: dark; --bg:#090f17; --surface:#111c2a; --raised:#172537; --subtle:#25384d; --line:#2a3b50; --text:#e6eff8; --dim:#91a7ba; --teal:#63e4c2; --amber:#ffce87; --red:#ff8893; --blue:#8bb6ff; }
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 ui-sans-serif,Inter,system-ui,-apple-system,sans-serif}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.app{height:100dvh;display:grid;grid-template-columns:270px minmax(0,1fr) 312px;grid-template-rows:78px minmax(0,1fr) 34px;overflow:hidden}
+header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:25px;padding:12px 23px;border-bottom:1px solid var(--line);background:var(--surface)}
+.brand{display:flex;align-items:center;gap:12px}.brandmark{display:grid;place-items:center;width:41px;height:41px;border-radius:12px;background:#1b493f;border:1px solid #35957c;color:var(--teal);font-size:23px;font-weight:900}.brandname{font-size:17px;font-weight:820;letter-spacing:-.5px}.brandname em{color:var(--teal);font-style:normal}.brandcaption{font-size:10px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;font-weight:750}
+.pathhead{font-size:13px;font-weight:730;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:42vw}.pathmeta{color:var(--dim);font-size:11px}
+.headside{display:flex;gap:9px;align-items:center;flex-shrink:0}.statuspill{display:inline-block;white-space:nowrap;font-size:11px;font-weight:800;padding:8px 12px;border-radius:99px;border:1px solid #735f3f;color:var(--amber);background:#292318}.localpill{border-color:#2b7768;color:var(--teal);background:#122e2d}
+.left,.right{overflow-y:auto;min-height:0;scrollbar-color:var(--line) transparent}.left{border-right:1px solid var(--line);background:var(--surface);padding:22px 16px}.right{border-left:1px solid var(--line);background:var(--surface);padding:21px 17px;display:flex;flex-direction:column;overflow:hidden}
+.eyebrow{font-size:10px;letter-spacing:.14em;font-weight:850;color:var(--teal);text-transform:uppercase;margin:0 0 9px}.section{margin:0 0 26px}.sectiontitle{font-size:12px;font-weight:780;color:var(--text);margin:0 0 11px}.muted{color:var(--dim)}.small{font-size:11px}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;word-break:break-word}
+.summary{padding:16px;border:1px solid var(--line);border-radius:13px;background:var(--raised);margin-bottom:24px}.summary h2{font-size:19px;line-height:1.25;letter-spacing:-.4px;margin:3px 0 4px}.summary p{font-size:11px;color:var(--dim);margin:0 0 14px}.summary-row{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:10px 0;font-size:11px}.summary-row strong{text-align:right}.critical{color:var(--red)}.warn{color:var(--amber)}.good{color:var(--teal)}
+.primarybtn,.plainbtn{border:1px solid var(--line);color:var(--text);background:var(--raised);border-radius:9px;padding:10px 12px;font-weight:750}.primarybtn{width:100%;color:#09251f;background:var(--teal);border-color:var(--teal)}.primarybtn:hover{background:#91f9da}.plainbtn:hover,.listbutton:hover{background:#263d50}.plainbtn.is-on{color:var(--teal);border-color:#419b80;background:#183e37}
+.layers{display:grid;gap:6px}.layer{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;cursor:pointer}.layer:hover{background:var(--raised)}.layer input{accent-color:var(--teal)}.dot{display:inline-block;width:9px;height:9px;border-radius:3px;flex:none}
+.boardspace{position:relative;min-width:0;overflow:hidden;background:var(--bg);background-image:radial-gradient(circle,#1c2b3e .6px,transparent .8px);background-size:22px 22px;touch-action:none}
+.boardhud{position:absolute;top:24px;left:26px;z-index:5;pointer-events:none}.boardhud h1{font-size:20px;line-height:1.1;margin:5px 0 7px;letter-spacing:-.45px}.boardhud small{color:var(--dim);border:1px solid var(--line);border-radius:7px;background:#111c2ae0;padding:6px 9px;display:inline-block}
+.boardactions{position:absolute;top:23px;right:18px;z-index:6;display:flex;gap:7px}
+.sch-pin-hit{position:absolute;z-index:7;width:13px;height:13px;border:2px solid #009188;background:#b5fff0aa;border-radius:50%;transform:translate(-50%,-50%);padding:0;cursor:crosshair}.sch-pin-hit:hover,.sch-pin-hit:focus-visible,.sch-pin-hit.selected{background:#00d9b8;border-color:#222;box-shadow:0 0 0 7px #00ccb555}.sch-hit{position:absolute;z-index:6;width:22px;height:22px;border-radius:50%;border:2px solid #147a80;background:#69efd71f;color:#08352e;transform:translate(-50%,-50%);font-size:9px;font-weight:900;cursor:pointer;box-shadow:0 0 0 4px #25a3a31e}.sch-hit:hover,.sch-hit:focus-visible,.sch-hit.selected{background:#43eed1;border-color:#fff;box-shadow:0 0 0 8px #2bddd94c}.net-overlay{position:absolute;inset:0;pointer-events:none;z-index:1}.airwire-overlay{position:absolute;inset:0;pointer-events:none;z-index:2}.measure-overlay{position:absolute;inset:0;pointer-events:none;z-index:3}.measurement-panel{position:absolute;right:18px;bottom:15px;z-index:6;max-width:350px;width:min(350px,40%);padding:12px;border:1px solid #608880;border-radius:10px;background:#132e35ee;box-shadow:0 14px 35px #0009}.measurement-panel[hidden]{display:none}.measurement-panel h3{margin:0 0 5px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--teal)}.measure-status{font-size:11px;color:var(--text);overflow-wrap:anywhere}.measure-status b{color:var(--teal)}.report-link{display:block;text-align:center;border:1px solid #436c73;border-radius:8px;background:#173c3d;color:#9ce9e2;text-decoration:none;padding:9px 12px;font-size:11px;font-weight:820;margin-top:12px}.report-link:hover{background:#205153}.airwire-help{margin:8px 0;padding:10px;border:1px solid #956a7e;background:#372130;border-radius:8px;color:#ffd4e5;font-size:11px;line-height:1.6}.finding-guidance{margin:12px 0;border:1px solid #786047;background:#31271d;border-radius:10px;padding:12px}.finding-guidance h4{margin:0 0 7px;font-size:11px;color:#ffd595;text-transform:uppercase;letter-spacing:.08em}.finding-guidance p{margin:7px 0;font-size:11px;color:#e8d4b6;line-height:1.55}.finding-guidance b{color:#fff0d9}.crossnav{display:block;width:100%;padding:9px 11px;margin:10px 0;border-radius:8px;background:#193f40;color:#82f7d7;border:1px solid #347e72;font-size:11px;font-weight:800;cursor:pointer}.crossnav:hover{background:#285b56}.scope-chip{display:block;margin:5px 0;padding:7px 9px;background:#362916;border:1px solid #6b5832;border-radius:7px;color:#f7c985;font-size:11px}.stage.schstage{background:#f9f9f2}.schstage img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;user-select:none;pointer-events:none}.boardactions button:disabled{opacity:.35;cursor:not-allowed}.boardactions button[aria-pressed="true"]{border-color:var(--teal);color:var(--teal);background:#14382f}.boardactions button{background:var(--surface)}
+.stage{position:absolute;left:0;top:0;transform-origin:0 0;background:#122f28;box-shadow:0 0 0 1px #63ae97,0 18px 85px #0009;overflow:hidden}.layerimage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;user-select:none;object-fit:fill}.pad-hit{position:absolute;width:11px;height:11px;border:1px solid transparent;border-radius:50%;background:transparent;transform:translate(-50%,-50%);padding:0;z-index:3}.pad-hit:hover,.pad-hit:focus-visible,.pad-hit.selected{border-color:var(--teal);background:#63e4c244;box-shadow:0 0 0 3px #63e4c222}.fp-hit{position:absolute;width:15px;height:15px;transform:translate(-50%,-50%);border:1px solid transparent;background:transparent;border-radius:4px;z-index:2}.fp-hit:hover,.fp-hit:focus-visible,.fp-hit.selected{background:#63e4c222;border-color:var(--teal);box-shadow:0 0 0 7px #63e4c21b}.fault{position:absolute;transform:translate(-50%,-50%);width:13px;height:13px;border:2px solid #fff;border-radius:50%;background:var(--red);z-index:4;box-shadow:0 0 0 5px #ff889333;padding:0}.fault.warning{background:var(--amber);box-shadow:0 0 0 5px #ffd08c33}.fault:hover,.fault:focus-visible{box-shadow:0 0 0 10px #ff889344}.fault.selected{box-shadow:0 0 0 12px #63e4c255}
+.boardfoot{position:absolute;bottom:16px;left:21px;z-index:5;max-width:435px;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:#111c2ae9;font-size:11px;color:var(--dim);pointer-events:none}.boardfoot b{color:var(--text)}
+.tabset{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;background:var(--raised);border:1px solid var(--line);padding:4px;border-radius:10px;margin-bottom:12px}.tabset button{border:0;border-radius:7px;padding:9px 0;background:transparent;color:var(--dim);font-weight:790;font-size:11px}.tabset button[aria-selected="true"]{color:var(--teal);background:#263e47}
+.finder{width:100%;min-height:41px;padding:10px 11px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);margin-bottom:12px}
+.entrylist{display:grid;grid-auto-rows:max-content;gap:5px;min-height:115px;flex:1;overflow-y:auto;scrollbar-color:var(--line) transparent;padding-right:4px}.listbutton{display:block;text-align:left;width:100%;border:1px solid transparent;padding:10px 11px;border-radius:8px;color:var(--text);background:transparent}.listbutton strong{font-size:12px}.listbutton span{display:block;font-size:10px;color:var(--dim);overflow-wrap:anywhere}.listbutton.selected{border-color:#408e7b;background:#173e38}.listbutton .bad{color:var(--red)}
+.issuegroup{border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:9px;background:#111c2a66}
+.issuehead{width:100%;padding:11px 10px;border:0;background:var(--raised);color:var(--text);text-align:left;display:flex;justify-content:space-between;align-items:center;gap:6px;cursor:pointer}
+.issuehead:hover{background:#203449}.issuetitle{font-size:11px;font-weight:830;word-break:break-word}.issuecount{padding:2px 7px;border-radius:20px;background:#3d2331;color:#ffa9b4;font-size:11px;font-weight:800}
+.issuebody{padding:6px}.issuebody[hidden]{display:none}.issuegroup .listbutton{border-radius:6px}.empty{padding:13px;color:var(--dim);border:1px dashed var(--line);border-radius:9px}
+.detail{border:1px solid var(--line);border-radius:11px;background:var(--raised);padding:15px;margin-bottom:12px;max-height:clamp(145px,39vh,370px);overflow-y:auto;flex:none;scrollbar-color:var(--line) transparent}.detail h3{margin:0 0 8px;font-size:15px}.detailrow{border-top:1px solid var(--line);padding:9px 0;display:flex;justify-content:space-between;gap:8px;font-size:11px}.detailrow label{color:var(--dim);flex:none}.detailrow span{text-align:right;overflow-wrap:anywhere}.padlist{max-height:205px;overflow-y:auto;margin-top:12px}.padrow{width:100%;display:flex;justify-content:space-between;gap:9px;color:var(--text);background:transparent;border:0;border-bottom:1px solid var(--line);padding:7px 0;font-size:11px;text-align:left}.padrow:hover{color:var(--teal)}
+footer{grid-column:1/-1;border-top:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:space-between;padding:5px 20px;color:var(--dim);font-size:10px;gap:18px}footer span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:1100px){.app{grid-template-columns:225px minmax(0,1fr) 265px}.left,.right{padding:14px 11px}.boardhud{left:13px;top:13px}}
+@media(max-width:750px){.boardactions{left:8px;right:8px;top:74px;flex-wrap:wrap;justify-content:flex-end;gap:4px}.boardactions .plainbtn{padding:6px 8px;font-size:11px}.measurement-panel{bottom:106px;right:10px;max-width:calc(100% - 20px);width:auto}.app{display:flex;flex-direction:column;height:auto;min-height:100dvh;overflow:visible}.headside{display:none}header{padding:12px}.pathhead{max-width:45vw}.left,.right{overflow:visible}.left{order:1;border-right:0;border-bottom:1px solid var(--line)}.boardspace{order:2;height:68vh;min-height:500px}.right{order:3;border-left:0;display:block;overflow:visible}.detail{max-height:none;overflow:visible}.entrylist{max-height:none;min-height:0;overflow:visible}footer{order:4}.boardhud h1{font-size:15px}.boardactions{top:75px}.boardfoot{left:12px;bottom:10px;right:12px}.layers{grid-template-columns:repeat(2,1fr)}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+/* Professional engineering workspace: presentation only, native geometry untouched. */
+:root{--bg:#080e18;--surface:#0d1725;--raised:#142235;--subtle:#253951;--line:#29384d;--text:#ebf3fb;--dim:#91a7bc;--teal:#5ce1ca;--amber:#ffc584;--red:#ff859a;--blue:#82adff}
+body{font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;letter-spacing:-.008em;-webkit-font-smoothing:antialiased}
+.app{grid-template-columns:290px minmax(0,1fr) 346px;grid-template-rows:66px 90px minmax(0,1fr) 35px}
+header{grid-column:1/-1;grid-row:1;padding:10px 23px;background:#0c1522}
+.brandmark{width:39px;height:39px;color:#072d2d;background:linear-gradient(135deg,#66ead5,#4cbec5);border:0;border-radius:11px;font-size:24px;box-shadow:0 0 0 4px #53e6d30e}
+.brandname{font-size:18px;letter-spacing:-.045em}.brandname em{color:var(--teal)}.brandcaption{font-size:9px;letter-spacing:.16em;margin-top:-2px}
+.pathhead{font-size:13px;font-weight:780;max-width:34vw;color:#d8e6f1}.pathmeta{font-size:10px}
+.headside{gap:10px}.statuspill{border-radius:7px;font-weight:780;font-size:10px;letter-spacing:.07em;padding:8px 10px;text-transform:uppercase;background:#2c1e25;border-color:#694353;color:#ffb5b9}
+.localpill{color:#8cf1dd;background:#10332f;border-color:#245b52}.statusdot{display:inline-block;width:6px;height:6px;margin:0 6px 1px 0;border-radius:99px;background:#62f3d4;box-shadow:0 0 9px #62f3d477}
+.header-icon{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--line);background:#162436;color:#b7cde1;border-radius:8px;font-size:16px;font-weight:800}.header-icon:hover{border-color:#68dbc6;color:#83f5dc}
+.healthbar{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(205px,1.2fr) repeat(4,minmax(0,1fr));min-width:0;background:linear-gradient(115deg,#12243a 0%,#0d1929 60%,#111d2c 100%);border-bottom:1px solid var(--line)}
+.health-copy{display:flex;flex-direction:column;justify-content:center;padding:12px 23px;gap:2px;border-right:1px solid var(--line)}
+.health-kicker,.health-label,.side-overline{font-size:9px;letter-spacing:.15em;text-transform:uppercase;font-weight:850;color:#87a9c1}
+.health-copy strong{font-size:19px;font-weight:810;letter-spacing:-.035em;color:#f0f7ff;line-height:1.25}.health-copy>span:last-child{font-size:10px;color:var(--dim)}
+.health-stat{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;padding:10px 19px;border:0;border-right:1px solid var(--line);background:transparent;color:inherit;gap:3px;min-width:0;position:relative}
+.health-stat:before{position:absolute;left:0;top:13px;bottom:13px;width:2px;background:#6085ba;opacity:.55;content:''}.health-stat:hover,.health-stat:focus-visible{background:#1a3046}.health-stat:focus-visible{outline:2px solid var(--teal);outline-offset:-3px}
+.health-number{font:780 27px/1.04 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.05em;color:#d9edfc;font-variant-numeric:tabular-nums}.health-number.danger{color:#ff95a3}.health-number.caution{color:#ffd18c}.health-number.okay{color:#7eeccf}.health-note{font-size:10px;color:#93a9bd;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.left{grid-column:1;grid-row:3;background:#0e1826;border-right:1px solid #28394d;padding:21px 18px 20px}.right{grid-column:3;grid-row:3;background:#0e1928;border-left:1px solid #28394d;padding:21px 18px 17px}
+.boardspace{grid-column:2;grid-row:3;background-color:#091522;background-image:radial-gradient(circle,#314258 .6px,transparent .9px);background-size:20px 20px}
+.side-identity{margin-bottom:18px}.side-identity h2,.inspector-head h2{font-size:17px;line-height:1.25;letter-spacing:-.025em;margin:5px 0 4px;color:#ecf7ff}.side-identity p{margin:0;font-size:11px;color:#879eb0}
+.summary{padding:16px;border-radius:11px;background:#142238;border:1px solid #2b4057;margin-bottom:22px;box-shadow:0 10px 23px #050b1526}.summary h2{font-size:15px;letter-spacing:-.025em;margin:4px 0}.summary>p{font-size:11px;color:#90a8bb;margin-bottom:9px}
+.summary-row{align-items:center;padding:9px 0;font-size:11px}.summary-row strong{font-size:11px;max-width:58%;line-height:1.35;letter-spacing:-.01em}
+.eyebrow{font-size:10px;letter-spacing:.12em}.sectiontitle{font-size:12px;font-weight:810;letter-spacing:-.01em}
+.summary .primarybtn{margin-top:10px}.primarybtn,.plainbtn,.report-link{border-radius:8px;font-size:11px;font-weight:800;transition:background .13s ease,border-color .13s ease}
+.primarybtn{padding:11px;background:linear-gradient(135deg,#7cf0dd,#4ed7c0);border-color:#71e8d3;color:#072923}.primarybtn:hover{background:#9af9e6}.plainbtn{background:#15263a;border-color:#30455b;padding:9px 11px}.plainbtn:hover{background:#213c53;border-color:#5f869c}
+.report-link{margin-top:9px;color:#8be7dc;border-color:#3d6e76;background:#12353c}.report-link:hover{background:#1c4d52}
+.layers{gap:4px}.layer{border:1px solid transparent;padding:9px 10px;font-size:12px}.layer:has(input:checked){background:#1a2c3f;border-color:#2c4560}.layer input{width:15px;height:15px}
+.boardhud{top:27px;left:24px;max-width:46%;pointer-events:none}.boardhud h1{font-size:22px;letter-spacing:-.04em;line-height:1.12;margin-bottom:9px}.boardhud small{font-size:10px;line-height:1.5;color:#b1c4d7;background:#0c1a2bcf;max-width:100%;overflow-wrap:anywhere}
+.boardactions{top:23px;right:19px;gap:3px;padding:5px;background:#0e1d2cdd;border:1px solid #32485e;border-radius:11px;box-shadow:0 10px 35px #02081350;backdrop-filter:blur(12px)}
+.boardactions .plainbtn{border:1px solid transparent;background:transparent;border-radius:7px;padding:9px 10px;color:#acc2d7;font-size:11px}.boardactions .plainbtn:hover{background:#293d51;color:#e9f6ff}
+.boardactions button[aria-pressed=true]{background:#1c504b;border-color:#398b78;color:#98fbe1}.toolbar-label{font-size:9px;letter-spacing:.13em;font-weight:830;color:#8faec3;align-self:center;padding:0 8px 0 6px}.toolbar-split{align-self:stretch;width:1px;background:#34485f;margin:3px}
+.boardfoot{border:1px solid #304659;border-radius:8px;background:#0c1b2be0;max-width:380px;font-size:10px;padding:10px 13px;bottom:18px;left:22px}
+.stage{background:#133b32;box-shadow:0 0 0 1px #56a794,0 0 0 9px #4cb8a907,0 25px 75px #000b}.measurement-panel{background:#102f36ed;border-color:#438f86;backdrop-filter:blur(12px)}
+.inspector-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;gap:10px}.inspector-head h2{margin-bottom:0}.inspector-count{border:1px solid #304760;padding:5px 9px;border-radius:6px;color:#9fb8ce;font-size:10px;font-weight:780;white-space:nowrap}
+.tabset{background:#15253a;border:1px solid #2b4057;padding:4px;border-radius:10px;margin-bottom:13px}.tabset button{font-size:11px;font-weight:830;padding:10px 3px}.tabset button[aria-selected=true]{color:#a9f7e6;background:#254a4d;box-shadow:0 1px 5px #02080d4d}
+.finder{min-height:43px;font-size:12px;color:#e4f2ff;border:1px solid #354d64;background:#0b1625;border-radius:9px;margin-bottom:12px}.finder::placeholder{color:#758fa7}
+.detail{background:#17283d;border:1px solid #30485f;border-radius:10px;padding:17px;box-shadow:0 8px 25px #02070f20}.detail h3{font-size:16px;font-weight:810;letter-spacing:-.025em;margin-bottom:10px}.detailrow{padding:10px 0;font-size:11px}.detailrow span{font-weight:690}
+.entrylist{gap:7px}.issuegroup{border-color:#2d3e55;background:#101d2f;border-radius:9px;margin-bottom:9px}.issuehead{background:#19283b;padding:11px}.issuehead:hover{background:#253b51}
+.listbutton{padding:11px 12px;border:1px solid transparent;border-radius:7px}.listbutton strong{font-size:12px}.listbutton span{font-size:11px;line-height:1.4;margin-top:3px}.listbutton.selected{background:#193e3c;border-color:#3b9d88}
+.crossnav{background:#193e43;border:1px solid #3b7e7a;color:#9ef2e3;font-size:11px;font-weight:800;text-align:left;border-radius:8px}.crossnav:hover{background:#25625b}
+footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-top:1px solid #283749;font-size:10px}.status-hotkeys{color:#7790a9}.status-hotkeys kbd,.shortcut-list kbd{display:inline-block;border:1px solid #43576e;border-radius:4px;background:#192b3d;color:#c9dfed;font:700 10px/1 ui-monospace,monospace;padding:4px 6px;margin:0 3px}
+.shortcut-backdrop{position:fixed;inset:0;z-index:100;background:#050a14c9;display:grid;place-items:center;padding:20px;backdrop-filter:blur(7px)}.shortcut-backdrop[hidden]{display:none}
+.shortcut-sheet{background:#132439;border:1px solid #4c6883;border-radius:16px;width:min(470px,100%);padding:25px 28px;box-shadow:0 30px 100px #000c}.shortcut-head{display:flex;justify-content:space-between;align-items:center}
+.shortcut-sheet h2{font-size:24px;margin:8px 0 5px;letter-spacing:-.04em}.shortcut-sheet p{font-size:12px;color:#a5bad0;margin:0 0 19px}
+.shortcut-list{display:grid;grid-template-columns:1fr auto;gap:0;align-items:center}.shortcut-list span{padding:10px 0;border-bottom:1px solid #2f4357}.shortcut-list kbd{padding:6px 10px;border-radius:6px;margin:4px}.shortcut-sheet .shortcut-disclaimer{font-size:10px;color:#f6bd9c;margin:18px 0 0}
+.app.focus-mode{grid-template-columns:0 minmax(0,1fr) 0;grid-template-rows:66px 0 minmax(0,1fr) 35px}.app.focus-mode .left,.app.focus-mode .right,.app.focus-mode .healthbar{display:none}.app.focus-mode .boardspace{grid-column:1/-1}
+@media(max-width:1350px){.app{grid-template-columns:255px minmax(0,1fr) 304px}.left,.right{padding:17px 13px}.health-copy{padding-left:17px}.health-stat{padding:9px 13px}.boardhud{max-width:46%}.boardhud h1{font-size:18px}.boardactions .plainbtn{padding:8px}}
+@media(max-width:1070px) and (min-width:751px){.app{grid-template-columns:216px minmax(0,1fr) 274px}.healthbar{grid-template-columns:repeat(4,minmax(0,1fr))}.health-copy{display:none}.health-stat{padding:9px 10px}.health-number{font-size:22px}.boardhud{max-width:38%}.boardhud h1{font-size:16px}.boardhud small{display:none}.boardactions{top:77px}.boardfoot{max-width:290px}}
+@media(max-width:750px){.app{display:flex;flex-direction:column;height:auto;min-height:100dvh;overflow:visible}.app.focus-mode{display:flex}.app.focus-mode .boardspace{height:80vh}.healthbar{order:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto auto}.health-copy{display:none}.health-stat{padding:12px 16px}.health-number{font-size:22px}.health-note{font-size:9px}.health-label{font-size:8px}header{order:0;padding:11px 12px}.brandname{font-size:15px}.pathmeta{display:none}.pathhead{font-size:11px;max-width:40vw}.left{order:2;padding:17px}.boardspace{order:3;height:68vh;min-height:500px}.right{order:4;padding:18px 14px}.boardhud{top:18px;left:15px;max-width:90%}.boardhud h1{font-size:17px}.boardhud small{display:none}.boardactions{top:76px;left:8px;right:8px;gap:2px;padding:4px;flex-wrap:wrap;justify-content:flex-end}.toolbar-label,.toolbar-split{display:none}.boardactions .plainbtn{font-size:10px;padding:7px 8px}.measurement-panel{bottom:96px;right:10px}.boardfoot{left:11px;right:11px;bottom:10px;max-width:none}.side-identity h2{font-size:16px}.healthbar .health-stat{border-bottom:1px solid #284258}.status-hotkeys{display:none}footer{order:5;min-height:40px}.headside{display:none}}
+
+@media(max-width:750px){.boardspace{order:2}.left{order:3}}
+.health-stat:disabled{cursor:not-allowed;opacity:.6}.health-stat:disabled:hover{background:transparent}
+@media(hover:hover){.health-stat:hover .health-label{color:#b0e9de}}
+
+/* Precision click targets have fixed viewport size at every native plot zoom.
+   Geometry and visual plots stay at the original KiCad positions. */
+.pad-hit,.fp-hit,.fault,.sch-hit,.sch-pin-hit{transform:translate(-50%,-50%) scale(var(--hit-scale,1))}
+.pad-hit{width:24px;height:24px}.fp-hit{width:25px;height:25px}.fp-hit:hover,.fp-hit:focus-visible,.fp-hit.selected{box-shadow:0 0 0 4px #63e4c21b}
+.fault{width:26px;height:26px;background:transparent;border:0;box-shadow:none}
+.fault:after{content:'';position:absolute;inset:5px;border:2px solid #fff;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px #ff889333}
+.fault.warning{background:transparent;box-shadow:none}.fault.warning:after{background:var(--amber);box-shadow:0 0 0 4px #ffd08c33}
+.fault:hover,.fault:focus-visible,.fault.selected{box-shadow:none}.fault:hover:after,.fault:focus-visible:after{box-shadow:0 0 0 7px #ff889355}.fault.selected:after{box-shadow:0 0 0 7px #63e4c277}
+.sch-pin-hit{width:24px;height:24px;border:1px solid transparent;background:transparent}
+.sch-pin-hit:after{content:'';display:block;position:absolute;left:6px;top:6px;width:8px;height:8px;border:2px solid #148d83;border-radius:50%;background:#87ffeb}
+.sch-pin-hit:hover,.sch-pin-hit:focus-visible,.sch-pin-hit.selected{background:#36cbb42b;border-color:#2dcbbb;box-shadow:0 0 0 4px #49d4c025}
+.sch-hit{width:27px;height:27px;font-size:10px}
+
+/* Read-only cross-design command search. All content sourced from native evidence. */
+.command-trigger{display:flex;align-items:center;gap:20px;min-height:32px;border:1px solid #31495e;background:#142337;color:#c1d3e7;padding:7px 10px 7px 13px;border-radius:8px;font-size:11px;font-weight:780}
+.command-trigger:hover{background:#20384d;border-color:#68b5aa}.command-trigger kbd{background:#273b4c;border:1px solid #476078;border-radius:5px;color:#abc5db;font:700 10px/1 ui-monospace,monospace;padding:5px 6px}
+.command-backdrop{position:fixed;inset:0;z-index:120;background:#020711d5;display:grid;align-items:start;justify-items:center;padding:9vh 20px 30px;backdrop-filter:blur(9px)}.command-backdrop[hidden]{display:none}
+.command-dialog{display:flex;flex-direction:column;width:min(650px,100%);max-height:min(750px,84vh);background:#0f1d2e;border:1px solid #49627d;box-shadow:0 40px 130px #000e;border-radius:15px;overflow:hidden}
+.command-header{position:static;display:flex;align-items:center;gap:15px;padding:17px 20px;background:#122238;border:0;border-bottom:1px solid #2a4156;box-shadow:none}
+.command-header>div{flex:1}.command-header h2{font-size:20px;letter-spacing:-.035em;margin:2px 0 0}.command-symbol{display:grid;place-items:center;height:40px;width:40px;border:1px solid #38746f;border-radius:10px;background:#18443f;color:#9bf6df;font-size:28px}
+.command-inputwrap{display:flex;align-items:center;gap:11px;margin:17px 20px 0;padding:0 15px;background:#081523;border:1px solid #527083;border-radius:9px;min-height:52px}.command-inputwrap:focus-within{border-color:#73dcc6;box-shadow:0 0 0 3px #74e8d015}
+.command-inputwrap>span{font-size:24px;color:#6ed9c8}.command-inputwrap input{flex:1;min-width:0;background:none;border:0;color:#eafaff;outline:0;font-size:14px;padding:13px 0}.command-inputwrap input::placeholder{color:#8da5b9}
+.command-summary{padding:12px 22px 8px;color:#90aec3;font-size:10px;letter-spacing:.03em;min-height:30px}.command-results{overflow-y:auto;flex:1;padding:0 12px 13px;scrollbar-color:#35516a transparent}
+.command-result{display:flex;align-items:center;text-align:left;gap:12px;width:100%;min-height:59px;background:transparent;color:#edf5fb;border:1px solid transparent;border-radius:9px;margin-bottom:4px;padding:10px 13px}
+.command-result:hover,.command-result[aria-selected=true]{background:#20453e;border-color:#458b7b}.command-result:focus-visible{outline:2px solid #8debd6}
+.command-type{display:grid;place-items:center;width:48px;min-width:48px;padding:7px 0;border:1px solid #34536b;border-radius:6px;background:#1d3046;font-size:9px;letter-spacing:.08em;font-weight:830;color:#bcdaf1}
+.command-result[aria-selected=true] .command-type{border-color:#519986;color:#8ff0d9}.command-copy{display:flex;flex:1;flex-direction:column;min-width:0;gap:2px}.command-copy strong{font-size:12px;font-weight:820;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.command-copy span{font-size:10px;color:#9cb6ca;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.command-arrow{font-size:18px;color:#74d9c3}.command-empty{padding:22px;color:#9bb7c9;font-size:12px}.command-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;background:#122238;border-top:1px solid #2e4054;font-size:10px;color:#91abc1}.command-footer kbd{display:inline-block;margin:0 3px;padding:4px 7px;background:#20364a;border:1px solid #415971;color:#c5d9e5;border-radius:5px;font:700 10px ui-monospace,monospace}
+@media(max-width:750px){.command-backdrop{padding:14px 8px}.command-dialog{max-height:calc(100dvh - 28px)}.command-header{padding:12px}.command-inputwrap{margin:11px 12px 0}.command-footer{padding:9px}.command-footer>span:last-child{display:none}.command-trigger{display:none}}
+
+/* Source overlays are presentation toggles, never proof or DRC controls. */
+.overlay-options{gap:3px}.overlay-options .layer{min-height:35px;padding:7px 10px}
+#stage.hide-pad-markers .pad-hit,#stage.hide-fault-markers .fault,
+#stage.hide-footprint-markers .fp-hit{display:none}
+@media(max-width:1070px) and (min-width:751px){
+ .boardhud h1{display:none}
+ .boardhud .eyebrow{font-size:9px;line-height:1.3;max-width:205px}
+}
+
+/* Dock-like resizable sidebars; native SVG plots are never edited. */
+.app{position:relative;--left-width:290px;--right-width:346px;grid-template-columns:var(--left-width) minmax(0,1fr) var(--right-width)}
+.splitter{position:absolute;top:156px;bottom:35px;width:12px;z-index:18;cursor:col-resize;touch-action:none;outline:none;background:transparent}
+.splitter-left{left:calc(var(--left-width) - 6px)}.splitter-right{right:calc(var(--right-width) - 6px)}
+.splitter:before{position:absolute;inset:0 4px;content:'';background:transparent;transition:background .14s ease,border-color .14s ease;border-radius:6px}
+.splitter:after{content:'⋮';font:800 19px/1 ui-monospace,monospace;color:#94c2c5;position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);padding:9px 2px;background:#21374a;border:1px solid #386074;border-radius:5px;opacity:0;transition:opacity .12s ease}
+.splitter:hover:before,.splitter:focus-visible:before,.splitter.dragging:before{background:#55dcc3}.splitter:hover:after,.splitter:focus-visible:after,.splitter.dragging:after{opacity:1}
+.app.focus-mode .splitter{display:none}
+@media(max-width:1350px){.app{--left-width:255px;--right-width:304px}}
+@media(max-width:1070px) and (min-width:751px){.app{--left-width:216px;--right-width:274px}}
+@media(max-width:750px){.app{--left-width:0px;--right-width:0px}.splitter{display:none}}
+
+/* Human triage annotations are session-only. No DRC waiver or fabrication approval. */
+.review-note-summary{display:flex;flex-direction:column;gap:8px;margin:13px 0;padding:13px;
+ background:#17283b;border:1px solid #37566a;border-radius:10px;color:#cfe4ed}
+.review-note-summary strong{font-size:11px}.review-note-summary span,.review-note-summary small{font-size:10px;line-height:1.5}
+.review-note-summary button{min-height:36px;padding:8px;border:1px solid #498d80;background:#234941;
+ color:#baffea;border-radius:7px;font-size:11px;font-weight:750}
+.review-note-summary button:disabled{opacity:.45;cursor:not-allowed}
+.triage-editor{margin-top:16px;padding:12px;border:1px solid #47657a;border-radius:9px;
+ display:flex;flex-direction:column;gap:9px;background:#122337}
+.triage-editor h4{font-size:12px;color:#e4f8ff;margin:0}.triage-editor label{font-size:11px;color:#c0d8e4;font-weight:700}
+.triage-editor select,.triage-editor textarea{width:100%;color:#e1f5fb;background:#0c1c2c;
+ border:1px solid #547087;border-radius:7px;padding:9px;font:inherit;font-size:11px}
+.triage-editor textarea{resize:vertical;min-height:70px;line-height:1.5}
+.triage-editor button{min-height:38px;background:#236457;border:1px solid #49a28f;color:#effff9;
+ border-radius:7px;font-size:11px;font-weight:800}
+.triage-editor small{font-size:10px;line-height:1.5;color:#b7cbd6}
+@media(max-width:750px){.right .detail:has(.triage-editor){max-height:none;overflow:visible}}
+/* Read-only native error-review queue, with simple keyboard traversal. */
+.review-queue{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;margin:0 0 10px;border:1px solid #355772;border-radius:9px;background:#182e40}
+.review-queue[hidden]{display:none}.review-queue-status{font-size:11px;font-weight:830;color:#b2d8e9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.review-queue-actions{display:flex;align-items:center;gap:5px;flex-shrink:0}.review-queue-actions .plainbtn{padding:5px 11px;min-width:37px;border:1px solid #42607a;font-size:15px;color:#a7f0df}
+.review-queue-actions .plainbtn:disabled{opacity:.3;cursor:not-allowed}
+@media(max-width:950px) and (min-width:751px){.splitter{display:none}}
+
+/* Compact laptop view: header identifies board; canvas tools occupy a distinct
+   row instead of covering the native title/kicker at 1024–1450px. */
+@media(min-width:751px) and (max-width:1450px){
+ .boardhud h1,.boardhud small{display:none}
+ .boardhud{max-width:calc(100% - 22px)}
+ .boardactions{top:55px}
+}
+
+/* Tablet EDA layout: the PCB must not collapse below a usable width when
+   split-panels cannot meet the 450px canvas minimum. */
+@media(min-width:751px) and (max-width:950px){
+ .app{display:flex;flex-direction:column;height:auto;min-height:100dvh;overflow:visible}
+ header{order:0;padding:10px 16px}.headside{gap:6px}.statuspill{font-size:9px;padding:7px}
+ .healthbar{order:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:auto}
+ .health-copy{display:none}.health-stat{padding:12px 13px}.health-number{font-size:24px}
+ .boardspace{order:2;min-height:510px;height:68vh}
+ .right{order:3;display:flex;flex-direction:column;overflow:visible;padding:19px 22px}
+ .right .detail{max-height:280px;overflow-y:auto}.right .entrylist{flex:auto;max-height:430px;overflow-y:auto}
+ .left{order:4;overflow:visible;padding:19px 22px}
+ .splitter{display:none}.boardhud{left:17px;top:19px}
+ .boardactions{right:13px;left:auto;top:55px;flex-wrap:wrap;justify-content:flex-end}
+ .boardfoot{left:17px;bottom:14px}.status-hotkeys{display:none}
+ footer{order:5;min-height:37px}
+}
+
+/* Tablet header: a long KiCad filename must truncate, never force its panel
+   into a seven-line column next to the board's evidence status. */
+@media(min-width:751px) and (max-width:950px){
+ header{flex-wrap:wrap;gap:10px;min-height:68px}
+ header>.brand{flex:none}
+ header>div:nth-child(2){flex:1 1 140px;min-width:140px;max-width:260px}
+ .pathhead{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+ .pathmeta{display:none}
+ .headside{gap:7px;flex:none;margin-left:auto}
+ .headside .localpill{display:none}
+ .headside .statuspill{padding:6px 8px;font-size:9px}
+ .command-trigger{gap:8px;padding:7px 9px}
+}
+
+.session-preferences{display:flex;gap:9px;align-items:center;justify-content:space-between;padding:8px 9px;margin:-7px 0 15px;background:#112438;border:1px solid #2c4053;border-radius:8px}
+.session-preferences span{font-size:10px;color:#a1bed1;line-height:1.4}.session-preferences button{background:transparent;color:#79e5cf;border:1px solid #2c736d;border-radius:6px;padding:5px 8px;font-size:10px;font-weight:780}.session-preferences button:hover{background:#1f4b47}
+
+.project-back{font-size:11px;font-weight:830;color:#b9e8e1;padding:7px 11px;border:1px solid #386b6f;border-radius:8px;background:#12353b;white-space:nowrap}.project-back:hover{background:#205252;color:#cffff0}
+@media(min-width:751px) and (max-width:950px){.project-back{font-size:10px;padding:7px 9px}}
+@media(max-width:750px){header .headside{display:flex;gap:4px}.headside>.statuspill,.headside>.header-icon{display:none}.project-back{display:inline-block;font-size:10px;padding:5px 8px}}
+
+.schematic-page-nav{padding:11px;background:#122c3c;border:1px solid #366779;border-radius:9px;margin:4px 0 12px}.schematic-page-nav[hidden]{display:none}
+.schematic-page-nav label{display:block;color:#a9dbc9;font-size:10px;font-weight:850;letter-spacing:.04em;margin-bottom:8px}.schematic-page-nav select{width:100%;background:#0c1c2a;color:#e4f6ee;border:1px solid #4e7882;border-radius:7px;padding:10px;min-height:38px;font-size:12px}.schematic-page-nav p{color:#9cb9c5;font-size:10px;line-height:1.5;margin:9px 1px 0}
+.schstage .sch-hit[hidden],.schstage .sch-pin-hit[hidden]{display:none!important}
+
+/* Native KiCad sheet navigator. This is a viewport over original plotted SVG,
+   not newly invented connectivity or schematics. Review status is unchanged. */
+.schematic-page-nav{background:#112337;border:1px solid #335268;padding:14px;border-radius:11px;box-shadow:0 10px 25px #0002}
+.sheet-library-head{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.sheet-library-head h3{font-size:15px;letter-spacing:-.03em;color:#e7f7f6;margin:3px 0 0}
+.sheet-count{font:800 11px ui-monospace,monospace;color:#8ef1d8;background:#183b3c;border:1px solid #346d65;padding:5px 7px;border-radius:6px;white-space:nowrap}
+.sheet-nav-intro{color:#8eafc3;font-size:10px;margin:8px 0 13px;line-height:1.5}
+.sheet-thumbnails{display:grid;gap:9px;margin-bottom:14px}
+.sheet-thumb{width:100%;display:grid;grid-template-columns:81px minmax(0,1fr);gap:10px;align-items:center;padding:8px;border:1px solid #355065;border-radius:9px;background:#14283d;color:#d5eaf5;text-align:left;min-height:81px}
+.sheet-thumb:hover,.sheet-thumb:focus-visible{background:#1d3850;border-color:#67aa9a}
+.sheet-thumb[aria-current="page"]{background:#153c40;border-color:#71dec3;box-shadow:inset 3px 0 #66ebc8}
+.sheet-thumb-img{display:grid;place-items:center;background:#f8faf7;border:1px solid #d5e3da;border-radius:5px;width:81px;height:61px;overflow:hidden;position:relative}
+.sheet-thumb-img img{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.sheet-thumb-copy{display:flex;flex-direction:column;min-width:0;gap:3px}
+.sheet-thumb-copy strong{font-size:11px;font-weight:820;color:#e6f9f2;overflow-wrap:anywhere;line-height:1.3}
+.sheet-thumb-copy em{font-size:9px;color:#9bb8c8;font-style:normal;line-height:1.3}
+.sheet-thumb-copy span{font:750 9px ui-monospace,monospace;color:#7ce7d2}
+.schematic-page-nav .sheet-picker-label{font-size:10px;color:#9ac2d3;margin:0 0 6px}
+.schematic-page-nav select{min-height:40px;color:#e6fcf6}
+.sheet-focus{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:40px;margin-top:11px;padding:9px 11px;background:#204b47;border:1px solid #4b9a86;border-radius:8px;color:#aff5e4;font-size:11px;font-weight:800;cursor:pointer}
+.sheet-focus:disabled{opacity:.38;cursor:not-allowed;background:#192e38;border-color:#426071}
+.sheet-focus:not(:disabled):hover{background:#306357}
+.schematic-sheet-dock{position:absolute;bottom:20px;right:20px;z-index:8;display:grid;grid-template-columns:43px minmax(0,220px) 43px;align-items:center;gap:7px;padding:7px;background:#111f30f5;border:1px solid #496b7b;border-radius:13px;box-shadow:0 15px 50px #0009;backdrop-filter:blur(16px)}
+.schematic-sheet-dock[hidden]{display:none}.schematic-sheet-dock>button{height:44px;min-width:40px;background:#1e394c;color:#b9fce8;border:1px solid #496b7c;border-radius:9px;font-size:23px;cursor:pointer}
+.schematic-sheet-dock>button:hover{background:#2b5b57}.schematic-sheet-dock>button:disabled{opacity:.32;cursor:not-allowed}
+.schematic-dock-context{display:flex;flex-direction:column;gap:2px;min-width:0;padding:1px 6px}
+.schematic-dock-context>span{font:800 9px ui-monospace,monospace;color:#76dcc4;letter-spacing:.08em}
+.schematic-dock-context>strong{font-size:12px;color:#e6f4fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schematic-dock-context>small{font-size:9px;color:#a2bfd0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schematic-empty-state[hidden]{display:none}
+ .schematic-empty-state{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:7;
+  width:min(340px,calc(100% - 24px));padding:17px 18px;border-radius:12px;border:1px solid #547c8b;
+  background:#12263bea;color:#e8f5f9;box-shadow:0 15px 45px #0009;pointer-events:none;
+  display:flex;flex-direction:column;gap:8px;line-height:1.5}
+ .schematic-empty-state strong{font-size:13px;letter-spacing:.01em}
+ .schematic-empty-state span{font-size:11px;color:#c3dce4}
+ .boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:105px;max-width:340px}
+@media(min-width:751px) and (max-width:1450px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{max-width:220px}}
+@media(max-width:750px){.sheet-thumbnails{grid-template-columns:repeat(2,minmax(0,1fr))}.sheet-thumb{grid-template-columns:1fr;gap:7px;min-width:0}.sheet-thumb-img{width:100%;height:78px}.schematic-sheet-dock{bottom:84px;right:10px;left:10px;grid-template-columns:43px minmax(0,1fr) 43px}.boardspace:has(.schematic-sheet-dock:not([hidden])) .boardfoot{bottom:10px;max-width:none}}
+/* At 320px the original KiCad child-page stepper must clear the taller native
+   engineering caution panel, not merely avoid horizontal document overflow. */
+@media(max-width:340px){.boardspace:has(.schematic-sheet-dock:not([hidden])) .schematic-sheet-dock{bottom:102px}}
+@media(max-width:750px){.boardactions #plus,.boardactions #minus{min-width:38px;min-height:38px;padding:7px 10px}}
+@media(max-width:420px){.sheet-thumbnails{grid-template-columns:1fr}.sheet-thumb{grid-template-columns:70px 1fr}.sheet-thumb-img{height:54px;width:70px}}
+
+.sheet-reference-panel[hidden]{display:none}.sheet-reference-panel{margin-top:15px;padding-top:14px;border-top:1px solid #34536b}
+.sheet-reference-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.sheet-reference-head h4{margin:0;color:#dbf4e9;font-size:11px;font-weight:850}.sheet-reference-head span{font:750 10px ui-monospace,monospace;color:#74dac9}
+.sheet-reference-panel>p{font-size:10px;line-height:1.5;color:#91b2c3;margin:5px 0 10px}
+.sheet-reference-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.sheet-ref{min-width:0;min-height:34px;text-align:center;padding:5px 3px;border:1px solid #406274;border-radius:7px;background:#193147;color:#c4e1ed;font:850 11px ui-monospace,monospace;cursor:pointer;overflow:hidden;text-overflow:ellipsis}
+.sheet-ref:hover,.sheet-ref:focus-visible{background:#29525a;border-color:#70b5a9;color:#e8fff6}
+.sheet-ref[aria-pressed="true"]{background:#276457;color:#b8ffea;border-color:#72e9cd}
+@media(max-width:950px){.sheet-reference-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+/* Source-verifiable native KiCad camera render. This is still a 2D image of
+   KiCad's real 3D model geometry; no synthetic or independently qualified CAD. */
+.render3dstage{background:radial-gradient(ellipse at 50% 42%,#2c475c 0%,#0d202f 68%,#091724 100%);box-shadow:0 0 0 1px #486275,0 28px 85px #000b}
+.render3dstage img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.render3d-controls{position:absolute;right:19px;bottom:19px;z-index:9;padding:13px 16px 12px;background:#0e2234ee;border:1px solid #466d7c;border-radius:12px;box-shadow:0 20px 50px #000a;backdrop-filter:blur(12px);min-width:305px;max-width:calc(100% - 26px)}
+.render3d-controls[hidden]{display:none}.render3d-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:#c9e6ee;font-weight:850}
+.render3d-kicker span{font-size:9px;color:#ffd6a2;letter-spacing:.05em}
+.render3d-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
+.render3d-actions button{background:#203e4c;color:#c5dfeb;border:1px solid #3e6172;border-radius:7px;padding:8px 12px;min-height:38px;font-size:11px;font-weight:850}
+.render3d-actions button[aria-pressed="true"]{background:#226258;border-color:#7ce2cb;color:#cffded}
+.render3d-warning{font-size:9px;color:#aec5cf;flex:1 0 100%;line-height:1.4}
+.boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:130px;max-width:325px}
+@media(max-width:750px){.render3d-controls{bottom:82px;left:10px;right:10px;min-width:0;max-width:none;padding:10px 13px}.boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px;max-width:none}.render3d-kicker{flex-wrap:wrap}}
+
+/* Real KiCad camera turntable. Eight finite source-backed renders are selected
+   on drag/tap; no impostor continuous 3D geometry or external JS dependency. */
+.render3d-angle{min-width:125px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 6px;border:1px solid #345666;border-radius:7px;background:#112d3a}
+.render3d-angle span:first-child{font:850 10px ui-monospace,monospace;letter-spacing:.07em;color:#bdfce5}
+.render3d-angle span:last-child{font:650 9px ui-monospace,monospace;color:#91b9c5}
+.render3d-actions button:disabled{opacity:.4;cursor:not-allowed}
+.render3d-actions button:focus-visible{outline:2px solid #75f5d2;outline-offset:2px}
+.render3d-controls{width:min(480px,calc(100% - 30px))}
+.render3d-controls .render3d-warning{max-width:440px}
+/* Source-linked model file checks are not STEP geometry or enclosure approval. */
+.render3d-diagnostics{margin-top:9px;border-top:1px solid #426172;padding-top:8px;color:#d2e5eb;max-height:35dvh;overflow:auto}
+.render3d-diagnostics summary{cursor:pointer;font-size:11px;font-weight:800;line-height:1.45;outline-offset:3px}
+.render3d-diagnostics summary:focus-visible{outline:2px solid #75f5d2}
+.render3d-diagnostics-detail{padding:8px 0;font-size:11px;line-height:1.65;overflow-wrap:anywhere}
+.render3d-diagnostics-detail p{margin:4px 0}
+.render3d-diagnostics-detail strong{color:#ffdda8}
+.render3dstage{cursor:ew-resize}
+@media(max-width:750px){
+ .render3d-controls{width:auto;bottom:80px;padding:9px 10px;left:10px;right:10px}
+ .render3d-kicker{font-size:9px;line-height:1.25;gap:6px}
+ .render3d-kicker span{font-size:8px}
+ .render3d-actions{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.7fr) minmax(0,1fr) minmax(0,1.42fr) minmax(0,1fr);gap:5px;margin-top:8px}
+ .render3d-actions button{min-width:0;min-height:39px;white-space:nowrap;font-size:10px;padding:6px 2px}
+ .render3d-angle{min-width:0;min-height:39px;padding:4px 1px;gap:0}
+ .render3d-angle span:first-child{font-size:9px;white-space:nowrap}
+ .render3d-angle span:last-child{font-size:8px}
+ .render3d-warning{display:block;grid-column:1/-1;min-width:0;font-size:9px;line-height:1.35}
+ .boardspace:has(.render3d-controls:not([hidden])) .boardfoot{bottom:10px}
+}
+@media(max-width:380px){
+ .render3d-actions{gap:3px}
+ .render3d-actions button{font-size:9px}
+ /* Keep the live KiCad toolbar unoccluded at 320px. The source model
+    disclosure remains operable inside the independently scrolling panel. */
+ .boardspace:has(.render3d-controls:not([hidden])) .render3d-controls{
+  max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain
+ }
+}
+@media(max-width:420px){
+ /* Two-tier camera controls preserve real KiCad 45-degree orbit actions without
+    squeezing the live angle into an unreadable five-column mobile toolbar. */
+ .render3d-actions{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ .render3d-actions #render3dIso{grid-column:1/span 2;grid-row:1}
+ .render3d-actions #render3dTop{grid-column:3/span 2;grid-row:1}
+ .render3d-actions #render3dPrevious{grid-column:1;grid-row:2}
+ .render3d-actions .render3d-angle{grid-column:2/span 2;grid-row:2;min-height:44px}
+ .render3d-actions #render3dNext{grid-column:4;grid-row:2}
+ .render3d-actions button{font-size:11px;min-height:44px;padding:7px 4px}
+ .render3d-angle span:first-child{font-size:10px}
+ /* A source-backed model warning may expand the panel. Cap its height at ALL
+    021 two-row widths, not just 320-380px, so 381px does not hide mode tools. */
+ .boardspace:has(.render3d-controls:not([hidden])) .render3d-controls{
+  max-height:calc(100% - 247px);overflow-y:auto;overscroll-behavior:contain
+ }
+}
+/* 3D source geometry must remain inspectable when a real model warning is open.
+   Reserve a separated model region instead of floating controls above the board. */
+@media(min-width:951px){
+ .app:has(.render3d-controls:not([hidden])){min-height:1010px;height:max(100dvh,1010px);overflow:hidden}
+}
+@media(max-width:950px){
+ .boardspace:has(.render3d-controls:not([hidden])){height:950px;min-height:950px}
+}
+/* The mobile inspector must remain navigable: long native findings scroll inside
+   the inspector rather than making the entire document thousands of px long. */
+@media(max-width:750px){.right{display:flex;flex-direction:column}.right .entrylist{flex:none;min-height:160px;max-height:min(58dvh,520px);overflow-y:auto;overscroll-behavior:contain}.right .detail{max-height:min(36dvh,280px);overflow-y:auto}}
+</style></head><body>
+<div class="app">
+<header><div class="brand"><div class="brandmark" aria-hidden="true">Z</div><div><div class="brandname">Zap<em>Trace</em></div><div class="brandcaption">Design review workspace</div></div></div><div style="min-width:0"><div class="pathhead" id="boardName"></div><div class="pathmeta" id="boardMeta">Loading native board geometry…</div></div><div class="headside">__WORKSPACE_LINK__<span class="statuspill localpill"><span class="statusdot" aria-hidden="true"></span>Local workspace</span><span class="statuspill">NOT FABRICATION APPROVED</span><button class="command-trigger" id="searchWorkspace" type="button" title="Search native objects (Ctrl K)" aria-label="Search all native PCB and schematic objects">Search workspace <kbd>Ctrl K</kbd></button><button class="header-icon" id="showHelp" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button></div></header>
+<section class="healthbar" aria-label="Native KiCad evidence overview">
+ <div class="health-copy"><span class="health-kicker">CURRENT DESIGN</span><strong>Engineering review</strong><span>Actual KiCad board · Fabrication blocked</span></div>
+ <button class="health-stat" id="quickDrc" type="button"><span class="health-label">DESIGN RULE CHECK</span><span class="health-number danger" id="kpiDrc">—</span><span class="health-note" id="kpiDrcNote">Awaiting native DRC</span></button>
+ <button class="health-stat" id="quickOpen" type="button"><span class="health-label">OPEN CONNECTIONS</span><span class="health-number danger" id="kpiOpens">—</span><span class="health-note">Physical completion blocked</span></button>
+ <button class="health-stat" id="quickErc" type="button"><span class="health-label">SCHEMATIC ERC</span><span class="health-number okay" id="kpiErc">—</span><span class="health-note" id="kpiErcNote">Enabled rules only</span></button>
+ <button class="health-stat" id="quickPins" type="button"><span class="health-label">PAD MAPPING</span><span class="health-number" id="kpiPins">—</span><span class="health-note">Authored map, not supplier approval</span></button>
+</section>
+<div class="splitter splitter-left" id="leftSplitter" role="separator" tabindex="0"
+ aria-label="Resize left design evidence panel" aria-orientation="vertical" aria-valuemin="195" aria-valuemax="430" aria-valuenow="290"
+ title="Drag to resize left panel · arrow keys adjust · double-click resets"></div>
+<div class="splitter splitter-right" id="rightSplitter" role="separator" tabindex="0"
+ aria-label="Resize right object inspector" aria-orientation="vertical" aria-valuemin="250" aria-valuemax="480" aria-valuenow="346"
+ title="Drag to resize inspector · arrow keys adjust · double-click resets"></div>
+<aside class="left" id="leftSidebar" aria-label="Evidence and layers"><div class="side-identity"><span class="side-overline">REVIEW WORKSPACE</span><h2>Design evidence</h2><p>Source-traceable. No manufacturing claims.</p></div><div class="session-preferences" aria-label="Workspace layout preferences"><span id="prefsStatus" aria-live="polite">Session layout</span><button id="resetPreferences" type="button" title="Reset viewer layout; does not modify the KiCad design">Reset layout</button></div>
+ <section class="summary"><div class="eyebrow">CURRENT EVIDENCE</div><h2>Verification status</h2><p>Native checks and explicit engineering boundaries.</p><div class="summary-row"><span>Native DRC</span><strong id="drcBadge">Not run</strong></div><div class="summary-row"><span>Native ERC</span><strong id="ercBadge">Not run</strong></div><div class="summary-row"><span>Net-label parity</span><strong id="netParityBadge">Not checked</strong></div><div class="summary-row"><span>Pin → pad map</span><strong id="pinParityBadge">Not checked</strong></div><div class="summary-row"><span>Unconnected</span><strong id="openBadge">Not checked</strong></div><div class="summary-row"><span>Fab authorization</span><strong class="warn">Human approval required</strong></div><button class="primarybtn" id="inspectIssues" type="button">Inspect native findings →</button><button class="plainbtn" id="inspectOpens" type="button" style="width:100%;margin-top:8px">Review open connections →</button><div class="review-note-summary" aria-label="Local engineering finding triage, not a DRC waiver">
+  <strong>Finding review notes · this session</strong>
+  <span id="triageProgress" role="status" aria-live="polite">0 findings investigated · no source approval</span>
+  <button id="exportTriage" type="button" disabled aria-label="Download source-bound review notes JSON, not a fabrication approval">Export review notes (.json)</button>
+  <button id="importTriage" type="button" aria-label="Import human review notes for this exact KiCad source only">Import review notes (.json)</button>
+  <input id="triageFile" type="file" accept=".json,application/json" hidden aria-label="Choose source-bound human review notes JSON file" />
+  <small id="triageImportStatus" role="status" aria-live="polite">Review notes are unsigned. Only the exact current source and findings can be restored; no production approval.</small>
+  <small>Local session only. Notes do not modify KiCad findings, connectivity, design rules or fabrication status.</small>
+ </div><a class="report-link" href="REVIEW_REPORT.html" target="_blank" rel="noopener" id="evidenceReport">Open local evidence report ↗</a></section>
+
+ <section class="section" id="copperControls"><h2 class="sectiontitle">Copper & manufacturing layers</h2><div class="layers" id="layerPicker"></div></section>
+ <section class="section" id="inspectionOverlays"><h2 class="sectiontitle">Inspection markers</h2><p class="small muted">Show or hide interactive markers only. Native geometry, DRC evidence and fabrication blockers remain unchanged.</p>
+ <div class="layers overlay-options">
+  <label class="layer"><input type="checkbox" id="showPadMarkers" checked aria-label="Show native PCB pad markers"/><span class="dot" style="background:#74e7cf"></span>PCB pads</label>
+  <label class="layer"><input type="checkbox" id="showFaultMarkers" checked aria-label="Show native KiCad DRC markers"/><span class="dot" style="background:#ff859a"></span>DRC finding locations</label>
+  <label class="layer"><input type="checkbox" id="showFootprintMarkers" checked aria-label="Show footprint selection markers"/><span class="dot" style="background:#82adff"></span>Footprint origins</label>
+ </div></section>
+ <section class="section" id="schematicContext" hidden><h2 class="sectiontitle">Native schematic context</h2>
+ <div id="schematicPageNav" class="schematic-page-nav" hidden>
+  <div class="sheet-library-head"><div><span class="side-overline">SCHEMATIC WORKSPACE</span><h3>Drawing sheets</h3></div><span id="schematicSheetCount" class="sheet-count">—</span></div>
+  <p class="sheet-nav-intro">Native KiCad drawings · source-verified pages</p>
+  <div id="schematicThumbnails" class="sheet-thumbnails" role="group" aria-label="Navigate the original KiCad schematic sheets"></div>
+  <label class="sheet-picker-label" for="schematicPagePicker">Choose sheet</label>
+  <select id="schematicPagePicker" aria-label="Choose a real KiCad schematic page"></select>
+  <p id="schematicPageNote" aria-live="polite">Root sheet · native schematic geometry</p>
+  <button type="button" class="sheet-focus" id="schematicFocusSymbols" title="Zoom in on actual native root schematic symbols, without changing the source" disabled>Focus root components <span>↗</span></button>
+  <div id="schematicReferencePanel" class="sheet-reference-panel" hidden>
+   <div class="sheet-reference-head"><h4>Jump to component</h4><span id="schematicReferenceCount">—</span></div>
+   <p>Source-linked root references · select to focus the original KiCad drawing</p>
+   <div id="schematicReferenceGrid" class="sheet-reference-grid" role="group" aria-label="Go to native schematic component reference"></div>
+  </div>
+ </div><p class="small muted" id="schematicContextText">Schematic symbols and nets are read-only. Select a native symbol to inspect the matching PCB footprint; pin-to-pad parity is not yet proven.</p></section>
+ <section class="section"><h2 class="sectiontitle">Verification boundary</h2><p class="small muted">Native KiCad geometry with independent ERC/DRC. Net labels and pad mappings are checked separately. Even matching pad nets follow <b>the authored package-pin map, not independently qualified datasheets</b>. Unmapped pads are not validated. No physical continuity, RF, thermal, Proof Pack or fabrication sign-off.</p></section>
+</aside>
+<main class="boardspace" id="boardspace" aria-label="Native KiCad PCB inspection canvas">
+ <div class="boardhud"><div class="eyebrow" id="modeKicker">Physical PCB / native plotted geometry</div><h1 id="canvasName"></h1><small id="canvasEvidence"></small></div>
+ <div class="boardactions"><button class="plainbtn" id="searchCanvas" type="button" title="Search native board objects (Ctrl K)">Search</button><span class="toolbar-label">VIEW</span><button class="plainbtn" type="button" id="modePcb" aria-pressed="true">PCB</button><button class="plainbtn" type="button" id="modeSch" aria-pressed="false">Schematic</button><button class="plainbtn" type="button" id="mode3D" aria-pressed="false" title="KiCad native 3D model view; source model completeness NOT verified">3D</button><button class="plainbtn" type="button" id="measure" aria-pressed="false" title="True native pad center distance; not copper clearance">Measure</button><button class="plainbtn" type="button" id="clearMeasure">Clear</button><button class="plainbtn" type="button" id="fit">Fit view</button><button class="plainbtn" type="button" id="plus">+</button><button class="plainbtn" type="button" id="minus" aria-label="Zoom out">−</button><span class="toolbar-split" aria-hidden="true"></span><button class="plainbtn" type="button" id="focusMode" aria-pressed="false" title="Focus canvas (Q)">Focus</button></div>
+ <div class="stage" id="stage"></div>
+ <div class="render3d-controls" id="render3dControls" hidden aria-label="Native KiCad 3D view options">
+  <div class="render3d-kicker">KiCad 10 · actual PCB model render <span>MODEL COVERAGE UNVERIFIED</span></div>
+  <div class="render3d-actions"><button id="render3dIso" type="button" aria-pressed="true">Isometric</button><button id="render3dTop" type="button" aria-pressed="false">Top</button>
+  <button id="render3dPrevious" type="button" title="Rotate previous 45° view" aria-label="Rotate native KiCad camera 45 degrees left">↶ 45°</button>
+  <div class="render3d-angle" aria-live="polite"><span id="render3dAngle">PRESENTATION VIEW</span><span id="render3dFrameCount">—</span></div>
+  <button id="render3dNext" type="button" title="Rotate next 45° view" aria-label="Rotate native KiCad camera 45 degrees right">45° ↷</button>
+  <span class="render3d-warning">Drag to orbit · Shift+drag pans · DFM, model geometry and assembly remain unverified</span></div>
+  <details class="render3d-diagnostics" id="render3dModelDiagnostics"><summary id="render3dModelSummary">Inspect 3D model file coverage · unverified</summary>
+   <div class="render3d-diagnostics-detail" id="render3dModelDetails" role="status" aria-live="polite">Source model inventory unavailable. Mechanical and fabrication approval blocked.</div>
+  </details>
+ </div>
+ <div id="schematicEmptyState" class="schematic-empty-state" role="status" aria-live="polite" hidden>
+  <strong>No drawings on this original KiCad sheet</strong>
+  <span>KiCad plotted zero graphical objects here. The empty page is source-verified, not a rendering failure. Open another sheet to inspect geometry.</span>
+ </div>
+ <div class="schematic-sheet-dock" id="schematicSheetDock" hidden aria-label="Schematic sheet navigation">
+  <button type="button" id="schematicPrevious" aria-label="Previous native schematic sheet" title="Previous native sheet ([)">←</button>
+  <div class="schematic-dock-context"><span id="schematicDockIndex">SHEET — / —</span><strong id="schematicDockTitle">Original KiCad drawing</strong><small id="schematicDockScope">Source-linked native schematic</small></div>
+  <button type="button" id="schematicNext" aria-label="Next native schematic sheet" title="Next native sheet (])">→</button>
+ </div>
+ <div class="measurement-panel" id="measurementPanel" hidden><h3>Pad-centre measurement</h3><div class="measure-status" id="measureReadout" aria-live="polite">Not started</div></div>
+ <div class="boardfoot" id="boardFoot"><b>KiCad-rendered geometry, unmodified source.</b> Clicking pads, footprints or violations reveals source IDs. DRC != production approval.</div>
+</main>
+<aside class="right" id="rightSidebar" aria-label="Board inspector"><div class="inspector-head"><span><span class="side-overline">OBJECT EXPLORER</span><h2>Inspector</h2></span><span class="inspector-count" id="inspectorCount">Native data</span></div><div class="tabset" role="tablist" aria-label="Inspect"><button type="button" role="tab" id="inspector-tab-issues" aria-controls="entrylist" tabindex="0" aria-selected="true" data-tab="issues">DRC</button><button type="button" role="tab" id="inspector-tab-opens" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="opens">Open</button><button type="button" role="tab" id="inspector-tab-parts" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="parts">Parts</button><button type="button" role="tab" id="inspector-tab-nets" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="nets">Nets</button><button type="button" role="tab" id="inspector-tab-pins" aria-controls="entrylist" tabindex="-1" aria-selected="false" data-tab="pins">Pins</button></div><div class="review-queue" id="reviewQueue" hidden aria-label="Sequential native KiCad findings">
+ <span class="review-queue-status" id="reviewQueueStatus">Select a source finding</span>
+ <div class="review-queue-actions"><button type="button" class="plainbtn" id="reviewPrev" title="Previous native finding (K)" aria-label="Previous native finding">←</button>
+ <button type="button" class="plainbtn" id="reviewNext" title="Next native finding (J)" aria-label="Next native finding">→</button></div></div>
+ <input class="finder" id="search" type="search" placeholder="Search faults, parts, nets, pins…" aria-label="Search board inspection data"/><div class="detail" id="detail" aria-live="polite"><h3>Select an object to inspect</h3><div class="small muted">Choose a DRC finding, net, footprint or pad. Source-verified details appear here.</div></div><div class="entrylist" id="entrylist" role="tabpanel" aria-labelledby="inspector-tab-issues" tabindex="0"></div></aside>
+<footer><span id="footleft">Native local review · not a Gerber/export approval</span><span class="status-hotkeys">Shortcuts <kbd>?</kbd> · Find <kbd>/</kbd> · Fit <kbd>F</kbd> · Focus <kbd>Q</kbd></span><span id="footright">0×</span></footer>
+<div class="command-backdrop" id="commandBackdrop" hidden>
+ <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="commandTitle" tabindex="-1">
+  <header class="command-header"><span class="command-symbol" aria-hidden="true">⌕</span><div><span class="side-overline">NAVIGATE THE REAL DESIGN</span><h2 id="commandTitle">Go to anything</h2></div><button class="header-icon" id="closeCommand" aria-label="Close command search" type="button">×</button></header>
+  <label class="command-inputwrap" for="commandInput"><span aria-hidden="true">⌕</span><input id="commandInput" type="search" autocomplete="off" spellcheck="false" placeholder="Find U1, J1.A5, I2C_SDA, drill, open gap…" aria-label="Search native design objects" aria-controls="commandResults" aria-activedescendant=""/></label>
+  <div class="command-summary" id="commandSummary" aria-live="polite">Search real native board and schematic objects</div>
+  <div class="command-results" role="listbox" id="commandResults" aria-label="Matching native design objects"></div>
+  <footer class="command-footer"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate &nbsp; <kbd>Enter</kbd> Inspect &nbsp; <kbd>Esc</kbd> Close</span><span>LOCAL · READ-ONLY</span></footer>
+ </section>
+</div>
+<div class="shortcut-backdrop" id="shortcutBackdrop" hidden>
+ <section class="shortcut-sheet" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle" tabindex="-1">
+  <div class="shortcut-head"><span class="side-overline">WORKSPACE GUIDE</span><button class="header-icon" id="closeHelp" type="button" aria-label="Close shortcuts">×</button></div>
+  <h2 id="shortcutTitle">Navigate with confidence</h2><p>Fast read-only engineering inspection. Source files are never edited here.</p>
+  <div class="shortcut-list"><span>Next / previous schematic sheet</span><kbd>] / [</kbd><span>Focus real root symbols</span><kbd>Button</kbd><span>Find within inspector</span><kbd>/</kbd><span>Search all native objects</span><kbd>Ctrl K</kbd><span>Fit current view</span><kbd>F</kbd><span>PCB view</span><kbd>1</kbd><span>Schematic view</span><kbd>2</kbd><span>Measure pad centres</span><kbd>M</kbd><span>Focus canvas</span><kbd>Q</kbd><span>Next / previous native DRC</span><kbd>J / K</kbd><span>Clear / close</span><kbd>Esc</kbd><span>Shortcuts</span><kbd>?</kbd></div>
+  <p class="shortcut-disclaimer">Native geometry is for inspection only. No routing, release or fabrication approval.</p>
+ </section>
+</div>
+</div>
+<script>
+const DATA=__NATIVE_DATA__;
+'use strict';
+const $=id=>document.getElementById(id);
+const stage=$('stage'),viewport=$('boardspace');
+const SCALE=12, SW=DATA.viewbox[0]*SCALE, SH=DATA.viewbox[1]*SCALE;
+let schematicStage=null, render3dStage=null, render3dIndex=0, orbitFrameIndex=-1, mode='pcb';
+function activeSize(){
+ if(mode==='pcb')return [SW,SH];
+ if(mode==='3d'){
+  const view=orbitFrameIndex>=0?DATA.render3d?.orbit_frames?.[orbitFrameIndex]:DATA.render3d?.views?.[render3dIndex];
+  return view?[view.width,view.height]:[1200,800];
+ }
+ return DATA.schematic.viewbox.map(x=>x*SCALE);
+}
+let zoom=1,panX=0,panY=0,selected=null,tab='issues',pointer=null;
+const activePointers=new Map();
+const visible={'F.Cu':true,'B.Cu':true,'F.Mask':false,'B.Mask':false,'F.SilkS':true,'B.SilkS':false,'Edge.Cuts':true};
+const layerColors={'F.Cu':'#f06660','B.Cu':'#6596ed','F.Mask':'#f18eb5','B.Mask':'#b4a0ee','F.SilkS':'#e1eaf0','B.SilkS':'#a5ced7','Edge.Cuts':'#b5dacd'};
+const layers={},focusButtons={parts:[],pads:[],issues:[],symbols:new Map(),pins:new Map()};
+let selectedNet=null,netOverlay=null,airwireOverlay=null,measureOverlay=null;
+let measureOn=false,measurePoints=[];
+const openPairByFinding=new Map((DATA.open_pairs||[]).map(p=>[p.finding_index,p]));
+const padLinks=new Map((DATA.pin_parity?.pad_links||[]).map(x=>[x.pad_index,x]));
+const schByRef=new Map((DATA.schematic?.symbols||[]).map(s=>[s.ref,s]));
+const schPinById=new Map((DATA.schematic?.pin_anchors||[]).map(p=>[p.ref+'.'+p.logical_pin,p]));
+const schPinByPhysicalId=new Map((DATA.schematic?.pin_anchors||[]).map(p=>[p.ref+'.'+p.physical_pin,p]));
+const boardRefToIndex=new Map(DATA.board.footprints.map((part,i)=>[part.ref,i]));
+const openedGroups=new Set(['drill_out_of_range']);
+const openedPinRefs=new Set(['J1','U1']);
+const triageNotes=new Map(); // Only user notes, never evidence/DRC replacement; not persisted.
+const TRIAGE_OPTIONS=['unreviewed','investigated','repair_required'];
+function exportableTriage(){
+ const records=[...triageNotes.entries()].filter(([idx,x])=>Number.isInteger(idx)&&
+  idx>=0&&idx<DATA.findings.length&&TRIAGE_OPTIONS.includes(x.status)).sort((a,b)=>a[0]-b[0]);
+ return {schema_version:1,kind:'human_review_notes_not_verified_approval',
+  source_sha256:DATA.source_sha256,drc_state:DATA.drc_state,
+  fabrication_approved:false,source_modified:false,all_findings_remain_unwaived:true,
+  findings_total:DATA.findings.length,notes:records.map(([index,x])=>{
+   const f=DATA.findings[index];
+   return {finding_index:index,rule:f.rule,severity:f.severity,message:f.message,
+    source_objects:f.objects,position_mm:[f.x,f.y],triage:x.status,note:x.note};
+  })};
+}
+function updateTriageSummary(){
+ const total=triageNotes.size;
+ const repair=[...triageNotes.values()].filter(x=>x.status==='repair_required').length;
+ $('triageProgress').textContent=total+' of '+DATA.findings.length+
+  ' findings noted · '+repair+' need repair · no DRC or fabrication waiver';
+ $('exportTriage').disabled=total===0;
+}
+function showTriageEditor(detail,index){
+ const original=triageNotes.get(index)||{status:'unreviewed',note:''};
+ const area=node('section','triage-editor');
+ area.setAttribute('aria-label','Session-only human finding triage');
+ area.append(node('h4','','Engineering review note · original finding remains open'));
+ const statusLabel=node('label','','Review outcome');statusLabel.htmlFor='triageOutcome';
+ const outcome=node('select','');outcome.id='triageOutcome';
+ for(const [value,label] of [['unreviewed','Not reviewed'],['investigated','Investigated · still a KiCad finding'],
+   ['repair_required','Repair required · still a KiCad finding']]){
+  const option=node('option','',label);option.value=value;outcome.append(option);
+ }
+ outcome.value=original.status;
+ const noteLabel=node('label','','Engineer note (max 600 characters)');noteLabel.htmlFor='triageNote';
+ const notes=node('textarea','');notes.id='triageNote';notes.maxLength=600;notes.rows=3;
+ notes.placeholder='Evidence, repair hypothesis, or next manual verification step…';notes.value=original.note;
+ const save=node('button','','Save local review note');save.type='button';
+ const feedback=node('small','','Session only. No KiCad DRC changes, no automatic waiver or manufacturing approval.');
+ save.addEventListener('click',()=>{
+  const value=outcome.value,content=notes.value.trim().slice(0,600);
+  if(!TRIAGE_OPTIONS.includes(value))return;
+  if(value==='unreviewed'&&!content)triageNotes.delete(index);
+  else triageNotes.set(index,{status:value,note:content});
+  feedback.textContent='Saved for this session; source DRC and fabrication blockers unchanged.';
+  updateTriageSummary();renderList();
+ });
+ area.append(statusLabel,outcome,noteLabel,notes,save,feedback);detail.append(area);
+}
+async function readTriageFile(file){
+ if(!file||file.size>1048576)throw new Error('Review notes file missing or larger than 1 MiB');
+ const input=JSON.parse(await file.text());
+ if(!input||input.schema_version!==1||input.kind!=='human_review_notes_not_verified_approval'||
+    input.source_sha256!==DATA.source_sha256||input.drc_state!==DATA.drc_state||
+    input.findings_total!==DATA.findings.length||input.fabrication_approved!==false||
+    input.source_modified!==false||input.all_findings_remain_unwaived!==true||
+    !Array.isArray(input.notes)||input.notes.length>DATA.findings.length){
+  throw new Error('Different source, source findings, or invalid review-notes schema');
+ }
+ const next=new Map();
+ for(const x of input.notes){
+  if(!x||!Number.isInteger(x.finding_index)||x.finding_index<0||
+   x.finding_index>=DATA.findings.length||next.has(x.finding_index)||
+   !TRIAGE_OPTIONS.includes(x.triage)||typeof x.note!=='string'||x.note.length>600){
+   throw new Error('Invalid or duplicate finding index, outcome or note');
+  }
+  const original=DATA.findings[x.finding_index];
+  if(x.rule!==original.rule||x.severity!==original.severity||x.message!==original.message||
+   JSON.stringify(x.source_objects)!==JSON.stringify(original.objects)||
+   JSON.stringify(x.position_mm)!==JSON.stringify([original.x,original.y])){
+   throw new Error('Review record refers to a different original KiCad finding');
+  }
+  next.set(x.finding_index,{status:x.triage,note:x.note});
+ }
+ // Atomic restore: never mutate session state before all records pass validation.
+ triageNotes.clear();for(const [id,entry] of next)triageNotes.set(id,entry);
+ updateTriageSummary();if(selected?.kind==='issue')select(selected,false);
+ return next.size;
+}
+function downloadTriage(){
+ if(triageNotes.size===0)return;
+ const json=JSON.stringify(exportableTriage(),null,2)+'\n';
+ const blob=new Blob([json],{type:'application/json'});
+ const url=URL.createObjectURL(blob);const link=node('a','');link.href=url;
+ link.download='zaptrace-review-notes-'+DATA.source_sha256.slice(0,16)+'.json';
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;}
+function snap(n){return Number(n).toFixed(2)+' mm';}
+let cursorCoords=null;
+function updateFooter(){
+ const coords=cursorCoords?(' · Cursor '+cursorCoords[0].toFixed(2)+', '+cursorCoords[1].toFixed(2)+' mm'):
+  ' · move cursor for coordinates';
+ $('footright').textContent='Zoom '+Math.round(zoom*100)+'%'+coords;
+}
+function updateCursor(event){
+ const rect=viewport.getBoundingClientRect(),size=activeSize();
+ const localX=(event.clientX-rect.left-panX)/zoom;
+ const localY=(event.clientY-rect.top-panY)/zoom;
+ if(mode==='3d'||localX<0||localY<0||localX>size[0]||localY>size[1])cursorCoords=null;
+ else cursorCoords=mode==='pcb'?
+  [localX/SCALE+DATA.plot_origin[0],localY/SCALE+DATA.plot_origin[1]]:
+  [localX/SCALE,localY/SCALE];
+ updateFooter();
+}
+function apply(){const current=mode==='pcb'?stage:mode==='3d'?render3dStage:schematicStage;
+ current.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
+ current.style.setProperty('--hit-scale',String(1/zoom));
+ updateFooter();}
+function fit(){const w=viewport.clientWidth,h=viewport.clientHeight;
+ const extent=viewport.getBoundingClientRect();
+ const uiBottom=document.querySelector('.boardactions').getBoundingClientRect().bottom-extent.top;
+ const top=mode==='3d'?Math.max(110,uiBottom+18):110;
+ const controls=$('render3dControls');
+ const bottom=mode==='3d'&&!controls.hidden?
+  Math.max(62,extent.bottom-controls.getBoundingClientRect().top+18):62;
+ const availableH=Math.max(120,h-top-bottom),size=activeSize();
+ zoom=Math.min((w-48)/size[0],availableH/size[1],2.5);
+ panX=(w-size[0]*zoom)/2;panY=top+(availableH-size[1]*zoom)/2;apply();}
+function center(x,y){if(!Number.isFinite(x)||!Number.isFinite(y))return;
+ if(mode!=='pcb')switchMode('pcb');
+ panX=viewport.clientWidth/2-(x-DATA.plot_origin[0])*SCALE*zoom;panY=viewport.clientHeight/2-(y-DATA.plot_origin[1])*SCALE*zoom;apply();}
+function place(btn,x,y){btn.style.left=((x-DATA.plot_origin[0])*SCALE)+'px';btn.style.top=((y-DATA.plot_origin[1])*SCALE)+'px';stage.appendChild(btn);}
+function focusSchematic(ref){
+ const symbol=schByRef.get(ref);
+ if(!symbol||!DATA.schematic?.crossprobe_refs.includes(ref))return false;
+ switchMode('schematic');setSchematicPage(0);
+ zoom=Math.max(zoom,1.1);
+ panX=viewport.clientWidth/2-symbol.x*SCALE*zoom;
+ panY=viewport.clientHeight/2-symbol.y*SCALE*zoom;
+ const marker=focusButtons.symbols.get(ref);
+ if(marker){schematicStage.querySelectorAll('.sch-hit').forEach(b=>b.classList.remove('selected'));marker.classList.add('selected');}
+ apply();return true;
+}
+function inspectSchematicPin(ref,logicalPin){
+ const pin=schPinById.get(ref+'.'+logicalPin);
+ if(!pin)return false;
+ switchMode('schematic');setSchematicPage(0);
+ zoom=Math.max(zoom,1.15);
+ panX=viewport.clientWidth/2-pin.x*SCALE*zoom;
+ panY=viewport.clientHeight/2-pin.y*SCALE*zoom;
+ apply();clearSelected();
+ const el=focusButtons.pins.get(ref+'.'+logicalPin);if(el)el.classList.add('selected');
+ selected={kind:'schematic-pin',ref,logicalPin};
+ const detail=$('detail');detail.replaceChildren(node('h3','',ref+' / schematic pin '+logicalPin));
+ detail.append(detailLine('Native Eeschema net',pin.net),
+  detailLine('Schematic anchor',snap(pin.x)+', '+snap(pin.y)),
+  node('p','small muted','Actual KiCad embedded library pin endpoint. Any PCB link is scoped to authored package-pin mapping; no datasheet or physical-continuity approval.'));
+ // Canonical pin functions may repeat (USB-C VBUS/GND). Only a physically
+ // identical pad number with matching function and net is a valid cross-probe.
+ const matched=(DATA.pin_parity?.state==='mapped_net_consistent'?DATA.pin_parity.pad_links:[])
+  .filter(e=>e.ref===ref&&e.pad===pin.physical_pin&&
+   e.logical_pin===pin.canonical_pin&&e.net===pin.net);
+ detail.append(detailLine('Matching authored physical pads',matched.length));
+ for(const mapped of matched){const b=node('button','crossnav',
+   'Go to native PCB '+mapped.ref+'.'+mapped.pad+' ('+mapped.net+') →');b.type='button';
+  b.onclick=()=>{switchMode('pcb');select({kind:'pad',index:mapped.pad_index},true);};detail.append(b);}
+ if(!matched.length)detail.append(node('p','small muted','No physically mapped pad for this logical pin. No PCB pad inferred.'));
+ renderList();return true;
+}
+function highlightCopper(net){
+ selectedNet=net;
+ if(!netOverlay)return;
+ netOverlay.replaceChildren();
+ let count=0,padCount=0;
+ if(net && net!=='(no net)'){
+  const ns='http://www.w3.org/2000/svg';
+  for(const t of DATA.board.copper){
+   if(t.net!==net||!visible[t.layer])continue;
+   const item=document.createElementNS(ns,t.via?'circle':'line');
+   if(t.via){item.setAttribute('cx',(t.start[0]-DATA.plot_origin[0])*SCALE);item.setAttribute('cy',(t.start[1]-DATA.plot_origin[1])*SCALE);item.setAttribute('r',Math.max(t.width*SCALE/2+3,6));item.setAttribute('fill','#7af3dc');}
+   else {item.setAttribute('x1',(t.start[0]-DATA.plot_origin[0])*SCALE);item.setAttribute('y1',(t.start[1]-DATA.plot_origin[1])*SCALE);
+    item.setAttribute('x2',(t.end[0]-DATA.plot_origin[0])*SCALE);item.setAttribute('y2',(t.end[1]-DATA.plot_origin[1])*SCALE);
+    item.setAttribute('stroke','#7dfde2');item.setAttribute('stroke-width',Math.max(t.width*SCALE+3,6));item.setAttribute('stroke-linecap','round');}
+   item.setAttribute('opacity','0.87');netOverlay.appendChild(item);count++;
+  }
+  for(const p of DATA.board.pads){if(p.net!==net)continue;
+   const item=document.createElementNS(ns,'circle');item.setAttribute('cx',(p.x-DATA.plot_origin[0])*SCALE);
+   item.setAttribute('cy',(p.y-DATA.plot_origin[1])*SCALE);item.setAttribute('r',Math.max(6,Math.min(p.size[0],p.size[1])*SCALE/2+2));
+   item.setAttribute('stroke','#ffffb0');item.setAttribute('stroke-width','2.5');item.setAttribute('fill','#fff39b27');
+   netOverlay.appendChild(item);padCount++;
+  }
+ }
+ netOverlay.dataset.segmentCount=String(count);netOverlay.dataset.padCount=String(padCount);
+}
+function drawOpenAirwire(pair){
+ if(!airwireOverlay)return;
+ airwireOverlay.replaceChildren();
+ airwireOverlay.dataset.showing=pair?String(pair.finding_index):'';
+ if(!pair)return;
+ const ns='http://www.w3.org/2000/svg';
+ const pts=pair.endpoints.map(p=>[(p.x-DATA.plot_origin[0])*SCALE,(p.y-DATA.plot_origin[1])*SCALE]);
+ const line=document.createElementNS(ns,'line');
+ for(const [key,val] of Object.entries({x1:pts[0][0],y1:pts[0][1],x2:pts[1][0],y2:pts[1][1]}))line.setAttribute(key,val);
+ line.setAttribute('stroke','#ff94c4');line.setAttribute('stroke-width','3');
+ line.setAttribute('stroke-dasharray','9 7');line.setAttribute('opacity','0.95');
+ airwireOverlay.append(line);
+ pts.forEach((p,i)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('cx',p[0]);c.setAttribute('cy',p[1]);
+  c.setAttribute('r','7');c.setAttribute('fill',i===0?'#ffbcce':'#d9abff');
+  c.setAttribute('stroke','#24142a');c.setAttribute('stroke-width','2');airwireOverlay.append(c);});
+}
+function frameOpenAirwire(pair){
+ if(!pair)return;
+ if(mode!=='pcb')switchMode('pcb');
+ const a=pair.endpoints[0],b=pair.endpoints[1];
+ const dx=Math.max(Math.abs(a.x-b.x),20),dy=Math.max(Math.abs(a.y-b.y),20);
+ zoom=Math.min(zoom,viewport.clientWidth/(dx*SCALE+130),viewport.clientHeight/(dy*SCALE+225));
+ zoom=Math.max(.15,zoom);
+ const x=(a.x+b.x)/2,y=(a.y+b.y)/2;
+ panX=viewport.clientWidth/2-(x-DATA.plot_origin[0])*SCALE*zoom;
+ panY=viewport.clientHeight/2-(y-DATA.plot_origin[1])*SCALE*zoom;apply();
+}
+function attachOpenPair(detail,issueIndex){
+ const pair=openPairByFinding.get(issueIndex);
+ if(!pair)return;
+ drawOpenAirwire(pair);
+ detail.append(node('div','airwire-help',
+  'UNCONNECTED • KiCad identifies two source copper objects on '+pair.net+
+  '. The dashed straight line is an inspection-only airwire ('+snap(pair.straight_line_mm)+
+  ' endpoint separation), NOT a clearance-safe route or suggested copper path.'));
+ for(const [i,endpoint] of pair.endpoints.entries()){
+  const b=node('button','crossnav',String.fromCharCode(65+i)+' · Focus native '+endpoint.kind+' · '+endpoint.label+' →');
+  b.type='button';b.onclick=()=>center(endpoint.x,endpoint.y);detail.append(b);
+ }
+ const frame=node('button','crossnav','Frame both open-connection endpoints →');frame.type='button';
+ frame.onclick=()=>frameOpenAirwire(pair);detail.append(frame);
+}
+function renderMeasure(){
+ const control=$('measure');control.setAttribute('aria-pressed',String(measureOn));
+ control.classList.toggle('is-on',measureOn);
+ if(!measureOverlay)return;
+ measureOverlay.replaceChildren();
+ const readout=$('measureReadout');readout.replaceChildren();
+ $('measurementPanel').hidden=!(measureOn||measurePoints.length);
+ if(!measurePoints.length){
+  readout.append(node('span','',measureOn?'Select the first native KiCad pad centre; distances use source millimetres only.':
+   'Select Measure, then two real KiCad pad centres. Not copper clearance or DRC.'));
+  return;
+ }
+ const ns='http://www.w3.org/2000/svg';
+ const pts=measurePoints.map(p=>[(p.x-DATA.plot_origin[0])*SCALE,(p.y-DATA.plot_origin[1])*SCALE]);
+ if(pts.length===2){
+  const line=document.createElementNS(ns,'line');
+  for(const [key,val] of Object.entries({x1:pts[0][0],y1:pts[0][1],x2:pts[1][0],y2:pts[1][1]}))line.setAttribute(key,val);
+  line.setAttribute('stroke','#fff3ae');line.setAttribute('stroke-width','3.5');
+  line.setAttribute('stroke-dasharray','5 3');measureOverlay.append(line);
+ }
+ pts.forEach((pos,i)=>{const c=document.createElementNS(ns,'circle');
+  c.setAttribute('cx',pos[0]);c.setAttribute('cy',pos[1]);c.setAttribute('r','9');
+  c.setAttribute('fill',i===0?'#e0e4ff':'#fff0ad');c.setAttribute('stroke','#223645');
+  c.setAttribute('stroke-width','2');measureOverlay.append(c);});
+ const labels=measurePoints.map(x=>x.ref+'.'+x.pad);
+ const hdr=node('b','',labels.join(' ↔ '));readout.append(hdr);
+ if(measurePoints.length===1){
+  readout.append(node('p','small muted','Actual centre: '+snap(measurePoints[0].x)+', '+snap(measurePoints[0].y)+
+   '. Select one different native PCB pad.'));
+ }else{
+  const dx=measurePoints[1].x-measurePoints[0].x;
+  const dy=measurePoints[1].y-measurePoints[0].y;
+  const mm=Math.hypot(dx,dy);
+  const d=node('p','', 'Center-to-center: '+mm.toFixed(4)+' mm');d.classList.add('measure-value');
+  readout.append(d,node('p','small muted','ΔX '+dx.toFixed(4)+' mm · ΔY '+dy.toFixed(4)+
+    ' mm. Derived only from native pcbnew pad centre coordinates.'),
+   node('p','small muted','NOT copper-to-copper clearance, routing length, shortest safe path, tolerance analysis or a DRC result.'));
+ }
+}
+function measurePad(index){
+ if(!measureOn)return;
+ const p=DATA.board.pads[index];
+ if(measurePoints.some(x=>x.index===index)){
+  $('measureReadout').append(node('p','small muted','Choose a different physical pad.'));return;
+ }
+ measurePoints.push({index,ref:p.ref,pad:p.pad,x:p.x,y:p.y});
+ if(measurePoints.length===2)measureOn=false;
+ renderMeasure();
+}
+function activateMeasurement(){
+ if(mode!=='pcb')switchMode('pcb');
+ if(measurePoints.length===2){measurePoints=[];measureOn=true;}
+ else measureOn=!measureOn;
+ renderMeasure();
+}
+function addRuleGuidance(detail,finding){
+ const guidance={
+  drill_out_of_range:{
+   impact:'The hole diameter is outside the active KiCad board manufacturing rules. Thermal pad drill arrays require attention to real fabricator capabilities.',
+   next:'Review the footprint drill geometry and target manufacturer capability; use a controlled footprint revision or documented DFM acceptance. Do not silently relax board rules.'},
+  hole_clearance:{
+   impact:'A plated copper feature is too close to a drilled or mechanical hole under the active board constraints. Check connector peg-to-pad geometry.',
+   next:'Compare the USB-C mechanical drawing and land pattern with the manufacturer process limits. Require engineering review before changing footprint/placement.'},
+  unconnected_items:{
+   impact:'KiCad reports a real open connection between copper items. Visually overlapping segments or a common net name do not prove continuity.',
+   next:'Locate both reported copper objects, plan a safe connection, then rerun native KiCad DRC and connectivity validation. Do not approve fabrication.'},
+  lib_footprint_mismatch:{
+   impact:'The board footprint differs from its resolved KiCad library definition. This is a library/footprint provenance mismatch, not by itself proof of a new clearance violation.',
+   next:'Restore the originally qualified footprint and KiCad library table; compare pad geometry, then rerun all native DRC checks.'},
+  footprint_library_mismatch:{
+   impact:'Resolved KiCad library footprint definition does not match the embedded board footprint.',
+   next:'Verify original library and vendor package revision; never silently substitute a different footprint.'},
+  lib_footprint_issues:{
+   impact:'KiCad cannot resolve the project footprint library in its current environment. This is a project-context validation issue, not automatically faulty PCB copper.',
+   next:'Restore the exact matching fp-lib-table and footprint library, then rerun DRC without changing design geometry.'}
+ };
+ const g=guidance[finding.rule];if(!g)return;
+ const box=node('section','finding-guidance');box.append(node('h4','','Engineering interpretation'));
+ const explanation=node('p');explanation.append(node('b','','Why it matters · '),document.createTextNode(g.impact));
+ const action=node('p');action.append(node('b','','Next safe action · '),document.createTextNode(g.next));
+ box.append(explanation,action);detail.append(box);
+}
+function attachNativeDrcLinks(detail,finding){
+ // Navigate only to source objects with exact KiCad ref/number and physical
+ // coordinates. Never pretend that a nearby unrelated object is the cause.
+ const seen=new Set();
+ for(const row of finding.objects){
+  const pad=row.match(/@\((-?[\d.]+) mm,\s*(-?[\d.]+) mm\):\s+(?:PTH\s+)?pad\s+([A-Za-z0-9]+)\s+\[[^\]]*\]\s+of\s+([A-Za-z]+\d+)/i);
+  if(pad){
+   const x=Number(pad[1]),y=Number(pad[2]),num=pad[3],ref=pad[4];
+   const found=DATA.board.pads.map((p,i)=>({...p,index:i}))
+    .filter(p=>p.ref===ref&&p.pad===num&&Math.hypot(p.x-x,p.y-y)<0.025);
+   if(found.length===1&&!seen.has('p:'+found[0].index)){
+    const b=node('button','crossnav','Inspect native pad '+ref+'.'+num+' →');b.type='button';
+    b.onclick=()=>select({kind:'pad',index:found[0].index},true);
+    detail.append(b);seen.add('p:'+found[0].index);
+   }
+   continue;
+  }
+  const fp=row.match(/\b(?:pad|footprint)\s+of\s+([A-Za-z]+\d+)\b/i);
+  if(fp){
+   const i=boardRefToIndex.get(fp[1]);
+   if(i!==undefined&&!seen.has('f:'+i)){
+    const b=node('button','crossnav','Inspect native footprint '+fp[1]+' →');b.type='button';
+    b.onclick=()=>select({kind:'part',index:i},true);detail.append(b);seen.add('f:'+i);
+   }
+  }
+ }
+ const nets=new Set(finding.objects.flatMap(row=>[...row.matchAll(/\[([^\]]+)\]/g)].map(m=>m[1])));
+ for(const net of nets){
+  if(!DATA.board.pads.some(p=>p.net===net))continue;
+  const b=node('button','crossnav','Highlight native '+net+' membership →');b.type='button';
+  b.onclick=()=>{setTab('nets');selectNet(net);};detail.append(b);
+ }
+}
+function selectNet(net){
+ selected={kind:'net',net};clearSelected();
+ const d=$('detail');d.replaceChildren(node('h3','',net));
+ const pads=DATA.board.pads.filter(p=>p.net===net),tracks=DATA.board.copper.filter(t=>t.net===net);
+ d.append(detailLine('Native pad objects',pads.length),detailLine('Copper items / all layers',tracks.length),
+  node('p','small muted','Source net membership and routed segment geometry only. Electrical continuity NOT demonstrated.'));
+ const membership=node('div','padlist');
+ DATA.board.pads.forEach((pad,i)=>{if(pad.net!==net)return;const b=node('button','padrow',pad.ref+'.'+pad.pad);
+  b.type='button';b.onclick=()=>select({kind:'pad',index:i},true);membership.append(b);});d.append(membership);
+ highlightCopper(net);renderList();
+}
+let schematicPageIndex=0;
+function focusNativeRootSymbols(){
+ if(mode!=='schematic'||schematicPageIndex!==0||!DATA.schematic)return false;
+ const symbols=(DATA.schematic.symbols||[]).filter(s=>Number.isFinite(s.x)&&Number.isFinite(s.y));
+ if(!symbols.length)return false;
+ // Actual KiCad schematic anchors; do not invent or alter geometry.
+ // This intentionally focuses SYMBOLS, not the entire wire graph or sheet.
+ const xmin=Math.min(...symbols.map(s=>s.x)),xmax=Math.max(...symbols.map(s=>s.x));
+ const ymin=Math.min(...symbols.map(s=>s.y)),ymax=Math.max(...symbols.map(s=>s.y));
+ const padding=20;const x0=Math.max(0,xmin-padding),x1=Math.min(DATA.schematic.viewbox[0],xmax+padding);
+ const y0=Math.max(0,ymin-padding),y1=Math.min(DATA.schematic.viewbox[1],ymax+padding);
+ const rectW=Math.max(1,(x1-x0)*SCALE),rectH=Math.max(1,(y1-y0)*SCALE);
+ const viewportW=viewport.clientWidth,viewportH=viewport.clientHeight;
+ const top=123,bottom=viewportW<=750?158:100;
+ zoom=Math.min(4.5,Math.max(.08,Math.min((viewportW-50)/rectW,(viewportH-top-bottom)/rectH)));
+ panX=viewportW/2-(x0+x1)*SCALE/2*zoom;
+ panY=top+(viewportH-top-bottom)/2-(y0+y1)*SCALE/2*zoom;
+ apply();updatePreferences();return true;
+}
+function setSchematicPage(index){
+ if(!DATA.schematic||!schematicStage||!Array.isArray(DATA.schematic.pages))return;
+ const pages=DATA.schematic.pages;
+ if(!Number.isInteger(index)||index<0||index>=pages.length)return;
+ schematicPageIndex=index;
+ const page=pages[index];
+ const image=schematicStage.querySelector('img');
+ if(image){image.src=page.src;image.alt='Native KiCad schematic page '+page.name+' · read-only';}
+ DATA.schematic.viewbox=page.viewbox;
+ schematicStage.style.width=(page.viewbox[0]*SCALE)+'px';
+ schematicStage.style.height=(page.viewbox[1]*SCALE)+'px';
+ schematicStage.querySelectorAll('.sch-hit,.sch-pin-hit').forEach(btn=>{btn.hidden=index!==0;});
+ $('schematicPagePicker').value=String(index);
+ const count=pages.length;
+ $('schematicSheetCount').textContent=String(count).padStart(2,'0')+' SHEETS';
+ $('schematicDockIndex').textContent='SHEET '+String(index+1).padStart(2,'0')+' / '+String(count).padStart(2,'0');
+ $('schematicDockTitle').textContent=page.name;
+ $('schematicDockScope').textContent=index===0?'Root · source-linked navigation':
+  page.drawn_element_count===0?'Child · no plotted drawings':'Child · plotted geometry only';
+ $('schematicEmptyState').hidden=mode!=='schematic'||page.drawn_element_count!==0;
+ $('schematicPrevious').disabled=index===0;
+ $('schematicNext').disabled=index>=count-1;
+ $('schematicFocusSymbols').disabled=index!==0||!DATA.schematic.symbols?.length;
+ document.querySelectorAll('.sheet-thumb').forEach((btn,i)=>{
+  btn.setAttribute('aria-current',i===index?'page':'false');
+  btn.setAttribute('aria-pressed',String(i===index));
+ });
+ $('schematicPageNote').textContent=index===0?
+  'Root sheet · source-linked footprint/pin markers (not DRC certification)':
+  'Child sheet · actual KiCad page plot. Root-only PCB cross-probe disabled on child pages.';
+ if(mode==='schematic'){
+  $('canvasName').textContent=DATA.schematic.filename.replaceAll('_',' ')+' · '+page.name;
+  fit();
+ }
+ updatePreferences();
+}
+function setupSchematic(){const button=$('modeSch');if(!DATA.schematic){button.disabled=true;button.title='No native schematic supplied';return;}
+ schematicStage=node('div','stage schstage');schematicStage.style.width=(DATA.schematic.viewbox[0]*SCALE)+'px';
+ schematicStage.style.height=(DATA.schematic.viewbox[1]*SCALE)+'px';
+ const image=node('img');image.alt='Actual KiCad schematic plot — not an ERC check';image.src=DATA.schematic.src;
+ schematicStage.appendChild(image);schematicStage.style.display='none';viewport.appendChild(schematicStage);
+ if(DATA.schematic.pages?.length){
+  const nav=$('schematicPageNav'),select=$('schematicPagePicker');nav.hidden=false;
+  DATA.schematic.pages.forEach((page,index)=>{
+   const option=node('option','',String(index+1)+' · '+page.name);
+   option.value=String(index);select.appendChild(option);
+   const button=node('button','sheet-thumb');button.type='button';
+   button.title='Open original KiCad schematic sheet '+(index+1)+' — '+page.name;
+   button.setAttribute('aria-label','Open native KiCad sheet '+(index+1)+' of '+DATA.schematic.pages.length+': '+page.name);
+   const preview=node('span','sheet-thumb-img');
+   const image=node('img');image.src=page.src;image.alt='Native KiCad plotted sheet '+page.name;
+   image.loading=index<4?'eager':'lazy';image.decoding='async';preview.append(image);
+   const description=node('span','sheet-thumb-copy');
+   description.append(node('span','',String(index+1).padStart(2,'0')+' / '+String(DATA.schematic.pages.length).padStart(2,'0')),
+    node('strong','',page.name),node('em','',index===0?'ROOT · symbol cross-probe':'CHILD · native plot only'));
+   button.append(preview,description);
+   button.addEventListener('click',()=>{if(mode!=='schematic')switchMode('schematic');setSchematicPage(index);});
+   $('schematicThumbnails').append(button);
+  });
+  select.addEventListener('change',()=>setSchematicPage(Number(select.value)));
+  $('schematicPrevious').addEventListener('click',()=>setSchematicPage(schematicPageIndex-1));
+  $('schematicNext').addEventListener('click',()=>setSchematicPage(schematicPageIndex+1));
+  $('schematicFocusSymbols').addEventListener('click',focusNativeRootSymbols);
+  setSchematicPage(0);
+ }
+ const common=new Set(DATA.schematic.crossprobe_refs);
+ const rootRefs=[...new Set(DATA.schematic.symbols.filter(x=>common.has(x.ref)).map(x=>x.ref))]
+  .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+ if(rootRefs.length){
+  $('schematicReferencePanel').hidden=false;
+  $('schematicReferenceCount').textContent=rootRefs.length+' mapped';
+  for(const ref of rootRefs){
+   const button=node('button','sheet-ref',ref);button.type='button';
+   button.dataset.ref=ref;
+   button.title='Zoom to real schematic symbol '+ref+' (authored PCB footprint mapping only)';
+   button.setAttribute('aria-label','Locate KiCad schematic reference '+ref);
+   button.addEventListener('click',()=>{
+    if(!focusSchematic(ref))return;
+    const index=boardRefToIndex.get(ref);
+    if(index!==undefined){
+     select({kind:'part',index},false);
+     const jump=node('button','crossnav','Go to native PCB footprint '+ref+' →');jump.type='button';
+     jump.onclick=()=>{switchMode('pcb');select({kind:'part',index},true);};
+     $('detail').append(jump);
+    }
+    const marker=focusButtons.symbols.get(ref);if(marker)marker.classList.add('selected');
+    document.querySelectorAll('.sheet-ref').forEach(other=>other.setAttribute('aria-pressed',String(other===button)));
+   });
+   $('schematicReferenceGrid').append(button);
+  }
+ }
+ for(const ref of DATA.schematic.symbols){
+  if(!common.has(ref.ref))continue;
+  const btn=node('button','sch-hit',ref.ref.replace(/[^A-Za-z]/g,'').slice(0,1));btn.type='button';
+  btn.title='KiCad schematic symbol '+ref.ref+' → matching PCB footprint';
+  btn.setAttribute('aria-label','Select schematic symbol '+ref.ref);
+  btn.dataset.ref=ref.ref;btn.style.left=(ref.x*SCALE)+'px';btn.style.top=(ref.y*SCALE)+'px';
+  btn.addEventListener('click',ev=>{ev.stopPropagation();const index=boardRefToIndex.get(ref.ref);if(index!==undefined){
+   select({kind:'part',index},false);btn.classList.add('selected');
+   const jump=node('button','crossnav','Jump to PCB footprint '+ref.ref+' →');jump.type='button';
+   jump.onclick=()=>{switchMode('pcb');select({kind:'part',index},true);};$('detail').append(jump);
+  }});schematicStage.append(btn);focusButtons.symbols.set(ref.ref,btn);
+ }
+ for(const pin of (DATA.schematic.pin_anchors||[])){
+  if(!common.has(pin.ref))continue;
+  const button=node('button','sch-pin-hit');button.type='button';
+  button.title=pin.ref+'.'+pin.logical_pin+' · '+pin.net+' (native schematic pin endpoint)';
+  button.dataset.ref=pin.ref;button.dataset.pin=pin.logical_pin;
+  button.setAttribute('aria-label','Inspect schematic pin '+pin.ref+'.'+pin.logical_pin+' · '+pin.net);
+  button.style.left=(pin.x*SCALE)+'px';button.style.top=(pin.y*SCALE)+'px';
+  button.addEventListener('click',ev=>{ev.stopPropagation();inspectSchematicPin(pin.ref,pin.logical_pin);});
+  schematicStage.appendChild(button);focusButtons.pins.set(pin.ref+'.'+pin.logical_pin,button);
+ }
+
+}
+function set3DOrbitFrame(index,doFit=false){
+ const frames=DATA.render3d?.orbit_frames||[];
+ if(!render3dStage||frames.length!==8||!Number.isInteger(index))return false;
+ orbitFrameIndex=((index%frames.length)+frames.length)%frames.length;
+ const frame=frames[orbitFrameIndex];
+ const image=render3dStage.querySelector('img');
+ image.src=frame.source;
+ image.alt='Actual KiCad 10 3D camera orbit frame '+(orbitFrameIndex*45)+' degrees · not continuous 3D CAD';
+ render3dStage.style.width=frame.width+'px';render3dStage.style.height=frame.height+'px';
+ $('render3dAngle').textContent='ORBIT '+String(orbitFrameIndex*45).padStart(3,'0')+'°';
+ $('render3dFrameCount').textContent=String(orbitFrameIndex+1).padStart(2,'0')+' / 08';
+ $('render3dIso').setAttribute('aria-pressed','false');
+ $('render3dTop').setAttribute('aria-pressed','false');
+ if(doFit&&mode==='3d')fit();else apply();
+ if(mode==='3d')updatePreferences();
+ return true;
+}
+function step3DOrbit(delta){
+ return set3DOrbitFrame((orbitFrameIndex<0?1:orbitFrameIndex)+delta);
+}
+function set3DCamera(index){
+ const views=DATA.render3d?.views||[];
+ if(!render3dStage||!Number.isInteger(index)||index<0||index>=views.length)return;
+ render3dIndex=index;
+ orbitFrameIndex=-1;
+ $('render3dAngle').textContent=index===0?'ISOMETRIC':'TOP ORTHOGRAPHIC';
+ $('render3dFrameCount').textContent='NATIVE KICAD';
+ const picture=views[index];
+ render3dStage.style.width=picture.width+'px';render3dStage.style.height=picture.height+'px';
+ const image=render3dStage.querySelector('img');
+ if(image){image.src=picture.source;image.alt='Actual KiCad 10 '+picture.label+' 3D PCB render. Component model completeness NOT verified.';}
+ $('render3dIso').setAttribute('aria-pressed',String(index===0));
+ $('render3dTop').setAttribute('aria-pressed',String(index===1));
+ if(mode==='3d'){fit();updatePreferences();}
+}
+function showModelFileDiagnostics(){
+ const summary=$('render3dModelSummary'), details=$('render3dModelDetails');
+ const checked=DATA.board?.model_assets;
+ if(!checked||!Number.isInteger(checked.declared_references)||checked.model_geometry_approved!==false){
+  summary.textContent='Model availability NOT checked · review required';
+  details.textContent='No trustworthy native KiCad model file inventory was recorded. Assembly and fabrication NOT approved.';
+  return;
+ }
+ summary.textContent=`3D model files ${checked.present_files}/${checked.declared_references} present · inspect gaps`;
+ details.replaceChildren();
+ const line=(label,parts)=>{const p=node('p');const tag=node('strong');tag.textContent=label+' ';p.append(tag);
+  p.append(document.createTextNode(parts));details.append(p);};
+ line('Footprints:',`${checked.footprints}; model paths declared: ${checked.declared_references}; source files found: ${checked.present_files}.`);
+ line('Unresolved model file links:',checked.unresolved_refs?.join(', ')||'None detected');
+ line('Footprints without model links:',checked.without_model_refs?.join(', ')||'None detected');
+ if(checked.same_stem_step_candidates?.length)line('Same-stem STEP candidates (NOT verified):',checked.same_stem_step_candidates.join(', '));
+ line('Engineering gate:',checked.scope||'Presence only; model geometry and manufacturing NOT verified.');
+}
+function setupNative3D(){
+ showModelFileDiagnostics();
+ $('render3dModelDiagnostics').addEventListener('toggle',()=>{
+  if(mode==='3d')requestAnimationFrame(fit);
+ });
+ const trigger=$('mode3D');
+ if(DATA.render3d?.state!=='rendered'||DATA.render3d.views?.length!==2){
+  trigger.disabled=true;
+  trigger.title=DATA.render3d?.state==='not_run'? 'Native KiCad 3D render was not requested':
+   'Native KiCad 3D unavailable on this computer; PCB and schematic review remain available';
+  return;
+ }
+ render3dStage=node('div','stage render3dstage');
+ const image=node('img');image.alt='Real native KiCad 3D model view';
+ render3dStage.append(image);render3dStage.style.display='none';viewport.append(render3dStage);
+ $('render3dIso').addEventListener('click',()=>set3DCamera(0));
+ $('render3dTop').addEventListener('click',()=>set3DCamera(1));
+  $('render3dPrevious').addEventListener('click',()=>step3DOrbit(-1));
+  $('render3dNext').addEventListener('click',()=>step3DOrbit(1));
+  const hasOrbit=DATA.render3d.orbit_frames?.length===8;
+  $('render3dPrevious').disabled=!hasOrbit;
+  $('render3dNext').disabled=!hasOrbit;
+  if(!hasOrbit){$('render3dNext').title='Real KiCad orbit camera frames unavailable on this device';}
+ set3DCamera(0);
+}
+function switchMode(next){
+ if(next==='schematic'&&!DATA.schematic)return;
+ if(next==='3d'&&DATA.render3d?.state!=='rendered')return;
+ mode=next;
+ stage.style.display=mode==='pcb'?'block':'none';
+ if(schematicStage)schematicStage.style.display=mode==='schematic'?'block':'none';
+ if(render3dStage)render3dStage.style.display=mode==='3d'?'block':'none';
+ $('modePcb').setAttribute('aria-pressed',String(mode==='pcb'));
+ $('modeSch').setAttribute('aria-pressed',String(mode==='schematic'));
+ $('mode3D').setAttribute('aria-pressed',String(mode==='3d'));
+ $('copperControls').hidden=mode!=='pcb';$('inspectionOverlays').hidden=mode!=='pcb';
+ $('schematicContext').hidden=mode!=='schematic';
+ $('schematicSheetDock').hidden=mode!=='schematic';
+ $('render3dControls').hidden=mode!=='3d';
+ // Reserved source-3D canvas height and dynamic controls size are measured
+ // after mode/disclosure changes. No geometry or engineer signoff is modified.
+ $('schematicEmptyState').hidden=mode!=='schematic'||DATA.schematic?.pages?.[schematicPageIndex]?.drawn_element_count!==0;
+ $('measure').disabled=mode!=='pcb';$('clearMeasure').disabled=mode!=='pcb';
+ if(mode!=='pcb'){measureOn=false;measurePoints=[];renderMeasure();}
+ cursorCoords=null;
+ $('modeKicker').textContent=mode==='pcb'?'Physical PCB / native plotted geometry':
+  mode==='3d'?'Physical PCB / actual KiCad 3D render':'Electrical schematic / native Eeschema geometry';
+ $('boardFoot').textContent=mode==='pcb'
+ ?'Unmodified KiCad PCB plot. Source pads, copper and native DRC can be inspected, but fabrication remains blocked.'
+ :mode==='3d'?'Original KiCad 3D render · missing/unresolved component models may be absent. Neither assembly fit nor manufacturing is approved.'
+ :'Native Eeschema schematic plot. Symbol crossprobe matches actual references; optional pin-pad net agreement is not independent datasheet, continuity or electrical approval.';
+ if(mode==='schematic')$('schematicContextText').textContent=DATA.schematic.symbols.length+
+ ' native symbols · '+DATA.schematic.crossprobe_refs.length+' matched footprint references · '+DATA.schematic.net_names.length+
+ ' net names. '+(DATA.pin_parity.state==='not_checked'?'Pin-pad net mapping NOT checked.':
+  DATA.pin_parity.mapped_pad_instances+' mapped pad instances matched against the authored design; '+
+  DATA.pin_parity.unmapped_pad_instances+' unmapped pads; '+DATA.pin_parity.mismatch_count+
+  ' discrepancies. Datasheet/pin qualification NOT established.');
+ $('canvasName').textContent=mode==='pcb'?DATA.board_name.replaceAll('_',' '):
+  mode==='3d'?DATA.board_name.replaceAll('_',' ')+' · native 3D':
+  DATA.schematic.filename.replaceAll('_',' ')+(DATA.schematic.pages?.length>1?' · '+DATA.schematic.pages[schematicPageIndex].name:'');
+ $('canvasEvidence').textContent=mode==='pcb'
+ ?'KiCad '+DATA.board.kicad+' · SHA-256 '+DATA.source_sha256.slice(0,12)+'…'
+ :mode==='3d'?'KiCad native OpenGL render · Source SHA-256 '+DATA.source_sha256.slice(0,12)+'… · 3D models NOT verified'
+ :'Native Eeschema SVG · SHA-256 '+DATA.schematic.source_sha256.slice(0,12)+'… · ERC '+DATA.erc.count+' findings'+
+ (DATA.schematic.display_page_expanded?' · DISPLAY-ONLY A2 PAGE':'');
+ $('footleft').textContent=mode==='pcb'
+ ?`READ-ONLY • ${DATA.board.size.join(' × ')} mm board bounds • source ${DATA.source_sha256.slice(0,16)}…`
+ :mode==='3d'?'READ-ONLY • native KiCad 3D view · component model completeness NOT checked'
+ :'READ-ONLY • native KiCad schematic · original ERC '+DATA.erc.count+' enabled-rule findings'+
+   (DATA.schematic.display_page_expanded?' · display-only A2 enlargement':'');fit();updatePreferences();
+}
+// Only UI preferences are stored; no source, ERC/DRC, measurement, netlist,
+// fab approval or machine paths are cached. Local-storage failures are benign.
+const PREF_KEY='zaptrace.review.layout.v1.'+DATA.source_sha256;
+let prefsReady=false,storedPrefs=null;
+function readPreferences(){
+ try{
+  const raw=localStorage.getItem(PREF_KEY);
+  if(!raw||raw.length>8192)return null;
+  const p=JSON.parse(raw);
+  return p&&typeof p==='object'&&p.version===1?p:null;
+ }catch{return null;}
+}
+function updatePreferences(){
+ if(!prefsReady)return;
+ const current={version:1,tab,mode,page:schematicPageIndex,layers:{},markers:{},panels:{}};
+ for(const layer of DATA.layer_names)current.layers[layer]=Boolean(visible[layer]);
+ for(const name of ['showPadMarkers','showFaultMarkers','showFootprintMarkers'])current.markers[name]=$(name).checked;
+ for(const [side,id] of [['left','leftSidebar'],['right','rightSidebar']]){
+  const inline=document.querySelector('.app').style.getPropertyValue('--'+side+'-width');
+  if(/^\d{2,3}px$/.test(inline))current.panels[side]=parseInt(inline,10);
+ }
+ try{localStorage.setItem(PREF_KEY,JSON.stringify(current));
+  $('prefsStatus').textContent='Layout saved on this device';
+ }catch{$('prefsStatus').textContent='Session only · storage unavailable';}
+}
+function restorePreferences(){
+ const p=readPreferences();
+ prefsReady=false;
+ if(p){
+  if(p.layers&&typeof p.layers==='object'){
+   for(const [i,layer] of DATA.layer_names.entries()){
+    if(typeof p.layers[layer]==='boolean'){
+     const checkbox=$('layerPicker').querySelectorAll('input')[i];
+     if(checkbox){checkbox.checked=p.layers[layer];checkbox.dispatchEvent(new Event('change'));}
+    }
+   }
+  }
+  if(p.markers&&typeof p.markers==='object'){
+   for(const name of ['showPadMarkers','showFaultMarkers','showFootprintMarkers']){
+    if(typeof p.markers[name]==='boolean'){
+     $(name).checked=p.markers[name];$(name).dispatchEvent(new Event('change'));
+    }
+   }
+  }
+  if(p.panels&&typeof p.panels==='object'&&window.innerWidth>1070){
+   const app=document.querySelector('.app');
+   for(const [side,min,max] of [['left',195,430],['right',250,480]]){
+    const val=p.panels[side];
+    if(Number.isInteger(val)&&val>=min&&val<=max){
+     app.style.setProperty('--'+side+'-width',val+'px');
+     $(side+'Splitter').setAttribute('aria-valuenow',String(val));
+    }
+   }
+   fit();
+  }
+  if(['issues','opens','parts','nets','pins'].includes(p.tab))setTab(p.tab);
+  if(p.mode==='schematic'&&DATA.schematic)switchMode('schematic');
+  if(p.mode==='3d'&&DATA.render3d?.state==='rendered')switchMode('3d');
+  if(Number.isInteger(p.page)&&p.page>0)setSchematicPage(p.page);
+ }
+ prefsReady=true;
+ $('prefsStatus').textContent=p?'Restored from this device':'Session layout · saved locally';
+}
+function resetPreferences(){
+ prefsReady=false;
+ try{localStorage.removeItem(PREF_KEY);}catch{}
+ document.querySelector('.app').style.removeProperty('--left-width');
+ document.querySelector('.app').style.removeProperty('--right-width');
+ for(const id of ['showPadMarkers','showFaultMarkers','showFootprintMarkers']){
+  $(id).checked=true;$(id).dispatchEvent(new Event('change'));
+ }
+ for(const layer of DATA.layer_names){
+  const index=DATA.layer_names.indexOf(layer),checkbox=$('layerPicker').querySelectorAll('input')[index];
+  if(checkbox){checkbox.checked=true;checkbox.dispatchEvent(new Event('change'));}
+ }
+ setTab('issues');switchMode('pcb');setSchematicPage(0);setFocusMode(false);fit();
+ prefsReady=true;
+ $('prefsStatus').textContent='Layout reset · source unchanged';
+}
+function setTab(next){
+ tab=next;$('search').value='';
+ document.querySelectorAll('[data-tab]').forEach(b=>{
+  const active=b.dataset.tab===next;
+  b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;
+ });
+ $('entrylist').setAttribute('aria-labelledby','inspector-tab-'+next);
+ renderList();updatePreferences();
+}
+function setFocusMode(next){
+ document.querySelector('.app').classList.toggle('focus-mode',next);
+ $('focusMode').setAttribute('aria-pressed',String(next));$('focusMode').textContent=next?'Exit focus':'Focus';
+ requestAnimationFrame(fit);
+}
+function openShortcuts(){const overlay=$('shortcutBackdrop');overlay.hidden=false;$('closeHelp').focus();}
+function closeShortcuts(){const overlay=$('shortcutBackdrop');overlay.hidden=true;$('showHelp').focus();}
+let commandItems=[],commandMatches=[],commandCursor=0,commandPriorFocus=null;
+function buildCommandItems(){
+ const items=[];
+ const add=(kind,label,description,search,run)=>items.push({kind,label,description,search,run});
+ DATA.board.footprints.forEach((part,index)=>{
+  add('PART',part.ref+' · '+(part.value||'Native footprint'),
+   part.footprint+' · '+part.pad_count+' real pads',
+   part.ref+' '+part.value+' '+part.footprint,()=>{
+    switchMode('pcb');setTab('parts');select({kind:'part',index},true);
+   });
+ });
+ DATA.board.pads.forEach((pad,index)=>{
+  const pin=padLinks.get(index);
+  add('PAD',pad.ref+'.'+pad.pad,
+   pad.net+' · '+(pin?.logical_pin||'not supplier-pin qualified')+' · ('+snap(pad.x)+', '+snap(pad.y)+')',
+   pad.ref+'.'+pad.pad+' '+pad.ref+' '+pad.pad+' '+pad.net+' '+(pin?.logical_pin||''),()=>{
+    switchMode('pcb');setTab('pins');select({kind:'pad',index},true);
+   });
+ });
+ const nets=new Set([...DATA.board.pads.map(x=>x.net),...DATA.board.copper.map(x=>x.net)]);
+ for(const net of nets){
+  if(net==='(no net)')continue;
+  add('NET',net,'Native pad/net membership · electrical continuity not verified',
+   net+' net '+net,()=>{switchMode('pcb');setTab('nets');selectNet(net);});
+ }
+ if(DATA.drc_state!=='not_run'){
+  DATA.findings.forEach((finding,index)=>{
+   const loc=finding.x===null?'position not reported':snap(finding.x)+', '+snap(finding.y);
+   add('DRC',finding.rule+' · '+loc,
+    finding.message+' · KiCad '+finding.severity,
+    finding.rule+' '+finding.message+' '+finding.objects.join(' '),()=>{
+     switchMode('pcb');setTab('issues');select({kind:'issue',index},true);
+    });
+  });
+  (DATA.open_pairs||[]).forEach(pair=>{
+   const a=pair.endpoints[0],b=pair.endpoints[1];
+   add('OPEN','Open '+pair.net+' · '+a.label+' ↔ '+b.label,
+    pair.straight_line_mm.toFixed(3)+' mm straight line · NOT a route',
+    pair.net+' '+a.label+' '+b.label+' unconnected open',()=>{
+     switchMode('pcb');setTab('opens');select({kind:'issue',index:pair.finding_index},false);
+     frameOpenAirwire(pair);
+    });
+  });
+ }
+ if(DATA.schematic){
+  for(const pin of (DATA.schematic.pin_anchors||[])){
+   add('SCH',pin.ref+'.'+pin.logical_pin,
+    pin.net+' · native Eeschema logical pin endpoint',
+    pin.ref+'.'+pin.logical_pin+' '+pin.ref+' '+pin.logical_pin+' '+pin.net,
+    ()=>{inspectSchematicPin(pin.ref,pin.logical_pin);});
+  }
+ }
+ return items;
+}
+function commandScore(item,terms){
+ const id=item.label.toLowerCase();const haystack=(item.label+' '+item.search+' '+item.description).toLowerCase();
+ if(!terms.every(t=>haystack.includes(t)))return Infinity;
+ return terms.reduce((sum,t)=>sum+(id===t?0:id.startsWith(t)?1:haystack.includes(t)?3:7),0);
+}
+function renderCommands(){
+ const value=$('commandInput').value.trim().toLowerCase();
+ const terms=value.split(/\s+/).filter(Boolean);
+ // Empty query intentionally surfaces useful board refs and routes, never a fake approval.
+ commandMatches=commandItems.map((item,index)=>({item,index,score:commandScore(item,terms)}))
+  .filter(row=>Number.isFinite(row.score))
+  .sort((a,b)=>a.score-b.score||a.index-b.index).slice(0,35);
+ if(commandCursor>=commandMatches.length)commandCursor=0;
+ const results=$('commandResults');results.replaceChildren();
+ if(!commandMatches.length)results.append(node('div','command-empty',
+  'No matching native objects. Try a component reference, pin number, net, or DRC rule.'));
+ $('commandSummary').textContent=commandMatches.length
+  ?(value?'Matching native objects · first '+commandMatches.length+' displayed':
+   'Quick navigation · '+commandItems.length+' native indexed objects')
+  :'No matching native objects. Search a real pad, ref, net or DRC rule.';
+ commandMatches.forEach((entry,index)=>{
+  const item=entry.item;const b=node('button','command-result');b.type='button';
+  b.id='cmd-choice-'+index;b.setAttribute('role','option');b.setAttribute('aria-selected',String(index===commandCursor));
+  b.tabIndex=-1;
+  const type=node('span','command-type',item.kind);const copy=node('span','command-copy');
+  copy.append(node('strong','',item.label),node('span','',item.description));
+  b.append(type,copy,node('span','command-arrow','↗'));
+  b.addEventListener('mouseenter',()=>setCommandCursor(index,false));
+  b.addEventListener('click',()=>executeCommand(index));results.append(b);
+ });
+ $('commandInput').setAttribute('aria-activedescendant',commandMatches.length?'cmd-choice-'+commandCursor:'');
+}
+function setCommandCursor(index,scroll=true){
+ if(!commandMatches.length)return;
+ commandCursor=(index+commandMatches.length)%commandMatches.length;
+ for(const [i,el] of [...$('commandResults').children].entries()){
+  el.setAttribute('aria-selected',String(i===commandCursor));
+ }
+ $('commandInput').setAttribute('aria-activedescendant','cmd-choice-'+commandCursor);
+ if(scroll)$('commandResults').children[commandCursor].scrollIntoView({block:'nearest'});
+}
+function openCommands(){
+ if(!$('shortcutBackdrop').hidden)closeShortcuts();
+ if(!$('commandBackdrop').hidden){$('commandInput').focus();return;}
+ commandPriorFocus=document.activeElement;
+ commandItems=buildCommandItems();commandCursor=0;
+ $('commandInput').value='';$('commandBackdrop').hidden=false;
+ renderCommands();$('commandInput').focus();
+}
+function closeCommands(){
+ $('commandBackdrop').hidden=true;
+ $('commandInput').setAttribute('aria-activedescendant','');
+ if(commandPriorFocus?.isConnected&&commandPriorFocus instanceof HTMLElement)commandPriorFocus.focus({preventScroll:true});
+}
+function executeCommand(index){
+ if($('commandBackdrop').hidden||!commandMatches[index])return;
+ const action=commandMatches[index].item.run;
+ closeCommands();setFocusMode(false);action();
+}
+function bindCommands(){
+ $('searchWorkspace').addEventListener('click',openCommands);
+ $('searchCanvas').addEventListener('click',openCommands);
+ $('closeCommand').addEventListener('click',closeCommands);
+ $('commandBackdrop').addEventListener('click',event=>{
+  if(event.target===$('commandBackdrop'))closeCommands();
+ });
+ $('commandInput').addEventListener('input',()=>{commandCursor=0;renderCommands();});
+ $('commandInput').addEventListener('keydown',event=>{
+  if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+   event.preventDefault();setCommandCursor(commandCursor+(event.key==='ArrowDown'?1:-1));
+  }else if(event.key==='Enter'){event.preventDefault();executeCommand(commandCursor);}
+ });
+}
+function bindShortcuts(){
+ document.addEventListener('keydown',event=>{
+  if(event.altKey)return;
+  if(event.key==='Escape'&&!$('commandBackdrop').hidden){closeCommands();event.preventDefault();return;}
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
+   event.preventDefault();openCommands();return;
+  }
+  if(event.ctrlKey||event.metaKey)return;
+  if(event.key==='Escape'){
+   if(!$('shortcutBackdrop').hidden){closeShortcuts();event.preventDefault();return;}
+   if(document.activeElement===$('search')&&$('search').value){$('search').value='';renderList();event.preventDefault();return;}
+   if(measureOn||measurePoints.length){measureOn=false;measurePoints=[];renderMeasure();event.preventDefault();return;}
+   return;
+  }
+  if(!$('commandBackdrop').hidden){
+   if(event.key==='Tab'){
+    event.preventDefault();
+    // Keep keyboard focus inside the native-object dialog, but permit the
+    // close control as well as the search input (Esc always works).
+    if(document.activeElement===$('commandInput'))$('closeCommand').focus();
+    else $('commandInput').focus();
+   }
+   return;
+  }
+  if(!$('shortcutBackdrop').hidden){
+   if(event.key==='Tab'){event.preventDefault();$('closeHelp').focus();}
+   return;
+  }
+  const writing=event.target instanceof Element&&(
+   event.target.matches('input,textarea,select')||event.target.isContentEditable);
+  if(writing)return;
+  const k=event.key.toLowerCase();
+  if(k==='/'||k==='f'||k==='1'||k==='2'||k==='m'||k==='q'||k==='j'||k==='k'||k==='?'||(mode==='schematic'&&(k==='['||k===']'))){
+   event.preventDefault();
+   if(k==='/'){$('search').focus();$('search').select();}
+   else if(k==='f')fit();
+   else if(k==='1')switchMode('pcb');
+   else if(k==='2'&&DATA.schematic)switchMode('schematic');
+   else if(k==='['&&mode==='schematic')setSchematicPage(schematicPageIndex-1);
+   else if(k===']'&&mode==='schematic')setSchematicPage(schematicPageIndex+1);
+   else if(k==='m')activateMeasurement();
+   else if(k==='q')setFocusMode(!document.querySelector('.app').classList.contains('focus-mode'));
+   else if(k==='j'||k==='k')advanceReview(k==='j'?1:-1);
+   else if(k==='?')openShortcuts();
+  }
+ });
+}
+
+function summary(){const violations=DATA.findings.filter(f=>f.rule!=='unconnected_items');const open=DATA.findings.filter(f=>f.rule==='unconnected_items');
+ $('boardName').textContent=DATA.board_name+'.kicad_pcb';
+ $('canvasName').textContent=DATA.board_name.replaceAll('_',' ');
+ $('boardMeta').textContent=DATA.board.footprints.length+' actual KiCad footprints · '+DATA.board.pads.length+' pads · '+DATA.board.tracks+' copper segments · '+
+ (DATA.project_settings?.project_provided?'Project rules supplied':'Project settings NOT supplied')+' · '+
+ (DATA.schematic_hierarchy?.page_count>1?DATA.schematic_hierarchy.page_count+' hierarchy pages (root preview only)':'Single/root schematic scope');
+ $('canvasEvidence').textContent='Native KiCad '+DATA.board.kicad+' · SHA-256 '+DATA.source_sha256.slice(0,12)+'…';
+ const drc=$('drcBadge'),cnt=violations.length;
+ drc.textContent=DATA.drc_state==='not_run'?'Not run':cnt+' findings'+(cnt?' · needs review':' · no reported findings');
+ drc.className=cnt?'critical':(DATA.drc_state==='not_run'?'warn':'good');
+ const erc=$('ercBadge'),er=DATA.erc;
+ const ercVerified=['reported','no_reported_findings'].includes(er.state);
+ const ercErrors=Number.isInteger(er.errors)&&er.errors>=0?er.errors:0;
+ const ercWarnings=Number.isInteger(er.warnings)&&er.warnings>=0?er.warnings:0;
+ const ercUnclassified=ercVerified&&(!Number.isInteger(er.count)||er.count!==ercErrors+ercWarnings);
+ const ercClass=!ercVerified?'warn':ercErrors?'critical':ercWarnings||ercUnclassified?'warn':'good';
+ const ercCountText=ercErrors+' errors · '+ercWarnings+' warnings';
+ erc.textContent=!ercVerified?(er.state==='not_run'?'Not checked':'Unavailable · check native KiCad'):
+  ercUnclassified?'Findings need severity review · enabled rules only':ercCountText+' · enabled rules only';
+ erc.className=ercClass;
+ erc.title=er.scope||'Only enabled KiCad ERC rules are checked';
+ const parity=$('netParityBadge'),matches=DATA.net_parity;
+ parity.textContent=matches.state==='not_checked'?'Not checked':
+ matches.state==='names_match'?matches.common.length+' net names · pins unverified':'Names differ · inspect';
+ parity.className=matches.state==='names_differ'?'critical':'warn';
+ parity.title=matches.scope+(matches.state==='names_differ'?(' PCB only: '+matches.board_only.join(', ')+
+  '; schematic only: '+matches.schematic_only.join(', ')):'');
+ const pins=$('pinParityBadge'),pm=DATA.pin_parity;
+ pins.textContent=pm.state==='not_checked'?'Not checked':pm.state==='mismatch'
+  ?pm.mismatch_count+' mismatches · STOP':pm.mapped_pad_instances+'/'+pm.total_pad_instances+' mapped · 0 mismatch';
+ pins.className=pm.state==='mismatch'?'critical':'warn';
+ pins.title=pm.scope+(pm.state==='not_checked'?'':' Unmapped pads: '+pm.unmapped_pad_instances+
+  ' / '+pm.total_pad_instances+'; canonical source SHA256 '+pm.design_sha256);
+ if(pm.state==='mismatch'){
+  const details=pm.mismatches.slice(0,12).map(e=>e.ref+'.'+(e.pad||e.logical_pin||'?')+
+   ': '+e.reason+'; expected '+(e.expected||'?')+', actual '+(e.actual||'?')).join(' | ');
+  pins.title+=' MISMATCHES: '+details;
+ }
+ $('openBadge').textContent=DATA.drc_state==='not_run'?'Not run':open.length+' native findings';
+ $('openBadge').className=open.length?'critical':'warn';
+ $('kpiDrc').textContent=DATA.drc_state==='not_run'?'—':String(cnt);
+ $('kpiDrcNote').textContent=DATA.drc_state==='not_run'?'Not run':cnt?'Unwaived manufacturing findings':'No reported findings · not approved';
+ $('kpiOpens').textContent=DATA.drc_state==='not_run'?'—':String(open.length);
+ $('quickErc').disabled=!DATA.schematic;
+ $('kpiErc').textContent=ercVerified&&!ercUnclassified?String(er.count):'—';
+ $('kpiErcNote').textContent=!ercVerified?'Not checked · enabled rules only':
+  ercUnclassified?'Severity unknown · review required':ercCountText+' · enabled rules only';
+ $('kpiPins').textContent=pm.state==='not_checked'?'—':pm.mapped_pad_instances+'/'+pm.total_pad_instances;
+ $('kpiDrc').className='health-number '+(DATA.drc_state==='not_run'?'':cnt?'danger':'okay');
+ $('kpiOpens').className='health-number '+(DATA.drc_state==='not_run'?'':open.length?'danger':'okay');
+ $('kpiErc').className='health-number '+(!ercVerified?'':ercErrors?'danger':ercWarnings||ercUnclassified?'caution':'okay');
+ $('kpiPins').className='health-number '+(pm.state==='mismatch'?'danger':'');
+ $('footleft').textContent=`READ-ONLY • ${DATA.board.size.join(' × ')} mm edge bounding box • source ${DATA.source_sha256.slice(0,16)}…`;
+}
+function drawLayers(){stage.style.width=SW+'px';stage.style.height=SH+'px';
+ DATA.layer_names.forEach(l=>{const img=node('img','layerimage');img.alt='';img.draggable=false;img.src=DATA.layers[l];img.dataset.layer=l;img.style.display=visible[l]?'block':'none';layers[l]=img;stage.appendChild(img);
+ const label=node('label','layer');const input=document.createElement('input');input.type='checkbox';input.checked=visible[l];input.setAttribute('aria-label','Show '+l);
+ input.addEventListener('change',()=>{visible[l]=input.checked;img.style.display=input.checked?'block':'none';highlightCopper(selectedNet);updatePreferences();});const dot=node('span','dot');dot.style.background=layerColors[l];label.append(input,dot,node('span','',l));$('layerPicker').appendChild(label);});
+}
+function makeHits(){netOverlay=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ netOverlay.classList.add('net-overlay');netOverlay.setAttribute('viewBox',`0 0 ${SW} ${SH}`);
+ netOverlay.setAttribute('width','100%');netOverlay.setAttribute('height','100%');
+ netOverlay.setAttribute('aria-label','Source copper net highlight, not a continuity test');
+ stage.appendChild(netOverlay);
+ airwireOverlay=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ airwireOverlay.classList.add('airwire-overlay');airwireOverlay.setAttribute('viewBox',`0 0 ${SW} ${SH}`);
+ airwireOverlay.setAttribute('width','100%');airwireOverlay.setAttribute('height','100%');
+ airwireOverlay.setAttribute('aria-label','Native KiCad unconnected pair inspection overlay; dashed airwire is not a route');
+ stage.appendChild(airwireOverlay);
+ measureOverlay=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ measureOverlay.classList.add('measure-overlay');measureOverlay.setAttribute('viewBox',`0 0 ${SW} ${SH}`);
+ measureOverlay.setAttribute('width','100%');measureOverlay.setAttribute('height','100%');
+ measureOverlay.setAttribute('aria-label','Measured native pad centre-to-centre distance; no DRC/clearance claim');
+ stage.appendChild(measureOverlay);
+ DATA.board.footprints.forEach((part,i)=>{const btn=node('button','fp-hit');btn.type='button';btn.title=part.ref+' • '+part.footprint;btn.setAttribute('aria-label','Select footprint '+part.ref);btn.addEventListener('click',ev=>{ev.stopPropagation();select({kind:'part',index:i},true);});place(btn,part.x,part.y);focusButtons.parts.push(btn);});
+ DATA.board.pads.forEach((pad,i)=>{const btn=node('button','pad-hit');btn.type='button';btn.title=pad.ref+'.'+pad.pad+' · '+pad.net;btn.setAttribute('aria-label','Inspect pad '+pad.ref+'.'+pad.pad+' '+pad.net);btn.addEventListener('click',ev=>{ev.stopPropagation();select({kind:'pad',index:i},true);});place(btn,pad.x,pad.y);focusButtons.pads.push(btn);});
+ DATA.findings.forEach((issue,i)=>{if(issue.x===null||issue.y===null)return;const btn=node('button','fault'+(issue.severity==='warning'?' warning':''));btn.type='button';btn.title=issue.rule+': '+issue.message;btn.setAttribute('aria-label','Inspect KiCad '+issue.rule);btn.addEventListener('click',ev=>{ev.stopPropagation();setTab('issues');select({kind:'issue',index:i},true);});place(btn,issue.x,issue.y);focusButtons.issues[i]=btn;});
+}
+/* One Tab stop for the many source-backed KiCad PCB object buttons. Arrow
+   keys browse actual plotted markers; Enter/Space still invoke their normal
+   native inspection click and Ctrl+K still searches all source objects.
+   This changes only keyboard focus order, never board or DRC geometry. */
+const MARKER_SELECTOR='.fp-hit,.pad-hit,.fault';
+function visibleCanvasMarkers(){
+ return [...stage.querySelectorAll(MARKER_SELECTOR)].filter(b=>!b.disabled&&getComputedStyle(b).display!=='none');
+}
+function roveCanvasMarker(target=null,moveFocus=false){
+ const active=document.activeElement,visible=visibleCanvasMarkers();
+ const restoreFromHidden=active instanceof Element&&stage.contains(active)&&
+  active.matches(MARKER_SELECTOR)&&!visible.includes(active);
+ const chosen=target&&visible.includes(target)?target:
+  visible.find(b=>b.tabIndex===0)||visible.find(b=>b.classList.contains('fault'))||visible[0];
+ for(const b of stage.querySelectorAll(MARKER_SELECTOR))b.tabIndex=b===chosen?0:-1;
+ if((moveFocus||restoreFromHidden)&&chosen)chosen.focus({preventScroll:true});
+}
+function bindCanvasRoving(){
+ stage.setAttribute('role','group');
+ stage.setAttribute('aria-label','Source-backed KiCad PCB object markers. Use arrow keys to browse, Enter to inspect. Original design unchanged.');
+ // Buttons have implicit tabIndex=0 on creation; reset before selecting a
+ // single source fault/footprint as the sole initial Tab anchor.
+ for(const marker of stage.querySelectorAll(MARKER_SELECTOR))marker.tabIndex=-1;
+ stage.addEventListener('focusin',event=>{
+  if(event.target instanceof Element&&event.target.matches(MARKER_SELECTOR))roveCanvasMarker(event.target);
+ });
+ stage.addEventListener('keydown',event=>{
+  if(!(event.target instanceof Element)||!event.target.matches(MARKER_SELECTOR))return;
+  if(event.key==='Enter'||event.key===' '){
+   // A single deterministic trusted keyboard activation. Stop the browser
+   // default so Space key-up cannot accidentally select twice.
+   event.preventDefault();event.stopPropagation();event.target.click();return;
+  }
+  if(!['ArrowRight','ArrowDown','ArrowLeft','ArrowUp','Home','End'].includes(event.key))return;
+  const available=visibleCanvasMarkers(),idx=available.indexOf(event.target);
+  if(idx<0||!available.length)return;
+  let next;
+  if(event.key==='Home')next=0;
+  else if(event.key==='End')next=available.length-1;
+  else next=(idx+(event.key==='ArrowRight'||event.key==='ArrowDown'?1:-1)+available.length)%available.length;
+  event.preventDefault();event.stopPropagation();roveCanvasMarker(available[next],true);
+ });
+ roveCanvasMarker();
+}
+function clearSelected(){stage.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));
+ if(schematicStage)schematicStage.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));}
+function detailLine(label,value){const row=node('div','detailrow');const l=node('label','',label),v=node('span','',value);row.append(l,v);return row;}
+function select(sel,withPan=false){if(sel.kind==='pad')measurePad(sel.index);
+ selected=sel;clearSelected();highlightCopper(null);drawOpenAirwire(null);let obj=null;
+ const d=$('detail');d.replaceChildren();const h=node('h3','', 'Selected source object');d.appendChild(h);
+ if(sel.kind==='part'){
+  obj=DATA.board.footprints[sel.index];h.textContent=obj.ref+' · '+(obj.value||'Footprint');
+  d.append(detailLine('KiCad library ID',obj.footprint),detailLine('Pad objects',obj.pad_count),detailLine('Absolute position',snap(obj.x)+', '+snap(obj.y)));
+  const padlist=node('div','padlist');DATA.board.pads.forEach((pad,i)=>{if(pad.ref!==obj.ref)return;const b=node('button','padrow');b.type='button';b.append(node('b','',pad.pad),node('span','',pad.net));b.onclick=()=>select({kind:'pad',index:i},true);padlist.append(b);});d.append(padlist);
+  focusButtons.parts[sel.index].classList.add('selected');
+  if(schByRef.has(obj.ref)&&DATA.schematic?.crossprobe_refs.includes(obj.ref)){
+   const b=node('button','crossnav','Find '+obj.ref+' in native schematic →');b.type='button';
+   b.onclick=()=>focusSchematic(obj.ref);d.append(b);
+  }
+ } else if(sel.kind==='pad'){
+  obj=DATA.board.pads[sel.index];h.textContent=obj.ref+' / pad '+obj.pad;
+  d.append(detailLine('Net',obj.net),detailLine('Pad size',obj.size.map(snap).join(' × ')),detailLine('Absolute position',snap(obj.x)+', '+snap(obj.y)));
+  const link=padLinks.get(sel.index);
+  if(link){d.append(detailLine('Authored logical pin',link.logical_pin),
+    node('p','small muted','Exact native PCB net and native schematic net match the authored package-pin map. Component supplier pin functions and physical continuity are NOT qualified.'));
+   const exactPin=schPinByPhysicalId.get(obj.ref+'.'+obj.pad);
+   if(DATA.pin_parity.state==='mapped_net_consistent'&&exactPin&&
+      exactPin.canonical_pin===link.logical_pin&&exactPin.net===obj.net){
+    const b=node('button','crossnav','Locate exact schematic pin '+obj.ref+'.'+exactPin.logical_pin+' →');b.type='button';
+    b.onclick=()=>inspectSchematicPin(obj.ref,exactPin.logical_pin);d.append(b);
+   }
+  }
+  else if(DATA.pin_parity.state==='not_checked')d.append(node('p','small muted','Physical pin-to-logical-pin mapping NOT checked.'));
+  else d.append(node('p','small muted','This pad is outside the authored mapping, or is mismatched. No pin-to-pad approval.'));
+  focusButtons.pads[sel.index].classList.add('selected');
+  if(obj.net!=='(no net)'){
+   highlightCopper(obj.net);
+   const b=node('button','crossnav','Inspect '+obj.net+' copper & pad membership →');b.type='button';
+   b.onclick=()=>{setTab('nets');selectNet(obj.net);};d.append(b);
+  }
+  if(schByRef.has(obj.ref)&&DATA.schematic?.crossprobe_refs.includes(obj.ref)){
+   const b=node('button','crossnav','Find '+obj.ref+' in native schematic →');b.type='button';
+   b.onclick=()=>focusSchematic(obj.ref);d.append(b);
+  }
+ } else if(sel.kind==='issue'){
+  obj=DATA.findings[sel.index];h.textContent=obj.rule;
+  d.append(detailLine('Native severity',obj.severity),node('p','small muted',obj.message));
+  if(obj.x!==null)d.append(detailLine('Measured position',snap(obj.x)+', '+snap(obj.y)));
+  for(const v of obj.objects){d.append(node('p','small mono muted',v));}
+  addRuleGuidance(d,obj);
+  attachOpenPair(d,sel.index);
+  attachNativeDrcLinks(d,obj);
+  showTriageEditor(d,sel.index);
+  focusButtons.issues[sel.index]?.classList.add('selected');
+  openedGroups.add(obj.rule);
+ }
+ if(obj && withPan && obj.x!==null && Number.isFinite(obj.x))center(obj.x,obj.y);
+ // Switching inspected source object changes only the Tab anchor; it must not
+ // steal focus from a sidebar button, dialog, or a user editing a review note.
+ if(['part','pad','issue'].includes(sel.kind)){
+  const markers=sel.kind==='part'?focusButtons.parts:sel.kind==='pad'?focusButtons.pads:focusButtons.issues;
+  const target=markers[sel.index];if(target)roveCanvasMarker(target);
+ }
+ renderList();
+ // Mobile review: reveal the actual selected KiCad evidence and place keyboard/
+ // screen-reader focus on its heading. Never scroll or steal focus during passive
+ // refreshes, desktop pan, or when another item has become selected meanwhile.
+ if(withPan && sel.kind==='issue' && window.innerWidth<=750){
+  h.tabIndex=-1;
+  requestAnimationFrame(()=>{
+   if(selected?.kind!=='issue'||selected.index!==sel.index||!h.isConnected)return;
+   h.focus({preventScroll:true});
+   d.scrollIntoView({block:'start',behavior:'auto'});
+  });
+ }
+}
+function itemButton(label,sub,onClick,selectedNow=false,bad=false){const b=node('button','listbutton'+(selectedNow?' selected':''));b.type='button';
+ const title=node('strong',bad?'bad':'',label);b.append(title,node('span','',sub));b.addEventListener('click',onClick);return b;}
+function getReviewQueue(){
+ if(DATA.drc_state==='not_run')return [];
+ const q=$('search').value.toLowerCase().trim();
+ if(tab==='issues')return DATA.findings.map((f,index)=>({f,index})).filter(({f})=>
+  (f.rule+' '+f.message+' '+f.objects.join(' ')).toLowerCase().includes(q)).map(({index})=>index);
+ if(tab==='opens')return (DATA.open_pairs||[]).filter(pair=>{
+  const ends=pair.endpoints;
+  return [pair.net,ends[0].label,ends[1].label,ends[0].kind,ends[1].kind].join(' ').toLowerCase().includes(q);
+ }).map(pair=>pair.finding_index);
+ return [];
+}
+function updateReviewQueue(){
+ const queue=getReviewQueue();
+ const index=selected?.kind==='issue'?queue.indexOf(selected.index):-1;
+ $('reviewQueue').hidden=index<0;
+ if(index<0)return;
+ const type=tab==='opens'?'Open connection':'DRC finding';
+ const filtered=$('search').value.trim()?' · filtered':'';
+ $('reviewQueueStatus').textContent=type+' '+(index+1)+' of '+queue.length+filtered+' · native KiCad';
+ $('reviewPrev').disabled=index<=0;
+ $('reviewNext').disabled=index>=queue.length-1;
+}
+function advanceReview(direction){
+ const queue=getReviewQueue();
+ if(!queue.length)return false;
+ const index=selected?.kind==='issue'?queue.indexOf(selected.index):-1;
+ const target=index<0?(direction>0?0:queue.length-1):index+direction;
+ if(target<0||target>=queue.length)return false;
+ const sourceIndex=queue[target];
+ select({kind:'issue',index:sourceIndex},true);
+ if(tab==='opens')frameOpenAirwire((DATA.open_pairs||[]).find(p=>p.finding_index===sourceIndex));
+ return true;
+}
+function renderList(){const list=$('entrylist');list.replaceChildren();const q=$('search').value.toLowerCase().trim();
+ updateReviewQueue();
+ const totals={issues:DATA.findings.length,opens:(DATA.open_pairs||[]).length,parts:DATA.board.footprints.length,nets:new Set(DATA.board.pads.map(p=>p.net)).size,pins:DATA.board.pads.length};
+ $('inspectorCount').textContent=totals[tab]+' source '+(tab==='issues'?'findings':tab==='opens'?'gaps':tab==='parts'?'parts':tab==='nets'?'nets':'pads');
+ if(tab==='opens'){
+  if(DATA.drc_state==='not_run'){list.append(node('div','empty','Native DRC not run; cannot determine open connections.'));return;}
+  const groups=new Map();
+  for(const pair of (DATA.open_pairs||[])){
+   const ends=pair.endpoints;
+   const text=[pair.net,ends[0].label,ends[1].label,ends[0].kind,ends[1].kind].join(' ').toLowerCase();
+   if(q&&!text.includes(q))continue;
+   if(!groups.has(pair.net))groups.set(pair.net,[]);groups.get(pair.net).push(pair);
+  }
+  for(const [net,pairs] of groups.entries()){
+   const section=node('section','issuegroup');const title=node('div','issuehead');
+   title.append(node('span','issuetitle','Native open net · '+net),node('span','issuecount',pairs.length));
+   section.append(title);
+   const body=node('div','issuebody');
+   for(const pair of pairs){const ends=pair.endpoints;
+    body.append(itemButton('Open: '+ends[0].label+' ↔ '+ends[1].label,
+     snap(pair.straight_line_mm)+' straight-line separation · not a safe route',
+     ()=>{select({kind:'issue',index:pair.finding_index},false);frameOpenAirwire(pair);},
+     selected?.kind==='issue'&&selected.index===pair.finding_index,true));}
+   section.append(body);list.append(section);
+  }
+ } else if(tab==='issues'){
+  if(DATA.drc_state==='not_run'){list.append(node('div','empty','Native KiCad DRC was not run. No status can be inferred.'));return;}
+  const byRule=new Map();
+  DATA.findings.forEach((f,i)=>{const text=f.rule+' '+f.message+' '+f.objects.join(' ');if(!text.toLowerCase().includes(q))return;
+   if(!byRule.has(f.rule))byRule.set(f.rule,[]);byRule.get(f.rule).push([f,i]);});
+  const names={drill_out_of_range:'Drill diameter violations',hole_clearance:'Hole-to-copper clearance',unconnected_items:'Open physical connections',lib_footprint_issues:'KiCad footprint library setup'};
+  for(const [rule,items] of byRule.entries()){
+   const group=node('section','issuegroup');
+   const head=node('button','issuehead');head.type='button';head.setAttribute('aria-expanded',String(openedGroups.has(rule)));
+   head.append(node('span','issuetitle',names[rule]||rule),node('span','issuecount',items.length));
+   const body=node('div','issuebody');body.hidden=!openedGroups.has(rule);
+   head.addEventListener('click',()=>{const open=body.hidden;body.hidden=!open;head.setAttribute('aria-expanded',String(open));
+    if(open)openedGroups.add(rule);else openedGroups.delete(rule);});
+   for(const [f,i] of items){const location=f.x===null?'Location not reported':f.x.toFixed(3)+', '+f.y.toFixed(3)+' mm';
+    const review=triageNotes.get(i);
+    const suffix=review?.status==='repair_required'?' · REVIEW NOTE: repair required':
+      review?.status==='investigated'?' · REVIEW NOTE: investigated':review?' · REVIEW NOTE saved':'';
+    body.append(itemButton(f.rule+' · '+location,f.message+suffix,
+     ()=>select({kind:'issue',index:i},true),selected?.kind==='issue'&&selected.index===i,f.severity==='error'));}
+   group.append(head,body);list.appendChild(group);
+  }
+ } else if(tab==='pins'){
+  if(DATA.pin_parity.state==='not_checked'){
+   list.append(node('div','empty','Pin-to-pad correspondence NOT CHECKED: supply a canonical design source.'));return;
+  }
+  const errs=DATA.pin_parity.mismatches;
+  const groups=new Map();
+  DATA.board.pads.forEach((pad,i)=>{
+   const link=padLinks.get(i);
+   const issue=errs.find(e=>e.ref===pad.ref&&
+    (e.pad===pad.pad||(e.logical_pin&&link&&e.logical_pin===link.logical_pin)));
+   const state=issue?'MISMATCH':link?'Matched authored map':'Unmapped / not qualified';
+   const text=[pad.ref+'.'+(pad.pad||'(mechanical)'),pad.ref,pad.pad||'mechanical',
+    pad.net,link?.logical_pin||'',state].join(' ').toLowerCase();
+   if(q&&!text.includes(q))return;
+   if(!groups.has(pad.ref))groups.set(pad.ref,[]);
+   groups.get(pad.ref).push({pad,i,link,issue,state});
+  });
+  for(const [ref,items] of [...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],undefined,{numeric:true}))){
+   const part=node('section','issuegroup');
+   const head=node('button','issuehead');head.type='button';
+   const open=openedPinRefs.has(ref)||Boolean(q);
+   head.setAttribute('aria-expanded',String(open));
+   const matched=items.filter(x=>x.link).length;
+   const failed=items.filter(x=>x.issue).length;
+   head.append(node('span','issuetitle',ref+' · '+matched+'/'+items.length+' mapped'+(failed?' · mismatch '+failed:'')),
+    node('span','issuecount',items.length));
+   const body=node('div','issuebody');body.hidden=!open;
+   head.onclick=()=>{body.hidden=!body.hidden;head.setAttribute('aria-expanded',String(!body.hidden));
+    if(body.hidden)openedPinRefs.delete(ref);else openedPinRefs.add(ref);};
+   for(const row of items){const num=row.pad.pad||'(mechanical)';
+    const sub=row.state+' · '+(row.link?'logical '+row.link.logical_pin+' · ':'')+row.pad.net;
+    body.append(itemButton(ref+'.'+num,sub,()=>select({kind:'pad',index:row.i},true),
+     selected?.kind==='pad'&&selected.index===row.i,Boolean(row.issue)));
+   }
+   part.append(head,body);list.append(part);
+  }
+  if(errs.length){const notice=node('div','empty',
+   'PIN MAPPING BLOCKER: '+errs.length+' mismatch(s). No pin-to-pad approval; inspect the listed source discrepancies.');
+   list.prepend(notice);}
+ } else if(tab==='parts'){
+  DATA.board.footprints.forEach((f,i)=>{if(!(f.ref+' '+f.value+' '+f.footprint).toLowerCase().includes(q))return;
+   list.append(itemButton(f.ref+(f.value?' · '+f.value:''),f.footprint+' · '+f.pad_count+' pads',()=>select({kind:'part',index:i},true),selected?.kind==='part'&&selected.index===i));});
+ } else {
+  const groups=new Map();DATA.board.pads.forEach((p,i)=>{if(!groups.has(p.net))groups.set(p.net,[]);groups.get(p.net).push(i);});
+  [...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([net,indices])=>{
+   if(!net.toLowerCase().includes(q))return;
+   list.append(itemButton(net,indices.length+' pads · '+DATA.board.copper.filter(t=>t.net===net).length+' native copper items',
+    ()=>selectNet(net),selected?.kind==='net'&&selected.net===net));});
+ }
+ if(!list.childElementCount)list.append(node('div','empty',q?'No matches for this filter':'No recorded entries. Empty is not validated.'));
+}
+function bindPanelSplitters(){
+ const app=document.querySelector('.app'),view=()=>viewport.clientWidth;
+ const settings={left:{el:$('leftSplitter'),side:'left',min:195,max:430},
+  right:{el:$('rightSplitter'),side:'right',min:250,max:480}};
+ function currentWidth(config){return (config.side==='left'?$('leftSidebar'):$('rightSidebar')).getBoundingClientRect().width;}
+ function bounds(config){
+  const peer=config.side==='left'?currentWidth(settings.right):currentWidth(settings.left);
+  return {min:config.min,max:Math.max(config.min,Math.min(config.max,app.clientWidth-peer-450))};
+ }
+ function resize(config,size,refit=true){
+  if(window.innerWidth<=750||app.classList.contains('focus-mode'))return;
+  const lim=bounds(config),value=Math.round(Math.max(lim.min,Math.min(lim.max,size)));
+  app.style.setProperty(config.side==='left'?'--left-width':'--right-width',value+'px');
+  const actual=Math.round(currentWidth(config));
+  config.el.setAttribute('aria-valuenow',String(actual));
+  config.el.setAttribute('aria-valuetext',actual+' pixels; native PCB unchanged');
+  if(refit){fit();updatePreferences();}
+ }
+ function reset(config){
+  const defaultWidth=window.innerWidth<=1070?(config.side==='left'?216:274):
+   window.innerWidth<=1350?(config.side==='left'?255:304):(config.side==='left'?290:346);
+  resize(config,defaultWidth);
+ }
+ let responsiveGroup=window.innerWidth<=750?'mobile':window.innerWidth<=1070?'compact':
+  window.innerWidth<=1350?'mid':'wide';
+ window.addEventListener('resize',()=>{
+  const next=window.innerWidth<=750?'mobile':window.innerWidth<=1070?'compact':
+   window.innerWidth<=1350?'mid':'wide';
+  const canvasRemaining=app.clientWidth-currentWidth(settings.left)-currentWidth(settings.right);
+  if(next!==responsiveGroup||(window.innerWidth>950&&canvasRemaining<450)){
+   // Desktop drag widths are session-local. Re-enter each viewport tier with
+   // its tested native layout rather than strand the board in a narrow column.
+   app.style.removeProperty('--left-width');app.style.removeProperty('--right-width');
+   for(const config of Object.values(settings)){
+    config.el.setAttribute('aria-valuenow',String(Math.round(currentWidth(config))));
+   }
+  }
+  responsiveGroup=next;
+ });
+ for(const config of Object.values(settings)){
+  const el=config.el;
+  let start=null;
+  el.addEventListener('pointerdown',event=>{
+   if(event.button!==0)return;
+   start={x:event.clientX,width:currentWidth(config)};
+   el.classList.add('dragging');
+   if(event.isTrusted)el.setPointerCapture(event.pointerId);
+   event.preventDefault();
+  });
+  el.addEventListener('pointermove',event=>{
+   if(!start)return;
+   const change=(event.clientX-start.x)*(config.side==='left'?1:-1);
+   resize(config,start.width+change,false);
+  });
+  function finish(){if(!start)return;start=null;el.classList.remove('dragging');fit();updatePreferences();}
+  el.addEventListener('pointerup',finish);el.addEventListener('pointercancel',finish);
+  el.addEventListener('lostpointercapture',finish);
+  el.addEventListener('dblclick',()=>reset(config));
+  el.addEventListener('keydown',event=>{
+   if(event.key==='Home'){event.preventDefault();reset(config);return;}
+   if(event.key==='ArrowLeft'||event.key==='ArrowRight'){
+    event.preventDefault();const step=(event.shiftKey?32:16)*(event.key==='ArrowRight'?1:-1)*
+     (config.side==='left'?1:-1);
+    resize(config,currentWidth(config)+step);
+   }
+  });
+  el.setAttribute('aria-valuenow',String(Math.round(currentWidth(config))));
+ }
+}
+function bind(){document.querySelectorAll('[data-tab]').forEach(b=>{
+ b.addEventListener('click',()=>setTab(b.dataset.tab));
+ b.addEventListener('keydown',event=>{
+  const tabs=[...document.querySelectorAll('[data-tab]')];
+  const current=tabs.indexOf(b);
+  let next;
+  if(event.key==='ArrowRight')next=(current+1)%tabs.length;
+  else if(event.key==='ArrowLeft')next=(current-1+tabs.length)%tabs.length;
+  else if(event.key==='Home')next=0;
+  else if(event.key==='End')next=tabs.length-1;
+  else return;
+  event.preventDefault();
+  const target=tabs[next];target.focus();setTab(target.dataset.tab);
+ });
+});
+ [['showPadMarkers','hide-pad-markers'],['showFaultMarkers','hide-fault-markers'],
+  ['showFootprintMarkers','hide-footprint-markers']].forEach(([id,cls])=>{
+  $(id).addEventListener('change',()=>{stage.classList.toggle(cls,!$(id).checked);roveCanvasMarker();updatePreferences();});
+ });
+ $('modePcb').addEventListener('click',()=>switchMode('pcb'));
+ $('modeSch').addEventListener('click',()=>switchMode('schematic'));
+ $('mode3D').addEventListener('click',()=>switchMode('3d'));
+ $('search').addEventListener('input',renderList);
+ $('inspectIssues').addEventListener('click',()=>{setTab('issues');$('entrylist').focus();});
+ $('inspectOpens').addEventListener('click',()=>{setTab('opens');$('entrylist').focus();});
+ $('reviewPrev').addEventListener('click',()=>advanceReview(-1));
+ $('reviewNext').addEventListener('click',()=>advanceReview(1));
+ $('exportTriage').addEventListener('click',downloadTriage);
+ $('importTriage').addEventListener('click',()=>$('triageFile').click());
+ $('triageFile').addEventListener('change',async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  try{
+   const count=await readTriageFile(file);
+   $('triageImportStatus').textContent=count+' source-matched human notes imported · no DRC waiver or approval';
+  }catch{
+   $('triageImportStatus').textContent='Import rejected: source hash, original findings or note schema mismatch';
+  }finally{event.target.value='';}
+ });
+ updateTriageSummary();
+ $('resetPreferences').addEventListener('click',resetPreferences);
+ $('quickDrc').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('issues');$('entrylist').focus();});
+ $('quickOpen').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('opens');$('entrylist').focus();});
+ $('quickPins').addEventListener('click',()=>{setFocusMode(false);if(mode==='3d')switchMode('pcb');setTab('pins');$('entrylist').focus();});
+ $('quickErc').addEventListener('click',()=>{if(DATA.schematic){setFocusMode(false);switchMode('schematic');}});
+ $('focusMode').addEventListener('click',()=>setFocusMode(!document.querySelector('.app').classList.contains('focus-mode')));
+ bindCommands();
+ bindPanelSplitters();
+ $('showHelp').addEventListener('click',openShortcuts);
+ $('closeHelp').addEventListener('click',closeShortcuts);
+ $('shortcutBackdrop').addEventListener('click',event=>{if(event.target===$('shortcutBackdrop'))closeShortcuts();});
+ bindShortcuts();
+ $('measure').addEventListener('click',activateMeasurement);
+ $('clearMeasure').addEventListener('click',()=>{measureOn=false;measurePoints=[];renderMeasure();});
+ $('fit').addEventListener('click',fit);
+ function zoomCentered(mult){const cx=viewport.clientWidth/2,cy=viewport.clientHeight/2,prior=zoom;
+  zoom=Math.min(12,Math.max(.08,zoom*mult));panX=cx-(cx-panX)*zoom/prior;panY=cy-(cy-panY)*zoom/prior;apply();}
+ $('plus').addEventListener('click',()=>zoomCentered(1.25));
+ $('minus').addEventListener('click',()=>zoomCentered(1/1.25));
+ function initializeGesture(){
+  const pts=[...activePointers.values()];
+  if(pts.length===1){const pos=pts[0];
+   pointer=(mode==='3d'&&!pos.shiftKey&&DATA.render3d?.orbit_frames?.length===8)
+    ?{kind:'orbit',x:pos.x,index:orbitFrameIndex<0?1:orbitFrameIndex}
+    :{kind:'pan',x:pos.x,y:pos.y,panX,panY};
+  }
+  else if(pts.length>=2){
+   const midX=(pts[0].x+pts[1].x)/2,midY=(pts[0].y+pts[1].y)/2;
+   const rect=viewport.getBoundingClientRect();
+   pointer={kind:'pinch',distance:Math.max(1,Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)),
+    zoom,anchorX:(midX-rect.left-panX)/zoom,anchorY:(midY-rect.top-panY)/zoom};
+  }else pointer=null;
+ }
+ viewport.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.boardactions,.measurement-panel'))return;
+  const onObject=e.target.closest('button');
+  if(onObject&&e.pointerType!=='touch')return;
+  activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,shiftKey:e.shiftKey});
+  // Native pad buttons must retain their own click lifecycle for one-finger
+  // selection. The second finger still participates in viewport pinch.
+  if(e.isTrusted&&!onObject)viewport.setPointerCapture(e.pointerId);
+  initializeGesture();
+ });
+ viewport.addEventListener('pointermove',e=>{
+  if(activePointers.has(e.pointerId)){
+   activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,shiftKey:e.shiftKey});
+   if(pointer?.kind==='orbit'&&activePointers.size===1){
+    const delta=Math.trunc((e.clientX-pointer.x)/26);
+    if(delta!==0)set3DOrbitFrame(pointer.index+delta);
+   }else if(pointer?.kind==='pan'&&activePointers.size===1){
+    panX=pointer.panX+e.clientX-pointer.x;panY=pointer.panY+e.clientY-pointer.y;apply();
+   }else if(pointer?.kind==='pinch'&&activePointers.size>=2){
+    const pts=[...activePointers.values()];
+    const distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+    zoom=Math.min(12,Math.max(.08,pointer.zoom*distance/pointer.distance));
+    const rect=viewport.getBoundingClientRect();
+    const centerX=(pts[0].x+pts[1].x)/2-rect.left;
+    const centerY=(pts[0].y+pts[1].y)/2-rect.top;
+    panX=centerX-pointer.anchorX*zoom;panY=centerY-pointer.anchorY*zoom;apply();
+   }
+  }
+  updateCursor(e);
+ });
+ viewport.addEventListener('pointerleave',()=>{cursorCoords=null;updateFooter();});
+ function endGesture(e){
+  if(!activePointers.has(e.pointerId))return;
+  activePointers.delete(e.pointerId);initializeGesture();
+ }
+ viewport.addEventListener('pointerup',endGesture);
+ viewport.addEventListener('pointercancel',endGesture);
+ viewport.addEventListener('lostpointercapture',endGesture);
+ viewport.addEventListener('wheel',e=>{e.preventDefault();const rect=viewport.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top,prior=zoom;
+   zoom=Math.min(12,Math.max(.08,zoom*(e.deltaY<0?1.12:.89)));panX=mx-(mx-panX)*zoom/prior;panY=my-(my-panY)*zoom/prior;apply();},{passive:false});
+ window.addEventListener('resize',fit);
+}
+function boot(){summary();drawLayers();setupSchematic();setupNative3D();makeHits();bindCanvasRoving();bind();renderMeasure();renderList();fit();restorePreferences();}
+boot();
+</script></body></html>

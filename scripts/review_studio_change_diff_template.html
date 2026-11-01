@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>ZapTrace — native change decision review</title>
+<style>
+:root{color-scheme:dark;--bg:#080e18;--panel:#131f30;--panel2:#0e1928;--border:#31465c;--muted:#a6bac9;--ink:#f0f6fd;--blue:#57b6f3;--green:#79d7b5;--orange:#ffc382;--red:#ff9fa2}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif;margin:0;letter-spacing:.01em}button,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+header{border-bottom:1px solid var(--border);padding:16px clamp(16px,4vw,50px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:#0d1724}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);font-weight:750}h1{font-size:clamp(22px,2.4vw,30px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{margin:7px 0}.hash{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace;color:#b7d5e6}
+.status{border:1px solid var(--orange);color:#ffe6ca;border-radius:8px;padding:8px 12px;font-weight:700;max-width:350px}
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.9fr);gap:18px;padding:22px clamp(16px,4vw,50px);max-width:1780px;margin:auto;align-items:start}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:0}.primary{border-color:#52769a}
+.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:17px 0}.metric{border:1px solid var(--border);border-radius:9px;padding:11px;background:var(--panel2)}.metric strong{font-size:22px;display:block}.metric small{display:block;color:var(--muted)}
+.overline{font-size:12px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.08em}.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.toolbar button{padding:10px 13px;min-height:44px;border-radius:8px;color:var(--ink);background:#192d42;border:1px solid #52677e}
+.toolbar button[aria-pressed="true"]{background:#27608a;border-color:#76cdff;font-weight:800}
+svg{display:block;background:#08111f;border:1px solid #3a5871;border-radius:10px;width:100%;height:auto;aspect-ratio:1.8;max-height:460px;touch-action:pan-y}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;color:var(--muted)}.swatch{display:inline-block;width:12px;height:12px;border:2px solid #fff;border-radius:3px;margin-right:4px;vertical-align:middle}.old{border-color:var(--blue)}.new{border-color:var(--orange)}
+details{border-top:1px solid var(--border);padding:12px 0}summary{cursor:pointer;font-weight:700}.status-line{border-left:3px solid var(--orange);padding:10px 12px;background:#251e20;margin:16px 0;color:#fff0e2}
+.row{display:flex;gap:10px;justify-content:space-between;align-items:start;border-top:1px solid #314158;padding:10px 0}.row span{color:var(--muted)}.row strong{text-align:right}
+select,textarea,input[type="text"]{width:100%;background:#0a1523;color:var(--ink);border:1px solid #68829d;border-radius:8px;padding:12px;min-height:44px;font:inherit}textarea{resize:vertical;min-height:88px}
+label{font-weight:750;display:block;margin:12px 0 5px}
+.action{border:1px solid #4d9d9c;background:#1e534a;color:#e9fff9;border-radius:8px;min-height:44px;padding:10px 15px;font-weight:750;margin-top:13px}
+.action[disabled]{opacity:.6;cursor:not-allowed;background:#34313b;border-color:#64525a}
+.muted{color:var(--muted)}.notice{background:#152a31;border:1px solid #456779;border-radius:8px;padding:12px;color:#d0eef6}.side{display:grid;gap:18px}
+code{font:12px ui-monospace,monospace;color:#d7eeff;overflow-wrap:anywhere}
+footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
+@media(max-width:930px){.layout{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:630px){.side{grid-template-columns:1fr}.card{padding:15px}.layout{padding:12px}.metric-grid{grid-template-columns:1fr 1fr}.toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar button{font-size:12px;padding:7px}svg{aspect-ratio:1.15}.row{display:block}.row strong{display:block;text-align:left}}
+
+.native-art{position:relative;min-height:165px;aspect-ratio:1.85;border:1px solid #3a5871;background:#f5f7f4;border-radius:9px;overflow:hidden;margin:10px 0}
+.native-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
+.native-art[data-view="current"] img[data-layer="proposed"],.native-art[data-view="proposed"] img[data-layer="current"],.native-art[data-view="changed"]{display:none}
+.native-art[data-view="overlay"] img[data-layer="proposed"]{opacity:.55}
+@media(max-width:630px){.native-art{aspect-ratio:1.15}}
+
+.sch-panel{margin-top:24px;padding-top:22px;border-top:1px solid var(--border)}
+.sch-plots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.sch-plot{min-width:0;margin:0;border:1px solid #52708c;border-radius:10px;overflow:hidden;background:#ecf0eb}
+.sch-plot figcaption{padding:8px 12px;background:var(--panel2);color:var(--ink);font-weight:750}
+.sch-scroll{height:clamp(230px,35vw,420px);overflow:auto;overscroll-behavior:contain}
+.sch-canvas{position:relative;width:100%;height:auto}
+.sch-scroll img{display:block;width:100%;height:auto;max-width:none}
+.sch-anchor{position:absolute;z-index:2;width:20px;height:20px;border:3px solid #b50000;
+ border-radius:50%;background:rgba(255,218,37,.4);box-shadow:0 0 0 3px white;
+ transform:translate(-50%,-50%);pointer-events:none}
+.sch-anchor[hidden]{display:none}
+.sch-plots[data-mode="current"],.sch-plots[data-mode="proposed"]{grid-template-columns:minmax(0,1fr)}
+.sch-plots[data-mode="current"] .sch-plot[data-layer="proposed"],.sch-plots[data-mode="proposed"] .sch-plot[data-layer="current"]{display:none}
+.sch-plots[data-mode="overlay"]{display:block;position:relative}
+.sch-plots[data-mode="overlay"] .sch-plot[data-layer="proposed"]{position:absolute;inset:0;pointer-events:none;opacity:.50}
+.sch-plots[data-mode="overlay"] .sch-plot[data-layer="proposed"] figcaption{visibility:hidden}
+.sch-plots[data-mode="overlay"] .sch-plot[data-layer="proposed"] .sch-scroll{overflow:hidden}
+.sch-findings{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:18px}
+.sch-findings-list{max-height:270px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px}
+.sch-findings-list button{display:block;text-align:left;width:100%;background:#152b40;color:var(--ink);border:1px solid #4e6a7f;padding:10px;border-radius:6px;margin:4px 0;min-height:44px;overflow-wrap:anywhere}
+.sch-findings-list button[aria-current="true"]{border:2px solid #84d4ff;background:#265275}
+.sch-selection{border:1px solid var(--border);border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+#schZoom{width:min(100%,330px);vertical-align:middle}
+#changeExplanation{white-space:pre-line}
+#pinNetResults{max-height:310px;margin:12px 0}
+#pinNetResults button[aria-current="true"]{border:2px solid #84d4ff;background:#265275}
+#pinNetResults:empty{display:none}
+
+#pcbChangePicker{margin:12px 0;display:flex;gap:9px;flex-wrap:wrap;max-height:none}
+#pcbChangePicker[hidden],#pcbSelectedDetail[hidden]{display:none}
+#pcbChangePicker button{flex:1 1 145px}
+#pcbChangePicker button[aria-pressed="true"]{border:2px solid #84d4ff;background:#265275}
+
+@media(max-width:730px){.sch-plots[data-mode="split"],.sch-findings{grid-template-columns:1fr}.sch-scroll{height:300px}}
+</style>
+</head>
+<body>
+<header>
+<div><div class="eyebrow">Source-verified · KiCad 10 · local evidence</div><h1>What changed in this PCB?</h1><p class="muted">Human decision workspace · read-only original and proposed native files</p></div>
+<div class="status" role="status">Human review required · No fabrication approval</div>
+</header>
+<main class="layout">
+<section class="card primary" aria-label="Exact proposed design change">
+<div class="overline">01 / Native design-state comparison</div>
+<h2 id="changeTitle">Loading source-linked change…</h2>
+<p id="changeExplanation" class="muted"></p>
+<div id="pcbChangePicker" class="sch-findings-list" role="group"
+ aria-label="Select an individually verified footprint movement" hidden></div>
+<p id="pcbSelectedDetail" class="sch-selection" tabindex="-1" aria-live="polite" hidden></p>
+
+<section id="pinNetPanel" class="sch-panel" aria-labelledby="pinNetTitle">
+ <div class="overline">04 / Source-linked schematic pin → PCB pad/net crossprobe</div>
+ <h3 id="pinNetTitle">Exact KiCad connectivity check · scope limited to moved footprints</h3>
+ <p class="notice" id="pinNetStatus">Not checked. No source-linked schematic netlist pair supplied.</p>
+ <p id="pinNetScope" class="muted">Without named nets and matching pin/pad numbers, electrical mapping is unverifiable, never approved.</p>
+ <div id="pinNetResults" class="sch-findings-list" role="group" aria-label="Choose native pin, pad and net diagnostic"></div>
+ <div id="pinNetSelected" class="sch-selection" tabindex="-1" aria-live="polite">Choose an actual native diagnostic to see its source, pad and net identity.</div>
+ <p class="muted">An exact match within moved references is NOT full board-to-schematic parity, ERC clearance, signed approval or fabrication permission.</p>
+</section>
+<div class="metric-grid">
+ <div class="metric"><small>Changed footprints</small><strong id="changedCount">—</strong></div>
+ <div class="metric"><small>New KiCad DRC violations</small><strong id="newDrc">—</strong></div>
+ <div class="metric"><small>Open copper connections</small><strong id="openDrc">—</strong></div>
+</div>
+<div class="status-line" id="riskMessage">Independent native DRC is not hardware certification.</div>
+<div class="overline">Genuine KiCad PCB SVG · F.Cu, F.SilkS, Edge.Cuts · not a production proof</div>
+<div class="native-art" id="nativeArtwork" data-view="overlay" role="group" aria-label="Native KiCad current and proposed vector plot">
+ <img id="nativeCurrent" data-layer="current" alt="Original native KiCad PCB drawing" />
+ <img id="nativeProposed" data-layer="proposed" alt="Proposed native KiCad PCB drawing" />
+</div>
+<p class="muted" id="nativeArtEvidence"></p>
+<div class="overline">PCB footprint anchors · native XY coordinates in mm, not shape geometry</div>
+<div class="toolbar" role="group" aria-label="Current proposed and changed-only PCB comparison">
+ <button type="button" data-view="current" aria-pressed="false">Current</button>
+ <button type="button" data-view="proposed" aria-pressed="false">Proposed</button>
+ <button type="button" data-view="overlay" aria-pressed="true">Overlay</button>
+ <button type="button" data-view="changed" aria-pressed="false">Changed only</button>
+</div>
+<svg id="board" viewBox="0 0 800 430" role="img" aria-label="Source-backed current and proposed footprint anchor locations; no trace or 3D geometry shown"></svg>
+<div class="legend"><span><i class="swatch old"></i>Current anchor</span><span><i class="swatch new"></i>Proposed anchor</span><span>Dashed vector = measured movement</span></div>
+<p class="muted">Only actual KiCad footprint anchors are plotted. Routing geometry, clearances, board fabrication and schematic/ERC are not inferred from this PCB anchor diagram.</p>
+
+<section id="schematicPanel" class="sch-panel" aria-labelledby="schematicTitle" hidden>
+ <div class="overline">Native KiCad schematic / evidence-linked review · optional</div>
+ <h3 id="schematicTitle">Source vs proposal — actual KiCad SVG sheets</h3>
+ <p class="muted" id="schematicVisualScope">Native SVG drawings are for visual comparison, not a verified pin-to-PCB link. Finding coordinates are native KiCad reports, not guessed pixels.</p>
+ <div class="toolbar" role="group" aria-label="Schematic plot comparison mode">
+  <button type="button" data-sch-mode="split" aria-pressed="true">Side by side</button>
+  <button type="button" data-sch-mode="current" aria-pressed="false">Original</button>
+  <button type="button" data-sch-mode="proposed" aria-pressed="false">Proposed</button>
+  <button type="button" data-sch-mode="overlay" aria-pressed="false">Overlay</button>
+ </div>
+ <label for="schZoom">Schematic visual zoom: <output id="schZoomAmount">100%</output></label>
+ <input id="schZoom" type="range" min="100" max="300" step="25" value="100" />
+ <div class="sch-plots" id="schematicPlots" data-mode="split">
+  <figure class="sch-plot" data-layer="current">
+   <figcaption>Original KiCad schematic</figcaption>
+   <div class="sch-scroll" id="schScrollCurrent"><div class="sch-canvas" id="schCanvasCurrent">
+    <img id="schCurrentSvg" alt="Original schematic exported by native KiCad 10"/>
+    <span id="schAnchorCurrent" class="sch-anchor" aria-hidden="true" hidden></span>
+   </div></div>
+  </figure>
+  <figure class="sch-plot" data-layer="proposed">
+   <figcaption>Proposed KiCad schematic</figcaption>
+   <div class="sch-scroll" id="schScrollProposed"><div class="sch-canvas" id="schCanvasProposed">
+    <img id="schProposedSvg" alt="Proposed schematic exported by native KiCad 10"/>
+    <span id="schAnchorProposed" class="sch-anchor" aria-hidden="true" hidden></span>
+   </div></div>
+  </figure>
+ </div>
+ <p id="schematicVectorHashes" class="hash"></p>
+ <div class="sch-findings">
+  <div>
+   <h3>Semantic changes and actual ERC findings</h3>
+   <p class="muted" id="schematicFindingCount"></p>
+   <div id="schematicFindingList" class="sch-findings-list" role="group" aria-label="Choose a schematic change or native ERC finding"></div>
+  </div>
+  <div>
+   <h3>Selected object · rule · evidence</h3>
+   <div id="schematicSelection" tabindex="-1" class="sch-selection" aria-live="polite">Select a change or ERC finding to inspect the exact native reference and rule.</div>
+   <button id="schJumpToSymbol" class="action" type="button" disabled>Go to highlighted native symbol</button>
+  </div>
+ </div>
+ <p class="notice">Selecting a reference links native exported netlist/ERC objects to their rule evidence. SVG pixels are not cross-probed to an unverified symbol location. Identical PCB and schematic reference labels do not prove electrical pin, net, or production parity.</p>
+</section>
+
+<details><summary>Exact file identities and stale-decision boundary</summary>
+ <p><strong>Review state:</strong> <code id="stateHash"></code></p>
+ <p><strong>Original PCB SHA-256:</strong> <code id="fromHash"></code></p>
+ <p><strong>Proposed PCB SHA-256:</strong> <code id="toHash"></code></p>
+ <p class="muted">Exported decisions bind to all three hashes. Regenerating this review after changing either PCB file invalidates previous imported decisions. This offline bundle cannot monitor external files after generation.</p>
+</details>
+</section>
+<div class="side">
+<section class="card" aria-label="Actual native verification evidence">
+<div class="overline">02 / Engineering evidence</div><h2>What can be trusted?</h2>
+<div class="row"><span>Native PCB DRC checks</span><strong id="ruleCounts"></strong></div>
+<div class="row"><span>KiCad version</span><strong id="engine"></strong></div>
+<div class="row"><span>Rules explicitly ignored by KiCad</span><strong id="ignored"></strong></div>
+<div class="row"><span>Native KiCad project rule context</span><strong id="ruleContext"></strong></div>
+<div class="row"><span>Matching project SHA-256</span><code id="projectDigest"></code></div>
+<div class="row"><span>Matching custom rules SHA-256</span><code id="rulesDigest"></code></div>
+<div class="row"><span>Native custom-rule loader probe</span><strong id="ruleProbe"></strong></div>
+<div class="row"><span>Native schematic ERC</span><strong id="schErc">Not checked</strong></div>
+<div class="row"><span>KiCad component/net semantic changes</span><strong id="schSummary">Not checked</strong></div>
+<details aria-label="Native schematic and ERC semantic evidence">
+ <summary>Schematic / ERC evidence and limitations</summary>
+ <p id="schScope" class="muted">No native schematic source and proposed pair supplied; no ERC or electrical parity claim.</p>
+ <div class="row"><span>Original schematic SHA-256</span><code id="schBeforeSha">Not checked</code></div>
+ <div class="row"><span>Proposed schematic SHA-256</span><code id="schAfterSha">Not checked</code></div>
+ <div class="row"><span>KiCad project SHA-256</span><code id="schProjectSha">Not checked</code></div>
+ <p id="schNetSummary" class="muted"></p>
+ <ul id="schChanges"></ul>
+</details>
+<div class="row"><span>Electrical approval</span><strong>Not approved</strong></div>
+<div class="row"><span>STEP fit / assembly</span><strong>Not checked</strong></div>
+<div class="row"><span>Fabrication authorization</span><strong>Blocked</strong></div>
+<p class="notice">The original and proposed project/custom-rule files are individually checked against matching SHA-256 hashes when present. This binds the local decision state to those rule bytes, but does not independently certify all effective KiCad rules. A zero-new-violation PCB DRC result cannot authorize fabrication or imply schematic/ERC parity.</p>
+</section>
+<section class="card" aria-label="State-bound human review decision">
+<div class="overline">03 / Human decision · unsigned session</div><h2>What should happen next?</h2>
+<label for="decision">Review outcome</label>
+<select id="decision">
+ <option value="investigate">Defer · investigate missing evidence</option>
+ <option value="repair_required">Request engineering repair</option>
+ <option value="reject_proposal">Reject this proposed PCB copy</option>
+</select>
+<label for="note">Evidence or repair rationale</label>
+<textarea id="note" maxlength="600" placeholder="Which pin, pad, rule, or missing verification led to this decision?"></textarea>
+<button type="button" class="action" id="saveDecision">Save source-bound local decision JSON</button>
+<label for="importDecision">Restore previous exact-state review JSON</label>
+<input type="file" accept=".json,application/json" id="importDecision">
+<p id="decisionStatus" aria-live="polite" role="status" class="muted">Nothing approved. No review data sent to a server.</p>
+<button class="action" disabled type="button" title="Requires verified human identity, electrical/DFM evidence and a separate signed approval workflow">Approve / fabricate (unavailable)</button>
+<p class="muted">This is a local, unsigned review record, never a PCB waiver, design commit, electrical qualification, or manufacturing authorization.</p>
+<details id="auditPanel" open>
+<summary>Evidence-linked local statement · self-declared identity only</summary>
+<p class="notice">Offline user claim only. No login, identity authentication, signature, independent witness or fabrication authorization.</p>
+<label for="reviewerLabel">Reviewer label (unverified)</label>
+<input id="reviewerLabel" type="text" autocomplete="off" maxlength="80" placeholder="Unverified self-declared label">
+<button id="auditStart" class="action" type="button">Start local review timer</button>
+<label for="auditEvidenceSelect">Native evidence reference</label>
+<select id="auditEvidenceSelect"></select>
+<button id="auditInspect" class="action" type="button" disabled>Inspect and link evidence</button>
+<p id="auditEvidenceDescription" class="sch-selection" aria-live="polite">No evidence inspected.</p>
+<p id="auditTiming" class="muted">Browser timing not started. Trustworthy decision time not measured.</p>
+<button id="auditExport" class="action" type="button" disabled>Export unsigned evidence-linked statement</button>
+<p id="auditStatus" role="status" aria-live="polite">No statement recorded.</p>
+</details>
+</section>
+</div>
+</main>
+<footer>ZapTrace Review Studio · original and proposed PCB remain untouched · source-backed offline comparison · no hardware acceptance</footer>
+<script>
+"use strict";
+const DATA=__CHANGE_DATA__;
+const $=id=>document.getElementById(id);
+const svgNS="http://www.w3.org/2000/svg";
+let view="overlay";
+let focusedRef=null;
+function el(tag,attributes={},txt=""){
+ const n=document.createElementNS(svgNS,tag);
+ for(const [k,v] of Object.entries(attributes))n.setAttribute(k,String(v));
+ if(txt)n.textContent=txt;
+ return n;
+}
+const changedRefs=new Set(DATA.changed.map(item=>item.ref));
+function draw(){
+ const b=$("board");while(b.firstChild)b.firstChild.remove();
+ const origin=DATA.board_origin_mm,size=DATA.board_size_mm;
+ const sx=x=>45+710*(x-origin[0])/size[0];
+ const sy=y=>35+360*(y-origin[1])/size[1];
+ b.append(el("rect",{x:40,y:30,width:720,height:370,rx:8,fill:"#102235",stroke:"#446480","stroke-width":2}));
+ const old=new Map(DATA.current.map(x=>[x.ref,x]));
+ const current=view!=="proposed";
+ const proposed=view!=="current";
+ const filtered=(xs)=>view==="changed"?xs.filter(x=>changedRefs.has(x.ref)):xs;
+ if(view==="overlay"||view==="changed"){
+  for(const ch of DATA.changed){
+   b.append(el("line",{x1:sx(ch.old_mm[0]),y1:sy(ch.old_mm[1]),x2:sx(ch.new_mm[0]),y2:sy(ch.new_mm[1]),stroke:"#ffe5a8","stroke-width":2.5,"stroke-dasharray":"6 5"}));
+  }
+ }
+ function dots(items, proposedFlag){
+  for(const x of filtered(items)){
+   const changed=changedRefs.has(x.ref);
+   const focused=x.ref===focusedRef;
+   const g=el("g",{});
+   const dot=el("circle",{cx:sx(x.x),cy:sy(x.y),r:focused?14:changed?11:6,
+     stroke:proposedFlag?"#ffc382":"#57b6f3","stroke-width":focused?5:changed?3:2,
+     fill:proposedFlag?"#614b32":"#163d63"});
+   const title=el("title",{},x.ref+" at "+x.x+", "+x.y+" mm "+(proposedFlag?"proposed":"current"));
+   dot.append(title);g.append(dot);
+   const label=el("text",{x:sx(x.x)+10,y:sy(x.y)-13,fill:"#eef8ff","font-size":13,
+      "font-family":"system-ui, sans-serif"},x.ref+(proposedFlag&&view!=="proposed"?"′":""));
+   g.append(label);b.append(g);
+  }
+ }
+ if(current)dots(DATA.current,false);
+ if(proposed)dots(DATA.proposed,true);
+}
+function update(){
+ document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===view)));
+ $("nativeArtwork").dataset.view=view;
+ draw();
+}
+for(const btn of document.querySelectorAll("[data-view]")){
+ btn.addEventListener("click",()=>{view=btn.dataset.view;update();});
+}
+function init(){
+ $("nativeCurrent").src=DATA.native_svg.current.uri;
+ $("nativeProposed").src=DATA.native_svg.proposed.uri;
+ $("nativeArtEvidence").textContent="Native KiCad vector SHA current "+DATA.native_svg.current.sha256.slice(0,16)+"… · proposed "+DATA.native_svg.proposed.sha256.slice(0,16)+"…";
+ const list=DATA.changed;
+ const summary=ch=>"Native KiCad "+ch.ref+": ("+ch.old_mm.join(", ")+") → ("+
+  ch.new_mm.join(", ")+") mm; Δ ("+ch.delta_mm.join(", ")+") mm · "+
+  ch.pad_count+" original pads checked for unchanged nets and translation";
+ $("changeTitle").textContent=list.length===1?
+   list[0].ref+" · footprint relocation":
+   list.length+" independently checked footprint movements";
+ $("changeExplanation").textContent=list.map(summary).join("\n");
+ if(list.length>1){
+  const picker=$("pcbChangePicker");picker.hidden=false;
+  const detail=$("pcbSelectedDetail");detail.hidden=false;
+  for(const change of list){
+   const button=document.createElement("button");
+   button.type="button";button.textContent=change.ref+" · measured translation";
+   button.setAttribute("aria-pressed","false");
+   button.addEventListener("click",()=>{
+    focusedRef=change.ref;
+    for(const b of picker.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===button));
+    detail.textContent="Selected native object "+change.ref+"\n"+summary(change)+
+     "\nAll remaining footprints, pad numbers/nets and copper were independently checked."+
+     "\nNo schematic pin/net parity or fabrication authorization is inferred.";
+    update();detail.focus();
+   });
+   picker.append(button);
+  }
+  picker.querySelector("button").click();
+ }
+ $("changedCount").textContent=String(DATA.changed.length);
+ $("newDrc").textContent=String(DATA.drc.new_drc_rules);
+ $("openDrc").textContent=DATA.drc.before_open+" → "+DATA.drc.after_open;
+ $("riskMessage").textContent="Native PCB DRC unchanged is not electrical, mechanical, or manufacturing approval. "+DATA.drc.ignored_checks+" KiCad checks ignored by the project.";
+ $("ruleCounts").textContent=DATA.drc.before_rules+" → "+DATA.drc.after_rules+" violations";
+ $("ignored").textContent=String(DATA.drc.ignored_checks);
+ $("engine").textContent=DATA.drc.engine;
+ $("ruleContext").textContent=DATA.rule_context.mode.replaceAll("_"," ");
+ $("projectDigest").textContent=DATA.rule_context.project_sha256||"No project file provided";
+ $("rulesDigest").textContent=DATA.rule_context.custom_rules_sha256||"No custom rules provided";
+ const sch=DATA.schematic;
+ if(sch){
+  initNativeSchematic(sch);
+  $("schErc").textContent=sch.erc_before.errors+" errors / "+sch.erc_before.warnings+
+   " warnings → "+sch.erc_after.errors+" errors / "+sch.erc_after.warnings+" warnings";
+  const deltas=sch.changed_values.length+sch.added_components.length+sch.removed_components.length+
+   sch.changed_metadata_refs.length+sch.changed_nets.length;
+  $("schSummary").textContent=deltas+" reported deltas · PCB parity not verified";
+  $("schScope").textContent=sch.scope+"; ERC only includes enabled checks.";
+  $("schBeforeSha").textContent=sch.source_sha256;
+  $("schAfterSha").textContent=sch.proposed_sha256;
+  $("schProjectSha").textContent=sch.project_sha256||"No KiCad project sidecar";
+  $("schNetSummary").textContent="Changed nets: "+sch.changed_nets.length+
+    " · Added components: "+sch.added_components.length+
+    " · Removed components: "+sch.removed_components.length+
+    " · Other component metadata changes: "+sch.changed_metadata_refs.length;
+  const items=[
+   ...sch.changed_values.map(x=>x.ref+": value "+x.before+" → "+x.after),
+   ...sch.changed_nets.map(x=>"Net changed: "+x),
+   ...sch.added_components.map(x=>"Added component: "+x),
+   ...sch.removed_components.map(x=>"Removed component: "+x),
+   ...sch.changed_metadata_refs.map(x=>"Component metadata changed: "+x)
+  ];
+  if(!items.length)items.push("No exported netlist semantic changes detected; drawing and PCB remain unverified.");
+  for(const item of items.slice(0,40)){
+   const li=document.createElement("li");li.textContent=item;$("schChanges").append(li);
+  }
+  if(items.length>40){
+   const li=document.createElement("li");li.textContent=(items.length-40)+" additional deltas; inspect native exported evidence.";$("schChanges").append(li);
+  }
+ }
+ $("ruleProbe").textContent=DATA.rule_context.custom_rule_loader_probe_passed?"KiCad loading demonstrated; full rule semantics unverified":"Not performed / not applicable";
+ $("stateHash").textContent=DATA.state_hash;
+ $("fromHash").textContent=DATA.source_sha256;
+ $("toHash").textContent=DATA.proposed_sha256;
+ update();
+}
+
+let schematicMode="split";
+function updateSchematicMode(){
+ $("schematicPlots").dataset.mode=schematicMode;
+ for(const b of document.querySelectorAll("[data-sch-mode]"))
+  b.setAttribute("aria-pressed",String(b.dataset.schMode===schematicMode));
+}
+for(const button of document.querySelectorAll("[data-sch-mode]")){
+ button.addEventListener("click",()=>{schematicMode=button.dataset.schMode;updateSchematicMode();});
+}
+$("schZoom").addEventListener("input",()=>{
+ const amount=Number($("schZoom").value);
+ $("schZoomAmount").textContent=amount+"%";
+ for(const id of ["schCanvasCurrent","schCanvasProposed"])$(id).style.width=amount+"%";
+});
+let syncingSchematic=false;
+for(const [id,other] of [["schScrollCurrent","schScrollProposed"],["schScrollProposed","schScrollCurrent"]]){
+ $(id).addEventListener("scroll",()=>{
+  if(syncingSchematic)return;
+  syncingSchematic=true;
+  const a=$(id),b=$(other);
+  const fractionX=a.scrollLeft/Math.max(1,a.scrollWidth-a.clientWidth);
+  const fractionY=a.scrollTop/Math.max(1,a.scrollHeight-a.clientHeight);
+  b.scrollLeft=fractionX*Math.max(0,b.scrollWidth-b.clientWidth);
+  b.scrollTop=fractionY*Math.max(0,b.scrollHeight-b.clientHeight);
+  requestAnimationFrame(()=>{syncingSchematic=false;});
+ });
+}
+
+function highlightNativeSymbol(side,ref){
+ const sch=DATA.schematic,anchor=sch?.symbol_anchors?.[side]?.[ref];
+ const marker=$("schAnchor"+(side==="current"?"Current":"Proposed"));
+ if(!anchor){marker.hidden=true;return false;}
+ const box=sch.svg[side].viewbox.split(/\s+/).map(Number);
+ const px=(anchor.x-box[0])/box[2],py=(anchor.y-box[1])/box[3];
+ if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>1||py<0||py>1){
+  marker.hidden=true;return false;
+ }
+ marker.style.left=(px*100)+"%";marker.style.top=(py*100)+"%";
+ marker.hidden=false;
+ const scroller=$(side==="current"?"schScrollCurrent":"schScrollProposed");
+ const canvas=$(side==="current"?"schCanvasCurrent":"schCanvasProposed");
+ requestAnimationFrame(()=>{
+  scroller.scrollLeft=Math.max(0,px*canvas.clientWidth-scroller.clientWidth/2);
+  scroller.scrollTop=Math.max(0,py*canvas.clientHeight-scroller.clientHeight/2);
+ });
+ return true;
+}
+$("schJumpToSymbol").addEventListener("click",()=>{
+ const first=document.querySelector('.sch-plot[data-layer="current"]');
+ first.scrollIntoView({block:"center"});
+});
+function focusNativeFinding(item,sourceButton){
+ const sch=DATA.schematic;
+ const ref=item.ref||"No verified symbol reference";
+ const isBoardRef=ref!=="No verified symbol reference"&&DATA.current.some(x=>x.ref===ref);
+ const value=sch.changed_values.find(x=>x.ref===ref);
+ const lines=[
+  "KiCad source: "+item.phase,
+  "Rule / semantic evidence: "+item.rule,
+  "Object reference: "+ref,
+  "Severity: "+item.severity,
+  "Native finding: "+item.message,
+  "Reported KiCad coordinate: "+(item.coordinate_mm?item.coordinate_mm.join(", ")+" mm":"not provided / not safely linked"),
+  "Exported netlist value change: "+(value?value.before+" → "+value.after:"none shown for this reference"),
+  "PCB reference-label match: "+(isBoardRef?"yes, identity label only":"not established"),
+  "PCB schematic electrical parity: NOT VERIFIED",
+  "Native schematic source SHA: "+sch.source_sha256,
+  "Native schematic proposed SHA: "+sch.proposed_sha256,
+  "Native project-rule SHA: "+(sch.project_sha256||"not provided"),
+  "Native KiCad ERC count: "+sch.erc_before.total+" → "+sch.erc_after.total
+ ];
+ lines.push("Native schematic symbol XY: "+(sch.symbol_anchors?.proposed?.[ref]?
+   sch.symbol_anchors.proposed[ref].x+", "+sch.symbol_anchors.proposed[ref].y+" mm":"not safely available"));
+ $("schematicSelection").textContent=lines.join("\n");
+ const nativeAnchor=sch.symbol_anchors?.proposed?.[ref];
+ if(nativeAnchor&&Number($("schZoom").value)<200){
+  $("schZoom").value="200";$("schZoom").dispatchEvent(new Event("input"));
+ }
+ const linked=["current","proposed"].map(side=>highlightNativeSymbol(side,ref)).some(Boolean);
+ $("schJumpToSymbol").disabled=!linked;
+ for(const b of document.querySelectorAll("#schematicFindingList button"))
+  b.setAttribute("aria-current",String(b===sourceButton));
+ $("schematicSelection").focus();
+}
+function initNativeSchematic(sch){
+ if(!sch?.svg)return;
+ $("schematicPanel").hidden=false;
+ $("schCurrentSvg").src=sch.svg.current.uri;
+ $("schProposedSvg").src=sch.svg.proposed.uri;
+ $("schematicVisualScope").textContent=sch.svg.scope+"; native ERC references link to details, not unverified SVG coordinates.";
+ $("schematicVectorHashes").textContent="KiCad SVG original SHA-256: "+sch.svg.current.sha256+
+  " · proposed SHA-256: "+sch.svg.proposed.sha256;
+ const list=$("schematicFindingList");
+ const entries=[
+  ...sch.changed_values.map(x=>({phase:"Netlist semantic value diff",ref:x.ref,rule:"component_value_changed",
+   severity:"human review required",message:x.ref+": "+x.before+" → "+x.after,coordinate_mm:null})),
+  ...sch.erc_findings_after.map(x=>({...x,phase:"Proposed KiCad ERC"}))
+ ];
+ $("schematicFindingCount").textContent=sch.erc_findings_after.length+" genuine proposed ERC messages · "+
+  sch.changed_values.length+" value changes · source ERC: "+sch.erc_findings_before.length+
+  ". Select a record for its object/rule context.";
+ for(const [index,item] of entries.slice(0,100).entries()){
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent=(index<sch.changed_values.length?"Value diff: ":"KiCad "+item.severity+": ")+
+   (item.ref||"Unlinked object")+" · "+item.rule;
+  button.setAttribute("aria-current","false");
+  button.addEventListener("click",()=>focusNativeFinding(item,button));
+  list.append(button);
+ }
+ if(entries.length>100){
+  const msg=document.createElement("p");msg.textContent=(entries.length-100)+" additional records; native source reports are authoritative.";
+  list.append(msg);
+ }
+ updateSchematicMode();
+}
+
+const OPTIONS=new Set(["investigate","repair_required","reject_proposal"]);
+const localAudit={start:null,first:null,selected:[]};
+function auditElapsed(){return localAudit.start===null?null:Math.round(Math.max(0,performance.now()-localAudit.start));}
+function auditUpdate(){
+ const elapsed=auditElapsed();
+ $("auditInspect").disabled=elapsed===null;
+ $("auditExport").disabled=elapsed===null||localAudit.selected.length===0;
+ $("auditTiming").textContent=elapsed===null?"Browser task timing not started. Trustworthy decision time NOT MEASURED":
+  "Unattested browser-local elapsed "+elapsed+" ms · first evidence "+
+  (localAudit.first===null?"not inspected":localAudit.first+" ms")+" · trustworthy decision time NOT MEASURED";
+}
+function initPinNetCrossprobe(){
+ const cp=DATA.crossprobe;
+ if(!cp){$("pinNetPanel").dataset.status="not-checked";return;}
+ const counts=cp.totals;
+ const status=cp.scoped_pin_net_consistent?"scoped-match":
+   counts.mismatch?"mismatch":"unverifiable";
+ $("pinNetPanel").dataset.status=status;
+ $("pinNetStatus").textContent=
+  "Exact native pin/pad/net crossprobe: "+status.toUpperCase()+" · "+
+  counts.matched+" matched · "+counts.mismatch+" mismatched · "+
+  counts.unverifiable+" unverifiable. Full PCB/schematic parity: NOT VERIFIED.";
+ $("pinNetScope").textContent=cp.scope+
+  " · No electrical approval. "+(cp.reasons_when_unverified.length?
+   "Blocking reasons: "+cp.reasons_when_unverified.join(", "):"All scoped pins named and matched; broader design still unverified.");
+ for(const [index,entry] of cp.rows.entries()){
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent=entry.phase.toUpperCase()+" · "+entry.ref+
+    " pin "+(entry.pin||"unknown")+" · "+entry.status.toUpperCase()+
+    " · "+entry.reason;
+  button.setAttribute("aria-current","false");
+  button.addEventListener("click",()=>{
+   for(const other of $("pinNetResults").querySelectorAll("button"))
+    other.setAttribute("aria-current",String(other===button));
+   $("pinNetSelected").textContent="Native "+entry.phase+
+    " state · component "+entry.ref+" · KiCad pin / pad "+(entry.pin||"unavailable")+
+    "\nSchematic named net: "+(entry.schematic_net??"UNVERIFIABLE")+
+    "\nActual PCB pad net: "+(entry.pcb_net??"UNVERIFIABLE")+
+    "\nResult: "+entry.status.toUpperCase()+" · "+entry.reason+
+    "\nMatching ref labels cannot prove electrical, routing or physical PCB parity.";
+   const move=[...document.querySelectorAll("#pcbChangePicker button")].find(
+    node=>node.textContent.startsWith(entry.ref+" ·"));
+   if(move)move.click();
+   const itemId="pin-net:"+index;
+   if([...$("auditEvidenceSelect").options].some(x=>x.value===itemId))
+    $("auditEvidenceSelect").value=itemId;
+   // Selection never counts as "inspected": explicit audit action is still required.
+   $("pinNetSelected").focus();
+  });
+  $("pinNetResults").append(button);
+ }
+}
+function initAudit(){
+ const selector=$("auditEvidenceSelect");
+ for(const item of DATA.audit_evidence_catalog){
+  const opt=document.createElement("option");opt.value=item.id;
+  opt.textContent=item.id+" · "+(item.ref||item.rule);
+  selector.append(opt);
+ }
+ auditUpdate();
+}
+$("auditStart").addEventListener("click",()=>{
+ localAudit.start=performance.now();localAudit.first=null;localAudit.selected=[];
+ $("auditEvidenceDescription").textContent="No evidence inspected in this task.";
+ $("auditStatus").textContent="Timer started; reviewer identity not verified.";auditUpdate();
+});
+function inspectAuditEvidence(){
+ if(localAudit.start===null)throw Error("Start the timer first");
+ const item=DATA.audit_evidence_catalog.find(x=>x.id===$("auditEvidenceSelect").value);
+ if(!item)throw Error("No source evidence selected");
+ if(localAudit.selected.length>=8&&!localAudit.selected.includes(item.id))
+  throw Error("Maximum eight references");
+ if(!localAudit.selected.includes(item.id))localAudit.selected.push(item.id);
+ if(localAudit.first===null)localAudit.first=auditElapsed();
+ $("auditEvidenceDescription").textContent=
+  "Source: "+item.kind+" · object: "+(item.ref||"unlinked")+
+  " · rule: "+item.rule+" · summary: "+item.summary+
+  "\nRecorded references: "+localAudit.selected.join(", ")+
+  "\nSelection is not evidence of reviewer competence or source approval.";
+ auditUpdate();return item;
+}
+$("auditInspect").addEventListener("click",()=>{
+ try{inspectAuditEvidence();}catch(e){$("auditStatus").textContent=String(e.message);}
+});
+function exportAuditedReview(){
+ const label=$("reviewerLabel").value.trim(),note=$("note").value.trim();
+ if(localAudit.start===null||localAudit.first===null||!localAudit.selected.length||
+   label.length<2||label.length>80||!OPTIONS.has($("decision").value)||
+   note.length<12||note.length>600)
+  throw Error("Enter a label and reason, start timer and inspect native evidence");
+ const elapsed=auditElapsed();
+ if(!Number.isInteger(elapsed)||elapsed<localAudit.first||elapsed>3600000)
+  throw Error("Inconsistent browser timer; start again");
+ const record={
+  schema_version:2,kind:"local_self_declared_evidence_review_not_identity_verified",
+  review_state_hash:DATA.state_hash,source_sha256:DATA.source_sha256,
+  proposed_sha256:DATA.proposed_sha256,evidence_sha256:DATA.evidence_sha256,
+  reviewer:{label,identity_verified:false,declaration:"self_declared_unverified"},
+  outcome:$("decision").value,note,evidence_ids:[...localAudit.selected],
+  timing:{source:"local_browser_monotonic_unattested",first_evidence_ms:localAudit.first,
+   elapsed_ms:elapsed,time_to_trustworthy_decision_ms:null},
+  fabrication_approved:false,electrically_approved:false,source_modified:false
+ };
+ const bytes=new Blob([JSON.stringify(record,null,2)+"\n"],{type:"application/json"});
+ const url=URL.createObjectURL(bytes),link=document.createElement("a");link.href=url;
+ link.download="zaptrace-unsigned-audit-"+DATA.state_hash.slice(0,16)+".json";
+ document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+ $("auditStatus").textContent="Self-declared unsigned statement exported. Not authenticated or approved.";
+ auditUpdate();return record;
+}
+$("auditExport").addEventListener("click",()=>{
+ try{exportAuditedReview();}catch(e){$("auditStatus").textContent=String(e.message);}
+});
+
+function exportDecision(){
+ const status=$("decision").value,note=$("note").value.trim();
+ if(!OPTIONS.has(status)||note.length>600)return;
+ const payload={schema_version:1,kind:"local_unsigned_human_design_decision_not_approval",
+   source_sha256:DATA.source_sha256,proposed_sha256:DATA.proposed_sha256,
+   state_hash:DATA.state_hash,outcome:status,note,
+   fabrication_approved:false,electrically_approved:false,source_modified:false};
+ const bytes=new Blob([JSON.stringify(payload,null,2)+"\n"],{type:"application/json"});
+ const url=URL.createObjectURL(bytes),a=document.createElement("a");a.href=url;
+ a.download="zaptrace-change-review-"+DATA.state_hash.slice(0,16)+".json";document.body.append(a);
+ a.click();a.remove();URL.revokeObjectURL(url);
+ $("decisionStatus").textContent="Unsigned exact-state decision exported; no engineering authorization.";
+ return payload;
+}
+async function importDecision(file){
+ if(!file||file.size>1048576)throw Error("Decision JSON missing or too large");
+ const raw=JSON.parse(await file.text());
+ if(!raw||raw.schema_version!==1||raw.kind!=="local_unsigned_human_design_decision_not_approval"||
+    raw.source_sha256!==DATA.source_sha256||raw.proposed_sha256!==DATA.proposed_sha256||
+    raw.state_hash!==DATA.state_hash||raw.fabrication_approved!==false||
+    raw.electrically_approved!==false||raw.source_modified!==false||
+    !OPTIONS.has(raw.outcome)||typeof raw.note!=="string"||raw.note.length>600||
+    Object.keys(raw).sort().join("|")!==
+    ["schema_version","kind","source_sha256","proposed_sha256","state_hash","outcome","note","fabrication_approved","electrically_approved","source_modified"].sort().join("|")){
+  throw Error("Stale source/target state or invalid decision; nothing imported");
+ }
+ $("decision").value=raw.outcome;$("note").value=raw.note;
+ $("decisionStatus").textContent="Exact-state unsigned decision restored; no production approval.";
+ return true;
+}
+$("saveDecision").addEventListener("click",exportDecision);
+$("importDecision").addEventListener("change",async event=>{
+ try{await importDecision(event.target.files?.[0]);}
+ catch{$("decisionStatus").textContent="Import rejected: changed PCB state hash or invalid unsigned decision.";}
+ finally{event.target.value="";}
+});
+init();
+initAudit();
+initPinNetCrossprobe();
+</script>
+</body>
+</html>

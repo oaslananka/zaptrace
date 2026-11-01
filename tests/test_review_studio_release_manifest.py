@@ -1,0 +1,116 @@
+"""Release candidate audit manifest: real bundled bytes and honest GA blockers."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+from review_studio_build_deb import build  # noqa: E402
+from review_studio_release_manifest import manifest, sha256  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def release_artifact(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return build(SCRIPTS.parent, tmp_path_factory.mktemp("review-audit-packages"))
+
+
+def gate_log(tmp_path: Path) -> Path:
+    path = tmp_path / "release.log"
+    path.write_text(
+        "\n".join([f"[{i}/9] verified" for i in range(1, 10)])
+        + "\n0 errors, 0 warnings, 0 informations\nRELEASE GATE: PASS (local unsigned)\n"
+    )
+    return path
+
+
+def test_audit_lists_real_files_and_always_discloses_unsigned_and_not_ga(
+    release_artifact: Path,
+    tmp_path: Path,
+) -> None:
+    report = manifest(release_artifact, gate_log(tmp_path))
+    assert report["version"] == "0.1.12"
+    assert report["package"]["sha256"] == sha256(release_artifact)
+    assert report["target"]["native_kicad"] == "10.x"
+    assert report["validation"]["nine_stage_release_gate"]
+    assert report["validation"]["code_signed"] is False
+    assert report["validation"]["independent_clean_machine_real_apt_install"] is False
+    assert report["validation"]["fabrication_approved"] is False
+    assert "NOT public GA" in report["status"]
+    assert len(report["bundled_files"]) >= 12
+    assert any(item["path"].endswith("review_studio_library.py") for item in report["bundled_files"])
+    assert not any(item["path"].endswith(".kicad_pcb") for item in report["bundled_files"])
+    assert not any("/home/" in item["path"] for item in report["bundled_files"])
+
+
+def test_audit_blocks_mismatched_sha_or_incomplete_release_gate(
+    release_artifact: Path,
+    tmp_path: Path,
+) -> None:
+    log = tmp_path / "bad.log"
+    log.write_text("RELEASE GATE: PASS\n0 errors, 0 warnings, 0 informations")
+    with pytest.raises(ValueError, match="nine-stage"):
+        manifest(release_artifact, log)
+    proper = gate_log(tmp_path)
+    clone = tmp_path / release_artifact.name
+    clone.write_bytes(release_artifact.read_bytes())
+    clone.with_suffix(".sha256").write_text("0" * 64 + "  " + clone.name + "\n")
+    with pytest.raises(ValueError, match="checksum"):
+        manifest(clone, proper)
+
+
+def test_clean_container_qa_is_accepted_only_for_identical_tested_package(
+    release_artifact: Path,
+    tmp_path: Path,
+) -> None:
+    log = gate_log(tmp_path)
+    qa = tmp_path / "clean-ubuntu-qa.txt"
+    accepted = (
+        "PACKAGE_SHA256=" + sha256(release_artifact) + "\n"
+        "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.11 = 0\n"
+        "Real APT in-place upgrade to installed 0.1.12 passed\n"
+        "Installed 0.1.12 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
+        "Installed 0.1.12 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
+        "Installed 0.1.12 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
+        "Installed 0.1.12 native PCB quarter-turn and KiCad DRC: PASS\n"
+        "Installed 0.1.12 native schematic/PCB readonly comparison: PASS\n"
+        "Exact package 0.1.12 Chrome quarter-turn and private parity audit: PASS\n"
+        "Installed 0.1.12 guarded native copper route and SHA-bounded DRC proof: PASS\n"
+        "Exact package 0.1.12 Chrome guarded copper ZIP, SVG, discard: PASS\n"
+        "Installed 0.1.12 native custom KiCad rules loader + independent default DRC verified: PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_TWO_VIA_AND_LEGACY_FCU_CHROME: PASS\n"
+        "EXACT_PACKAGE_0112_NATIVE_TWO_NET_PROJECT_AND_SHA_EVIDENCE=PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_THROUGH_VIAS_MULTINET_AND_LEGACY_CHROME: PASS\n"
+        "INSTALLED_0112_NATIVE_MULTINET_37_TO_35_AND_16_TO_16=PASS\n"
+        "UBUNTU_24_04_APT_0112_MULTINET_BATCH_CHROME=PASS\n"
+        "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
+        "Native localhost startup/shutdown after upgrade passed\n"
+        "Actual APT remove 0.1.12 passed\n"
+    )
+    qa.write_text(accepted)
+    good = manifest(release_artifact, log, qa)
+    assert good["validation"]["clean_ubuntu_disposable_container_real_apt_install"] is True
+    assert good["validation"]["clean_ubuntu_container_native_erc_drc"] is True
+    assert good["validation"]["clean_ubuntu_container_native_3d_isometric_and_top"] is True
+    assert good["validation"]["clean_ubuntu_container_native_3d_eight_camera_orbit_frames"] is True
+    assert good["validation"]["clean_ubuntu_localhost_schematic_value_eco_native_validation"] is True
+    assert good["validation"]["clean_ubuntu_localhost_pcb_placement_eco_native_drc"] is True
+    assert good["validation"]["clean_ubuntu_native_footprint_quarter_turn"] is True
+    assert good["validation"]["clean_ubuntu_native_schematic_pcb_read_only_parity_audit"] is True
+    assert good["validation"]["clean_ubuntu_exact_package_browser_rotation_and_parity"] is True
+    assert good["validation"]["full_schematic_pcb_uuid_pin_net_sync_verified"] is False
+    assert good["validation"]["native_3d_model_coverage_independently_verified"] is False
+    assert good["validation"]["clean_ubuntu_container_apt_remove_preserves_user_data"] is True
+    assert good["validation"]["clean_ubuntu_container_inplace_0111_to_0112_upgrade"] is True
+    assert good["validation"]["clean_ubuntu_custom_rule_loader_and_default_drc_dual_proof"] is True
+    assert good["validation"]["clean_ubuntu_exact_package_browser_two_via_custom_rule_proof"] is True
+    assert good["validation"]["clean_ubuntu_container_legacy_zip_restored_using_fresh_kicad"] is True
+    assert good["validation"]["independent_clean_machine_real_apt_install"] is False
+    assert good["validation"]["code_signed"] is False
+    assert good["validation"]["fabrication_approved"] is False
+    qa.write_text(accepted.replace(sha256(release_artifact), "0" * 64))
+    with pytest.raises(ValueError, match="Container|QA"):
+        manifest(release_artifact, log, qa)

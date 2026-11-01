@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZapTrace PCB ECO · __REF__ · native copper placement</title>
+<style>
+:root{color-scheme:dark;font:13px system-ui,sans-serif;background:#091522;color:#e1f6f4}
+*{box-sizing:border-box}body{margin:0 auto;max-width:1800px;padding:24px}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.eyebrow{font:850 10px ui-monospace,monospace;letter-spacing:.16em;color:#6ee8cc}
+h1{font-size:clamp(23px,3vw,38px);letter-spacing:-.035em;margin:11px 0 5px}
+p{color:#a8c8ce;line-height:1.6;max-width:880px}
+.warning{padding:12px 14px;background:#36292c;color:#f7d5c0;border:1px solid #987261;border-radius:9px;font:850 11px ui-monospace,monospace}
+.metrics{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:19px 0;padding:15px 17px;background:#14303d;border:1px solid #40746e;border-radius:12px}
+.metrics strong{color:#bef7e6;font:850 15px ui-monospace,monospace}.metrics em{color:#6cefc9;font:850 18px ui-monospace,monospace;font-style:normal}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:15px 0;padding:11px 13px;border:1px solid #405e6f;background:#12293b;border-radius:11px}
+.toolbar input{accent-color:#69e8cc;min-width:110px;flex:1}.toolbar button{min-height:38px;padding:7px 13px;color:#bdf6e5;background:#215b54;border:1px solid #529c8f;border-radius:8px;font-weight:850;cursor:pointer}
+.toolbar button:focus-visible{outline:2px solid #a3ffde;outline-offset:2px}
+.toolbar strong{font:850 11px ui-monospace,monospace}.toolbar span{font-size:10px;color:#9bc4c4}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.card{min-width:0;overflow:hidden;background:#113044;border:1px solid #405e77;border-radius:12px}
+.card h2{font-size:12px;margin:0;padding:14px 16px;border-bottom:1px solid #36596a}
+.frame{height:min(66vh,680px);overflow:auto;background:white;scrollbar-color:#5a8b84 #ddecf1}
+.frame img{display:block;width:100%;max-width:none;height:auto}
+.scope{font:11px/1.75 ui-monospace,monospace;overflow-wrap:anywhere;color:#a1c6cc;margin-top:18px}
+@media(max-width:780px){body{padding:12px}.grid{grid-template-columns:1fr}.frame{height:320px}}
+</style></head><body>
+<header><div><span class="eyebrow">ZAPTRACE / PCB EDITING / CONTROLLED FOOTPRINT PLACEMENT</span>
+<h1>Native KiCad PCB placement comparison</h1><p>An unrouted footprint translation and/or quarter-turn on a separate KiCad copy.
+Every displayed image is an authentic KiCad 10 PCB SVG plot, not simulated CAD geometry.</p></div>
+<div class="warning">NOT FABRICATION APPROVED · NOT ROUTED · ENGINEERING REVIEW REQUIRED</div></header>
+<div class="metrics"><strong>__REF__</strong><strong>__BEFORE_XY__ mm</strong><em>→</em><strong>__AFTER_XY__ mm</strong>
+<span>Orientation <strong>__BEFORE_ANGLE__° → __AFTER_ANGLE__°</strong> · Native DRC findings <strong>__BEFORE_DRC__ → __AFTER_DRC__</strong> · Open connections <strong>__BEFORE_OPEN__ → __AFTER_OPEN__</strong></span></div>
+<div class="toolbar"><button id="minus" type="button" aria-label="Zoom out both PCB views">−</button>
+<input id="zoom" type="range" min="100" max="500" step="25" value="100" aria-label="Synchronized KiCad PCB views zoom">
+<strong id="percentage">100%</strong><button id="plus" type="button" aria-label="Zoom in both PCB views">+</button>
+<button id="fit" type="button">Fit both</button><span>Scroll either KiCad board to synchronize pan.</span></div>
+<div class="grid"><section class="card"><h2>BEFORE / ORIGINAL PCB · READ-ONLY</h2>
+<div class="frame" id="frameBefore"><img alt="Actual source KiCad PCB front copper, silk and board edge" src="__BEFORE_SVG__"></div></section>
+<section class="card"><h2>AFTER / NEW NATIVE PCB COPY · DRC VALIDATED</h2>
+<div class="frame" id="frameAfter"><img alt="Actual copy-on-write KiCad PCB front copper, silk and board edge" src="__AFTER_SVG__"></div></section></div>
+<div class="scope">ORIGINAL SHA256: __SOURCE_SHA__<br>NEW NATIVE BOARD SHA256: __COPY_SHA__<br>
+No other footprint, copper, net assignment or board zone was intentionally edited. Valid native DRC does not establish electrical safety,
+antenna keepout, mechanical fit, complete connectivity or manufacturing acceptance. Never overwrite the original design without review.</div>
+<script>
+const a=document.getElementById('frameBefore'),b=document.getElementById('frameAfter'),zoom=document.getElementById('zoom');
+const label=document.getElementById('percentage');
+function change(n){const value=Math.max(100,Math.min(500,Number(n)||100));zoom.value=value;label.textContent=value+'%';
+const offset=a.scrollLeft/Math.max(1,a.scrollWidth-a.clientWidth);for(const x of [a,b])x.querySelector('img').style.width=value+'%';
+a.scrollLeft=offset*Math.max(0,a.scrollWidth-a.clientWidth);b.scrollLeft=a.scrollLeft}
+document.getElementById('minus').onclick=()=>change(+zoom.value-25);
+document.getElementById('plus').onclick=()=>change(+zoom.value+25);
+document.getElementById('fit').onclick=()=>{change(100);a.scrollTo(0,0);b.scrollTo(0,0)};
+zoom.oninput=()=>change(zoom.value);
+let locked=false;for(const [x,y] of [[a,b],[b,a]])x.addEventListener('scroll',()=>{if(locked)return;locked=true;
+y.scrollLeft=x.scrollLeft/Math.max(1,x.scrollWidth-x.clientWidth)*Math.max(0,y.scrollWidth-y.clientWidth);
+y.scrollTop=x.scrollTop/Math.max(1,x.scrollHeight-x.clientHeight)*Math.max(0,y.scrollHeight-y.clientHeight);
+requestAnimationFrame(()=>{locked=false})});
+</script></body></html>
