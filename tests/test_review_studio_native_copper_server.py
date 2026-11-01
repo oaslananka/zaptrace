@@ -50,6 +50,21 @@ def portable() -> tuple[bytes, dict[str, bytes]]:
     return make_zip(contents), contents
 
 
+def test_portable_member_target_rejects_parent_escape_and_symlink(tmp_path: Path) -> None:
+    from scripts.review_studio_native_copper_bundle import _verified_project_member
+
+    root = tmp_path / "private"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "linked").symlink_to(outside, target_is_directory=True)
+    for member in ("../outside/board.kicad_pcb", "linked/board.kicad_pcb", "/tmp/board.kicad_pcb"):
+        with pytest.raises(ValueError, match="escapes private project"):
+            _verified_project_member(root, member)
+
+    assert _verified_project_member(root, "ZapTrace.pretty/safe.kicad_mod") == (root / "ZapTrace.pretty/safe.kicad_mod")
+
+
 def make_zip(contents: dict[str, bytes]) -> bytes:
     memory = io.BytesIO()
     with zipfile.ZipFile(memory, "w", zipfile.ZIP_DEFLATED) as archive:

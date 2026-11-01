@@ -352,7 +352,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 self.review_server.worker_lock.release()
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "application/zip")
-            self.send_header("Content-Disposition", f'attachment; filename="zaptrace-review-{key}.zip"')
+            self.send_header("Content-Disposition", 'attachment; filename="zaptrace-review-backup.zip"')
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -392,6 +392,16 @@ class ReviewHandler(BaseHTTPRequestHandler):
             ).get(filename):
                 self._json(HTTPStatus.NOT_FOUND, {"error": "Verified native copper artifact unavailable"})
                 return
+            disposition = {
+                "EVIDENCE.json": 'attachment; filename="EVIDENCE.json"',
+                "baseline-drc.json": 'attachment; filename="baseline-drc.json"',
+                "candidate-drc.json": 'attachment; filename="candidate-drc.json"',
+                "native-copper-project.zip": 'attachment; filename="native-copper-project.zip"',
+                "PREVIEW.html": 'attachment; filename="PREVIEW.html"',
+            }.get(filename)
+            if disposition is None:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Unsupported artifact"})
+                return
             self.send_response(HTTPStatus.OK)
             mime = (
                 "application/zip"
@@ -401,7 +411,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 else "application/json"
             )
             self.send_header("Content-Type", mime)
-            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Disposition", disposition)
             self.send_header("Cache-Control", "no-store")
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("X-Content-Type-Options", "nosniff")

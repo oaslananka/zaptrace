@@ -134,6 +134,19 @@ def checked_batch_routes(request: object) -> list[dict]:
     return parsed
 
 
+def _verified_project_member(root: Path, name: str) -> Path:
+    """Resolve an untrusted member inside the newly created private project tree."""
+    # ZIP member lexing already constrains names. Keep a separate filesystem
+    # containment check at the actual file access, including symlink resolution.
+    if not isinstance(name, str) or not name or "\\" in name:
+        raise ValueError("Unsafe native KiCad project member path")
+    base = root.resolve(strict=True)
+    target = (base / name).resolve(strict=False)
+    if not target.is_relative_to(base):
+        raise ValueError("Native KiCad ZIP member escapes private project directory")
+    return target
+
+
 def extract_project_zip(raw: bytes, destination: Path) -> Path:
     """Extract exact safe files, nothing else. Destination must be new and private."""
     if destination.exists() or destination.is_symlink():
@@ -218,7 +231,7 @@ def extract_project_zip(raw: bytes, destination: Path) -> Path:
                 if name.endswith(".kicad_netlist_evidence.json"):
                     # A ZIP's prior analysis is untrusted and never persisted.
                     continue
-                path = destination / name
+                path = _verified_project_member(destination, name)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 # Stream with a bounded read and checked uncompressed file size.
                 with archive.open(member) as stream:
@@ -226,11 +239,13 @@ def extract_project_zip(raw: bytes, destination: Path) -> Path:
                 if len(data) != member.file_size:
                     raise ValueError("Native ZIP member size differs from verified header")
                 path.write_bytes(data)
-            if not (destination / board).read_bytes().lstrip().startswith(b"(kicad_pcb"):
+            board_path = _verified_project_member(destination, board)
+            if not board_path.read_bytes().lstrip().startswith(b"(kicad_pcb"):
                 raise ValueError("Native KiCad PCB content does not match filename")
-            if not (destination / (base + ".kicad_sch")).read_bytes().lstrip().startswith(b"(kicad_sch"):
+            schematic_path = _verified_project_member(destination, base + ".kicad_sch")
+            if not schematic_path.read_bytes().lstrip().startswith(b"(kicad_sch"):
                 raise ValueError("Native KiCad schematic content does not match filename")
-            project = json.loads((destination / (base + ".kicad_pro")).read_text())
+            project = json.loads(_verified_project_member(destination, base + ".kicad_pro").read_text())
             if not isinstance(project, dict) or not any(key in project for key in ("board", "pcb")):
                 raise ValueError("KiCad project rules file invalid")
             # Validate library scope BEFORE launching KiCad for read-only
@@ -240,7 +255,7 @@ def extract_project_zip(raw: bytes, destination: Path) -> Path:
                 "sym-lib-table": "${KIPRJMOD}/ZapTrace.kicad_sym",
             }
             for table_name, expected in expected_uris.items():
-                table = (destination / table_name).read_text()
+                table = _verified_project_member(destination, table_name).read_text()
                 found = re.findall(r'\(uri\s+"([^"]+)"\)', table)
                 if found != [expected] or len(re.findall(r"\(lib\s+\(", table)) != 1:
                     raise ValueError("Only exact local ZapTrace library table references supported")
@@ -249,7 +264,7 @@ def extract_project_zip(raw: bytes, destination: Path) -> Path:
 
             shutil.rmtree(destination, ignore_errors=True)
             raise
-        return destination / board
+        return _verified_project_member(destination, board)
 
 
 def inspect_native_pairs(board: Path, report: Path) -> dict:
