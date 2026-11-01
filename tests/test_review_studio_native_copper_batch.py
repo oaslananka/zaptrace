@@ -72,6 +72,10 @@ def test_native_two_distinct_nets_transactional_cumulative_drc_and_sha(tmp_path:
     assert [
         (step["native_drc"]["before_unconnected"], step["native_drc"]["after_unconnected"]) for step in proof["steps"]
     ] == [(37, 36), (36, 35)]
+    installed_version = subprocess.run(
+        ["kicad-cli", "version"], capture_output=True, text=True, timeout=10, check=True
+    ).stdout.strip()
+    assert installed_version.startswith("10.0.")
     assert proof["cumulative_drc"] == {
         "before_unconnected": 37,
         "after_unconnected": 35,
@@ -79,7 +83,7 @@ def test_native_two_distinct_nets_transactional_cumulative_drc_and_sha(tmp_path:
         "after_violations": 16,
         "new_findings": 0,
         "schematic_parity": 0,
-        "kiCadVersion": "10.0.7",
+        "kiCadVersion": installed_version,
     }
     assert proof["steps"][1]["source_sha256"] == proof["steps"][0]["working_sha256"]
     assert proof["working_sha256"] == hashlib.sha256((out / "project" / board.name).read_bytes()).hexdigest()

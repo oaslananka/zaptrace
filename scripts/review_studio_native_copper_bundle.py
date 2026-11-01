@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import re
 import stat
 import subprocess
@@ -141,7 +142,18 @@ def _verified_project_member(root: Path, name: str) -> Path:
     if not isinstance(name, str) or not name or "\\" in name:
         raise ValueError("Unsafe native KiCad project member path")
     base = root.resolve(strict=True)
-    target = (base / name).resolve(strict=False)
+    if name.startswith("ZapTrace.pretty/"):
+        leaf = name.removeprefix("ZapTrace.pretty/")
+        if not MODNAME.fullmatch(leaf):
+            raise ValueError("Unsafe native KiCad footprint member")
+        directory = base / "ZapTrace.pretty"
+    else:
+        leaf = name
+        if "/" in leaf or leaf in {".", ".."} or not BASENAME.fullmatch(leaf):
+            raise ValueError("Native KiCad ZIP member escapes private project directory")
+        directory = base
+    # Keep untrusted archive components out of the directory calculation.
+    target = (directory / os.path.basename(leaf)).resolve(strict=False)
     if not target.is_relative_to(base):
         raise ValueError("Native KiCad ZIP member escapes private project directory")
     return target
