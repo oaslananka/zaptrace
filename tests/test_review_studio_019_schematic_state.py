@@ -51,9 +51,10 @@ def test_empty_state_is_semantic_and_only_available_in_schematic_mode() -> None:
     assert "not a rendering failure" in html
     assert "min-width:38px;min-height:38px" in html
     js = (ROOT / "scripts/review_studio_019_multisheet_responsive_browser_smoke.mjs").read_text()
-    assert "SOURCE_VERIFIED_KICAD_EMPTY_CHILD_STATE" in js
+    shared = (ROOT / "scripts/review_studio_multisheet_browser_smoke_shared.mjs").read_text()
+    assert "SOURCE_VERIFIED_KICAD_EMPTY_CHILD_STATE" in shared
     assert "EXACT_019_MULTISHEET_NARROW_CHROME_GEOMETRY=PASS" in js
-    assert "result.empty.bottom<=result.dock.top+2" in js
+    assert "result.empty.bottom<=result.dock.top+2" in shared
 
 
 def test_019_package_contains_source_aware_blank_page_and_touch_targets(tmp_path: Path) -> None:
