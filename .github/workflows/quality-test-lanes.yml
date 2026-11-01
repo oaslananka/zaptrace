@@ -113,6 +113,11 @@ jobs:
           python-version: "3.12"
           sync-explicit-python: "true"
 
+      - name: Install native Debian package test dependency
+        if: inputs.test_mode != 'docs' && matrix.lane == 'unit'
+        run: |
+          bash scripts/ci_install_kicad.sh desktop-file-utils
+
       - name: Install external test tools
         if: inputs.test_mode != 'docs' && matrix.install_external
         run: |

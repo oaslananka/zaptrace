@@ -214,7 +214,7 @@ def compile_candidate(requirements: Requirements, *, name: str = "SynthesizedBoa
     blockers.extend(
         {"code": "unsupported_emission_decision", "subject": decision.parameter}
         for decision in decision_log.decisions
-        if decision.category in {"gap", "note"} and decision.confidence == 0.0
+        if decision.category in {"gap", "note"} and not decision.confidence
     )
     erc = ERCRunner().run(design)
     blockers.extend(

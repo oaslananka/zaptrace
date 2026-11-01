@@ -1842,7 +1842,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
         except ValueError as exc:
             result = {"state": "failed", "message": "Native schematic ECO blocked: " + str(exc)[:175]}
             shutil.rmtree(output, ignore_errors=True)
-        except (OSError, RuntimeError, subprocess.TimeoutExpired, UnicodeError):
+        except (OSError, RuntimeError, subprocess.TimeoutExpired):
             shutil.rmtree(output, ignore_errors=True)
         finally:
             shutil.rmtree(source.parent, ignore_errors=True)

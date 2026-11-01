@@ -449,8 +449,8 @@ footer{grid-row:4;grid-column:1/-1;padding:6px 18px;background:#0b1420;border-to
 </div>
 </div>
 <script>
-const DATA=__NATIVE_DATA__;
 'use strict';
+const DATA=__NATIVE_DATA__;
 const $=id=>document.getElementById(id);
 const stage=$('stage'),viewport=$('boardspace');
 const SCALE=12, SW=DATA.viewbox[0]*SCALE, SH=DATA.viewbox[1]*SCALE;
@@ -711,7 +711,7 @@ function renderMeasure(){
  if(!measureOverlay)return;
  measureOverlay.replaceChildren();
  const readout=$('measureReadout');readout.replaceChildren();
- $('measurementPanel').hidden=!(measureOn||measurePoints.length);
+ $('measurementPanel').hidden = !Boolean(measureOn || measurePoints.length);
  if(!measurePoints.length){
   readout.append(node('span','',measureOn?'Select the first native KiCad pad centre; distances use source millimetres only.':
    'Select Measure, then two real KiCad pad centres. Not copper clearance or DRC.'));

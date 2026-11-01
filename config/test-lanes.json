@@ -14,7 +14,7 @@
     "integration": 900,
     "benchmark": 900,
     "hardware": 900,
-    "external_tool": 600,
+    "external_tool": 1500,
     "native": 600
   },
   "lane_rules": [
@@ -146,6 +146,8 @@
     {
       "lane": "external_tool",
       "patterns": [
+        "tests/test_ai_native_pilot_pcb_baseline.py",
+        "tests/test_ai_native_pilot_shield_pcb_oracle.py",
         "tests/test_ci_compose_smoke.py",
         "tests/test_ci_kicad_oracle.py",
         "tests/test_compose_runtime_policy.py",
@@ -153,6 +155,15 @@
         "tests/test_freerouting.py",
         "tests/test_kicad_oracle.py",
         "tests/test_kicad_step_export.py",
+        "tests/test_review_studio_013_3d_assets.py",
+        "tests/test_review_studio_014_models.py",
+        "tests/test_review_studio_native_copper_batch_server.py",
+        "tests/test_review_studio_native_copper_server.py",
+        "tests/test_review_studio_pcb_eco.py",
+        "tests/test_review_studio_pcb_eco_server.py",
+        "tests/test_review_studio_schematic_eco.py",
+        "tests/test_review_studio_schematic_pcb_parity.py",
+        "tests/test_review_studio_schematic_pcb_parity_server.py",
         "tests/test_spice_orchestrator.py",
         "tests/test_spice_sim.py"
       ]
