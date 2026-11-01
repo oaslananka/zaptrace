@@ -61,7 +61,7 @@ jobs:
   validation-environment:
     name: Validation environment parity
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Skip heavyweight validation for non-heavy PR
         if: needs.changes.outputs.heavy_ci != 'true'
@@ -395,7 +395,7 @@ jobs:
   kicad-oracle:
     name: KiCad Oracle
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Skip KiCad oracle for non-heavy PR
         if: needs.changes.outputs.heavy_ci != 'true'
