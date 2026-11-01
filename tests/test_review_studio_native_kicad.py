@@ -468,7 +468,10 @@ def test_native_drc_open_connection_pairs_are_geometry_verified() -> None:
     from copy import deepcopy
 
     root = Path(__file__).resolve().parents[1]
-    evidence = json.loads((root / "build/native-review/evidence.json").read_text())
+    evidence_file = root / "build/native-review/evidence.json"
+    if not evidence_file.is_file():
+        pytest.skip("Requires generated native KiCad DRC evidence")
+    evidence = json.loads(evidence_file.read_text())
     board = evidence["board"]
     pairs = native.native_open_connection_pairs(board, evidence["findings"])
     assert len(pairs) == 12
@@ -488,7 +491,10 @@ def test_native_drc_open_connection_track_net_conflict_is_blocked() -> None:
     from copy import deepcopy
 
     root = Path(__file__).resolve().parents[1]
-    evidence = json.loads((root / "build/native-review/evidence.json").read_text())
+    evidence_file = root / "build/native-review/evidence.json"
+    if not evidence_file.is_file():
+        pytest.skip("Requires generated native KiCad DRC evidence")
+    evidence = json.loads(evidence_file.read_text())
     broken = deepcopy(evidence["findings"])
     issue = next(f for f in broken if f["rule"] == "unconnected_items")
     issue["objects"][0] = issue["objects"][0].replace("[GND]", "[VCC_5V]")
