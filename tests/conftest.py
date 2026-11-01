@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import shutil
 from pathlib import Path
 
 import pytest
@@ -98,3 +100,37 @@ def _reset_api_rate_limiter_between_tests() -> None:
     api_server.app.state.rate_limit_backend.reset()
     yield
     api_server.app.state.rate_limit_backend.reset()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _stage_native_reference_source_for_tests() -> None:
+    """Provide a pinned, local-only KiCad input without overwriting existing source data."""
+    root = Path(__file__).resolve().parents[1]
+    fixture = root / "tests/fixtures/native_review_reference"
+    destination = root / "build/source-reference-readonly"
+    manifest = fixture / "SHA256SUMS"
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        digest, relative = line.split("  ", 1)
+        candidate = fixture / relative
+        if hashlib.sha256(candidate.read_bytes()).hexdigest() != digest:
+            pytest.fail(f"Pinned native source fixture is corrupt: {relative}")
+
+    if not destination.exists() and not destination.is_symlink():
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(fixture, destination)
+    elif destination.is_symlink() or not destination.is_dir():
+        pytest.fail("Native source directory is not a regular folder")
+
+    # Do not overwrite someone else's source checkout. Its identity must match
+    # the pinned fixture when it is used for source-bound acceptance tests.
+    for name in (
+        "issue91-design.yaml",
+        "ESP32_actual_copper_review.kicad_pcb",
+        "ESP32_I2C_Sensor_Board.kicad_sch",
+    ):
+        actual = destination / name
+        if (
+            not actual.is_file()
+            or hashlib.sha256(actual.read_bytes()).digest() != hashlib.sha256((fixture / name).read_bytes()).digest()
+        ):
+            pytest.fail(f"Existing native source differs from pinned test fixture: {name}")

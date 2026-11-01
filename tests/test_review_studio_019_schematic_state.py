@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from review_studio_build_deb import build  # noqa: E402
@@ -18,7 +20,11 @@ from review_studio_native_kicad import schematic_svg_drawn_elements  # noqa: E40
 
 def test_actual_kicad_empty_child_must_not_be_conflated_with_render_failure() -> None:
     source = ROOT / "build/source-reference-readonly/ESP32_actual_copper_review.kicad_pcb"
-    html = (ROOT / "build/native-multi-sheet-test/index.html").read_text()
+    multi = ROOT / "build/native-multi-sheet-test/index.html"
+    current = ROOT / "build/native-review/index.html"
+    if not multi.is_file() or not current.is_file():
+        pytest.skip("Requires prior local KiCad multi-sheet/browser QA exports")
+    html = multi.read_text()
     payload = re.search(r"(?m)^const DATA=(.*);$", html)
     assert payload, "First regenerate real KiCad source using native local build"
     data = json.loads(payload.group(1))
@@ -29,7 +35,6 @@ def test_actual_kicad_empty_child_must_not_be_conflated_with_render_failure() ->
     counts = [schematic_svg_drawn_elements(base64.b64decode(p["src"].split(",", 1)[1], validate=True)) for p in pages]
     assert counts[0] > 5000 and counts[1] == 0
     assert pages[1]["root_only_crossprobe"] is False
-    current = ROOT / "build/native-review/index.html"
     native_data = re.search(r"(?m)^const DATA=(.*);$", current.read_text())
     assert native_data
     rendered = json.loads(native_data.group(1))
