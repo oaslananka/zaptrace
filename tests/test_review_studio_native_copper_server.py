@@ -63,6 +63,9 @@ def test_portable_member_target_rejects_parent_escape_and_symlink(tmp_path: Path
             _verified_project_member(root, member)
 
     assert _verified_project_member(root, "ZapTrace.pretty/safe.kicad_mod") == (root / "ZapTrace.pretty/safe.kicad_mod")
+    (root / "ZapTrace.pretty").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="escapes private project"):
+        _verified_project_member(root, "ZapTrace.pretty/safe.kicad_mod")
 
 
 def make_zip(contents: dict[str, bytes]) -> bytes:

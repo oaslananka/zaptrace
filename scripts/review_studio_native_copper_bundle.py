@@ -141,22 +141,23 @@ def _verified_project_member(root: Path, name: str) -> Path:
     # containment check at the actual file access, including symlink resolution.
     if not isinstance(name, str) or not name or "\\" in name:
         raise ValueError("Unsafe native KiCad project member path")
-    base = root.resolve(strict=True)
+    base = os.path.realpath(root)
     if name.startswith("ZapTrace.pretty/"):
         leaf = name.removeprefix("ZapTrace.pretty/")
         if not MODNAME.fullmatch(leaf):
             raise ValueError("Unsafe native KiCad footprint member")
-        directory = base / "ZapTrace.pretty"
+        directory = os.path.join(base, "ZapTrace.pretty")
     else:
         leaf = name
         if "/" in leaf or leaf in {".", ".."} or not BASENAME.fullmatch(leaf):
             raise ValueError("Native KiCad ZIP member escapes private project directory")
         directory = base
-    # Keep untrusted archive components out of the directory calculation.
-    target = (directory / os.path.basename(leaf)).resolve(strict=False)
-    if not target.is_relative_to(base):
+    # Resolve symlinks before accepting a file access; the explicit root
+    # prefix includes the separator to reject similarly prefixed siblings.
+    target = os.path.realpath(os.path.join(directory, os.path.basename(leaf)))
+    if not target.startswith(base + os.sep):
         raise ValueError("Native KiCad ZIP member escapes private project directory")
-    return target
+    return Path(target)
 
 
 def extract_project_zip(raw: bytes, destination: Path) -> Path:
