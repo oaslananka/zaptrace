@@ -17,7 +17,7 @@ Each existing one-footprint editor step checks pad-adjacent routed copper, locke
 
 ## View
 
-Use review_studio_change_diff.py with --source, --candidate, --evidence and --output pointing to the original, output PCB, evidence manifest, and new local HTML. It regenerates native DRC, two KiCad SVGs, and displays every changed footprint. Each item is separately accessible by keyboard, without replacing legacy one-footprint or unsigned v1 decisions. Source and project/custom rule SHA are bound in state. Real pad/net electrical schematic parity is NOT established.
+Use review_studio_change_diff.py with --source, --candidate, --evidence and --output pointing to the original, output PCB, evidence manifest, and new local HTML beside the proposed PCB in its isolated candidate directory. It regenerates native DRC, two KiCad SVGs, and displays every changed footprint. Each item is separately accessible by keyboard, without replacing legacy one-footprint or unsigned v1 decisions. Source and project/custom rule SHA are bound in state. Real pad/net electrical schematic parity is NOT established.
 
 ## Real QA / known limits
 

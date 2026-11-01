@@ -229,6 +229,27 @@ def test_rule_context_screens_make_hashes_visible_but_never_approve() -> None:
     assert "does not independently certify all effective KiCad rules" in screen
 
 
+def test_review_output_cannot_escape_native_candidate_workspace(tmp_path: Path) -> None:
+    source = tmp_path / "original.kicad_pcb"
+    candidate_dir = tmp_path / "candidate"
+    candidate_dir.mkdir()
+    candidate = candidate_dir / "candidate.kicad_pcb"
+    evidence = tmp_path / "evidence.json"
+    for file in (source, candidate, evidence):
+        file.write_bytes(b"test source, not valid KiCad geometry")
+
+    other = tmp_path / "outside"
+    other.mkdir()
+    protected = other / "review.html"
+    protected.write_text("protected")
+
+    for invalid in (protected, tmp_path / "review.html", candidate_dir / "not-html.txt"):
+        with pytest.raises(ValueError, match="output must be an HTML child"):
+            change.create_review(source, candidate, evidence, invalid)
+    assert protected.read_text() == "protected"
+    assert not (tmp_path / "review.html").exists()
+
+
 def test_native_schematic_diff_rejects_unpaired_inputs(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Both native schematic"):
         change.create_review(

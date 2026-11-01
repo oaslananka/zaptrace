@@ -573,6 +573,13 @@ def create_review(
     if (schematic_source is None) != (schematic_candidate is None):
         raise ValueError("Both native schematic source and candidate must be provided together")
     source, candidate, evidence = (p.resolve(strict=True) for p in (source, candidate, evidence))
+    # The report belongs to the native candidate's isolated workspace.
+    # A caller-supplied --output may choose the HTML leaf, not a different
+    # filesystem destination that could overwrite unrelated user data.
+    candidate_dir = candidate.parent
+    if output.suffix != ".html" or output.parent.resolve(strict=False) != candidate_dir:
+        raise ValueError("Native review output must be an HTML child of the candidate directory")
+    output = candidate_dir / output.name
     if source == candidate or output.resolve() in (source, candidate, evidence):
         raise ValueError("ECO reviewer must not edit or compare the same source file")
     if any(p.stat().st_size > 15_000_000 for p in (source, candidate, evidence)):
