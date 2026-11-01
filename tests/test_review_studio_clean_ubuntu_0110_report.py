@@ -11,6 +11,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from review_studio_clean_ubuntu_0110_report import report
 
+from tests.review_studio_clean_ubuntu_contract_shared import (
+    assert_missing_proof_rejected,
+    assert_modified_package_and_symlink_rejected,
+    assert_old_sha_rejected,
+    assert_sha_bound_report,
+)
+
 
 def acceptance_fixture(tmp_path: Path) -> tuple[Path, ...]:
     package = tmp_path / "zaptrace-review-studio_0.1.10_all.deb"
@@ -118,14 +125,7 @@ def acceptance_fixture(tmp_path: Path) -> tuple[Path, ...]:
 
 
 def test_sha_bound_0110_acceptance_report_requires_all_independent_logs(tmp_path: Path) -> None:
-    files = acceptance_fixture(tmp_path)
-    output = report(*files)
-    text = output.read_text()
-    assert "NOT public GA" in text
-    assert "16 -> 16 existing physical DRC" in text
-    assert f"PACKAGE_SHA256={hashlib.sha256(files[0].read_bytes()).hexdigest()}" in text
-    assert "fabrication approval" not in text.lower()
-    assert len([line for line in text.splitlines() if " sha256=" in line]) == 7
+    assert_sha_bound_report(report, acceptance_fixture(tmp_path))
 
 
 @pytest.mark.parametrize(
@@ -142,36 +142,12 @@ def test_sha_bound_0110_acceptance_report_requires_all_independent_logs(tmp_path
 def test_missing_required_native_or_lifecycle_proof_blocks_manifest(
     tmp_path: Path, log_index: int, omitted: str
 ) -> None:
-    files = acceptance_fixture(tmp_path)
-    path = files[log_index]
-    text = path.read_text()
-    assert omitted in text
-    path.write_text(text.replace(omitted, "UNVERIFIED"))
-    with pytest.raises(ValueError, match="not proved"):
-        report(*files)
-    assert not files[-1].exists()
+    assert_missing_proof_rejected(report, acceptance_fixture(tmp_path), log_index, omitted)
 
 
 def test_wrong_exact_deb_sha_cannot_reuse_old_acceptance(tmp_path: Path) -> None:
-    files = acceptance_fixture(tmp_path)
-    modified = files[2].read_text().replace("PACKAGE_SHA256=", "OLD_PACKAGE_SHA256=", 1)
-    files[2].write_text(modified)
-    with pytest.raises(ValueError, match="not bound to the exact package SHA-256"):
-        report(*files)
-    assert not files[-1].exists()
+    assert_old_sha_rejected(report, acceptance_fixture(tmp_path))
 
 
 def test_mismatched_manifest_and_symlink_gate_are_rejected(tmp_path: Path) -> None:
-    files = acceptance_fixture(tmp_path)
-    files[0].write_bytes(files[0].read_bytes() + b"changed post-signoff")
-    with pytest.raises(ValueError, match="SHA manifest"):
-        report(*files)
-    with files[0].with_suffix(".sha256").open("w") as checksum:
-        digest = hashlib.sha256(files[0].read_bytes()).hexdigest()
-        checksum.write(f"{digest}  {files[0].name}\n")
-    gate = files[1]
-    backup = gate.with_suffix(".original")
-    gate.rename(backup)
-    gate.symlink_to(backup)
-    with pytest.raises(ValueError, match="regular files"):
-        report(*files)
+    assert_modified_package_and_symlink_rejected(report, acceptance_fixture(tmp_path))
