@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from review_studio_change_diff import canonical_decision_hash
+from review_studio_local_file_guard import read_regular_bytes
 
 
 def compare_saved_reviews(inputs: list[Path], output: Path) -> dict:
@@ -36,11 +37,11 @@ def compare_saved_reviews(inputs: list[Path], output: Path) -> dict:
     seen_states: set[str] = set()
     seen_proposals: set[tuple] = set()
     for number, user_path in enumerate(inputs, 1):
-        if user_path.is_symlink() or not user_path.is_file() or user_path.parent.resolve() != parent:
+        if user_path.parent.resolve() != parent:
             raise ValueError("Review states must be regular files in the index directory")
-        if user_path.stat().st_size > 10_000_000 or not user_path.name.endswith(".state.json"):
+        if not user_path.name.endswith(".state.json"):
             raise ValueError("Not a bounded Review Studio state JSON file")
-        raw = user_path.read_bytes()
+        raw = read_regular_bytes(user_path, max_size=10_000_000)
         review = json.loads(raw)
         if (
             not isinstance(review, dict)
@@ -81,9 +82,9 @@ def compare_saved_reviews(inputs: list[Path], output: Path) -> dict:
         seen_proposals.add(proposal)
         web = parent / user_path.name.removesuffix(".state.json")
         page = web.with_suffix(".html")
-        if page.is_symlink() or not page.is_file() or page.stat().st_size > 10_000_000:
+        if page.parent.resolve() != parent:
             raise ValueError("Native individual offline review HTML missing or unsafe")
-        html_source = page.read_text(encoding="utf-8")
+        html_source = read_regular_bytes(page, max_size=10_000_000).decode("utf-8")
         embedded = re.search(r"(?m)^const DATA=(\{.*\});$", html_source)
         if embedded is None or json.loads(embedded.group(1)) != review:
             raise ValueError("Individual native HTML and saved review state disagree")
@@ -165,8 +166,12 @@ review and recheck its evidence and source inputs before relying on a decision.<
         "approval_supported": False,
         "proposals": options,
     }
-    output.write_text(page, encoding="utf-8")
-    output.with_suffix(".json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    # Exclusive creation prevents an attacker from replacing a checked absent
+    # output with a symlink or existing file before the actual write.
+    with output.open("x", encoding="utf-8") as stream:
+        stream.write(page)
+    with output.with_suffix(".json").open("x", encoding="utf-8") as stream:
+        stream.write(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     return summary
 
 

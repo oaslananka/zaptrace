@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 from review_studio_change_diff import canonical_decision_hash, evidence_catalog
+from review_studio_local_file_guard import read_regular_bytes
 
 FIELDS = {
     "schema_version",
@@ -119,9 +120,9 @@ def validate_audit(state: dict, audit: dict) -> dict:
 
 
 def _read(path: Path, max_size: int) -> dict:
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > max_size:
-        raise ValueError("Missing/unsafe or oversized review input")
-    value = json.loads(path.read_text(encoding="utf-8"))
+    if path.suffix != ".json":
+        raise ValueError("Review audit inputs must be JSON files")
+    value = json.loads(read_regular_bytes(path, max_size=max_size).decode("utf-8"))
     if not isinstance(value, dict):
         raise ValueError("Expected JSON object")
     return value
