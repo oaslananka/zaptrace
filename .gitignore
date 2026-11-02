@@ -111,3 +111,6 @@ site/
 /cargo-audit-release-evidence.json
 /cargo-audit-release-evidence.md
 /tagged-release-evidence.json
+
+# KiCad per-user project settings are local session state, not design source.
+*.kicad_prl
