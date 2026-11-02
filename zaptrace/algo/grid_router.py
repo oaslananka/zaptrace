@@ -135,6 +135,9 @@ class ObstacleMap:
         self._pad_clearance: dict[GridPos, set[str | None]] = {}
         self._pad_conflicts: set[GridPos] = set()
         self.enforce_static_clearance = False
+        # Set only after pads/holes are rasterized with the largest required
+        # trace half-width + copper clearance.
+        self.preexpanded_static_clearance = False
 
     def clone(self) -> ObstacleMap:
         """Copy the entire occupancy transaction before routing a net."""
@@ -145,6 +148,7 @@ class ObstacleMap:
         other._pad_clearance = {point: owners.copy() for point, owners in self._pad_clearance.items()}
         other._pad_conflicts = self._pad_conflicts.copy()
         other.enforce_static_clearance = self.enforce_static_clearance
+        other.preexpanded_static_clearance = self.preexpanded_static_clearance
         return other
 
     # -- Query ------------------------------------------------------------
@@ -175,6 +179,22 @@ class ObstacleMap:
         """Require every cell covered by a track clearance envelope to be free."""
         if radius < 0:
             return False
+        if self.preexpanded_static_clearance:
+            # Pad/NPTH masks already include trace half-width, copper
+            # clearance and grid uncertainty. Applying the same radius again
+            # incorrectly traps traces inside narrow pads. Physical obstacles
+            # and dynamically routed copper still have full clearance.
+            if not self.is_free(pos, net_id):
+                return False
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    probe = GridPos(pos.x + dx, pos.y + dy, pos.layer)
+                    if not self.in_bounds(probe) or self._cells[probe.layer][probe.y][probe.x]:
+                        return False
+                    owner = self._copper.get(probe)
+                    if owner is not None and owner != net_id:
+                        return False
+            return True
         return all(
             self.is_free(GridPos(pos.x + dx, pos.y + dy, pos.layer), net_id)
             for dy in range(-radius, radius + 1)
@@ -404,6 +424,7 @@ class GridRouter:
         self,
         design: Design,
         positions: dict[str, tuple[float, float]],
+        kb: KnowledgeBase | None = None,
     ) -> _GridRouteContext:
         board = canonical_board_definition(design)
         num_layers = max(board.layers, 1)
@@ -412,7 +433,7 @@ class GridRouter:
         obstacles = ObstacleMap(grid_w, grid_h, num_layers)
         self._block_board_edges(obstacles, grid_w, grid_h, num_layers)
         if self.pad_aware:
-            self._block_pad_copper(obstacles, design, positions)
+            self._block_pad_copper(obstacles, design, positions, kb or KnowledgeBase())
             for gx, gy in blocked_profile_cells(canonical_board_definition(design), self.resolution, grid_w, grid_h):
                 for layer in range(num_layers):
                     obstacles.block(GridPos(gx, gy, layer))
@@ -462,6 +483,7 @@ class GridRouter:
         obstacles: ObstacleMap,
         design: Design,
         positions: dict[str, tuple[float, float]],
+        kb: KnowledgeBase,
     ) -> None:
         """Project footprint copper by electrical net and real copper layer.
 
@@ -479,6 +501,12 @@ class GridRouter:
             )
             / 2
         )
+        # Respect custom net-class widths and clearances when pre-expanding.
+        for net in design.nets.values():
+            if len(net.nodes) < 2 or get_net_class(design, net.id) == NetClass.GROUND:
+                continue
+            rule = kb.get_rule(get_net_class(design, net.id))
+            keepout = max(keepout, rule.clearance + rule.trace_width / 2)
         nets_by_pad: dict[tuple[str, str], str] = {}
         components = {comp.ref: comp for comp in design.components.values()}
         for net in design.nets.values():
@@ -544,6 +572,7 @@ class GridRouter:
                         obstacles.mark_pad_clearance(grid, owner)
                         if actual_copper:
                             obstacles.mark_pad(grid, owner)
+        obstacles.preexpanded_static_clearance = True
 
     def _to_grid_point(self, point: tuple[float, float], context: _GridRouteContext) -> tuple[int, int]:
         return (
@@ -727,7 +756,7 @@ class GridRouter:
         nets: list[Net],
     ) -> tuple[RouteResult, list[str]]:
         """Build a fresh occupancy model for each transactional route order."""
-        context = self._prepare_route_context(design, positions)
+        context = self._prepare_route_context(design, positions, kb)
         state = _GridRouteState(traces=[], vias=[], layers_used=set())
         unsuccessful: list[str] = []
         for net in nets:

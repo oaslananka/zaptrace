@@ -75,6 +75,76 @@ def test_smd_top_only_does_not_reserve_bottom_layer() -> None:
     assert not ctx.obstacles.can_place_through_via(bottom, "foreign", 1)
 
 
+def test_preexpanded_pad_clearance_is_not_dilated_twice() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.mark_pad(GridPos(10, 10), "A")
+    obs.mark_pad_clearance(GridPos(12, 10), "B")
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    assert obs.is_corridor_free(GridPos(10, 10), "A", 1)
+    assert not obs.is_corridor_free(GridPos(12, 10), "A", 1)
+    assert not obs.is_corridor_free(GridPos(12, 10), "UNRELATED", 1)
+    obs.block_line(GridPos(11, 10), GridPos(11, 11), net_id="B")
+    assert not obs.is_corridor_free(GridPos(10, 10), "A", 1)
+    clone = obs.clone()
+    assert clone.preexpanded_static_clearance
+    assert not clone.is_corridor_free(GridPos(10, 10), "A", 1)
+
+
+def test_preexpanded_clearance_preserves_physical_obstacle_and_board_edge_margin() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.preexpanded_static_clearance = True
+    obs.enforce_static_clearance = True
+    obs.block(GridPos(11, 10))
+    assert not obs.is_corridor_free(GridPos(10, 10), "A", 1)
+    assert not obs.is_corridor_free(GridPos(0, 10), "A", 1)
+    plain = ObstacleMap(30, 30, 1)
+    plain.mark_pad_clearance(GridPos(11, 10), "B")
+    assert not plain.is_corridor_free(GridPos(10, 10), "A", 1)
+
+
+def test_wider_custom_net_class_keeps_wider_preexpanded_pad_halo() -> None:
+    from zaptrace.ee.constraints.net_classes import NetClass, NetClassRule
+    from zaptrace.ee.knowledge import KnowledgeBase
+
+    d, positions = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1))),
+        ("b", (25, 10), Pad(id="1", size=(1, 1))),
+    )
+    _net(d, "SIG", "a", "b")
+    router = GridRouter(resolution_mm=0.5, pad_aware=True)
+    standard = router._prepare_route_context(d, positions)
+    kb = KnowledgeBase()
+    kb.set_rule(
+        NetClass.SIGNAL_LOW,
+        NetClassRule(trace_width=1.2, clearance=0.55, max_vias=2, priority=5, description="wide custom rule"),
+    )
+    wide = router._prepare_route_context(d, positions, kb)
+    assert standard.obstacles.preexpanded_static_clearance
+    assert wide.obstacles.preexpanded_static_clearance
+    assert len(wide.obstacles._pad_clearance) > len(standard.obstacles._pad_clearance)
+    assert not wide.obstacles.is_free(GridPos(23, 20), "OTHER")
+
+
+def test_actual_esp32_static_pad_halo_is_single_expanded_but_not_approved() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+    from zaptrace.pipeline.physical_route_preflight import verified_route_candidate_safe
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    d = parse_file(source)
+    assert d.placement is not None
+    router = GridRouter(resolution_mm=0.25, max_iterations=25_000, pad_aware=True)
+    route = router.route(d, d.placement)
+    assert route.routed_net_count >= 1
+    assert route.routed_net_count < route.net_count
+    assert route.vias == []
+    # Partial graph routing is not complete pad/net continuity and cannot
+    # be promoted to a physical source export.
+    assert not verified_route_candidate_safe(d, route, d.placement)
+
+
 def test_overlapping_usb_contacts_with_same_logical_pin_share_copper_owner() -> None:
     d, pos = _board(
         ("usb", (10, 10), Pad(id="A4", size=(1, 1))),
