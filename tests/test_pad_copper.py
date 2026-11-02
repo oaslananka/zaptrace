@@ -129,11 +129,51 @@ def test_top_only_pad_pair_routes_on_top_and_detours_around_foreign_pad() -> Non
             assert ctx.obstacles.is_free(p, net_id="SIGNAL_A")
 
 
-def test_pad_mode_fails_closed_when_pad_center_off_grid() -> None:
+def test_pad_mode_connects_off_grid_centre_only_inside_real_pad_copper() -> None:
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
     d, pos = _board(("a", (10.1, 10), Pad(id="1")), ("b", (20, 10), Pad(id="1")))
     _net(d, "SIG", "a", "b")
     result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
+    assert result.net_count == result.routed_net_count == 1
+    assert any(segment.start == (10.1, 10) and segment.end == (10.0, 10.0) for segment in result.traces)
+    assert _physical_pad_terminal_coverage(d, result, pos)
+
+
+def test_pad_mode_offgrid_rotated_pad_emits_exact_copper_contact() -> None:
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
+    d, pos = _board(
+        ("a", (10.1, 10), Pad(id="1", position=(1.0, 0), shape=PadShape.OVAL, size=(1.2, 0.6))),
+        ("b", (20, 10), Pad(id="1")),
+    )
+    d.components["a"].properties["rotation"] = 90.0
+    _net(d, "SIG", "a", "b")
+    result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
+    assert result.net_count == result.routed_net_count == 1
+    assert any(segment.start == pytest.approx((10.1, 9.0)) for segment in result.traces)
+    assert _physical_pad_terminal_coverage(d, result, pos)
+
+
+def test_pad_mode_rejects_nearest_grid_point_outside_real_pad_copper() -> None:
+    d, pos = _board(
+        ("a", (10.1, 10), Pad(id="1", size=(0.1, 0.1))),
+        ("b", (20, 10), Pad(id="1")),
+    )
+    _net(d, "SIG", "a", "b")
+    result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
     assert result.net_count == 1
+    assert result.routed_net_count == 0
+    assert result.traces == []
+
+
+def test_pad_mode_offgrid_rounded_shape_corner_is_not_false_contact() -> None:
+    d, pos = _board(
+        ("a", (10.2, 10.2), Pad(id="1", shape=PadShape.CIRCLE, size=(0.5, 0.5))),
+        ("b", (20, 10), Pad(id="1")),
+    )
+    _net(d, "SIG", "a", "b")
+    result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
     assert result.routed_net_count == 0
     assert result.traces == []
 

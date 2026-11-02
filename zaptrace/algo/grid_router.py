@@ -26,7 +26,7 @@ from functools import total_ordering
 from typing import Any
 
 from zaptrace.algo.board_keepout import blocked_profile_cells
-from zaptrace.algo.pad_copper import copper_layers, finished_hole_cells, pad_cells, rotated_offset
+from zaptrace.algo.pad_copper import copper_layers, finished_hole_cells, pad_cells, point_in_pad_copper, rotated_offset
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Component, Design, Net, NetClass, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import classify_design, get_net_class
@@ -324,6 +324,9 @@ class _GridNetPlan:
     net_id: str
     width_mm: float = 0.0
     edge_paths: list[list[GridPos]] = field(default_factory=list)
+    # Physical centre-to-grid-anchor copper, entirely inside the owning pad.
+    pad_stubs: list[tuple[tuple[float, float], tuple[float, float]]] = field(default_factory=list)
+    layer: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -353,10 +356,11 @@ class GridRouter:
         Disabled by default; never accepts fewer completed nets. Not
         a full push-and-shove router.
     pad_aware:
-        Opt-in conservative RECT/CIRCLE/OVAL pad copper masks by net and layer.
-        Requires all exact physical pad centres to align to routing grid and
-        a shared accessible copper layer. Vias remain disabled until their
-        physical emission/copper drill clearance is separately verified.
+        Opt-in conservative RECT/CIRCLE/OVAL/ROUNDRECT copper masks by
+        net and layer. Off-grid pad centres are connected only by explicit
+        copper stubs to grid anchors inside the actual pad geometry.
+        Requires a shared accessible copper layer; vias remain disabled
+        until their physical emission/drill clearance is separately verified.
     """
 
     def __init__(
@@ -584,25 +588,35 @@ class GridRouter:
         rule = kb.get_rule(net_class)
         clear_cells = max(int(math.ceil(rule.clearance / self.resolution)), 1)
         grid_positions = [self._to_grid_point(point, context) for point in route_points]
+        pad_stubs: list[tuple[tuple[float, float], tuple[float, float]]] = []
         if self.pad_aware:
-            # Never call an off-pad grid approximation electrically connected.
-            if len(route_points) != len(net.nodes) or any(
-                abs(point[0] - gx * self.resolution) > 1e-6 or abs(point[1] - gy * self.resolution) > 1e-6
-                for point, (gx, gy) in zip(route_points, grid_positions, strict=True)
-            ):
+            # The grid rarely coincides with exact manufacturer pad centres.
+            # Snap only to an anchor actually inside the same pad's copper;
+            # then emit a real, short centre-to-anchor trace. Merely treating
+            # the snapped point as electrically connected would be false.
+            if len(route_points) != len(net.nodes):
                 return _GridNetPlan(True, False, net.id)
             accessible: set[int] = set(range(context.num_layers))
-            for node in net.nodes:
+            for node, exact, grid in zip(net.nodes, route_points, grid_positions, strict=True):
                 comp = context.component_by_ref.get(node.component_ref)
                 pad = self._pad_for_pin(comp, node.pin_name) if comp else None
                 if pad is None:
                     return _GridNetPlan(True, False, net.id)
                 accessible.intersection_update(copper_layers(pad, context.num_layers))
+                snapped = (grid[0] * self.resolution, grid[1] * self.resolution)
+                if not point_in_pad_copper(pad, exact, snapped, context.rotation_by_ref[node.component_ref]):
+                    return _GridNetPlan(True, False, net.id)
+                if math.dist(exact, snapped) > 1e-6:
+                    pad_stubs.append((exact, snapped))
             if not accessible:
                 # A top-only and bottom-only SMD pair requires a validated via.
                 return _GridNetPlan(True, False, net.id)
             if layer not in accessible:
                 layer = min(accessible)
+            if any(not context.obstacles.is_free(GridPos(*grid, layer), net_id=net.id) for grid in grid_positions):
+                # Even an interior pad anchor cannot alias a foreign pad's
+                # reserved cell or a blocked mechanical/edge keepout.
+                return _GridNetPlan(True, False, net.id)
         # A failed later MST edge must not leave earlier edges, or cleared
         # component cells, in the committed map.
         staged = context.obstacles.clone()
@@ -623,7 +637,15 @@ class GridRouter:
         edge_paths = self._route_mst_paths(staged_context, grid_positions, layer, clear_cells, net.id)
         if edge_paths is not None:
             context.obstacles = staged
-        return _GridNetPlan(True, edge_paths is not None, net.id, rule.trace_width, edge_paths or [])
+        return _GridNetPlan(
+            True,
+            edge_paths is not None,
+            net.id,
+            rule.trace_width,
+            edge_paths or [],
+            pad_stubs if edge_paths is not None else [],
+            layer,
+        )
 
     def _append_grid_net_output(
         self,
@@ -631,6 +653,17 @@ class GridRouter:
         context: _GridRouteContext,
         plan: _GridNetPlan,
     ) -> None:
+        for exact, snapped in plan.pad_stubs:
+            state.layers_used.add(f"layer_{plan.layer}")
+            state.traces.append(
+                TraceSegment(
+                    layer=f"layer_{plan.layer}",
+                    start=exact,
+                    end=snapped,
+                    width=plan.width_mm,
+                    net_id=plan.net_id,
+                )
+            )
         for smooth in plan.edge_paths:
             for index in range(len(smooth) - 1):
                 first, second = smooth[index], smooth[index + 1]
