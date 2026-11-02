@@ -21,9 +21,19 @@ from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+from review_studio_local_file_guard import read_regular_bytes
+
 
 def digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
+
+
+def write_fresh_backup(path: Path, archive: bytes) -> None:
+    """Export to a new file only, never follow an existing backup symlink."""
+    if path.suffix != ".zip" or len(archive) > 34 * 1024 * 1024:
+        raise ValueError("Expected a bounded local ZIP backup destination")
+    with path.open("xb") as stream:
+        stream.write(archive)
 
 
 def request(
@@ -83,11 +93,13 @@ def main() -> None:
     parser.add_argument("--backup", required=True, type=Path)
     parser.add_argument("--workspace", required=True, type=Path)
     args = parser.parse_args()
-    if args.action == "legacy-export" and (args.source_board is None or not args.source_board.is_file()):
+    if args.action == "legacy-export" and (args.source_board is None or args.source_board.suffix != ".kicad_pcb"):
         parser.error("Legacy native PCB input must exist")
     sys.path.insert(0, str(args.installed_scripts.resolve()))
     from review_studio_local_server import ReviewLocalServer
 
+    if args.workspace.is_symlink():
+        raise ValueError("Legacy acceptance workspace cannot be a symlink")
     args.workspace.parent.mkdir(parents=True, exist_ok=True)
     server = ReviewLocalServer(("127.0.0.1", 0), args.workspace)
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.09}, daemon=True)
@@ -96,7 +108,7 @@ def main() -> None:
     try:
         if args.action == "legacy-export":
             assert args.source_board is not None
-            board = args.source_board.read_bytes()
+            board = read_regular_bytes(args.source_board, max_size=10 * 1024 * 1024)
             sha = digest(board)
             content_type, body = multipart(board)
             code, queued = request(base, server.secret, "/api/import", body, content_type)
@@ -120,12 +132,14 @@ def main() -> None:
                 assert zipped.read("selected-input-copies/source.kicad_pcb") == board
                 assert "review/evidence.json" in zipped.namelist()
                 assert "README-LOCAL-BACKUP.txt" in zipped.namelist()
-            args.backup.write_bytes(archive)
+            write_fresh_backup(args.backup, archive)
             print("REAL_011_LEGACY_PRIVATE_ZIP_SHA256=" + digest(archive), flush=True)
             print("REAL_011_LEGACY_NATIVE_SOURCE_SHA256=" + sha, flush=True)
             print("REAL_011_LEGACY_PRIVATE_ZIP_EXPORT_WITH_KICAD: PASS", flush=True)
         else:
-            backup = args.backup.read_bytes()
+            if args.backup.suffix != ".zip":
+                raise ValueError("Expected a local ZIP backup")
+            backup = read_regular_bytes(args.backup, max_size=34 * 1024 * 1024)
             with zipfile.ZipFile(io.BytesIO(backup)) as zipped:
                 original = zipped.read("selected-input-copies/source.kicad_pcb")
                 assert "review/evidence.json" in zipped.namelist()

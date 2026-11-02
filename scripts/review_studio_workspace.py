@@ -18,6 +18,8 @@ import sys
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
+from review_studio_local_csp import apply_offline_csp
+
 # KiCad hierarchical references are part of a sheet's S-expression, not the
 # currently open board. Reject incomplete/insecure graphs before invoking ERC.
 LIBRARY_DRC_RULES = frozenset({"lib_footprint_issues", "lib_footprint_mismatch", "footprint_library_mismatch"})
@@ -323,15 +325,19 @@ def workspace_html(workspace: Path, items: list[dict]) -> str:
     except ValueError:
         command_workspace = str(workspace.resolve())
     shell_workspace = "'" + command_workspace.replace("'", "'\\''") + "'"
-    return (
-        template.replace("__PROJECT_CARDS__", built)
-        .replace("__PROJECT_COUNT__", str(len(cards)))
-        .replace(
-            "__COMPARE_HINT__",
-            "Select two snapshots" if len(cards) >= 2 else "Add another native KiCad board to unlock comparison",
-        )
-        .replace("__WORKSPACE_SHELL__", _display(shell_workspace))
-        .replace("__WORKSPACE_JS__", json.dumps(command_workspace, ensure_ascii=True))
+    return apply_offline_csp(
+        (
+            template.replace("__PROJECT_CARDS__", built)
+            .replace("__PROJECT_COUNT__", str(len(cards)))
+            .replace(
+                "__COMPARE_HINT__",
+                "Select two snapshots" if len(cards) >= 2 else "Add another native KiCad board to unlock comparison",
+            )
+            .replace("__WORKSPACE_SHELL__", _display(shell_workspace))
+            .replace("__WORKSPACE_JS__", json.dumps(command_workspace, ensure_ascii=True))
+        ),
+        image_sources="'self' data:",
+        connect_sources="'self'",
     )
 
 

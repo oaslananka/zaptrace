@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/review_studio_workspace.py"
+sys.path.insert(0, str(SCRIPT.parent))
 spec = importlib.util.spec_from_file_location("native_review_workspace", SCRIPT)
 assert spec is not None and spec.loader is not None
 workspace = importlib.util.module_from_spec(spec)

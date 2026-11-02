@@ -22,6 +22,9 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from review_studio_local_csp import apply_offline_csp
+from review_studio_local_file_guard import read_regular_bytes
+
 
 def safe_inline_json(obj: object) -> str:
     return (
@@ -451,9 +454,10 @@ def schematic_svg_drawn_elements(plot: bytes) -> int:
 
 def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: bool = False) -> dict:
     """Native root-page KiCad plot; hierarchy ERC is separate, no false pin parity."""
-    if not schematic.is_file() or schematic.suffix != ".kicad_sch":
+    if schematic.suffix != ".kicad_sch":
         raise ValueError("Provide an existing .kicad_sch for native schematic inspection")
-    text = schematic.read_text(encoding="utf-8")
+    schematic_bytes = read_regular_bytes(schematic, max_size=4 * 1024 * 1024)
+    text = schematic_bytes.decode("utf-8")
     symbols = schematic_symbols(text, allow_empty=root_only)
     names = _read_schematic_netlist(cli, schematic, output)
     if not set(symbols).issubset(names["refs"]) if root_only else set(symbols) != names["refs"]:
@@ -545,7 +549,7 @@ def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: boo
     return {
         "src": "data:image/svg+xml;base64," + base64.b64encode(data).decode("ascii"),
         "viewbox": [w, h],
-        "source_sha256": hashlib.sha256(schematic.read_bytes()).hexdigest(),
+        "source_sha256": hashlib.sha256(schematic_bytes).hexdigest(),
         "filename": schematic.name,
         "net_names": sorted(names["nets"]),
         "logical_nodes": [
@@ -578,9 +582,9 @@ def physical_pin_parity(board: dict, schematic: dict, design_path: Path) -> dict
         import yaml  # type: ignore[reportMissingTypeStubs]
     except ImportError as exc:
         raise RuntimeError("PyYAML is required by native KiCad pin parity") from exc
-    if not design_path.is_file() or design_path.suffix not in (".yaml", ".yml"):
+    if design_path.suffix not in (".yaml", ".yml"):
         raise ValueError("Provide a real, matching, local .yaml design source")
-    raw = design_path.read_bytes()
+    raw = read_regular_bytes(design_path, max_size=3 * 1024 * 1024)
     design = yaml.safe_load(raw)
     if not isinstance(design, dict) or not isinstance(design.get("components"), dict):
         raise ValueError("Design source missing canonical components")
@@ -1071,7 +1075,8 @@ def native_review_report_html(payload: dict) -> str:
         if source.count(f"__{key}__") != 1:
             raise RuntimeError(f"Missing or repeated evidence-template placeholder: {key}")
     matcher = re.compile("|".join(re.escape(f"__{key}__") for key in tokens))
-    return matcher.sub(lambda match: tokens[match.group(0)[2:-2]], source)
+    rendered = matcher.sub(lambda match: tokens[match.group(0)[2:-2]], source)
+    return apply_offline_csp(rendered)
 
 
 def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> dict:
@@ -1199,8 +1204,11 @@ def build(
     design_source: Path | None = None,
     workspace_home: Path | None = None,
 ) -> Path:
-    if not board.is_file() or board.suffix != ".kicad_pcb":
-        raise ValueError("Provide an existing native .kicad_pcb input")
+    if board.suffix != ".kicad_pcb" or board.is_symlink():
+        raise ValueError("Provide an existing nonsymlink native .kicad_pcb input")
+    read_regular_bytes(board, max_size=10 * 1024 * 1024)
+    if output.is_symlink():
+        raise ValueError("Refusing a symlinked native review output directory")
     cli = shutil.which("kicad-cli")
     if not cli:
         raise RuntimeError("Native kicad-cli must be installed")

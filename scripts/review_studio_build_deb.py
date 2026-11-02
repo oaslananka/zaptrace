@@ -45,6 +45,8 @@ APP_FILES = (
     "review_studio_library.py",
     "review_studio_workspace.py",
     "review_studio_native_kicad.py",
+    "review_studio_local_file_guard.py",
+    "review_studio_local_csp.py",
     "review_studio_schematic_eco.py",
     "review_studio_pcb_eco.py",
     "review_studio_change_diff.py",

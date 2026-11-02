@@ -15,6 +15,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from review_studio_local_csp import apply_offline_csp
 from review_studio_native_kicad import _read_kicad
 
 TEMPLATE = Path(__file__).with_name("review_studio_change_diff_template.html")
@@ -726,6 +727,7 @@ def create_review(
     if template.count("__CHANGE_DATA__") != 1:
         raise ValueError("Unsafe HTML review template contract")
     html = template.replace("__CHANGE_DATA__", json.dumps(document, ensure_ascii=True).replace("<", "\\u003c"))
+    html = apply_offline_csp(html)
     output.write_text(html)
     output.with_suffix(".state.json").write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
     return document

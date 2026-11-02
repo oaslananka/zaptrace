@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/review_studio_native_kicad.py"
+sys.path.insert(0, str(SCRIPT.parent))
 TEMPLATE = SCRIPT.with_name("review_studio_native_template.html")
 spec = importlib.util.spec_from_file_location("local_kicad_review", SCRIPT)
 assert spec is not None and spec.loader is not None
@@ -159,6 +161,40 @@ def test_explicit_paper_sizing_for_fourteen_real_components() -> None:
 def test_invalid_board_name_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match=r".kicad_pcb"):
         native.build(tmp_path / "no-board.txt", tmp_path / "out", TEMPLATE)
+
+
+def test_native_source_inputs_reject_symlinked_files(tmp_path: Path) -> None:
+    board = tmp_path / "source.kicad_pcb"
+    board.write_bytes(b"not an approved KiCad design")
+    board_link = tmp_path / "linked.kicad_pcb"
+    board_link.symlink_to(board)
+    with pytest.raises(ValueError, match="nonsymlink"):
+        native.build(board_link, tmp_path / "output", TEMPLATE)
+
+    schematic = tmp_path / "source.kicad_sch"
+    schematic.write_text("(kicad_sch)")
+    schematic_link = tmp_path / "linked.kicad_sch"
+    schematic_link.symlink_to(schematic)
+    with pytest.raises(ValueError, match="unsafe"):
+        native._export_schematic("kicad-cli", schematic_link, tmp_path / "output")
+
+    design = tmp_path / "design.yaml"
+    design.write_text("components: {}")
+    design_link = tmp_path / "linked.yaml"
+    design_link.symlink_to(design)
+    with pytest.raises(ValueError, match="unsafe"):
+        native.physical_pin_parity({}, {}, design_link)
+
+
+def test_native_review_output_rejects_symlink_directory(tmp_path: Path) -> None:
+    board = tmp_path / "source.kicad_pcb"
+    board.write_bytes(b"unapproved native input")
+    destination = tmp_path / "real-output"
+    destination.mkdir()
+    output_link = tmp_path / "output-link"
+    output_link.symlink_to(destination, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlinked native review output"):
+        native.build(board, output_link, TEMPLATE)
 
 
 def test_root_schematic_symbols_exclude_library_templates() -> None:
@@ -596,7 +632,8 @@ def test_locally_rendered_evidence_report_is_static_styled_and_deterministic() -
     payload["schematic"] = payload["schematic_meta"]
     generated = native.native_review_report_html(payload)
     assert generated == html_file.read_text(encoding="utf-8")
-    assert "default-src 'none'; style-src 'unsafe-inline'" in generated
+    assert "default-src 'none'; style-src 'sha256-" in generated
+    assert "unsafe-inline" not in generated
     assert "<script" not in generated.lower()
     assert "NOT FABRICATION APPROVED" in generated
     assert "16 violations" in generated and "12 pairs" in generated
