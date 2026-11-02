@@ -15,7 +15,22 @@ EXAMPLE = ROOT / "examples" / "esp32_i2c_sensor_node"
 
 def test_esp32_and_bme280_physical_pin_maps_match_documented_land_patterns() -> None:
     design = parse_file(EXAMPLE / "design.yaml")
-    assert design.components["U1"].package_pin_map == {
+    from zaptrace.library.loader import LibraryLoader
+
+    u1 = design.components["U1"]
+    assert u1.type == "ESP32-WROOM-32E"
+    assert u1.mpn == "ESP32-WROOM-32E-N16"
+    spec = LibraryLoader().get("esp32-wroom-32")
+    assert spec.mpn == "ESP32-WROOM-32E-N16"
+    assert spec.properties["flash_mb"] == 16
+    assert "32e_esp32-wroom-32ue_datasheet_en.html" in spec.datasheet
+    assert u1.footprint_asset == "esp32-wroom-32"
+    assert u1.footprint_def is not None
+    perimeter_pads = {str(pad.id): pad for pad in u1.footprint_def.pads if str(pad.id) != "39"}
+    assert set(perimeter_pads) == {str(number) for number in range(1, 39)}
+    assert all(perimeter_pads[number].size == (1.5, 0.9) for number in perimeter_pads)
+    assert len([pad for pad in u1.footprint_def.pads if str(pad.id) == "39"]) == 22
+    assert u1.package_pin_map == {
         "1": "GND",
         "2": "VCC",
         "3": "EN",

@@ -280,6 +280,120 @@ References: [Espressif ESP32-WROOM-32 datasheet](https://documentation.espressif
 [Advanced Monolithic Systems AMS1117 datasheet](https://datasheet.lcsc.com/lcsc/1811142212_Advanced-Monolithic-Systems-AMS1117-3-3_C6186.pdf),
 and [ST AN5225 USB Type-C current detection](https://www.st.com/content/ccc/resource/technical/document/application_note/group1/38/94/1d/41/0e/ba/49/21/DM00536349/files/DM00536349.pdf/jcr%3Acontent/translations/en.DM00536349.pdf).
 
+## Current module identity and low-friction power architecture — 2026-11-03
+
+### U1 orderable module identity correction
+
+The previous starter-library value ESP32-WROOM-32(16MB) was not an
+Espressif orderable part number: it mixed the original ESP32-WROOM-32 family
+name with a flash size that the official base-module datasheet does not offer.
+The original ESP32-WROOM-32 datasheet specifies **4 MB** and is marked
+**NRND**. The source design's existing 16 MB intent is now identified by the
+real orderable part **ESP32-WROOM-32E-N16**, listed in Espressif's official
+ESP32-WROOM-32E/32UE Datasheet v2.1.
+
+This is a metadata/part-identity correction, not a new footprint design:
+
+- ESP32-WROOM-32E-N16: 16 MB QSPI flash; module dimensions **18.0 × 25.5 ×
+  3.1 mm**; 38 numbered perimeter pins and ground thermal land.
+- The manufacturer pin table confirms GND/3V3/EN at pads 1/2/3, GND at
+  15/38, GPIO21 at 33 and GPIO22 at 36. These match the source net map.
+- The 32E recommended land pattern uses the same 18.0 × 25.5 mm module
+  outline and 38 × 1.5 × 0.9 mm perimeter lands. The retained, hash-pinned
+  footprint already has those 38 perimeter contacts plus the repeated pad-39
+  ground/thermal copper regions. **No footprint geometry, pad map, RF keepout,
+  drill or DRC rule was changed.**
+- The 32E-N16 orderable identity is now explicit in the source and starter
+  library. Starter-library provenance remains heuristic and distributor
+  stock/authorized procurement are not verified by this work.
+- The current v2.1 datasheet Table 16 gives (3.3 V, 25 °C) Wi-Fi TX average /
+  peak current: 802.11b 1 Mbps at 19.5 dBm **239 / 379 mA**; 802.11g
+  54 Mbps at 15 dBm **190 / 276 mA**; 802.11n MCS7 at 13 dBm **183 / 258 mA**.
+  RX is **112 mA** (20 MHz) or **118 mA** (40 MHz). These are mode-specific
+  characterization points, not a universal maximum for every firmware,
+  temperature or simultaneous peripheral load. Use 379 mA as a documented
+  RF transmit sizing point, then add other loads and design margin; do not
+  equate the previous 0.5 A supply-capability recommendation with continuous
+  draw.
+
+### Power architecture recommendation — keep Type-C simple, replace the LDO candidate
+
+The current USB-C connector has only the two 5.1 kΩ Rd sink terminations.
+ST AN5225 Rev 7 lists **5 V / 500 mA** as USB 2.0 default current, with
+1.5 A and 3 A as separate Type-C current advertisements. Therefore:
+
+- The passive-Rd implementation may use only the current actually advertised
+  by the compliant source; it must not assume 1.5 A or 3 A without detecting
+  the corresponding CC advertisement.
+- A CC controller is **not automatically required** for this fixed 5 V sink.
+  If the complete board is qualified to remain within the USB 2.0 default
+  current budget, the existing two Rd resistors are the simpler architecture.
+- Only if the product truly needs more than default current should a CC
+  detector be considered. TI TUSB320LAI is an active sink-capable CC
+  controller that detects default/medium/high current; it includes the UFP
+  Rd pulldown, so adopting it would mean removing the separate R3/R4 Rd
+  implementation and wiring the detector's output. It is not selected here.
+  USB PD / higher VBUS voltage is not required for this option.
+
+For U3, the strongest simple buck candidate found in the current vendor
+documentation is **TI TPSM82901**. It is active, accepts 3–17 V, supports
+1 A continuous output, integrates a 1 µH inductor in a **3.0 × 2.8 ×
+1.6 mm** MicroSiP, and has 4 µA typical power-save quiescent current.
+Its VSET table provides 3.3 V using 249 kΩ or larger/open. This is a
+candidate for evaluation, **not an approved BOM substitution**.
+
+The TPSM82901 datasheet's typical application uses 10 µF input and 22 µF
+output capacitance. Its recommended effective input capacitance is 3–10 µF;
+effective output capacitance is 10–100 µF at 2.5 MHz (6–50 µF at 1 MHz),
+with 22 µF nominal used in the reference application. It lists example
+TDK 0805 parts: **C3216X7R1E106K160AB** (10 µF, 25 V input) and
+**C2012X7S1A226M125AC** (22 µF, 10 V output). Actual effective capacitance
+under DC bias/tolerance must be checked. The present source has only C3
+100 nF at the 5 V input and C2 10 µF at the 3.3 V output, so a buck
+conversion would require a real input/output capacitor review and a layout
+redesign around the selected converter. Do not merely swap the U3 footprint.
+
+At the documented 379 mA ESP32 Wi-Fi TX peak, the module alone is
+approximately **1.25 W** at 3.3 V. Adding the BME280 typical H/P/T load and
+the two I²C pullups puts the known-load estimate close to 1.26 W before
+regulator quiescent current, other GPIO loads and design margin. Under
+illustrative buck efficiencies of 75–85%, the idealized 5 V input current
+for 1.26 W is about **296–336 mA**. These are arithmetic scenarios, not
+claimed TPSM82901 efficiency values at 5 V. The TPSM82901's published 3.3 V
+efficiency curves begin at 6 V input, so 5 V efficiency, transient response,
+board thermal derating, USB cable drop and complete load current must be
+validated. At the same 379 mA output sizing point, an AMS1117 linear
+regulator would dissipate approximately **0.64 W at 5.0 V in** (and 0.83 W
+at 5.5 V), before additional loads. A buck can therefore leave materially
+more 5 V input-current and thermal headroom than a linear regulator whose
+input current is approximately its output current. The source must still
+stay within its Type-C current advertisement and include operating margin.
+A 500 mA USB2 default limit should not be treated as a target to consume
+fully.
+
+### Decision
+
+The preferred next architecture to prototype is **fixed 5 V Type-C sink at
+default advertised current + integrated-inductor 3.3 V buck**, retaining the
+existing Rd behavior and not adding a CC controller unless a measured
+system power budget demonstrates a need above default current. Keep the
+existing 0.50 mm high-current power-trunk rule until actual load/transient
+current and temperature are qualified. No narrower branch width is approved.
+
+No U3/C2/C3 replacement or power routing has been performed in this change.
+Before choosing TPSM82901, build a small, reviewable candidate schematic
+and footprint, validate VSET=3.3 V, input/output effective capacitance,
+soft-start/EN, power-good handling, RF noise coupling, placement, native
+KiCad DRC and thermal conditions. Compare it to the AMS1117 baseline using
+the actual ESP32 transient profile. The candidate must not be enabled in the
+default pipeline before those checks pass.
+
+References: [Espressif ESP32-WROOM-32E / 32UE datasheet v2.1](https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html),
+[Espressif original ESP32-WROOM-32 v3.8 datasheet](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html),
+[TI TPSM82901 datasheet](https://www.ti.com/lit/gpn/TPSM82901),
+[TI TUSB320LAI product and datasheet](https://www.ti.com/product/TUSB320LAI),
+and [ST AN5225 Rev 7](https://www.st.com/resource/en/application_note/dm00536349.pdf).
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)
@@ -323,13 +437,14 @@ offending object and location signatures, not merely by category count.
   changing a via count, or removing thermal vias may also invalidate module
   footprint clearances, paste deposition, heat flow and supplier pin/pad
   provenance. None may be done as a blind DRC fix.
-- The design specifically uses **ESP32-WROOM-32**, not ESP32-C3-MINI-1 or
-  another WROOM variant. [Espressif's ESP32-WROOM-32 datasheet](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
-  contains the recommended land pattern with thermal-pad vias and labels
-  this original module **NRND (Not Recommended For New Designs)**.
-  Any replacement module requires its **own** verified land pattern, pad/pin
-  mapping, RF/antenna layout, availability and electrical qualification;
-  a similarly named module cannot be silently substituted.
+- At the original 2026-11-02 baseline the design identified the base
+  ESP32-WROOM-32 module. On 2026-11-03 that source identity was corrected to
+  the exact 16 MB orderable **ESP32-WROOM-32E-N16**. The base ESP32-WROOM-32
+  is a 4 MB NRND product; the 32E-N16 datasheet v2.1 has the matching
+  18 × 25.5 × 3.1 mm module outline, 38-pin map and compatible land pattern.
+  The retained footprint and pad map were checked against the 32E drawing;
+  no footprint geometry or RF keepout was changed. Availability and
+  procurement are not verified.
 
 ### Independent D1 what-if board trials — 2026-11-02 (NOT approved)
 

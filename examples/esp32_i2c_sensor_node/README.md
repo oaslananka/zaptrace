@@ -1,6 +1,6 @@
 # ESP32 I²C Sensor Node — generated design and real validation failures
 
-This example is the existing ESP32-WROOM-32 + BME280 sensor-node source design.
+This example uses the ESP32-WROOM-32E-N16 + BME280 sensor-node source design.
 It is a **working generation-and-inspection demo**, **not a passed release
 candidate**. ZapTrace can generate placement, routing, KiCad project files,
 reviewable SVG/HTML, Gerber layers, and a manufacturing bundle. With
@@ -167,10 +167,10 @@ be substituted for KiCad CLI acceptance.
 
 ## What's verified and what isn't
 
-The demo now explicitly maps ESP32-WROOM-32 module pads (including GPIO21
+The demo now explicitly maps ESP32-WROOM-32E-N16 module pads (including GPIO21
 physical pad 33 and GPIO22 physical pad 36) and the Bosch BME280 LGA-8 pads
 to their **logical** pin names, based on their respective official datasheets:
-[Espressif ESP32-WROOM-32](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
+[Espressif ESP32-WROOM-32E / 32UE](https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html)
 and [Bosch BME280](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
 BME280 VDDIO (physical pad 6) is now explicitly on the 3.3 V supply,
 rather than silently absent from the source schematic. Additional exact

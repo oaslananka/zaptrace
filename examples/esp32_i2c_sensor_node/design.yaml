@@ -1,7 +1,7 @@
 meta:
   name: "ESP32 I2C Sensor Board"
   version: "0.1.0"
-  description: "ESP32-WROOM-32 with BME280 temperature/humidity/pressure sensor via I2C"
+  description: "ESP32-WROOM-32E-N16 with BME280 temperature/humidity/pressure sensor via I2C"
   tags: ["esp32", "i2c", "sensor", "bme280", "wifi", "ble"]
 
 board:
@@ -38,11 +38,14 @@ components:
   U1:
     id: "U1"
     ref: "U1"
-    type: "ESP32-WROOM-32"
+    type: "ESP32-WROOM-32E"
+    mpn: "ESP32-WROOM-32E-N16"
     footprint: "ESP32-WROOM-32"
     footprint_asset: "esp32-wroom-32"
-    # Official Espressif ESP32-WROOM-32 physical module pad numbers.
-    # The pinned module pad geometry is loaded; full board review is still required.
+    # Exact 16MB orderable variant: ESP32-WROOM-32E-N16.
+    # Its official v2.1 datasheet confirms the same 18 x 25.5 x 3.1 mm
+    # outline and 38-pin numbering; the retained pinned footprint is checked
+    # against the 32E land pattern. Full RF/thermal board review still applies.
     package_pin_map:
       "1": "GND"
       "2": "VCC"
