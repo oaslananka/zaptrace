@@ -93,13 +93,13 @@ is genuinely corrected and rechecked by the KiCad oracle and a qualified
 hardware engineer. Do not fabricate from this example.
 The tracked engineering follow-up is
 [issue #91](https://github.com/oaslananka/zaptrace/issues/91).
-An independent manufacturer capability review and **thirty genuine
-pad-connected routes, one existing-via stitch and one verified U3 pad-to-via
-link** (81 copper segments, eleven 0.30 mm drilled through-vias;
-37→5 unconnected; native DRC still 16) are documented in
+An independent manufacturer capability review and **thirty-one genuine
+pad-connected routes, one existing-via stitch and one U3 pad-to-via
+link** (84 copper segments, thirteen 0.30 mm drilled through-vias;
+37→4 unconnected; native DRC still 16) are documented in
 [MANUFACTURING_REVIEW.md](MANUFACTURING_REVIEW.md). The default pipeline
 remains fail-closed and exports **zero routed tracks**; the optional review PCB
-still has 5 missing native physical connections and is **not fabrication-ready**.
+still has 4 missing native physical connections and is **not fabrication-ready**.
 For the twelve ESP32 thermal-pad drill errors and four USB-C locating-hole
 clearance errors, see the separate [fabrication DFM decision record](DFM_DECISION_91.md):
 written board-specific supplier confirmation versus a fully requalified

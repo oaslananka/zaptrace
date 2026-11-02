@@ -25,8 +25,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 30
-    assert sum(len(route.points) - 1 for route in ROUTES) == 78
+    assert len(ROUTES) == 31
+    assert sum(len(route.points) - 1 for route in ROUTES) == 81
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
@@ -48,14 +48,14 @@ def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints(
 
 
 def test_vcc3v3_via_stitch_joins_only_verified_route_via_terminals() -> None:
-    assert len(ROUTES) == 30
+    assert len(ROUTES) == 31
     assert VIA_STITCHES == (("VCC_3V3", (45.1, 61.6), (53.1, 58.8)),)
     via_terminals = {(route.net, point) for route in ROUTES for point in route.via_points}
     assert VIA_STITCHES[0][1] != VIA_STITCHES[0][2]
     for net, start, end in VIA_STITCHES:
         assert (net, start) in via_terminals
         assert (net, end) in via_terminals
-    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) == 79
+    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) == 82
 
 
 def test_32nd_real_connection_joins_u3_power_pad_to_known_same_net_via() -> None:
@@ -66,7 +66,20 @@ def test_32nd_real_connection_joins_u3_power_pad_to_known_same_net_via() -> None
     assert link.layer_transition == (62.4, 36.4)
     assert link.existing_via == (57.1, 58.8)
     assert (link.net, link.existing_via) in {(route.net, xy) for route in ROUTES for xy in route.via_points}
-    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS) == 81
+    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS) == 84
+
+
+def test_native_usb_c_two_vbus_contacts_have_distinct_pad_center_and_via_paths() -> None:
+    matches = [
+        route
+        for route in ROUTES
+        if route.net == "VCC_5V" and route.source[:2] == ("J1", "A4") and route.target[:2] == ("J1", "B4")
+    ]
+    assert len(matches) == 1
+    route = matches[0]
+    assert route.points == ((77.6, 63.32), (78.2, 65.5), (81.8, 65.5), (82.4, 63.32))
+    assert route.segment_layers == ("F.Cu", "B.Cu", "F.Cu")
+    assert route.via_points == ((78.2, 65.5), (81.8, 65.5))
 
 
 def test_new_ground_connection_is_verified_pad_center_to_pad_center() -> None:
@@ -333,11 +346,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 5
+    after += "[unconnected_items]: gap\n" * 4
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 5}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 4}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()
