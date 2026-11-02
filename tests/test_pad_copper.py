@@ -76,6 +76,33 @@ def test_smd_top_only_does_not_reserve_bottom_layer() -> None:
     assert not ctx.obstacles.can_place_through_via(bottom, "foreign", 1)
 
 
+def test_preexpanded_track_reservation_does_not_dilate_static_pad_masks_again() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    obs.mark_pad(GridPos(10, 10), "B")
+    # The static clearance raster has already reserved the one-cell halo.
+    obs.mark_pad_clearance(GridPos(9, 10), "B")
+    assert obs.is_free(GridPos(8, 10), "A")
+    obs.block_line(GridPos(8, 10), GridPos(8, 10), radius=2, net_id="A")
+    assert obs.owner(GridPos(8, 10)) == "A"
+    # The clearance envelope is not materialized a second time.
+    assert obs.owner(GridPos(9, 10)) is None
+    # But subsequent routes still see the real dynamic track clearance.
+    assert not obs.is_corridor_free(GridPos(9, 10), "B", 1)
+
+
+def test_preexpanded_track_reservation_still_blocks_foreign_dynamic_copper() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    obs.block_line(GridPos(10, 10), GridPos(10, 10), radius=0, net_id="B")
+    with pytest.raises(ValueError, match="Copper clearance"):
+        obs.block_line(GridPos(11, 10), GridPos(11, 10), radius=1, net_id="A")
+    with pytest.raises(ValueError, match="Copper clearance"):
+        obs.block_line(GridPos(10, 10), GridPos(10, 10), radius=0, net_id="A")
+
+
 def test_preexpanded_pad_clearance_is_not_dilated_twice() -> None:
     obs = ObstacleMap(30, 30, 1)
     obs.mark_pad(GridPos(10, 10), "A")

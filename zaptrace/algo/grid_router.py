@@ -56,6 +56,29 @@ DIRECTIONS_8: list[tuple[int, int, float]] = [
 # ---------------------------------------------------------------------------
 
 
+def _bresenham_points(x0: int, y0: int, x1: int, y1: int) -> list[tuple[int, int]]:
+    """Return every integer grid point on a Bresenham centreline."""
+    points: list[tuple[int, int]] = []
+    dx = abs(x1 - x0)
+    sx = 1 if x0 < x1 else -1
+    dy = -abs(y1 - y0)
+    sy = 1 if y0 < y1 else -1
+    err = dx + dy
+    x, y = x0, y0
+    while True:
+        points.append((x, y))
+        if x == x1 and y == y1:
+            break
+        twice = 2 * err
+        if twice >= dy:
+            err += dy
+            x += sx
+        if twice <= dx:
+            err += dx
+            y += sy
+    return points
+
+
 @dataclass(frozen=True)
 class GridPos:
     """Integer position on the routing grid."""
@@ -304,15 +327,37 @@ class ObstacleMap:
                 y += sy
 
         if net_id is not None:
-            if any(
-                self.owner(point) not in (None, net_id)
-                or point in self._pad_conflicts
-                or (point in self._pads and self._pads[point] != net_id)
-                or (self.enforce_static_clearance and self._cells[point.layer][point.y][point.x])
-                for point in reservations
-            ):
-                raise ValueError("Copper clearance is reserved by another net or a static obstacle")
-            self._copper.update({point: net_id for point in reservations})
+            if self.preexpanded_static_clearance:
+                # Static pad/NPTH halos already include trace half-width,
+                # copper clearance and grid uncertainty. Validate those
+                # masks at the actual centreline, not again across the
+                # dynamic track-radius envelope. Dynamic copper and hard
+                # raster obstacles still receive the full clearance radius.
+                centreline = {GridPos(x, y, p0.layer) for x, y in _bresenham_points(p0.x, p0.y, p1.x, p1.y)}
+                if any(
+                    not self.is_free(point, net_id)
+                    or any(
+                        not self.in_bounds(probe)
+                        or self._cells[probe.layer][probe.y][probe.x]
+                        or self.owner(probe) not in (None, net_id)
+                        for dy in range(-radius, radius + 1)
+                        for dx in range(-radius, radius + 1)
+                        for probe in (GridPos(point.x + dx, point.y + dy, point.layer),)
+                    )
+                    for point in centreline
+                ):
+                    raise ValueError("Copper clearance is reserved by another net or a static obstacle")
+                self._copper.update({point: net_id for point in centreline})
+            else:
+                if any(
+                    self.owner(point) not in (None, net_id)
+                    or point in self._pad_conflicts
+                    or (point in self._pads and self._pads[point] != net_id)
+                    or (self.enforce_static_clearance and self._cells[point.layer][point.y][point.x])
+                    for point in reservations
+                ):
+                    raise ValueError("Copper clearance is reserved by another net or a static obstacle")
+                self._copper.update({point: net_id for point in reservations})
 
     def dilate(self, radius: int) -> None:
         """Expand every blocked cell by ``radius`` cells (Manhattan)."""
