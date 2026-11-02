@@ -11,6 +11,19 @@
 .skip-to-content{position:absolute;z-index:50;top:8px;left:16px;transform:translateY(-160%);background:#f0f6fd;color:#080e18;border:2px solid #57b6f3;border-radius:8px;padding:10px 14px;font-weight:800}
 .skip-to-content:focus-visible{transform:none;outline:3px solid #57b6f3;outline-offset:3px}
 #reviewMain:focus{outline:none}
+.decision-brief{grid-column:1/-1;border-color:#598f9d;background:linear-gradient(110deg,#152c3a 0%,#111f30 70%,#182331 100%)}
+.decision-brief .brief-heading{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+.decision-brief .brief-heading h2{margin:4px 0 0}
+.brief-state{border:1px solid #ac805d;border-radius:8px;padding:7px 10px;color:#ffdab0;font-weight:800;letter-spacing:.04em}
+.brief-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:16px 0}
+.brief-item{border:1px solid #4b677c;background:#0e2032;border-radius:10px;padding:13px;min-width:0}
+.brief-item h3{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:#bcd5e6;margin:0 0 8px}
+.brief-item p{line-height:1.55;overflow-wrap:anywhere}
+.brief-links{display:flex;flex-wrap:wrap;gap:9px}
+.brief-links a{color:#e7f6ff;border:1px solid #64849c;background:#17364b;border-radius:8px;padding:10px 12px;min-height:44px;display:inline-flex;align-items:center;font-weight:750}
+.brief-links a:focus-visible{outline:3px solid #85d6ff;outline-offset:3px}
+@media(max-width:950px){.brief-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:530px){.brief-grid{grid-template-columns:1fr}.brief-links a{flex:1 1 auto}}
 header{border-bottom:1px solid var(--border);padding:16px clamp(16px,4vw,50px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:#0d1724}
 .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);font-weight:750}h1{font-size:clamp(22px,2.4vw,30px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{margin:7px 0}.hash{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace;color:#b7d5e6}
 .status{border:1px solid var(--orange);color:#ffe6ca;border-radius:8px;padding:8px 12px;font-weight:700;max-width:350px}
@@ -83,9 +96,28 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <div class="status" role="status">Human review required · No fabrication approval</div>
 </header>
 <main class="layout" id="reviewMain" tabindex="-1">
+<section class="card decision-brief" aria-labelledby="decisionBriefTitle">
+ <div class="brief-heading">
+  <div><div class="overline">Source-bound decision overview · not approval</div>
+   <h2 id="decisionBriefTitle">Review this change before deciding</h2></div>
+  <span class="brief-state" id="briefStatus">HUMAN REVIEW REQUIRED</span>
+ </div>
+ <p class="muted">Exact review state <code id="briefStateHash">Loading…</code> · original and proposed PCB copies remain unchanged.</p>
+ <div class="brief-grid">
+  <div class="brief-item"><h3>What changed?</h3><p id="briefChange">Reading native PCB changes…</p></div>
+  <div class="brief-item"><h3>What blocks trust?</h3><p id="briefRisk">Checking native evidence boundaries…</p></div>
+  <div class="brief-item"><h3>What evidence exists?</h3><p id="briefEvidence">Identifying verified and missing checks…</p></div>
+  <div class="brief-item"><h3>What should I do?</h3><p id="briefNext">Choose an unsigned review outcome after inspection.</p></div>
+ </div>
+ <nav class="brief-links" aria-label="Review this exact design state">
+  <a href="#changeTitle">Inspect actual change</a>
+  <a href="#verificationTitle">Inspect engineering evidence</a>
+  <a href="#reviewDecisionTitle">Record unsigned decision</a>
+ </nav>
+</section>
 <section class="card primary" aria-label="Exact proposed design change">
 <div class="overline">01 / Native design-state comparison</div>
-<h2 id="changeTitle">Loading source-linked change…</h2>
+<h2 id="changeTitle" tabindex="-1">Loading source-linked change…</h2>
 <p id="changeExplanation" class="muted"></p>
 <div id="pcbChangePicker" class="sch-findings-list" role="group"
  aria-label="Select an individually verified footprint movement" hidden></div>
@@ -176,7 +208,7 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 </section>
 <div class="side">
 <section class="card" aria-label="Actual native verification evidence">
-<div class="overline">02 / Engineering evidence</div><h2>What can be trusted?</h2>
+<div class="overline">02 / Engineering evidence</div><h2 id="verificationTitle" tabindex="-1">What can be trusted?</h2>
 <div class="row"><span>Native PCB DRC checks</span><strong id="ruleCounts"></strong></div>
 <div class="row"><span>KiCad version</span><strong id="engine"></strong></div>
 <div class="row"><span>Rules explicitly ignored by KiCad</span><strong id="ignored"></strong></div>
@@ -201,7 +233,7 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <p class="notice">The original and proposed project/custom-rule files are individually checked against matching SHA-256 hashes when present. This binds the local decision state to those rule bytes, but does not independently certify all effective KiCad rules. A zero-new-violation PCB DRC result cannot authorize fabrication or imply schematic/ERC parity.</p>
 </section>
 <section class="card" aria-label="State-bound human review decision">
-<div class="overline">03 / Human decision · unsigned session</div><h2>What should happen next?</h2>
+<div class="overline">03 / Human decision · unsigned session</div><h2 id="reviewDecisionTitle" tabindex="-1">What should happen next?</h2>
 <label for="decision">Review outcome</label>
 <select id="decision">
  <option value="investigate">Defer · investigate missing evidence</option>
@@ -290,7 +322,30 @@ function update(){
 for(const btn of document.querySelectorAll("[data-view]")){
  btn.addEventListener("click",()=>{view=btn.dataset.view;update();});
 }
+function initDecisionBrief(){
+ const drc=DATA.drc,sch=DATA.schematic,cp=DATA.crossprobe;
+ const names=DATA.changed.map(change=>change.ref).join(", ");
+ $("briefStateHash").textContent=DATA.state_hash;
+ $("briefChange").textContent=DATA.changed.length+" native footprint movement(s): "+names+
+  ". Positions are measured in the source and proposed KiCad PCB copies.";
+ $("briefRisk").textContent="FABRICATION BLOCKED · "+drc.after_rules+
+  " proposed PCB DRC violations and "+drc.after_open+
+  " open copper connections reported. Electrical/DFM and human approval remain unverified.";
+ let crossprobe="NOT CHECKED";
+ if(cp){
+  if(cp.scoped_pin_net_consistent)crossprobe="SCOPED MATCH ONLY";
+  else if(cp.totals.mismatch)crossprobe="MISMATCH";
+  else crossprobe="UNVERIFIABLE";
+ }
+ $("briefEvidence").textContent="Native PCB DRC reported ("+drc.before_rules+
+  " → "+drc.after_rules+"). Schematic/ERC: "+(sch?"REPORTED (not full parity)":"NOT CHECKED")+
+  ". Pin/net crossprobe: "+crossprobe+".";
+ $("briefNext").textContent=drc.after_rules>0||drc.after_open>0?
+  "Inspect the native blockers and request repair, reject, or defer. Save only an unsigned review record.":
+  "Inspect missing electrical/DFM evidence and select defer, repair or reject. A local decision never authorizes fabrication.";
+}
 function init(){
+ initDecisionBrief();
  $("nativeCurrent").src=DATA.native_svg.current.uri;
  $("nativeProposed").src=DATA.native_svg.proposed.uri;
  $("nativeArtEvidence").textContent="Native KiCad vector SHA current "+DATA.native_svg.current.sha256.slice(0,16)+"… · proposed "+DATA.native_svg.proposed.sha256.slice(0,16)+"…";

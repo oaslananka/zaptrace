@@ -42,6 +42,10 @@ When editing is needed, Review Studio should send users back to the source EDA t
 6. **Authenticated identity only.** Reviewer identity comes from the authenticated request principal; client-supplied reviewer names are never trusted as sign-off identity.
 7. **Automated pass is not human approval.** `automated_gate_status` and `fabrication_status` are separate fields and must remain visibly distinct.
 
+### Native offline decision overview
+
+The source-bound KiCad PCB comparison places a compact decision overview before its detailed inspection panels: actual measured footprint changes, reported DRC/open-connection risk, the distinction between available and missing schematic/pin-net evidence, and an unsigned next action. Its visible state identity uses the same exact review hash as the imported/exported local decision; navigation leads to the underlying native evidence, rather than substituting for it. A reported DRC result or scoped pin/net match is never electrical/DFM clearance, verified reviewer identity, or fabrication approval.
+
 ## Core Screens
 
 ### 1. Project Overview
