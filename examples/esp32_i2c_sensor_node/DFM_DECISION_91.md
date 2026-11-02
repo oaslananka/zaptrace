@@ -122,13 +122,16 @@ NPTH holes, board hard obstacles and the route width/clearance. The unassigned
 J1 B7/B8/A8/A9 contacts remain physical obstacles. No endpoint cells are
 opened and no width reduction is applied.
 
-On the unchanged ESP32 source, the opt-in router proposes **3 of 7 nets**:
-USB_CC1, USB_CC2 and I2C_SCL; **27 copper segments, 0 vias**. The default
-source pipeline/export contract is unchanged: **0 accepted source tracks**,
-seven unresolved nets, and physical preflight still fails. This candidate
-is not a complete board route.
+On the unchanged ESP32 source, the opt-in router now proposes **4 of 7 nets**:
+USB_CC1, USB_CC2, I2C_SCL and the four-terminal I2C_SDA tree; **47 copper
+segments, 0 vias**. Multi-terminal fan-out is deliberately bounded: one
+nearest legal geometric escape anchor per terminal and one deterministic
+MST attempt (no Cartesian candidate expansion). The default source
+pipeline/export contract is unchanged: **0 accepted source tracks**, seven
+unresolved nets, and physical preflight still fails. This candidate is not
+a complete board route.
 
-For an independent native check, the 27 tracks were added to a temporary
+For an independent native check, the 47 tracks were added to a temporary
 copy of the regenerated default KiCad PCB using KiCad 10.0.8 Python
 bindings. Native result:
 
@@ -137,9 +140,9 @@ bindings. Native result:
 | Schematic ERC | 0 | 0 |
 | PCB DRC violation records | 16 | **16 (exact same 16 records)** |
 | New DRC records | — | **0** |
-| Unconnected items | 37 | **32** |
+| Unconnected items | 37 | **29** |
 
-The candidate removes five native unconnected relations while preserving
+The candidate removes eight native unconnected relations while preserving
 the two physical DRC groups exactly: twelve U1.39 drill-size errors and
 four J1 NPTH-to-GND clearance observations. No electrical/physical rule was
 waived and no DRC was hidden. The remaining routing nets and U1/J1 DRC

@@ -766,6 +766,12 @@ class GridRouter:
             return []
         route_class = get_net_class(design, net.id)
         route_rule = kb.get_rule(route_class)
+        # No taper/neck-down exists yet: a constant-width trace must fit the
+        # physical pad at its launch cross-section. Reject undersized pads
+        # instead of inventing a wider-than-pad connection.
+        own_width = min(float(own_pad.size[0]), float(own_pad.size[1]))
+        if own_width + 1e-6 < route_rule.trace_width:
+            return []
         board = canonical_board_definition(design)
         net_owners: dict[tuple[str, str], str] = {}
         for candidate_net in design.nets.values():
@@ -814,11 +820,16 @@ class GridRouter:
                 required = route_rule.trace_width / 2 + clearance
                 if is_npth and other_pad.drill is not None:
                     required += float(other_pad.drill) / 2
+                # Pads outside this reach cannot intersect any candidate stub;
+                # avoid testing every board footprint for every sampled point.
+                pad_radius = math.hypot(float(other_pad.size[0]), float(other_pad.size[1])) / 2
+                if math.dist(exact, center) > max_distance_mm + required + pad_radius:
+                    continue
                 required_by_pad.append((other_pad, center, required, is_npth, other_rotation))
 
-        candidates: list[tuple[float, int, int]] = []
         radius_cells = int(math.ceil(max_distance_mm / self.resolution))
-        samples_per_mm = max(20, int(math.ceil(1.0 / self.resolution * 8)))
+        samples_per_mm = max(12, int(math.ceil(1.0 / self.resolution * 4)))
+        ordered_points: list[tuple[float, int, int]] = []
         for gx in range(
             max(1, round(exact[0] / self.resolution) - radius_cells),
             min(context.grid_w - 1, round(exact[0] / self.resolution) + radius_cells + 1),
@@ -829,50 +840,56 @@ class GridRouter:
             ):
                 endpoint = (gx * self.resolution, gy * self.resolution)
                 length = math.dist(exact, endpoint)
-                if length < 0.5 or length > max_distance_mm:
-                    continue
-                if point_in_pad_copper(own_pad, exact, endpoint, context.rotation_by_ref[component.ref]):
-                    continue
-                anchor = GridPos(gx, gy, layer)
-                if not context.obstacles.is_free(anchor, net.id):
-                    continue
-                legal = True
-                sample_count = max(2, int(math.ceil(length * samples_per_mm)))
-                for step in range(1, sample_count + 1):
-                    ratio = step / sample_count
-                    x = exact[0] + (endpoint[0] - exact[0]) * ratio
-                    y = exact[1] + (endpoint[1] - exact[1]) * ratio
-                    sample_grid = GridPos(
-                        int(round(x / self.resolution)),
-                        int(round(y / self.resolution)),
-                        layer,
-                    )
-                    if (
-                        not context.obstacles.in_bounds(sample_grid)
-                        or context.obstacles._cells[layer][sample_grid.y][sample_grid.x]
-                        or context.obstacles.owner(sample_grid) not in (None, net.id)
-                    ):
+                if 0.5 <= length <= max_distance_mm:
+                    ordered_points.append((length, gx, gy))
+        ordered_points.sort()
+
+        candidates: list[tuple[int, int]] = []
+        for length, gx, gy in ordered_points:
+            endpoint = (gx * self.resolution, gy * self.resolution)
+            if point_in_pad_copper(own_pad, exact, endpoint, context.rotation_by_ref[component.ref]):
+                continue
+            anchor = GridPos(gx, gy, layer)
+            if not context.obstacles.is_free(anchor, net.id):
+                continue
+            legal = True
+            sample_count = max(2, int(math.ceil(length * samples_per_mm)))
+            for step in range(1, sample_count + 1):
+                ratio = step / sample_count
+                x = exact[0] + (endpoint[0] - exact[0]) * ratio
+                y = exact[1] + (endpoint[1] - exact[1]) * ratio
+                sample_grid = GridPos(
+                    int(round(x / self.resolution)),
+                    int(round(y / self.resolution)),
+                    layer,
+                )
+                if (
+                    not context.obstacles.in_bounds(sample_grid)
+                    or context.obstacles._cells[layer][sample_grid.y][sample_grid.x]
+                    or context.obstacles.owner(sample_grid) not in (None, net.id)
+                ):
+                    legal = False
+                    break
+                for other_pad, center, required, is_npth, other_rotation in required_by_pad:
+                    dx, dy = x - center[0], y - center[1]
+                    if is_npth:
+                        drill = float(other_pad.drill or 0.0)
+                        distance = math.hypot(dx, dy) - drill / 2
+                    else:
+                        angle = math.radians(-(float(other_pad.rotation) + other_rotation))
+                        local_x = math.cos(angle) * dx + math.sin(angle) * dy
+                        local_y = -math.sin(angle) * dx + math.cos(angle) * dy
+                        distance = _distance_in_local_shape(local_x, local_y, other_pad)
+                    if distance + 1e-6 < required:
                         legal = False
                         break
-                    for other_pad, center, required, is_npth, other_rotation in required_by_pad:
-                        dx, dy = x - center[0], y - center[1]
-                        if is_npth:
-                            drill = float(other_pad.drill or 0.0)
-                            distance = math.hypot(dx, dy) - drill / 2
-                        else:
-                            angle = math.radians(-(float(other_pad.rotation) + other_rotation))
-                            local_x = math.cos(angle) * dx + math.sin(angle) * dy
-                            local_y = -math.sin(angle) * dx + math.cos(angle) * dy
-                            distance = _distance_in_local_shape(local_x, local_y, other_pad)
-                        if distance + 1e-6 < required:
-                            legal = False
-                            break
-                    if not legal:
-                        break
-                if legal:
-                    candidates.append((length, gx, gy))
-        candidates.sort()
-        return [(gx, gy) for _, gx, gy in candidates[:max_candidates]]
+                if not legal:
+                    break
+            if legal:
+                candidates.append((gx, gy))
+                if len(candidates) >= max_candidates:
+                    break
+        return candidates
 
     def _try_pad_fanout(
         self,
@@ -885,21 +902,19 @@ class GridRouter:
         rule: Any,
     ) -> tuple[list[list[GridPos]], list[tuple[tuple[float, float], tuple[float, float]]]] | None:
         """Try exact geometric pad stubs before continuing A* between anchors."""
-        if len(net.nodes) != 2:
-            # Multi-terminal fanout needs a bounded Steiner/escape search;
-            # do not fan out combinatorially in the per-net A* hot path.
+        if len(net.nodes) < 2 or len(net.nodes) > 4:
             return None
         exact_points = self._collect_net_route_points(net, context)
         if len(exact_points) != len(net.nodes):
             return None
         candidate_sets: list[list[tuple[int, int]]] = []
-        max_anchors = 12
+        max_anchors = 12 if len(net.nodes) == 2 else 1
         for node, exact in zip(net.nodes, exact_points, strict=True):
             candidates: list[tuple[int, int]] = []
             direct = self._to_grid_point(exact, context)
             direct_pad = self._pad_for_pin(context.component_by_ref[node.component_ref], node.pin_name)
             snapped = (direct[0] * self.resolution, direct[1] * self.resolution)
-            if (
+            if len(net.nodes) == 2 and (
                 direct_pad is not None
                 and point_in_pad_copper(
                     direct_pad,
@@ -919,16 +934,19 @@ class GridRouter:
                     context,
                     kb,
                     layer,
-                    max_candidates=max_anchors - 1,
+                    max_candidates=max(1, max_anchors - 1),
                 )
             )
             candidate_sets.append(list(dict.fromkeys(candidates[:max_anchors])))
         if any(not candidates for candidates in candidate_sets):
             return None
 
-        # Two-terminal fanout is bounded by the candidate cap above. A
-        # multi-terminal Steiner search is intentionally out of scope here.
-        for selected in product(*candidate_sets):
+        # Two-terminal nets retain the wider bounded escape search. For
+        # three/four terminals, use only the nearest legal anchor per pad
+        # and exactly one deterministic MST attempt; do not run a Cartesian
+        # Steiner search in the routing hot path.
+        selections = product(*candidate_sets) if len(net.nodes) == 2 else [tuple(x[0] for x in candidate_sets)]
+        for selected in selections:
             staged = context.obstacles.clone()
             anchors = [GridPos(*point, layer) for point in selected]
             grid_sources = [GridPos(*self._to_grid_point(exact, context), layer) for exact in exact_points]
@@ -1004,11 +1022,11 @@ class GridRouter:
         clear_cells = max(int(math.ceil(rule.clearance / self.resolution)), 1)
         grid_positions = [self._to_grid_point(point, context) for point in route_points]
         pad_stubs: list[tuple[tuple[float, float], tuple[float, float]]] = []
+        requires_geometric_fanout = False
         if self.pad_aware:
-            # The grid rarely coincides with exact manufacturer pad centres.
-            # Snap only to an anchor actually inside the same pad's copper;
-            # then emit a real, short centre-to-anchor trace. Merely treating
-            # the snapped point as electrically connected would be false.
+            # Prefer an interior grid anchor when it is genuinely inside the
+            # same pad copper. Otherwise defer this terminal to the exact
+            # geometric pad-fanout planner instead of silently failing it.
             if len(route_points) != len(net.nodes):
                 return _GridNetPlan(True, False, net.id)
             accessible: set[int] = set(range(context.num_layers))
@@ -1020,18 +1038,17 @@ class GridRouter:
                 accessible.intersection_update(copper_layers(pad, context.num_layers))
                 snapped = (grid[0] * self.resolution, grid[1] * self.resolution)
                 if not point_in_pad_copper(pad, exact, snapped, context.rotation_by_ref[node.component_ref]):
-                    return _GridNetPlan(True, False, net.id)
+                    requires_geometric_fanout = True
+                    continue
+                if not context.obstacles.is_free(GridPos(*grid, layer), net_id=net.id):
+                    requires_geometric_fanout = True
+                    continue
                 if math.dist(exact, snapped) > 1e-6:
                     pad_stubs.append((exact, snapped))
             if not accessible:
-                # A top-only and bottom-only SMD pair requires a validated via.
                 return _GridNetPlan(True, False, net.id)
             if layer not in accessible:
                 layer = min(accessible)
-            if any(not context.obstacles.is_free(GridPos(*grid, layer), net_id=net.id) for grid in grid_positions):
-                # Even an interior pad anchor cannot alias a foreign pad's
-                # reserved cell or a blocked mechanical/edge keepout.
-                return _GridNetPlan(True, False, net.id)
         # A failed later MST edge must not leave earlier edges, or cleared
         # component cells, in the committed map.
         staged = context.obstacles.clone()
@@ -1049,17 +1066,19 @@ class GridRouter:
         if not self.pad_aware:
             for gx, gy in grid_positions:
                 self._unblock_endpoint(staged, GridPos(gx, gy, layer), max(clear_cells, 1), net_id=net.id)
-        edge_paths = self._route_mst_paths(
-            staged_context,
-            grid_positions,
-            layer,
-            clear_cells,
-            net.id,
-            max_vias=rule.max_vias if self.pad_aware else None,
-        )
-        if edge_paths is not None:
-            context.obstacles = staged
-        elif self.pad_aware and len(net.nodes) == 2:
+        edge_paths = None
+        if not requires_geometric_fanout:
+            edge_paths = self._route_mst_paths(
+                staged_context,
+                grid_positions,
+                layer,
+                clear_cells,
+                net.id,
+                max_vias=rule.max_vias if self.pad_aware else None,
+            )
+            if edge_paths is not None:
+                context.obstacles = staged
+        if edge_paths is None and self.pad_aware and len(net.nodes) in (2, 3, 4):
             fanout = self._try_pad_fanout(design, net, context, kb, layer, clear_cells, rule)
             if fanout is not None:
                 edge_paths, pad_stubs = fanout

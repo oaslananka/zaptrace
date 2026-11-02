@@ -378,15 +378,18 @@ def test_pad_mode_rejects_nearest_grid_point_outside_real_pad_copper() -> None:
     assert result.traces == []
 
 
-def test_pad_mode_offgrid_rounded_shape_corner_is_not_false_contact() -> None:
+def test_pad_mode_offgrid_rounded_shape_corner_uses_explicit_geometric_stub() -> None:
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
     d, pos = _board(
         ("a", (10.2, 10.2), Pad(id="1", shape=PadShape.CIRCLE, size=(0.5, 0.5))),
         ("b", (20, 10), Pad(id="1")),
     )
     _net(d, "SIG", "a", "b")
     result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
-    assert result.routed_net_count == 0
-    assert result.traces == []
+    assert result.routed_net_count == 1
+    assert any(segment.start == pytest.approx((10.2, 10.2)) for segment in result.traces)
+    assert _physical_pad_terminal_coverage(d, result, pos)
 
 
 def test_top_bottom_smd_pair_requires_unimplemented_via_and_is_not_counted() -> None:
@@ -569,10 +572,15 @@ def test_real_esp32_pad_fanout_improves_only_physically_proven_nets() -> None:
     design = parse_file(source)
     router = GridRouter(pad_aware=True, max_iterations=50_000, max_ripup_passes=2)
     result = router.route(design, design.placement or {}, KnowledgeBase())
-    assert result.routed_net_count == 3
+    assert result.routed_net_count == 4
     assert result.net_count == 7
-    assert {trace.net_id for trace in result.traces} == {"USB_CC1", "USB_CC2", "I2C_SCL"}
-    assert len(result.traces) == 27
+    assert {trace.net_id for trace in result.traces} == {
+        "USB_CC1",
+        "USB_CC2",
+        "I2C_SCL",
+        "I2C_SDA",
+    }
+    assert len(result.traces) == 47
     assert result.vias == []
     assert not verified_route_candidate_safe(design, result, design.placement or {})
 
@@ -602,3 +610,23 @@ def test_geometric_pad_escape_only_skips_preexpanded_pad_halo_not_dynamic_copper
             net_id="SIGNAL",
             geometric_pad_escape=True,
         )
+
+
+def test_real_esp32_i2c_sda_uses_bounded_four_terminal_geometric_fanout() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    net = design.nets["I2C_SDA"]
+    assert len(net.nodes) == 4
+    router = GridRouter(pad_aware=True, max_iterations=50_000)
+    context = router._prepare_route_context(design, design.placement or {})
+    plan = router._plan_grid_net(design, net, context, KnowledgeBase())
+    assert plan.success
+    assert len(plan.pad_stubs) == 4
+    assert len(plan.edge_paths) == 3
+    # Multi-terminal mode is intentionally one anchor and one MST attempt
+    # per terminal; no Cartesian combination search is performed.
+    assert all(math.dist(*stub) > 0 for stub in plan.pad_stubs)
