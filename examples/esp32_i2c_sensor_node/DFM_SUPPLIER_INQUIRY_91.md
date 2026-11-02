@@ -175,7 +175,7 @@ owner; this draft has not been sent.*
 | U1 thermal-pad D1 determination | **OPEN — 12 findings** |
 | J1 NPTH-to-pad D2 determination | **OPEN — 4 findings** |
 | Alternate connector/module lifecycle decision | **OPEN — independent qualification required** |
-| Remaining 7 native copper connections after 2026-11-02 independent I2C_SCL, VCC_3V3 and GND tests / RF, ESD, power and thermal | **OPEN** |
+| Remaining 6 native copper connections after 2026-11-02 independent I2C_SCL, VCC_3V3, GND and via-stitch tests / RF, ESD, power and thermal | **OPEN** |
 | Production sign-off / board order | **BLOCKED — prohibited by current evidence** |
 
 ## 6. Controlled disclosure and acceptance gates

@@ -8,6 +8,7 @@ import pytest
 
 from scripts.issue91_native_copper_review import (
     ROUTES,
+    VIA_STITCHES,
     _blocking_finding_signatures,
     _file_sha256,
     _read_native_report,
@@ -43,6 +44,17 @@ def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints(
             )
             connected_pin = component.package_pin_map.get(pin_number, pin_number)
             assert component.pins[connected_pin].net == route.net
+
+
+def test_vcc3v3_via_stitch_joins_only_verified_route_via_terminals() -> None:
+    assert len(ROUTES) == 30
+    assert VIA_STITCHES == (("VCC_3V3", (45.1, 61.6), (53.1, 58.8)),)
+    via_terminals = {(route.net, point) for route in ROUTES for point in route.via_points}
+    assert VIA_STITCHES[0][1] != VIA_STITCHES[0][2]
+    for net, start, end in VIA_STITCHES:
+        assert (net, start) in via_terminals
+        assert (net, end) in via_terminals
+    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) == 79
 
 
 def test_new_ground_connection_is_verified_pad_center_to_pad_center() -> None:
@@ -309,11 +321,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 7
+    after += "[unconnected_items]: gap\n" * 6
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 7}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 6}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()

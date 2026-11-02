@@ -4,6 +4,7 @@
 
 ### Added
 
+- Join two existing VCC_3V3 back-layer via terminals in the ESP32 issue #91 opt-in PCB review; the exact native KiCad 10.0.8 result is 30 pad-endpoint routes plus 1 via stitch, 79 copper tracks, 10 vias and 6 unconnected items, retaining all 16 original manufacturing DRC blockers without fabrication approval.
 - Independently verify a native two-layer U2 sensor pin 2→pin 8 VCC_3V3 power link with 3 tracks and 2 through-vias; the issue #91 opt-in review now has 30 real connections, 78 track segments, 10 vias and 7 open connections, without any new KiCad DRC defects or manufacturing approval.
 - Extend the Issue #91 native KiCad 10.0.8 opt-in review with one independent C1.2→U1.15 two-layer ground path (three tracks, two vias): 29 source/pad-verified links, 75 tracks, 8 vias, 8 remaining unconnected, and all 16 original physical DRC defects unchanged; rejected USB-C/other candidates with new clearance/short issues.
 - Independently verify a native two-layer C2.1→U2.8 VCC_3V3 copper link (3 segments, 2 vias) for issue #91; the opt-in PCB now has 28 pad/net links, 72 tracks, 6 vias and 9 native unconnected items, with all 16 individual manufacturing DRC defects unchanged. Unsafe alternative clearance/short candidates remain rejected; fabrication blocked.
