@@ -32,6 +32,12 @@ connections, 72 segments, 6 vias and 37→9 unconnected**, preserving
 the original 16 manufacturing DRC signatures. There is no production
 permission or copper completion.
 
+An additional independently checked C1.2→U1.15 GND 2-layer route adds
+three copper segments and two vias: the combined review has **29
+connections, 75 tracks, 8 vias, 37→8 unconnected**, preserving all sixteen
+individual physical DRC defect signatures without introducing new errors.
+No manufacturing approval is implied.
+
 All routing remains experimental review-only copper.
 
 The table below is the original dated 2026-10-11 decision baseline.
@@ -170,7 +176,7 @@ review-only PCB or its Gerbers as a manufacturing release.
 |---|---|---|
 | Manufacturing process choice | Named supplier and approved stackup/copper/finish and written DFM answer explicitly covering D1 **and** D2 | **OPEN** — no supplier acceptance |
 | BOM / footprint design choice | Exact orderable ESP32-WROOM-32 lifecycle decision and USB4105 variant or qualified substitutions; digest-pinned 3D, slots, NPTH, pinout and paste geometry | **OPEN** — no redesign or variant approval |
-| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board still 9 unconnected; default 37 |
+| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board still 8 unconnected; default 37 |
 | PCB/assembly electrical assurance | Independent ERC/DRC plus honest strict Proof Pack results; RF antenna/ground return, USB-C CC/shell/ESD/VBUS and LDO power/thermal validation | **OPEN** — ERC 0 but DRC 16, strict Proof 6/2 |
 | Production handoff | Approved final BOM/stackup/DFM, controlled fabrication drill/Gerber package, independent qualified hardware sign-off | **BLOCKED** — no fabrication authorization |
 
