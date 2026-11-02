@@ -27,6 +27,8 @@ class RoutedConnection:
     source: tuple[str, str, tuple[float, float]]
     target: tuple[str, str, tuple[float, float]]
     points: tuple[tuple[float, float], ...]
+    segment_layers: tuple[str, ...] = ()
+    via_points: tuple[tuple[float, float], ...] = ()
 
 
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6/10.0.7.
@@ -183,6 +185,17 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("U2", "3", (47.325, 58.975)),
         ((38.75, 32.1), (42.5, 32.1), (42.5, 56.0), (47.325, 56.0), (47.325, 58.975)),
     ),
+    # Independent KiCad 10.0.8 proof: F.Cu-only crossing rejected; this
+    # bounded 2-layer path reduces unconnected 12 -> 11 without any new DRC
+    # finding. It is partial review copper, never a production routing claim.
+    RoutedConnection(
+        "I2C_SCL",
+        ("U1", "36", (38.75, 28.29)),
+        ("U2", "4", (47.975, 58.975)),
+        ((38.75, 28.29), (40.0, 28.29), (40.0, 55.0), (49.5, 55.0), (49.5, 58.975), (47.975, 58.975)),
+        ("F.Cu", "B.Cu", "B.Cu", "B.Cu", "F.Cu"),
+        ((40.0, 28.29), (49.5, 58.975)),
+    ),
 )
 
 
@@ -297,16 +310,33 @@ def prepare_review(board_path: Path, output_path: Path) -> Path:
         net = board.FindNet(route.net)
         if net is None:
             raise ValueError(f"Unknown net {route.net}")
-        for start, end in zip(route.points, route.points[1:], strict=False):
+        layers = route.segment_layers or ("F.Cu",) * (len(route.points) - 1)
+        if len(layers) != len(route.points) - 1 or any(layer not in ("F.Cu", "B.Cu") for layer in layers):
+            raise ValueError("Invalid physical route layer sequence")
+        transitions = tuple(
+            route.points[index] for index in range(1, len(layers)) if layers[index - 1] != layers[index]
+        )
+        if transitions != route.via_points:
+            raise ValueError("Missing or misplaced physical layer-transition via")
+        for start, end, layer in zip(route.points[:-1], route.points[1:], layers, strict=True):
             if start == end:
                 raise ValueError("Zero-length physical trace")
             track = pcbnew.PCB_TRACK(board)
             track.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(start[0]), pcbnew.FromMM(start[1])))
             track.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(end[0]), pcbnew.FromMM(end[1])))
             track.SetWidth(pcbnew.FromMM(0.20))
-            track.SetLayer(pcbnew.F_Cu)
+            track.SetLayer(pcbnew.F_Cu if layer == "F.Cu" else pcbnew.B_Cu)
             track.SetNet(net)
             board.Add(track)
+        for x, y in route.via_points:
+            via = pcbnew.PCB_VIA(board)
+            via.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y)))
+            via.SetWidth(pcbnew.FromMM(0.70))
+            via.SetDrill(pcbnew.FromMM(0.30))
+            via.SetViaType(pcbnew.VIATYPE_THROUGH)
+            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            via.SetNet(net)
+            board.Add(via)
 
     candidate, manifest, _, _ = _evidence_paths(output_path)
     candidate.unlink(missing_ok=True)
@@ -331,7 +361,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     before = _read_native_report(before_path)
     after = _read_native_report(after_path)
     expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 12}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 11}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
     before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
@@ -342,8 +372,22 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     pcbnew = _require_native_pcbnew()
     routed = pcbnew.LoadBoard(str(candidate))
     total_segments = sum(len(route.points) - 1 for route in ROUTES)
-    if len(routed.GetTracks()) != total_segments:
-        raise RuntimeError("KiCad track count differs from the verified physical connection contract")
+    expected_vias = {(route.net, point) for route in ROUTES for point in route.via_points}
+    actual_vias = {}
+    for item in routed.GetTracks():
+        if isinstance(item, pcbnew.PCB_VIA):
+            xy = (pcbnew.ToMM(item.GetPosition().x), pcbnew.ToMM(item.GetPosition().y))
+            actual_vias[(item.GetNetname(), xy)] = item
+    if len(routed.GetTracks()) != total_segments + len(expected_vias) or set(actual_vias) != expected_vias:
+        raise RuntimeError("KiCad track/via count or native via identity differs from physical connection contract")
+    if any(
+        via.GetWidth(pcbnew.F_Cu) != pcbnew.FromMM(0.70)
+        or via.GetDrillValue() != pcbnew.FromMM(0.30)
+        or via.TopLayer() != pcbnew.F_Cu
+        or via.BottomLayer() != pcbnew.B_Cu
+        for via in actual_vias.values()
+    ):
+        raise RuntimeError("Native via geometry or layer pair changed before review")
 
     candidate.replace(output_path)
     manifest.unlink(missing_ok=True)
@@ -353,9 +397,10 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
         "partialRouted": dict(after),
         "connectionsAdded": len(ROUTES),
         "traceSegments": total_segments,
+        "twoLayerVias": len(expected_vias),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "12 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "11 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result

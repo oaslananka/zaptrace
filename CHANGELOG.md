@@ -4,6 +4,7 @@
 
 ### Added
 
+- Verify a two-layer I2C_SCL review-only U1.36→U2.4 connection with two 0.30 mm drill vias: 26 authentic links, 66 copper segments, and native KiCad 10.0.8 connectivity 37→11; preserve all 16 manufacturing DRC defects, strict Proof Pack failures and fabrication hold. Reject the earlier crossing F.Cu-only candidate.
 - Prepare an unsent Issue #91 supplier DFM inquiry with a reproduced sixteen-item native KiCad 10.0.7 defect matrix, explicit JLCPCB/PCBWay hole/annular-ring and NPTH-to-pad questions, a bounded engineering email draft, written-response log and no-order/no-Gerber disclosure gates. Geometry, design rules and fabrication status remain unchanged.
 - Record the ESP32-WROOM-32 / GCT USB4105 Issue #91 sixteen-defect DFM decision: compare written revision-specific supplier acceptance with qualified geometry/footprint redesign, including via annular-ring trade-offs, original module NRND status, J1 NPTH-to-pad evidence and no-fabrication approval gates. No copper, part, footprint or DRC thresholds are changed.
 - Extend the separate ESP32 KiCad-native review PCB with three jointly DRC-verified GND, 3.3 V and I²C SDA links (U1.1–U1.39, C1.1–U1.2, U1.33–U2.3): 25 genuine pad-to-pad connections and 61 front-copper segments reduce the review from 37 to 12 disconnected items while preserving the exact 16 real manufacturing DRC findings. Rejected competing trials remain excluded; default exported copper, proof failures and fabrication hold are unchanged.

@@ -9,6 +9,20 @@ select a controlled footprint/component and board-layout revision instead.
 Neither path, by itself, establishes finished routing, RF performance, or
 fabrication readiness.
 
+## New independent routing evidence — 2026-11-02 (historical DFM decision unchanged)
+
+System KiCad **10.0.8** reproduced the existing 25-link / 61-segment
+partial review, then independently checked an additional genuine
+**U1.36 → U2.4 I2C_SCL** connection. The single-layer proposal failed
+tracks_crossing and was rejected. A two-layer alternative with
+**two 0.30 mm-drilled, 0.70 mm-diameter through-vias** and five segments
+passed the independent native KiCad DRC comparison: **26 actual
+connections, 66 tracks, 2 vias, 37 → 11 unconnected**, with the same
+16 manufacturability defects by exact rule, object and position.
+The original D1/D2 geometry, constraints, unsent supplier-inquiry scope,
+qualified engineering/DFM hold and no-fabrication decision are **unchanged**.
+The table below is the original dated 2026-10-11 decision baseline.
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)
@@ -143,7 +157,7 @@ review-only PCB or its Gerbers as a manufacturing release.
 |---|---|---|
 | Manufacturing process choice | Named supplier and approved stackup/copper/finish and written DFM answer explicitly covering D1 **and** D2 | **OPEN** — no supplier acceptance |
 | BOM / footprint design choice | Exact orderable ESP32-WROOM-32 lifecycle decision and USB4105 variant or qualified substitutions; digest-pinned 3D, slots, NPTH, pinout and paste geometry | **OPEN** — no redesign or variant approval |
-| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — opt-in board still 12 unconnected; default 37 |
+| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board still 11 unconnected; default 37 |
 | PCB/assembly electrical assurance | Independent ERC/DRC plus honest strict Proof Pack results; RF antenna/ground return, USB-C CC/shell/ESD/VBUS and LDO power/thermal validation | **OPEN** — ERC 0 but DRC 16, strict Proof 6/2 |
 | Production handoff | Approved final BOM/stackup/DFM, controlled fabrication drill/Gerber package, independent qualified hardware sign-off | **BLOCKED** — no fabrication authorization |
 
