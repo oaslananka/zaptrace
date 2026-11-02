@@ -207,6 +207,17 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("F.Cu", "B.Cu", "F.Cu"),
         ((53.1, 58.8), (57.1, 58.8)),
     ),
+    # Independent KiCad 10.0.8 accepted the shorter C2.1->U2.8
+    # VCC_3V3 branch, with two required layer-change vias. Other
+    # single-layer candidates caused crossings or shorts and were rejected.
+    RoutedConnection(
+        "VCC_3V3",
+        ("C2", "1", (36.05, 60.0)),
+        ("U2", "8", (46.025, 61.025)),
+        ((36.05, 60.0), (36.5, 59.5), (44.5, 60.0), (46.025, 61.025)),
+        ("F.Cu", "B.Cu", "F.Cu"),
+        ((36.5, 59.5), (44.5, 60.0)),
+    ),
 )
 
 
@@ -372,7 +383,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     before = _read_native_report(before_path)
     after = _read_native_report(after_path)
     expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 10}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 9}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
     before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
@@ -411,7 +422,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
         "twoLayerVias": len(expected_vias),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "10 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "9 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
