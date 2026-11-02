@@ -9,6 +9,7 @@ from typing import Any
 
 import click
 import yaml
+from rich.markup import escape
 
 from zaptrace import __version__
 from zaptrace.agent._tool_impls import (
@@ -539,6 +540,23 @@ def pipeline(source: str | None, intent: str | None, output: str | None) -> None
             if err:
                 line += f" — {err}"
             console.print(line)
+        routing_evidence = result.get("routing_evidence")
+        if isinstance(routing_evidence, dict):
+            unrouted = routing_evidence.get("unrouted_nets", [])
+            if unrouted:
+                # Net labels are user-provided; never interpret Rich markup
+                # embedded in a net name. Bound terminal output on huge designs.
+                visible = [escape(str(net)) for net in unrouted[:12]]
+                remaining = len(unrouted) - len(visible)
+                suffix = f" (+{remaining} more)" if remaining else ""
+                console.print(
+                    f"[bold yellow]ROUTING INCOMPLETE:[/] {len(unrouted)} net(s) without routed copper:"
+                    f" {', '.join(visible)}{suffix}"
+                )
+            console.print(
+                "[yellow]Physical continuity and fabrication readiness NOT VERIFIED.[/] "
+                "Review the Proof Pack and native KiCad DRC/ERC; generated files are inspection-only."
+            )
         print_summary(
             result["all_successful"],
             f"Pipeline completed: {result['stages_completed']} stages in {result['duration_seconds']}s",

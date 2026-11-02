@@ -42,6 +42,24 @@ When editing is needed, Review Studio should send users back to the source EDA t
 6. **Authenticated identity only.** Reviewer identity comes from the authenticated request principal; client-supplied reviewer names are never trusted as sign-off identity.
 7. **Automated pass is not human approval.** `automated_gate_status` and `fabrication_status` are separate fields and must remain visibly distinct.
 
+### Source-bound comparison of alternatives (offline)
+
+The existing saved-state alternative index compares two to eight independently produced native review reports for the same original PCB and rule context. It now rejects mismatched original DRC counters and displays per-alternative native DRC findings (bounded), remaining/open copper risks, provided/missing ERC evidence and scoped pin/net outcomes with explicit NOT CHECKED or NOT AVAILABLE states. This inspection-only index chooses no winner, does not run a model, never declares full electrical parity and cannot authorize fabrication. Each card links to the exact reviewed state for individual human evidence review.
+
+### Source-scoped assistant handoff (offline)
+
+An explicit "Locate selected evidence" action also reverses the mapping from the audit catalog to the corresponding native footprint, schematic finding, DRC rule or scoped pin/net row. Records beyond the displayed native limits remain unavailable rather than matching a different object.
+
+Native schematic value and ERC findings now select their corresponding source-bound evidence IDs, focus a changed PCB footprint only where the same reference label exists, and preserve the rule/object context when returning to the unsigned audit and offline assistant request. A label-only link is explicitly not electrical parity. A selected finding does not count as inspected.
+
+From the exact native evidence reference selected for unsigned review, an explicit local action may prepare an explanatory or repair-planning request for a separate engineering assistant. The request contains the original/proposed PCB and review-state hashes, selected native rule/object/reference and bounded source-reported summary. When paired schematics are present, the original/proposed schematic file hashes and native ERC severity/coordinates are included; scoped pin/net findings carry their actual phase, pin, status and named net evidence. Missing schematic inputs are explicitly NOT CHECKED. None of these scoped references establish electrical parity. It is selectable text only: no model/API call, clipboard auto-copy, upload, mutation, engineering sign-off or fabrication authority. Choosing a different finding or request type clears the previously prepared text. This is an intermediate contextual handoff, not completed contextual AI integration or validated assistant output.
+
+### Native offline decision overview
+
+The overview and native evidence panel also display a bounded list of real KiCad DRC findings, with the original rule type, reported severity, and description. A finding can be selected into the unsigned evidence review without automatically counting it as inspected. Additional findings remain counted as omitted rather than silently implied clean; warning is not an automatic approval.
+
+The source-bound KiCad PCB comparison places a compact decision overview before its detailed inspection panels: actual measured footprint changes, reported DRC/open-connection risk, the distinction between available and missing schematic/pin-net evidence, and an unsigned next action. Its visible state identity uses the same exact review hash as the imported/exported local decision; navigation leads to the underlying native evidence, rather than substituting for it. A reported DRC result or scoped pin/net match is never electrical/DFM clearance, verified reviewer identity, or fabrication approval.
+
 ## Core Screens
 
 ### 1. Project Overview
@@ -303,6 +321,19 @@ Scenario: ESP32 sensor board release review.
 10. Commit and release-export controls become enabled because permission scope, validation gates, and approval evidence are present.
 11. CI publishes a static review bundle attached to the pull request.
 
+## Review-first viewer increment (October 2026)
+
+The current **local interactive browser viewer** now starts with an inspection-only
+**Review readiness** summary and a keyboard-focusable **Inspect DRC findings** action.
+The summary deliberately distinguishes the design's *embedded* DRC report from
+external native KiCad validation: missing embedded DRC reports show **Not checked**,
+recorded warnings/errors remain visible, and zero embedded findings are **not**
+labeled as production readiness. Supplying a `proof.yaml` config shows **Manifest
+only — not verified**, never an executed proof verdict; **Human review required**
+is always visible for fabrication. This is a small, tested usability improvement,
+**not** the planned authenticated Review Studio approval workflow or a complete
+end-user design app. User studies and visual-diff interactions remain future work.
+
 ## First Implementation Slice
 
 Build static proof-pack/design review bundle generation before building an interactive app.
@@ -325,3 +356,30 @@ Milestone slice:
 - Static proof-pack/design review bundle is the first implementation slice.
 - Approval, rollback, and commit UX depends on transaction-safe state and permission-scoped writes.
 - End-to-end ESP32 benchmark review scenario is documented.
+
+## Inspectable, reproducible browser prototype (October 2026)
+
+The existing local/offline viewer has a **review-first dashboard**, responsive
+board preview, component/net search, layer visibility, DRC inspection,
+provenance-limited status, part details and keyboard focus controls. A
+reproducible [synthetic UX fixture](https://github.com/oaslananka/zaptrace/tree/main/examples/review_studio_ux_fixture)
+contains eight displayed components, five nets, nine illustrative segments and
+two **synthetic** blocking/warning markers to make the interactions visible.
+
+![Live Chrome rendering of the *synthetic* Review Studio UX fixture](images/review-studio-preview.png)
+
+This is **an actual headless Chrome screenshot of a generated HTML viewer**,
+not a render of proposed features. Screenshot data intentionally has no
+engineering credibility. On unplaced source designs, components are *not*
+fabricated at an artificial `(0,0)` coordinate. Missing placements and no
+routes are explicitly labeled as missing geometry. The embedded DRC record
+has no claim to have run a native KiCad oracle; a `proof.yaml` remains a
+manifest, regardless of any `pass` field. The viewer cannot fabricate, edit,
+approve or quietly make an incomplete PCB "ready".
+
+This incremental prototype is suitable for hands-on UX feedback on **clarity,
+performance and safe decisions**, not product-market-fit validation or
+production use. The next product tests should measure five actual hardware
+practitioners' ability to identify a finding, distinguish missing evidence,
+and identify their next engineering action, in addition to keyboard and screen
+size reviews. There have been **no such participant tests yet**.

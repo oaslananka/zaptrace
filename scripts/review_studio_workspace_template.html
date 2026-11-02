@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta http-equiv="Content-Security-Policy" content="__CSP__"/>
+<title>ZapTrace — Review Studio Workspace</title>
+<style>
+/* Interactive QA: keyboard access, readable targets, and truthful mode labels. */
+:root{color-scheme:dark;--bg:#080f19;--surface:#0f1c2c;--raised:#17293b;--line:#2e4459;--white:#edf6fc;--muted:#8da8bd;--green:#79e8d5;--red:#ff9aab}
+*{box-sizing:border-box}body{margin:0;color:var(--white);background:var(--bg);font:14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}button,input,a{font:inherit}a{color:inherit;text-decoration:none}
+header{min-height:76px;display:flex;justify-content:space-between;align-items:center;padding:12px max(4vw,20px);gap:17px;background:#0e1a29;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:13px}.logo{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#76efd8,#4fbbc0);color:#0a2430;font-size:23px;font-weight:900}
+.brand-accent{color:#79e8d5}.privacy-note{margin-top:13px}.brand strong{display:block;font-size:17px;letter-spacing:-.045em}.brand small{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);font-weight:800;text-transform:uppercase}
+.header-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.local{padding:8px 11px;background:#16392f;border:1px solid #286251;border-radius:8px;color:#9cf4dd;font-size:10px;font-weight:850;letter-spacing:.05em}.gate{padding:8px 11px;background:#392530;border:1px solid #754751;border-radius:8px;color:#ffc1c6;font-size:10px;font-weight:850;letter-spacing:.04em}
+main{width:min(1360px,calc(100% - 40px));margin:43px auto 80px}.overline{font-weight:850;font-size:10px;letter-spacing:.18em;color:var(--green)}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:25px;margin-bottom:28px}.hero h1{font-size:clamp(30px,4vw,48px);line-height:1.1;letter-spacing:-.06em;margin:10px 0}.hero p{max-width:650px;color:#a4bacd;font-size:13px;margin:9px 0 0}.hero-count{border:1px solid #35506b;background:#13283b;border-radius:12px;padding:13px 22px;text-align:center;white-space:nowrap}.hero-count strong{display:block;font:850 32px/1.12 ui-monospace,monospace;color:#9ef9e5}.hero-count span{font-size:10px;color:var(--muted);font-weight:800;letter-spacing:.1em}
+.tools{display:flex;gap:12px;align-items:center;margin:24px 0 20px}.searchbox{position:relative;flex:1;max-width:540px}.searchbox:before{content:'⌕';position:absolute;left:15px;top:8px;font-size:21px;color:#7ee9d3}.searchbox input{width:100%;background:#122439;border:1px solid #35516b;border-radius:10px;padding:13px 18px 13px 44px;color:var(--white);outline:none}.searchbox input:focus{border-color:var(--green);box-shadow:0 0 0 3px #7de3d01a}.searchbox input::placeholder{color:#809eb4}.meta-note{font-size:11px;color:#819bb1}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.project{border:1px solid #2d4359;background:#112032;overflow:hidden;border-radius:16px;box-shadow:0 15px 30px #01070e29;transition:border-color .15s ease,transform .15s ease}.project:hover{border-color:#4d8b87;transform:translateY(-2px)}.project[hidden]{display:none}.art{position:relative;height:232px;background:linear-gradient(145deg,#123831,#101e30);overflow:hidden}.art:before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,#427468 0.6px,transparent 1px);background-size:19px 19px;opacity:.38}.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 38%;filter:saturate(.9) contrast(1.05)}.read-only{position:absolute;left:18px;top:16px;border:1px solid #3f7b72;background:#102a2ee8;color:#a8f7e4;padding:7px 10px;border-radius:7px;font-size:9px;font-weight:900;letter-spacing:.1em}.unavailable{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}.unavailable span{font:900 67px/1 ui-monospace,monospace;letter-spacing:-.1em;color:#65bfa6}.unavailable strong{font-size:14px}.unavailable small{color:var(--muted);font-size:11px}.content{padding:22px}.ref{display:flex;justify-content:space-between;align-items:center;gap:15px;color:#99b4c6;font:800 10px ui-monospace,monospace}.source-type{font:900 10px system-ui,sans-serif;letter-spacing:.13em;color:var(--green)}h3{font-size:22px;line-height:1.3;letter-spacing:-.03em;margin:11px 0 6px}.board-name{color:#91aabd;font:11px ui-monospace,monospace;overflow-wrap:anywhere;margin:0 0 20px}.mini-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:17px 0;border-top:1px solid #283c50;border-bottom:1px solid #283c50}.mini-metrics span{display:block;font-size:9px;letter-spacing:.1em;color:#91a9bd;font-weight:800;white-space:nowrap}.mini-metrics strong{display:block;font:820 25px/1.2 ui-monospace,monospace;margin-top:6px;color:#a5f6e5}.mini-metrics strong.danger{color:var(--red)}.counts{font-size:11px;color:#8fa8bc;margin:14px 0 19px}.actions{display:flex;gap:9px}.actions a{display:flex;justify-content:center;align-items:center;gap:16px;border-radius:8px;padding:12px 10px;font-size:11px;font-weight:850;min-height:42px}.primary{flex:1;background:linear-gradient(120deg,#78eed9,#5ccbb9);color:#0a2c2e}.primary:hover{filter:brightness(1.1)}.secondary{border:1px solid #3f6376;color:#add7de;background:#162c3c}.secondary:hover{background:#244254}
+.empty{padding:44px 25px;border:1px dashed #4b6881;background:#112138;color:#aec2d5;border-radius:13px;grid-column:1/-1;text-align:center}.onboarding{margin-top:36px;border:1px solid #294359;background:linear-gradient(115deg,#142a3c,#112031);border-radius:14px;padding:25px}.onboarding h2{font-size:19px;letter-spacing:-.03em;margin:5px 0 9px}.onboarding p{font-size:12px;color:#a7c0d1;margin:0 0 16px;max-width:860px}.onboarding code{font:11px ui-monospace,monospace;color:#bbf6e6}.terminal{overflow-x:auto;background:#091623;border:1px solid #294359;border-radius:10px;padding:16px;white-space:pre;color:#b5e6dd;font:11px/1.75 ui-monospace,monospace}.foot{padding-top:28px;margin-top:30px;border-top:1px solid #263d51;color:#7894a9;font-size:11px}.foot b{color:#d8f4e7}
+@media(max-width:1050px){.grid{grid-template-columns:1fr}.art{height:255px}.content{padding:18px}main{margin-top:27px}}@media(max-width:650px){main{width:calc(100% - 22px)}header{padding:11px}.header-right .local{display:none}.hero{display:block}.hero-count{display:inline-block;margin:18px 0 0}.meta-note{display:none}.art{height:190px}.mini-metrics strong{font-size:22px}.actions{flex-wrap:wrap}.secondary{flex:1}.onboarding{padding:17px}.terminal{font-size:9px}.gate{font-size:9px;padding:7px}}
+@media(prefers-reduced-motion:reduce){.project{transition:none}}
+
+.add-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 13px;border-radius:9px;background:#23574e;border:1px solid #448b7c;font-weight:840;font-size:11px;color:#d0fff3;white-space:nowrap}.add-link:hover{background:#2c7162}
+.import-form{border:1px solid #3a566c;background:#0e1e2e;border-radius:12px;padding:15px;margin:16px 0 10px}.import-fields{display:grid;grid-template-columns:1fr 1.5fr;gap:13px}.import-fields label{display:flex;flex-direction:column;gap:7px;color:#a7ccce;font-size:10px;font-weight:820;letter-spacing:.025em}.import-fields label:last-child{grid-column:1/-1}
+.import-fields input{padding:11px 12px;background:#091725;color:#ecf7ff;border:1px solid #35536a;border-radius:7px;outline:none;font:12px ui-monospace,monospace;min-width:0}.import-fields input:focus{border-color:#83e9ce;box-shadow:0 0 0 3px #8be5cf1b}.import-fields input::placeholder{color:#6689a0}
+#importForm button{margin-top:13px;background:#72e2c9;border:1px solid #a0f1df;color:#093530;font-weight:850;border-radius:8px;padding:11px 14px;font-size:11px}#importForm button:hover{background:#a2f8e7}
+.import-error{font-size:11px;color:#ffc3b2;min-height:0}.import-error:not(:empty){margin:9px 0;padding:9px 13px;background:#382331;border:1px solid #815063;border-radius:7px}
+.prepared{border:1px solid #4b7e73;background:#112d33;border-radius:9px;overflow:hidden;margin:13px 0}.prepared[hidden]{display:none}.prepared-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #3b706a}.prepared-head strong{font-size:12px}.prepared-head button{font-size:11px;font-weight:850;color:#a8f9e3;border:1px solid #508c81;background:#204c47;padding:6px 12px;border-radius:7px}.prepared-head button:hover{background:#327166}.prepared pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px 16px;font:11px/1.7 ui-monospace,monospace;color:#bbf6e8;margin:0}.import-note{padding:10px 14px;border-top:1px solid #3a6965;color:#9ec6c2;font-size:11px}.import-fallback{margin-top:20px!important}
+@media(max-width:750px){.import-fields{grid-template-columns:1fr}.import-fields label:last-child{grid-column:auto}.add-link{padding:10px}.tools{flex-wrap:wrap}.searchbox{min-width:100%}}
+
+.native-import{background:linear-gradient(120deg,#122b36,#152736);border:1px solid #41766e;border-radius:13px;padding:22px;margin:17px 0}
+.native-import[hidden]{display:none}.native-import-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.direct-badge{color:#a0f9e1;font-size:10px;font-weight:850;letter-spacing:.1em}.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:#6bf0cc;box-shadow:0 0 10px #65edbbaa;margin-right:6px}.small-shield{font-size:10px;color:#8ec5b8}
+.native-import h3{font-size:22px;letter-spacing:-.03em;margin:13px 0 4px}.native-import p{font-size:12px;line-height:1.6;max-width:850px;color:#aed0d0}
+.native-field{display:flex;flex-direction:column;gap:8px;color:#b4d7d7;font-size:11px;font-weight:780;margin:18px 0}
+.native-field input{max-width:650px;padding:12px 13px;color:#eaf9f5;font-size:13px;background:#0b1927;border:1px solid #43677a;border-radius:9px;outline:none}.native-field input:focus{border-color:#7af5d8;box-shadow:0 0 0 3px #69e3c322}
+.native-files{display:grid;grid-template-columns:1fr 1fr;gap:13px}.file-select{position:relative;display:flex;align-items:center;gap:12px;padding:17px 15px;border:1px dashed #5e8b91;border-radius:11px;background:#102b39;min-width:0;cursor:pointer;transition:background .15s ease,border-color .15s ease}.file-select:hover,.file-select:focus-within{border-color:#84e8d1;background:#1c3d47}.file-select:focus-within{outline:2px solid #8fe9d6;outline-offset:2px}
+.file-select input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer}.file-symbol{flex:none;display:grid;place-items:center;width:46px;height:44px;border-radius:9px;border:1px solid #48736e;background:#1d4949;color:#a8fce8;font:850 11px ui-monospace,monospace;letter-spacing:-.02em}.optional .file-symbol{background:#253951;border-color:#436782;color:#bed4ff}.file-copy{min-width:0;display:flex;flex:1;flex-direction:column;gap:3px}.file-copy strong{font-size:13px}.file-copy em{color:#9cb9bd;font-size:10px;font-weight:500;font-style:normal}.file-copy small{color:#a4bec8;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.file-picker{flex:none;padding:8px 10px;background:#244d54;border:1px solid #508a88;border-radius:7px;color:#c3f6e8;font-weight:850;font-size:10px}
+.native-run{margin:19px 0 3px;display:flex;justify-content:space-between;align-items:center;gap:20px;border-radius:9px;border:1px solid #9bf9e1;background:linear-gradient(105deg,#79ead1,#61d8c2);color:#073a35;font-size:13px;font-weight:870;padding:13px 18px;min-width:250px}.native-run:hover{filter:brightness(1.06)}.native-run:disabled{filter:grayscale(.5);opacity:.6;cursor:wait}
+.native-job{display:flex;align-items:flex-start;gap:12px;margin-top:15px;padding:13px 15px;background:#192e39;border:1px solid #456b71;border-radius:9px;color:#cee8eb;font-size:12px}.native-job[hidden]{display:none}.native-job.error{color:#ffb5be;border-color:#885561;background:#34232e}.native-job.success{border-color:#5ca794;color:#9ef9e5}.native-job-dot{flex:none;margin-top:5px;width:8px;height:8px;background:#7fe9d3;border-radius:50%;box-shadow:0 0 0 3px #85ffd526}.native-job.error .native-job-dot{background:#ff8899}.native-import-note{font-size:10px;line-height:1.5;margin-top:16px;color:#90b7b3;border-top:1px solid #3b646b;padding-top:12px}.native-import-note code{color:#b5fae6}
+#cliFallback{margin-top:20px}#cliFallback[hidden]{display:none}@media(max-width:790px){.native-files{grid-template-columns:1fr}.native-import{padding:15px}.file-picker{padding:7px}.native-run{width:100%}}
+
+.settings-files{margin-top:12px}.settings-files .file-select{background:#132a3d;border-color:#41617d}.settings-files .file-symbol{color:#c5d5ff;background:#293853;border-color:#506588}.native-warning{font-size:11px!important;color:#ffd8a8!important;background:#382f2b;padding:10px 14px;border:1px solid #80634a;border-radius:8px;margin-top:12px!important}
+.rules-breakdown{margin:-8px 0 14px;font-size:11px;font-weight:770;color:#b4d3da}.rules-source{font-size:10px;color:#edcaa0;padding:8px 10px;border:1px solid #5c4d41;background:#2e292d;border-radius:7px;margin:-8px 0 16px;line-height:1.4}
+
+.native-board-thumb{position:absolute;inset:7px 14px;background:#143d33;border:1px solid #478575;border-radius:12px;overflow:hidden;box-shadow:0 0 40px #5dbba321 inset}.native-board-thumb img{position:absolute;inset:0;object-fit:contain;object-position:center;width:100%;height:100%;filter:none}.native-board-thumb .copper-thumb{opacity:.94}.native-board-thumb .outline-thumb{opacity:.96}
+
+.sheet-folder{margin-top:12px;grid-template-columns:minmax(0,1.15fr) 1fr;gap:15px;align-items:center}.sheet-folder p{font-size:11px!important;margin:0!important;line-height:1.5;color:#a9c6d2!important}
+@media(max-width:790px){.sheet-folder{grid-template-columns:1fr}.sheet-folder p{padding:0 4px}}
+
+.native-stages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0;margin:13px 0 0;list-style:none}
+.native-stages[hidden]{display:none}.native-stages li{display:flex;align-items:center;gap:8px;min-width:0;padding:11px 9px;border:1px solid #314c5f;border-radius:8px;background:#0e2231;color:#859dac;font-size:10px;font-weight:770}
+.native-stages li span{display:grid;place-items:center;flex:none;width:23px;height:23px;border-radius:6px;background:#1d3444;color:#789ab0;font:800 10px ui-monospace,monospace}
+.native-stages li.observed{border-color:#52746e;color:#b4dbd5;background:#183239}.native-stages li.observed span{color:#b1fae4;background:#285a4d}.native-stages li.current{border-color:#83dbbb;box-shadow:0 0 0 2px #6adbbb16}
+.native-progress-disclaimer{font-size:10px!important;color:#8baeb5!important;margin:9px 2px!important}
+@media(max-width:850px){.native-stages{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:390px){.native-stages{grid-template-columns:1fr 1fr}.native-stages li{font-size:9px;padding:9px 5px}}
+
+.compare-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 15px;color:#9bb8ca}.compare-toolbar p{margin:5px 0 0;font-size:11px;color:#91aec0}.compare-toolbar #compareSelection{color:#b5f5df;background:#152c39;border:1px solid #37576b;padding:8px 12px;border-radius:8px;font:750 11px system-ui;white-space:normal;max-width:100%;overflow-wrap:anywhere}
+.project{position:relative}.project.compare-active{border-color:#79e8ce;box-shadow:0 0 0 2px #59cfae37}.compare-select{position:absolute;right:17px;top:15px;z-index:4;display:flex;align-items:center;gap:7px;background:#0d2734f2;color:#d6fff3;border:1px solid #487c75;border-radius:8px;padding:7px 10px;font-size:10px;font-weight:840;cursor:pointer;min-height:37px}.compare-select[hidden]{display:none}.compare-select input{accent-color:#77e6c9;width:17px;height:17px;margin:0;cursor:pointer}.compare-select:focus-within{outline:2px solid #caffee;outline-offset:2px}
+.compare-panel{margin:0 0 25px;background:linear-gradient(135deg,#152c3c,#101d2e);border:1px solid #598578;border-radius:16px;padding:22px;box-shadow:0 18px 55px #0004}.compare-panel[hidden]{display:none}.compare-heading{display:flex;justify-content:space-between;align-items:center;gap:15px}.compare-heading h2{font-size:27px;letter-spacing:-.045em;margin:3px 0 16px}.compare-heading button{padding:10px 14px;color:#c8f7e8;border:1px solid #46796e;background:#244a48;border-radius:8px;font-size:11px;font-weight:820;cursor:pointer;min-height:40px}
+.compare-context{padding:13px 15px;margin:0 0 18px;border:1px solid #4a6573;border-radius:10px;background:#142c3d}.compare-context.caution{border-color:#916e49;background:#352d26}.compare-context strong{display:block;color:#ffe4aa;font-size:10px;letter-spacing:.07em}.compare-context.neutral strong{color:#b3e2eb}.compare-context p{color:#d6d1c9;font-size:11px;margin:6px 0 0;line-height:1.6}
+.compare-designs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.compare-side{border:1px solid #36536b;background:#102537;padding:15px 17px;border-radius:11px;min-width:0}.compare-letter{display:block;font-size:10px;font-weight:850;letter-spacing:.1em;color:#8debd4}.compare-side h3{font-size:17px;margin:6px 0 5px;overflow-wrap:anywhere}.compare-side p{font-size:10px;color:#96aebf;margin:0 0 13px}.compare-links{display:flex;gap:8px;flex-wrap:wrap}.compare-links a{color:#a8f0e0;font-weight:750;font-size:10px;padding:8px 10px;border:1px solid #396b64;background:#20413e;border-radius:7px;min-height:34px}.compare-links a:hover{border-color:#91e9d1}
+.compare-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}.compare-metric{background:#0d1f30;border:1px solid #304a5f;border-radius:11px;padding:15px;min-width:0}.compare-metric-title{font-size:11px;color:#cce3eb;font-weight:800}.compare-metric-values{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;margin:10px 0}.compare-metric-values strong{font:820 23px ui-monospace,monospace;color:#dffdf0;overflow-wrap:anywhere}.compare-metric-values strong:last-child{text-align:right}.compare-metric-values span{font:750 10px system-ui;color:#9fc4d4;text-align:center}.compare-metric p{font-size:10px;line-height:1.5;color:#92aebe;margin:0}.compare-footnote{color:#b3bcca;font-size:10px;line-height:1.6;margin:15px 0 0}
+@media(max-width:800px){.compare-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.compare-toolbar{align-items:flex-start;flex-wrap:wrap}.compare-panel{padding:15px}.compare-designs{grid-template-columns:1fr}.compare-metrics{grid-template-columns:1fr}.compare-select{font-size:9px;right:10px;top:10px}.compare-metric-values strong{font-size:21px}}
+
+.app-session{display:flex;justify-content:space-between;gap:20px;align-items:center;margin:26px 0 0;border:1px solid #415d67;padding:16px 19px;background:#132536;border-radius:12px}.app-session[hidden],.app-shutdown[hidden]{display:none}.app-session div{display:flex;flex-direction:column;gap:5px}.app-session strong{font-size:12px;color:#c6e8dd}.app-session span{font-size:11px;color:#91aebf}.app-session button{cursor:pointer;flex:none;border:1px solid #9e6675;border-radius:8px;color:#ffccd3;font-weight:800;font-size:11px;padding:11px 14px;background:#392a37;min-height:42px}.app-session button:disabled{opacity:.55;cursor:wait}.app-shutdown{margin-top:16px;border:1px solid #5a9989;background:#162f2b;color:#c1f8e7;padding:15px;border-radius:9px;font-size:12px}
+@media(max-width:620px){.app-session{flex-direction:column;align-items:stretch}.app-session button{width:100%}}
+
+.header-help{font-weight:800;font-size:11px;color:#b7eadd;padding:8px;border-radius:7px}.header-help:hover,.header-help:focus-visible{background:#22454a;outline:2px solid #79e8d5;outline-offset:1px}.onboarding-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:17px 0 9px}.onboarding-steps[hidden],#desktopOnboarding[hidden],#staticOnboarding[hidden]{display:none}.onboarding-steps>div{padding:13px 14px;background:#0c2030;border:1px solid #375c69;border-radius:9px;min-width:0;display:flex;flex-direction:column;gap:5px}.onboarding-steps span{font:850 12px ui-monospace,monospace;color:#89e8d3}.onboarding-steps strong{font-size:12px;color:#e2faf5}.onboarding-steps small{font-size:10px;color:#97b6c4;line-height:1.5}.help-center{margin-top:25px;border:1px solid #2d4c5d;border-radius:12px;padding:21px;background:#101f2f}.help-center h2{font-size:20px;letter-spacing:-.04em;margin:6px 0 14px}.help-center details{border-top:1px solid #2c4558;padding:13px 3px}.help-center summary{font-size:12px;font-weight:850;cursor:pointer;color:#daf7ea;min-height:26px}.help-center summary:focus-visible{outline:2px solid #7de8d5;outline-offset:3px}.help-center p{font-size:11px;line-height:1.7;color:#acc5d0;max-width:900px;margin:10px 0 5px}.help-center code{color:#a7f5dc}.foot a{text-decoration:underline;color:#b5e9d8}
+@media(max-width:700px){.onboarding-steps{grid-template-columns:1fr}.header-help{font-size:10px;padding:6px}.help-center{padding:14px}}
+
+.data-actions[hidden]{display:none}.data-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid #365065}.data-actions button{background:#163142;border:1px solid #426376;border-radius:7px;padding:9px 10px;min-height:38px;font-size:10px;font-weight:790;color:#c7f0e5;cursor:pointer}.data-actions button:hover{border-color:#86e1c6}.data-actions .delete-review{color:#efc4ce;border-color:#725966}.delete-modal{background:#0e2130;color:#e5f8ef;border:1px solid #6b8992;border-radius:14px;padding:24px;width:min(480px,calc(100vw - 26px));max-height:90vh;box-shadow:0 28px 90px #000b}.delete-modal::backdrop{background:#000b}.delete-modal h2{font-size:24px;letter-spacing:-.04em;margin:7px 0 11px}.delete-modal p{font-size:12px;line-height:1.6;color:#adc4d1}.delete-reference{background:#182f41;border:1px solid #3b5768;border-radius:8px;padding:10px;overflow-wrap:anywhere}.delete-phrase{font-size:11px;font-weight:750;display:flex;flex-direction:column;gap:9px;margin:17px 0}.delete-phrase strong{color:#ffbabb}.delete-phrase input{background:#091827;border:1px solid #5e7b88;color:#f1fff8;border-radius:8px;padding:12px;font-size:13px;min-height:43px}.delete-controls{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px}.delete-controls button{border:1px solid #53717b;border-radius:8px;background:#1a3543;padding:12px 14px;color:#e4f7ed;cursor:pointer;min-height:44px;font-weight:800;font-size:11px}.delete-controls #reviewDeleteConfirm{background:#642e41;border-color:#bd7586}.delete-controls button:disabled{opacity:.38;cursor:not-allowed}.delete-error{color:#ffb8c0!important}
+
+.restore-section[hidden]{display:none}.restore-section{display:grid;grid-template-columns:1fr;gap:8px;margin:28px 0 5px;padding:22px;border:1px solid #547d81;border-radius:13px;background:linear-gradient(130deg,#162f40,#101f30)}.restore-section h2{font-size:19px;letter-spacing:-.04em;margin:5px 0 8px}.restore-section p{font-size:11px;line-height:1.6;color:#aac8cf;max-width:860px;margin:0}.restore-section p strong{color:#e4fff5}.restore-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:11px}.restore-form label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:750;color:#c9ebdd;min-width:0}.restore-form input{background:#091b2a;border:1px solid #486674;border-radius:8px;color:#e6f7fa;padding:11px;min-height:43px;width:100%;min-width:0;font-size:11px}.restore-form button{background:#244e4a;border:1px solid #70a6a0;border-radius:8px;color:#ddffef;min-height:43px;padding:9px 12px;font-size:11px;font-weight:850;cursor:pointer}.restore-form button:disabled{opacity:.5;cursor:wait}#nativeRestoreStatus{padding:11px;border:1px solid #47626c;border-radius:9px;background:#132b3a}#nativeRestoreStatus[hidden]{display:none}#nativeRestoreStatus.error{border-color:#bf7380;background:#371f2a;color:#ffe2e6}
+@media(max-width:900px){.restore-form{grid-template-columns:1fr 1fr}.restore-form button{grid-column:1/-1}}@media(max-width:580px){.restore-form{grid-template-columns:1fr}.restore-section{padding:16px}}
+
+/* PCB placement ECO uses the same accessible review surface. */
+.pcb-eco-offset{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pcb-eco-offset input{width:100%;min-width:0}
+/* Explicit localhost-only copy-on-write ECO authoring, no source overwrites. */
+.eco-launch{border-color:#5c9a8b!important;color:#c5fae9!important;background:#183a3c!important}
+.eco-launch:hover,.eco-launch:focus-visible{background:#285957!important}
+.eco-launch[hidden]{display:none}
+.eco-lab[hidden],.eco-result[hidden]{display:none}
+.eco-lab{margin:25px 0;padding:24px;border:1px solid #508a80;border-radius:15px;background:linear-gradient(135deg,#153a3b,#0e2639 58%,#112537);box-shadow:0 18px 50px #0003}
+.eco-lab h2{font-size:23px;letter-spacing:-.04em;margin:6px 0}.eco-lab p{color:#a8cdd1;font-size:11px;line-height:1.65;max-width:910px}
+.eco-label{font:850 10px ui-monospace,monospace;color:#9cf6dc;letter-spacing:.1em}
+.eco-fields{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(100px,.65fr) minmax(100px,.7fr) auto;gap:11px;align-items:end;margin-top:15px}
+.eco-fields label{display:flex;flex-direction:column;gap:7px;color:#bde6dd;font-size:11px;font-weight:820;min-width:0}
+.eco-fields input{width:100%;min-height:44px;min-width:0;padding:9px 11px;color:#e4fcf5;background:#091d2b;border:1px solid #4c7780;border-radius:8px;font:12px ui-monospace,monospace}
+.eco-fields select{width:100%;min-height:44px;min-width:0;padding:9px 11px;color:#e4fcf5;background:#091d2b;border:1px solid #4c7780;border-radius:8px;font:12px ui-monospace,monospace}
+.eco-fields select:focus-visible{outline:2px solid #72ebcb;outline-offset:2px}
+.eco-fields input:focus-visible{outline:2px solid #72ebcb;outline-offset:2px}
+.eco-fields button,.eco-result button{min-height:44px;padding:10px 13px;background:#70dfc3;border:1px solid #93f1da;border-radius:8px;color:#123c39;font-size:11px;font-weight:850;cursor:pointer}
+.eco-fields button:disabled,.eco-result button:disabled{opacity:.45;cursor:wait}
+.eco-status{padding:11px 14px;background:#122e36;border:1px solid #406f76;border-radius:8px;font-size:11px;color:#c6f4e8;margin:13px 0}
+.eco-status.error{background:#38232d;border-color:#b77483;color:#ffe0e6}
+.eco-status.success{background:#17372f;border-color:#539986;color:#d3ffed}
+.eco-status[hidden]{display:none}.eco-result{margin-top:14px;border:1px solid #537d80;border-radius:12px;overflow:hidden;background:#0e2133}
+.eco-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px;background:#193744}
+.eco-result-head strong{font-size:12px;color:#d4fff1}.eco-result-actions{display:flex;gap:8px;flex-wrap:wrap}
+.eco-result button{background:#204d4b;border-color:#65a395;color:#bef9e7;min-height:38px}.eco-result button:hover{background:#346b61}
+.eco-result iframe{display:block;width:100%;height:min(780px,82vh);border:0;background:#081522}
+.eco-warning{border:1px solid #776259!important;background:#302a31;color:#f5d6b9!important;padding:10px 13px;border-radius:8px;margin-top:14px!important}
+@media(max-width:870px){.eco-fields{grid-template-columns:1fr 1fr}.eco-fields label:first-child{grid-column:1/-1}.eco-fields>button{grid-column:1/-1}}
+@media(max-width:600px){.eco-lab{padding:14px}.eco-fields{grid-template-columns:1fr}.eco-fields label:first-child,.eco-fields>button{grid-column:auto}.eco-result iframe{height:75vh}.eco-result-head{align-items:flex-start}}
+/* The skip link is visible to keyboard users and does not cover pointer UI. */
+.skip-to-content{position:absolute;z-index:1000;top:10px;left:12px;transform:translateY(-160%);background:#b8ffec;color:#102630;border:2px solid #102630;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:800}
+.skip-to-content:focus{transform:none}
+:where(a,button,input,summary,select,textarea):focus-visible{outline:3px solid #9ef9df;outline-offset:3px}
+:where(a,button,input,summary,select,textarea):disabled{cursor:not-allowed}
+:where(section,[id]):target{scroll-margin-top:18px}
+.search-feedback{font-size:12px;color:#c1dfdf;margin:-12px 0 18px;min-height:20px}
+.art .image-unavailable{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:linear-gradient(155deg,#153c37,#142b41);color:#c7f2e7;text-align:center;padding:42px 15px;font-size:14px;font-weight:800}
+.image-unavailable small{font-weight:500;color:#a8cad3;font-size:12px}
+@media(max-width:650px){
+ header{flex-wrap:wrap;gap:9px}
+ .header-right{width:100%;justify-content:flex-start;gap:7px}
+ .header-right .local{display:inline-flex;font-size:10px}
+ .header-help{min-height:36px}
+}
+
+.search-hint{font-size:12px;color:#b1d5d7;white-space:nowrap}
+/* Preserve a usable design/source search field when all authoring actions are visible. */
+@media(min-width:1051px){.tools{flex-wrap:wrap}.tools .searchbox{flex:1 1 320px;min-width:280px}.tools .add-link{flex:0 0 auto}}
+.empty button{cursor:pointer;padding:10px 15px;border-radius:8px;border:1px solid #6ab19f;background:#204a47;color:#cffff2;font-weight:750;margin-top:13px;min-height:44px}
+@media(max-width:1050px){
+ .tools{flex-wrap:wrap;gap:10px}
+ .searchbox{flex:1 1 100%;max-width:none;min-width:0}
+ .meta-note,.search-hint{display:none}
+ .tools .add-link{flex:1 1 190px;white-space:normal;text-align:center}
+}
+@media(max-width:400px){.tools .add-link{flex:1 1 100%}}
+/* Readability: small measured values stay distinct without 9px body labels. */
+.project .ref,.project .source-type,.project .mini-metrics span{font-size:11px}
+.project .counts,.project .rules-breakdown,.project .rules-source{font-size:12px;line-height:1.5}
+.project .actions a,.project .board-name{font-size:12px}
+.compare-side p,.compare-metric p,.compare-metric-title,.compare-footnote{font-size:12px;line-height:1.5}
+.compare-links a,.compare-heading button,.add-link{font-size:12px}
+.help-center p,.onboarding p,.eco-lab p{font-size:12px;line-height:1.6}
+
+
+@media(pointer:coarse){.tools a,.header-help,.actions a,.compare-links a,.eco-result-actions button,.compare-heading button{min-height:44px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:0.01ms!important;transition-duration:0.01ms!important}}
+/* Every mobile action, help entry and data-selection label gets a usable touch target. */
+@media(max-width:700px){
+ .header-help,.compare-select,.foot a,.help-center summary{min-height:44px}
+ .header-help,.foot a{display:inline-flex;align-items:center}
+ .help-center summary{padding:12px 3px}
+}
+/* On phone-sized EDA workspaces, keep the project library above the fold:
+   a primary import action and two compact pairs of clearly labelled tools. */
+@media(max-width:650px){
+ header{position:relative}
+ .header-right{flex-wrap:nowrap}
+ .header-help{position:absolute;right:11px;top:10px}
+ .header-right .local,.header-right .gate{white-space:nowrap;font-size:9px;padding:8px 9px}
+ .tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .tools .searchbox{grid-column:1/-1;min-width:0;width:100%;max-width:none}
+ .tools .add-link{width:100%;min-width:0;min-height:48px;padding:10px 7px;
+  line-height:1.3;white-space:normal;text-align:center}
+ .tools>a.add-link:first-of-type{grid-column:1/-1}
+}
+</style></head><body>
+<a class="skip-to-content" href="#workspaceMain">Skip to main content</a>
+<header><div class="brand"><div class="logo" aria-hidden="true">Z</div><div><strong>Zap<span class="brand-accent">Trace</span></strong><small>Review Studio / Workspace</small></div></div><div class="header-right"><a class="header-help" href="#help">Help &amp; privacy</a><span class="local" id="runtimeMode">OFFLINE · REVIEW ONLY</span><span class="gate">NOT FABRICATION APPROVED</span></div></header>
+<main id="workspaceMain" tabindex="-1"><div class="hero"><div><span class="overline">YOUR LOCAL ENGINEERING WORKSPACE</span><h1>Native KiCad design reviews</h1><p>Select a source-verified board to inspect real copper geometry, cross-probe schematic pins, review open connectivity and audit remaining production blockers. Each entry is a separate KiCad source snapshot, never an automatically approved design.</p></div><div class="hero-count"><strong>__PROJECT_COUNT__</strong><span>NATIVE REVIEW SNAPSHOTS</span></div></div>
+<div class="tools"><label class="searchbox"><input id="filterProjects" aria-label="Filter local review projects (press slash to focus)" aria-controls="workspaceProjects" type="search" placeholder="Filter by board name or source SHA…" autocomplete="off"/></label><span class="search-hint" aria-hidden="true">Press / to search</span><span class="meta-note">Content is stored on this computer</span><a class="add-link" href="#import">+ Add a KiCad board</a><a class="add-link eco-launch" id="ecoLaunch" href="#ecoLab" hidden>✎ Draft a schematic ECO</a><a class="add-link eco-launch" id="pcbEcoLaunch" href="#pcbEcoLab" hidden>▣ PCB placement / rotate</a><a class="add-link eco-launch" id="pcbAuditLaunch" href="#pcbAuditLab" hidden>◎ Audit schematic ↔ PCB</a><a class="add-link eco-launch" id="copperLaunch" href="#copperLab" hidden>⌁ Native copper link</a></div>
+<p class="search-feedback" id="projectSearchFeedback" role="status" aria-live="polite" aria-atomic="true"></p>
+<div class="compare-toolbar"><div><span class="overline">NATIVE EVIDENCE COMPARISON</span><p>Select exactly two source snapshots to compare observable evidence. Counts are never fabrication approval.</p></div><span id="compareSelection" role="status" aria-live="polite">__COMPARE_HINT__</span></div>
+<section class="compare-panel" id="comparePanel" hidden aria-label="Native snapshot comparison">
+ <div class="compare-heading"><div><span class="overline">SIDE-BY-SIDE / INSPECTION ONLY</span><h2>Evidence delta</h2></div><button id="compareClear" type="button">Clear selection</button></div>
+ <div class="compare-context" id="compareContext" role="status" aria-live="polite"></div>
+ <div class="compare-designs" id="compareDesigns"></div>
+ <div class="compare-metrics" id="compareMetrics"></div>
+ <p class="compare-footnote">All values are source-specific native KiCad findings. A difference in counts is not proof of an engineering improvement, DFM acceptance, safe routing or manufacturing readiness. Source geometry, design intent, active DRC rules and external libraries require independent validation.</p>
+</section>
+<div class="grid" id="workspaceProjects">__PROJECT_CARDS__</div><div class="empty" id="emptyFilter" hidden>No registered review matches that search. <button type="button" id="clearProjectSearch">Clear search and show projects</button></div>
+<section class="restore-section" id="nativeRestore" hidden aria-label="Restore private KiCad backup">
+ <div><span class="overline">PRIVATE BACKUP / FRESH NATIVE VERIFICATION</span>
+ <h2>Restore a Review Studio ZIP</h2>
+ <p>Select a ZIP backup previously exported by Review Studio. Only copied KiCad sources are imported: stored HTML and DRC/ERC reports are <strong>not trusted</strong>. Your installed KiCad runs a new independent engineering review. Existing reviews are never replaced.</p></div>
+ <form id="nativeRestoreForm" class="restore-form">
+ <label>New review name<input id="nativeRestoreName" maxlength="90" type="text" required autocomplete="off" placeholder="Recovered sensor board · new review"/></label>
+ <label>Review Studio backup ZIP<input id="nativeRestoreZip" type="file" accept=".zip,application/zip" required/></label>
+ <button id="nativeRestoreRun" type="submit">Restore and rerun KiCad checks</button>
+ </form>
+ <p id="nativeRestoreStatus" role="status" aria-live="polite" hidden></p>
+</section>
+<section class="eco-lab" id="ecoLab" hidden aria-label="Experimental KiCad schematic component value editor">
+ <span class="eco-label">LOCAL EDA AUTHORING / CONTROLLED ECO EXPERIMENT</span>
+ <h2>Prepare a native schematic change</h2>
+ <p>Author one component <strong>Value</strong> as a separate KiCad working copy. Only single-sheet one-unit schematics are supported. KiCad validates the actual net graph and native ERC first. No source overwrite, PCB/BOM synchronization, or fabrication approval.</p>
+ <form id="ecoForm" class="eco-fields">
+  <label>Actual KiCad schematic<input type="file" required id="ecoSource" accept=".kicad_sch" aria-label="Select local native schematic source for ECO"/></label>
+  <label>Component reference<input id="ecoRef" type="text" required maxlength="11" value="R1" autocomplete="off" spellcheck="false"/></label>
+  <label>New component value<input id="ecoValue" type="text" required maxlength="63" placeholder="10k" autocomplete="off" spellcheck="false"/></label>
+  <button type="submit" id="ecoCreate">Verify &amp; preview</button>
+ </form>
+ <p class="eco-warning">Engineering change may affect circuit function even when ERC and connectivity are unchanged. The PCB, BOM and vendor models are NOT synchronized. This local ECO draft is not an electrical or manufacturing signoff.</p>
+ <p id="ecoStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
+ <div class="eco-result" id="ecoResult" hidden>
+  <div class="eco-result-head"><strong id="ecoResultTitle">Verified change copy · not approved</strong><div class="eco-result-actions">
+   <button type="button" id="ecoDownload">Download edited KiCad copy</button>
+   <button type="button" id="ecoDiscard">Discard local ECO draft</button>
+  </div></div>
+  <iframe id="ecoPreview" title="Independent KiCad source and edited working copy visual comparison" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+ </div>
+</section>
+<section class="eco-lab" id="pcbEcoLab" hidden aria-label="Controlled native KiCad PCB footprint placement editor">
+ <span class="eco-label">REAL NATIVE PCB AUTHORING / FOOTPRINT PLACEMENT ECO</span>
+ <h2>Reposition or rotate an unrouted footprint</h2>
+ <p>Translate or rotate one existing <strong>unrouted</strong> footprint by a measured offset and/or a 90° quarter-turn. Real KiCad 10 checks native copper bounding geometry at both positions, pad UUIDs, net ownership and before/after DRC. Only a separate verified PCB working copy can be downloaded. <strong>Connected copper, zones and new rule violations are blocked.</strong></p>
+ <form id="pcbEcoForm" class="eco-fields">
+  <label>Original native KiCad PCB<input id="pcbEcoSource" type="file" accept=".kicad_pcb" required aria-label="Select native KiCad PCB for a guarded footprint placement or rotation"/></label>
+  <label>Matching KiCad project rules (recommended)<input id="pcbEcoProject" type="file" accept=".kicad_pro" aria-label="Select original project rules with exactly the same base filename"/></label>
+  <label>Custom design rules (requires matching project; native probe gate)<input id="pcbEcoRules" type="file" accept=".kicad_dru" aria-label="Disclose custom design rules that require independent validation"/></label>
+  <label>Footprint reference<input id="pcbEcoRef" type="text" value="R1" maxlength="11" required spellcheck="false" autocomplete="off"/></label>
+  <label>Move X / Y (mm)<span class="pcb-eco-offset"><input id="pcbEcoDx" type="number" min="-5" max="5" step="0.05" value="1" required aria-label="Footprint X movement in millimeters"/><input id="pcbEcoDy" type="number" min="-5" max="5" step="0.05" value="0" required aria-label="Footprint Y movement in millimeters"/></span></label>
+  <label>Rotation (degrees)<select id="pcbEcoRotate" aria-label="Rotate selected PCB footprint by a quarter turn"><option value="0">0° / keep angle</option><option value="90">+90°</option><option value="-90">−90°</option><option value="180">180°</option></select></label>
+  <button id="pcbEcoCreate" type="submit">Check DRC &amp; preview</button>
+ </form>
+ <p class="eco-warning">Select matching .kicad_pro and .kicad_dru together when your design uses custom rules. KiCad must prove a separate temporary loader probe before accepting the edit. This verifies loading, not full rule semantics or GUI parity. Without a project file, KiCad defaults apply, not fabrication rules. Routed copper contacts, copper zones and new rule violations block placement and rotation. DRC passing never establishes fabrication or electrical approval. Original files stay unchanged.</p>
+ <p id="pcbEcoStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
+ <div class="eco-result" id="pcbEcoResult" hidden>
+  <div class="eco-result-head"><strong id="pcbEcoResultTitle">Native PCB placement / rotation · not approved</strong>
+   <div class="eco-result-actions"><button id="pcbEcoDownload" type="button">Download separate PCB copy</button>
+    <button id="pcbEcoReviewDownload" type="button" hidden>Download source-bound decision review</button>
+    <button id="pcbEcoDiscard" type="button">Discard PCB ECO draft</button></div></div>
+  <iframe id="pcbEcoPreview" title="Actual KiCad PCB before and after copper plots with DRC evidence" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+ </div>
+</section>
+<section class="eco-lab" id="copperLab" hidden aria-label="Native KiCad PCB guarded copper route draft">
+ <span class="eco-label">KICAD 10 REAL COPPER / SAFE SEPARATE PROJECT COPY · EXPERIMENTAL</span>
+ <h2>Connect one verified native copper link</h2>
+ <p>Choose a <strong>ZIP of the contents</strong> of a portable ZapTrace KiCad project folder: matching .kicad_pcb, .kicad_sch, .kicad_pro, project-local library tables, ZapTrace.kicad_sym and ZapTrace.pretty/*.kicad_mod. The native KiCad engine independently lists unconnected pad pairs, then tests <strong>only one selected pair</strong>. Your original ZIP and local source files are never overwritten. No full autorouting or fabrication approval.</p>
+ <form id="copperInspectForm" class="eco-fields">
+  <label>Portable KiCad project ZIP (local, max 8 MB)<input id="copperZip" type="file" accept=".zip,application/zip" required aria-label="Select root contents of a complete portable KiCad project ZIP"/></label>
+  <button type="submit" id="copperInspectRun">Inspect actual KiCad open links</button>
+ </form>
+ <form id="copperRouteForm" class="eco-fields" hidden>
+  <label>Native KiCad unconnected pad pair<select id="copperPair" required aria-label="Choose exact native KiCad DRC unconnected pad pair"><option value="">Inspect a project first</option></select></label>
+  <label>Optional intermediate route coordinates (mm, JSON pairs)<input id="copperWaypoints" type="text" value="[]" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Up to four explicitly specified route waypoint coordinate pairs as JSON" placeholder="[[72.51,58.8],[77.51,58.8]]"/></label>
+  <label>Optional explicit through-via waypoint indices (JSON, 1-based)<input id="copperViaIndices" type="text" value="[]" maxlength="12" autocomplete="off" spellcheck="false" aria-label="Empty for F.Cu only; two increasing one-based waypoint indices for exact F.Cu to B.Cu to F.Cu through-vias" placeholder="[1,2]"/></label>
+  <button type="submit" id="copperRouteRun" disabled>Verify one real copper link &amp; create copy</button>
+  <button type="button" id="copperQueueAdd" disabled>Add selected route to batch</button>
+ </form>
+ <div id="copperBatchPanel" hidden aria-label="Transactional multiple-net KiCad route queue">
+  <h3>Transactional native multi-net routing · source-only 0.1.12</h3>
+  <p>Queue two or three distinct net/pad pairs. Every step must reduce one real open KiCad connection; any failure rejects the entire batch. Copper zones are unsupported. No automatic routing or fabrication approval.</p>
+  <ol id="copperQueued" aria-label="Explicit native copper routes awaiting independent DRC"></ol>
+  <div class="eco-result-actions">
+   <button id="copperBatchRun" type="button" disabled>Verify all queued routes · no partial output</button>
+   <button id="copperQueueClear" type="button" disabled>Clear pending routes</button>
+  </div>
+ </div>
+ <p class="eco-warning">The transactional 0.1.12 multi-net queue is experimental and only in the separately SHA-qualified 0.1.12 release candidate; verify the exact installed 0.1.12 Debian package and its local QA manifest before relying on two-via or custom-rule features. Download private project/evidence ZIP before restarting; drafts are erased on restart. A verified pair of F.Cu native pad UUIDs can use 0–4 explicit waypoints. Leave via indices [] for F.Cu only; [1,2] with at least two waypoints requests exactly F.Cu → B.Cu → F.Cu on a 2-copper-layer board using two 0.60 mm/0.30 mm drilled through-vias. An optional matching project-root .kicad_dru is checked with a native KiCad loader sentinel; the proposed copper must ALSO pass DRC on independent copies without that custom rule file. Rule semantics are not independently qualified. The native 0.20 mm track, existing DRC findings, project-local library sources, copper geometry and schematic parity must all survive. No automatic route search or production approval. <strong>NOT fab or electrical approval.</strong></p>
+ <p class="eco-status" id="copperStatus" role="status" aria-live="polite" hidden></p>
+ <div class="eco-result" id="copperResult" hidden>
+  <div class="eco-result-head"><strong id="copperResultTitle">Separate native KiCad copper draft · NOT approved</strong>
+   <div class="eco-result-actions"><button type="button" id="copperDownload">Download verified project + evidence ZIP</button>
+    <button type="button" id="copperEvidence">Download native KiCad DRC evidence</button>
+    <button type="button" id="copperDiscard">Discard private copper draft</button></div></div>
+  <p id="copperResultSummary" aria-live="polite"></p>
+  <iframe id="copperPreview" title="Real KiCad native before and after F.Cu, B.Cu, silkscreen and board outline drawings" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+ </div>
+</section>
+<section class="eco-lab" id="pcbAuditLab" hidden aria-label="Read-only native KiCad schematic to PCB parity evidence">
+ <span class="eco-label">SOURCE LINKAGE / READ-ONLY KICAD EVIDENCE · NO F8 UPDATES</span>
+ <h2>Audit schematic–PCB correspondence</h2>
+ <p>Select real native KiCad schematic and PCB files. This audit compares source reference designators, footprint library IDs, values and verifiable pin/net identities. It <strong>never changes either source, performs F8 synchronization or approves electrical/manufacturing release.</strong> Mismatched symbol-pin/pad numbering and absent UUID paths remain explicitly unverified.</p>
+ <form class="eco-fields" id="pcbAuditForm">
+  <label>Native KiCad schematic<input type="file" id="pcbAuditSch" accept=".kicad_sch" required aria-label="Choose actual KiCad schematic for parity audit"/></label>
+  <label>Native KiCad PCB<input type="file" id="pcbAuditPcb" accept=".kicad_pcb" required aria-label="Choose actual KiCad PCB for parity audit"/></label>
+  <button type="submit" id="pcbAuditRun">Compare native sources</button>
+ </form>
+ <p class="eco-warning">Read-only association findings are not an electrical test. Reference-only equality does not prove KiCad symbol-to-footprint UUID association, pin mapping, copper continuity, custom DRC or fabrication readiness. Use the original KiCad editor's F8 forward-annotation workflow for authoritative synchronization.</p>
+ <p id="pcbAuditStatus" class="eco-status" role="status" aria-live="polite" hidden></p>
+ <div id="pcbAuditResult" class="eco-result" hidden>
+  <h3>Native schematic–PCB association evidence · NOT APPROVED</h3>
+  <p id="pcbAuditSummary"></p>
+  <ul id="pcbAuditDifferences"></ul>
+  <p id="pcbAuditLinkage"></p>
+  <details id="pcbAuditPathDetails"><summary id="pcbAuditPathSummary">Native KiCad UUID linkage evidence</summary>
+   <ul id="pcbAuditPathFindings"></ul>
+  </details>
+  <details id="pcbAuditPinDetails"><summary id="pcbAuditPinSummary">Native pin-number / net-label evidence</summary>
+   <ul id="pcbAuditPinFindings"></ul>
+  </details>
+  <button type="button" id="pcbAuditDownload">Download source-hashed audit JSON</button>
+ </div>
+</section>
+<section class="onboarding" id="import"><span class="overline">BRING YOUR OWN DESIGN</span><h2>Open another native KiCad board</h2><p id="desktopOnboarding" hidden>Select your KiCad files using the controls below. Your original board is never changed; the local engine stores a separate evidence snapshot. There are no simulated example projects and no cloud upload.</p><p id="staticOnboarding">Import uses native KiCad installed on your computer. In static offline mode, run the terminal command shown below from the ZapTrace source directory, then refresh the project library. Disabled or unavailable checks remain explicitly unverified.</p>
+<div class="onboarding-steps" id="desktopOnboardingSteps" hidden><div><span>01</span><strong>Select a real PCB</strong><small>Choose .kicad_pcb and the original .kicad_pro for the project's true DRC rules</small></div><div><span>02</span><strong>Run native KiCad</strong><small>Add the schematic and sub-sheet folder if available, then start local analysis</small></div><div><span>03</span><strong>Inspect evidence</strong><small>Open the new review card, inspect findings or compare two snapshots</small></div></div>
+<section class="native-import" id="nativeImport" hidden aria-label="Direct native KiCad file import">
+ <div class="native-import-head"><span class="direct-badge"><span class="pulse"></span> NATIVE KICAD ENGINE · LOCAL DEVICE</span><span class="small-shield">No cloud · source read-only</span></div>
+ <h3>Choose a board to inspect</h3><p>Select your KiCad PCB file. Include its schematic if available for native ERC and cross-probing. For comparable DRC results, also select your original .kicad_pro project settings (and .kicad_dru custom rules when used). The local engine runs actual KiCad checks on separate copies and adds the result to Projects. No fabrication approval is issued.</p>
+ <form id="nativeImportForm"><label class="native-field">Project name
+   <input type="text" required id="nativeImportName" maxlength="90" autocomplete="off" placeholder="Sensor node · revision A"/></label>
+  <div class="native-files"><label class="file-select"> <span class="file-symbol">PCB</span>
+   <span class="file-copy"><strong>KiCad board</strong><small id="nativeBoardName">Choose a .kicad_pcb file</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeBoardFile" type="file" required accept=".kicad_pcb" aria-label="Select native KiCad PCB file"/></label>
+   <label class="file-select optional"><span class="file-symbol">SCH</span>
+    <span class="file-copy"><strong>Schematic <em>optional</em></strong><small id="nativeSchName">Choose a .kicad_sch file</small></span>
+    <span class="file-picker">Browse…</span><input id="nativeSchFile" type="file" accept=".kicad_sch" aria-label="Select optional KiCad schematic file"/></label></div>
+  <div class="native-files sheet-folder"><label class="file-select optional"><span class="file-symbol">DIR</span>
+   <span class="file-copy"><strong>Hierarchical schematic folder <em>if used</em></strong><small id="nativeSheetName">Choose the project folder containing child sheets</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeSheetFolder" type="file" webkitdirectory multiple aria-label="Select full schematic hierarchy directory"/></label>
+   <p>For hierarchical schematics, choose the folder containing the root sheet and all referenced children. Only native .kicad_sch files are staged; missing or unsafe references stop the import.</p></div>
+  <div class="native-files settings-files"><label class="file-select optional"><span class="file-symbol">PRO</span>
+   <span class="file-copy"><strong>Project rules <em>recommended</em></strong><small id="nativeProName">Choose .kicad_pro for original design rules</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeProjectFile" type="file" accept=".kicad_pro" aria-label="Select original KiCad project settings file"/></label>
+   <label class="file-select optional"><span class="file-symbol">DRU</span>
+   <span class="file-copy"><strong>Custom DRC rules <em>optional</em></strong><small id="nativeDruName">Choose .kicad_dru if your project uses it</small></span>
+   <span class="file-picker">Browse…</span><input id="nativeRulesFile" type="file" accept=".kicad_dru" aria-label="Select optional KiCad custom DRC rules file"/></label></div>
+  <p class="native-warning">If project rules are omitted, KiCad runs under standalone/default settings. DRC totals may differ from the original project. No fab approval is implied.</p>
+  <button class="native-run" type="submit" id="nativeRun">Analyze with native KiCad <span>→</span></button>
+ </form>
+ <div class="native-job" id="nativeJob" hidden role="status" aria-live="polite"><span class="native-job-dot"></span><span id="nativeJobText">Waiting for local KiCad engine</span></div>
+ <ol class="native-stages" id="nativeStages" hidden aria-label="Observed local KiCad analysis stages">
+ <li data-phase="preparing"><span>01</span> Source captured</li>
+ <li data-phase="geometry"><span>02</span> F.Cu plot recorded</li>
+ <li data-phase="drc"><span>03</span> DRC report produced</li>
+ <li data-phase="netlist"><span>04</span> Schematic netlist recorded</li>
+ <li data-phase="erc"><span>05</span> ERC report produced</li>
+ <li data-phase="complete"><span>06</span> Review indexed</li>
+ </ol>
+ <p class="native-progress-disclaimer">These steps reflect locally observed KiCad files, not passed checks or fabrication readiness.</p>
+ <div class="native-import-note">Analysis runs exclusively on <code>127.0.0.1</code> and uses separate local working copies. The native KiCad input data never leaves this computer.</div>
+</section>
+<div id="cliFallback">
+<form class="import-form" id="importForm"><div class="import-fields">
+ <label>Project display name<input id="importName" type="text" required maxlength="90" autocomplete="off" placeholder="Temperature sensor rev A"/></label>
+ <label>Absolute KiCad PCB path<input id="importBoard" type="text" required spellcheck="false" autocomplete="off" placeholder="/home/user/projects/sensor/sensor.kicad_pcb"/></label>
+ <label>Optional schematic path<input id="importSchematic" type="text" spellcheck="false" autocomplete="off" placeholder="/home/user/projects/sensor/sensor.kicad_sch"/></label>
+ </div><button id="generateImport" type="submit">Prepare native KiCad import command →</button></form>
+<div class="import-error" id="importError" role="status" aria-live="polite"></div>
+<div id="preparedCommand" class="prepared" hidden><div class="prepared-head"><strong>Run this command on your computer</strong><button type="button" id="copyImport">Copy command</button></div>
+ <pre id="importSnippet" tabindex="0"></pre><div class="import-note">The browser cannot run pcbnew on its own. This command executes the native analysis on your machine and updates the local projects index. It will never edit the KiCad PCB.</div></div>
+<p class="import-fallback">For automation, the equivalent terminal command is:</p>
+<div class="terminal">/usr/bin/python3 scripts/review_studio_workspace.py \
+  --workspace __WORKSPACE_SHELL__ add \
+  --name "My board" --board /absolute/path/to/my-board.kicad_pcb \
+  --schematic /absolute/path/to/my-board.kicad_sch
+
+# Reopen the dashboard without rerunning KiCad:
+/usr/bin/python3 scripts/review_studio_workspace.py --workspace __WORKSPACE_SHELL__ render</div>
+<p class="privacy-note">No PCB files are uploaded, and no copper, Gerbers or KiCad source content is modified. External board sources require independent schematic/ERC/DRC, supplier data and fabrication acceptance. <b>Adding a project never authorizes manufacturing.</b></p></section>
+</div>
+<section class="help-center" id="help"><span class="overline">GUIDE / PRIVACY / LIMITS</span><h2>Getting started &amp; support</h2>
+ <details><summary>Which KiCad files should I open?</summary><p>Start with your actual <code>.kicad_pcb</code>. Include its matching <code>.kicad_pro</code> design-rule settings, an optional <code>.kicad_sch</code> root schematic, a hierarchy folder if it references child pages, and optional <code>.kicad_dru</code> rules. Missing project rules mean KiCad may report different findings.</p></details>
+ <details><summary>Does Review Studio modify my board or authorize manufacturing?</summary><p>No. It copies the source file into a private review workspace and runs KiCad on a separate snapshot. The original KiCad source remains unchanged. DRC and ERC findings, native copper plots, missing connections and library mismatches require independent engineering review. No project is approved for fabrication here.</p></details>
+ <details><summary>How do I back up and permanently remove my PCB data?</summary><p>For boards imported directly in this application, choose <strong>Export private ZIP backup</strong> on the review card first. The archive contains your native KiCad evidence and the local copies of the source PCB and any selected schematic/project files. Keep it secure: it may include confidential design data. To erase the local review and its copied source files, use <strong>Delete local review…</strong>, type <strong>DELETE</strong>, and explicitly confirm. The original design on your computer is not affected. Reviews registered from outside the application are deliberately not eligible for automatic deletion.</p></details>
+ <details><summary>Where are files saved and how do I stop?</summary><p>Installed application reviews live in your user data folder, usually <code>~/.local/share/zaptrace-review-studio/workspace</code>. Closing the browser tab does not stop the local engine. Use <strong>Stop local Review Studio</strong> at the bottom of this page. Restarting the app preserves completed reviews. Uninstalling the package does not delete your saved engineering work.</p></details>
+ <details><summary>What systems and licenses are supported?</summary><p>Distribution 0.1.12 is built for Ubuntu 24.04 LTS with native KiCad 10.x and system Python 3.12. It uses the PolyForm Noncommercial 1.0.0 license; commercial use is not automatically licensed. Other operating systems and KiCad versions require separate validation. Run <code>zaptrace-review-studio --doctor</code> to inspect local dependencies.</p></details>
+</section>
+<dialog class="delete-modal" id="reviewDeleteDialog" aria-labelledby="reviewDeleteTitle" aria-describedby="reviewDeleteDescription">
+ <form method="dialog" id="reviewDeleteForm"><span class="overline">IRREVERSIBLE / LOCAL STORAGE</span><h2 id="reviewDeleteTitle">Delete saved review?</h2>
+ <p id="reviewDeleteDescription">This removes the selected native review, all its local evidence and copies of the selected KiCad source files. Your original PCB outside Review Studio remains unchanged. Back up first if you need these files.</p>
+ <p id="reviewDeleteLabel" class="delete-reference"></p>
+ <label class="delete-phrase">Type <strong>DELETE</strong> to confirm deletion<input id="reviewDeletePhrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE" aria-label="Type DELETE to confirm permanent local review deletion"/></label>
+ <p class="delete-error" id="reviewDeleteError" aria-live="polite"></p>
+ <div class="delete-controls"><button type="button" id="reviewDeleteCancel">Cancel</button><button type="submit" id="reviewDeleteConfirm" disabled>Delete local copy permanently</button></div>
+ </form>
+</dialog>
+<div class="app-session" id="localSessionControls" hidden><div><strong>Local session</strong><span>The KiCad service runs only on this computer. Closing the session stops new analyses; all completed reviews remain on disk.</span></div><button type="button" id="stopLocalStudio">Stop local Review Studio</button></div>
+<div class="app-shutdown" id="localStopped" hidden role="status" aria-live="polite">Local KiCad service stopped. Your completed reviews remain saved. You may close this browser tab.</div>
+<div class="foot">ZapTrace Review Studio 0.1.12 · <b>Offline project library</b> · PolyForm Noncommercial 1.0.0 · <a href="#help">Help and privacy</a> · Results are from individual native KiCad analyses, not a live background checker, autorouter or signoff system.</div></main>
+<script>
+// Direct native review is enabled only by the explicit localhost server.
+if(window.__REVIEW_LOCAL__?.token){
+ document.getElementById('runtimeMode').textContent='LOCAL · GUARDED ECO';
+ document.getElementById('runtimeMode').title='Reviews are read-only; only separately downloaded, KiCad-validated engineering drafts may be edited.';
+ document.getElementById('localSessionControls').hidden=false;
+ document.getElementById('desktopOnboarding').hidden=false;
+ document.getElementById('desktopOnboardingSteps').hidden=false;
+ document.getElementById('staticOnboarding').hidden=true;
+ document.getElementById('nativeRestore').hidden=false;
+ document.getElementById('ecoLab').hidden=false;
+ document.getElementById('ecoLaunch').hidden=false;
+ document.getElementById('pcbEcoLab').hidden=false;
+ document.getElementById('pcbEcoLaunch').hidden=false;
+ document.getElementById('pcbAuditLab').hidden=false;
+ document.getElementById('pcbAuditLaunch').hidden=false;
+ document.getElementById('copperLab').hidden=false;
+ document.getElementById('copperLaunch').hidden=false;
+ document.getElementById('nativeImport').hidden=false;
+ document.getElementById('cliFallback').hidden=true;
+ const $=id=>document.getElementById(id),token=window.__REVIEW_LOCAL__.token;
+ const board=$('nativeBoardFile'),sch=$('nativeSchFile'),project=$('nativeProjectFile'),rules=$('nativeRulesFile'),sheetFolder=$('nativeSheetFolder'),name=$('nativeImportName');
+ let lastEcoId=null;
+ const ecoStatus=$('ecoStatus'),ecoCreate=$('ecoCreate'),ecoResult=$('ecoResult');
+ function ecoMessage(note,kind='info'){
+  ecoStatus.hidden=false;ecoStatus.textContent=note;
+  ecoStatus.classList.toggle('error',kind==='error');
+  ecoStatus.classList.toggle('success',kind==='success');
+  ecoStatus.setAttribute('role',kind==='error'?'alert':'status');
+  ecoStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ }
+ async function ecoFile(id,filename){
+  const res=await fetch('/api/eco/result/'+encodeURIComponent(id)+'/'+filename,
+   {headers:{'X-Review-Token':token},cache:'no-store'});
+  if(!res.ok)throw Error('Verified ECO draft no longer available');
+  return res;
+ }
+ async function ecoUploadBase64(file){
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let encoded='';
+  for(let i=0;i<bytes.length;i+=8192)encoded+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  const hash=await crypto.subtle.digest('SHA-256',bytes);
+  const sha=[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return {source_base64:btoa(encoded),original_sha256:sha};
+ }
+ let pcbAuditData=null;
+ const auditStatus=$('pcbAuditStatus'),auditRun=$('pcbAuditRun'),auditResult=$('pcbAuditResult');
+ function auditMessage(note,kind='info'){
+  auditStatus.hidden=false;auditStatus.textContent=note;
+  auditStatus.classList.toggle('error',kind==='error');
+  auditStatus.classList.toggle('success',kind==='success');
+  auditStatus.setAttribute('role',kind==='error'?'alert':'status');
+  auditStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ }
+ const copperStatus=$('copperStatus'),copperInspectRun=$('copperInspectRun'),
+  copperRouteRun=$('copperRouteRun'),copperResult=$('copperResult'),copperPair=$('copperPair');
+ let copperArchive=null,copperCandidates=[],copperId=null,copperQueued=[],copperBatchBusy=false;
+ const renderCopperQueue=()=>{
+  const list=$('copperQueued');list.replaceChildren();
+  for(const item of copperQueued){
+   const li=document.createElement('li');
+   li.textContent=item.title+' · '+item.route.waypoints.length+
+    ' waypoint(s) · '+item.route.via_indices.length+' through-via(s)';
+   list.append(li);
+  }
+  $('copperBatchPanel').hidden=!copperCandidates.length;
+  $('copperQueueAdd').disabled=!copperCandidates.length||copperQueued.length>=3||Boolean(copperId)||copperBatchBusy;
+  $('copperBatchRun').disabled=copperQueued.length<2||Boolean(copperId)||copperBatchBusy;
+  $('copperQueueClear').disabled=!copperQueued.length||Boolean(copperId)||copperBatchBusy;
+ };
+ const selectedCopperRoute=()=>{
+  const index=Number(copperPair.value),candidate=copperCandidates[index];
+  if(!candidate||!Number.isInteger(index)||index<0)throw Error('Select a native KiCad connection first.');
+  const waypoints=JSON.parse($('copperWaypoints').value.trim()||'[]');
+  if(!Array.isArray(waypoints)||waypoints.length>4||waypoints.some(p=>!Array.isArray(p)||p.length!==2||
+      p.some(n=>typeof n!=='number'||!Number.isFinite(n))))throw Error('Waypoints must be zero to four finite [x,y] coordinate pairs.');
+  const via_indices=JSON.parse($('copperViaIndices').value.trim()||'[]');
+  if(!Array.isArray(via_indices)||(via_indices.length!==0&&(
+      via_indices.length!==2||!via_indices.every(n=>Number.isInteger(n))||
+      via_indices[0]<1||via_indices[0]>=via_indices[1]||via_indices[1]>waypoints.length)))
+   throw Error('Via indices: [] (F.Cu only), or two ordered one-based waypoint indexes, e.g. [1,2].');
+  return {route:{start_pad_uuid:candidate.pads[0].uuid,end_pad_uuid:candidate.pads[1].uuid,waypoints,via_indices},
+   title:candidate.pads[0].label+' → '+candidate.pads[1].label};
+ };
+ const copperMessage=(message,kind='info')=>{
+  copperStatus.hidden=false;copperStatus.textContent=message;
+  copperStatus.classList.toggle('error',kind==='error');
+  copperStatus.classList.toggle('success',kind==='success');
+  copperStatus.setAttribute('role',kind==='error'?'alert':'status');
+  copperStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ };
+ const copperResetGeometry=()=>{
+  $('copperWaypoints').value='[]';
+  $('copperViaIndices').value='[]';
+ };
+ const copperClear=()=>{
+  copperArchive=null;copperCandidates=[];copperPair.replaceChildren();copperQueued=[];
+  copperResetGeometry();
+  copperRouteRun.disabled=true;$('copperRouteForm').hidden=true;
+  renderCopperQueue();
+ };
+ // A previously accepted route for a different electrical net must never
+ // silently follow the operator when they select another native pad pair.
+ copperPair.addEventListener('change',copperResetGeometry);
+ $('copperZip').addEventListener('change',()=>{
+  copperClear();
+  if(copperId)copperMessage('Discard the existing verified draft before starting a new copper review.','error');
+ });
+ async function copperProjectPayload(){
+  const file=$('copperZip').files?.[0];
+  if(!file||!file.name.toLowerCase().endsWith('.zip')||file.size<100||file.size>8*1024*1024)
+   throw Error('Select a complete portable KiCad project ZIP under 8 MB.');
+  if(!copperArchive){
+   const hashed=await ecoUploadBase64(file);
+   copperArchive={project_base64:hashed.source_base64,project_sha256:hashed.original_sha256};
+  }
+  return copperArchive;
+ }
+ $('copperInspectForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(copperId){copperMessage('Discard the active copper copy before inspecting another project.','error');return;}
+  copperInspectRun.disabled=true;copperClear();copperResult.hidden=true;
+  try{
+   copperMessage('Reading source SHA-256 and checking native KiCad 10 DRC/parity. No copper changes…');
+   const payload=await copperProjectPayload();
+   const response=await fetch('/api/native-copper/inspect',{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload),cache:'no-store'
+   });
+   const report=await response.json();
+   if(!response.ok||report.mode!=='read_only_native_kicad_links')
+    throw Error(report.error||'Native KiCad refused portable project');
+   if(report.archive_sha256!==payload.project_sha256||report.schematic_parity_count!==0)
+    throw Error('Source integrity or native parity proof unavailable');
+   copperCandidates=report.links;
+   copperPair.replaceChildren();
+   for(let i=0;i<copperCandidates.length;i++){
+    const link=copperCandidates[i],item=document.createElement('option');
+    item.value=String(i);
+    item.textContent=link.pads[0].label+' → '+link.pads[1].label;
+    copperPair.append(item);
+   }
+   $('copperRouteForm').hidden=!copperCandidates.length;
+   copperRouteRun.disabled=!copperCandidates.length;
+   renderCopperQueue();
+   copperMessage('Native KiCad 10: '+report.unconnected_count+' open items · '+report.physical_drc_count+
+    ' physical DRC findings · 0 schematic-parity issues. '+copperCandidates.length+
+    ' exact pairs available. Select one; routing requires a new independent KiCad DRC.','success');
+   if(copperCandidates.length)copperPair.focus();
+  }catch(error){copperClear();copperMessage(error?.message||'Native KiCad project inspection failed.','error');}
+  finally{copperInspectRun.disabled=false;}
+ });
+ $('copperQueueAdd').addEventListener('click',()=>{
+  if(copperId||copperBatchBusy){copperMessage('Discard the active draft first.','error');return;}
+  try{
+   const item=selectedCopperRoute();
+   if(copperQueued.length>=3)throw Error('Maximum three explicit native routes per batch.');
+   const previous=new Set(copperQueued.flatMap(x=>[x.route.start_pad_uuid,x.route.end_pad_uuid]));
+   if(previous.has(item.route.start_pad_uuid)||previous.has(item.route.end_pad_uuid))
+    throw Error('The same physical pad UUID cannot be reused in a batch.');
+   // A distinct net is compulsory; pre-check native DRC labels, then the
+   // server independently checks actual PCB net identities after each route.
+   const net=(item.title.match(/\[([^\]]+)\]/)||[])[1];
+   if(!net||copperQueued.some(x=>x.net===net))throw Error('Select a different native electrical net for this batch.');
+   copperQueued.push({...item,net});renderCopperQueue();copperResetGeometry();
+   copperMessage(copperQueued.length+' native route(s) queued. Batch publishes nothing unless every route passes.','success');
+  }catch(error){copperMessage(error?.message||'Native route could not be queued.','error');}
+ });
+ $('copperQueueClear').addEventListener('click',()=>{
+  if(copperId||copperBatchBusy)return;
+  copperQueued=[];renderCopperQueue();copperMessage('Uncommitted multi-net queue cleared. Original ZIP unchanged.','success');
+ });
+ $('copperBatchRun').addEventListener('click',async()=>{
+  if(copperId||copperBatchBusy||copperQueued.length<2)return;
+  copperBatchBusy=true;renderCopperQueue();copperRouteRun.disabled=true;
+  // A prior single-route preview may still be visible after its discard.
+  // Never reuse an old successful result while a NEW batch job is running.
+  copperResult.hidden=true;$('copperPreview').removeAttribute('srcdoc');
+  $('copperResultTitle').textContent='';$('copperResultSummary').textContent='';
+  try{
+   const archive=await copperProjectPayload();
+   copperMessage('Verifying '+copperQueued.length+' distinct KiCad nets, chained working-copy SHA and cumulative DRC. No partial publishing…');
+   const reply=await fetch('/api/native-copper/batch',{method:'POST',
+    headers:{'X-Review-Token':token,'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify({...archive,routes:copperQueued.map(item=>item.route)})});
+   const started=await reply.json();
+   if(!reply.ok||started.state!=='running'||!started.id)throw Error(started.error||'Native batch request rejected.');
+   // Child KiCad DRC is bounded to 570s for three independent steps;
+   // browser waiting must exceed that ceiling or a healthy job appears lost.
+   for(let attempt=0;attempt<1500;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,450));
+    const status=await fetch('/api/jobs/'+encodeURIComponent(started.id),
+     {headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!status.ok)throw Error('Native KiCad batch state unavailable');
+    const job=await status.json();
+    if(job.state==='failed')throw Error(job.message||'Native KiCad discarded an unsuccessful batch');
+    if(job.state==='complete'){
+     const proof=job.native_copper;
+     if(!proof||proof.fabApproved!==false||proof.mode!=='transactional_multinet_review'||
+       proof.step_count!==copperQueued.length||
+       proof.after_unconnected!==proof.before_unconnected-copperQueued.length)
+       throw Error('Incomplete cumulative native DRC batch evidence');
+     copperId=started.id;
+     $('copperResultTitle').textContent=proof.distinct_nets.join(' + ')+' · '+proof.step_count+
+      ' native links · independent cumulative KiCad DRC · NOT APPROVED';
+     $('copperResultSummary').textContent='Unconnected: '+proof.before_unconnected+' → '+
+      proof.after_unconnected+' · Physical DRC: '+proof.before_violations+' → '+
+      proof.after_violations+' · Native parity unchanged at zero. '+
+      'Step-by-step KiCad DRC, exact SHA chain, through-via verification and private evidence ZIP. '+
+      'Zone refill NOT verified. No fabrication or electrical signoff.';
+     copperResult.hidden=false;renderCopperQueue();
+     const preview=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/PREVIEW.html',
+      {headers:{'X-Review-Token':token},cache:'no-store'});
+     if(!preview.ok)throw Error('Native multi-net route passed but preview unavailable');
+     $('copperPreview').srcdoc=await preview.text();
+     copperMessage('Cumulative KiCad 10 DRC verified every net. Download or discard private batch project.','success');
+     copperResult.scrollIntoView({behavior:'auto',block:'nearest'});
+     return;
+    }
+   }
+   throw Error('Batch DRC validation timed out; no fabrication or electrical approval.');
+  }catch(error){copperMessage(error?.message||'Native multi-net transaction rejected.','error');}
+  finally{copperBatchBusy=false;renderCopperQueue();copperRouteRun.disabled=Boolean(copperId)||!copperCandidates.length;}
+ });
+ $('copperRouteForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(copperId||copperBatchBusy){copperMessage('Finish or discard the active copper draft before another edit.','error');return;}
+  copperRouteRun.disabled=true;
+  // Refuse to expose a stale batch/single proof during another native job.
+  copperResult.hidden=true;$('copperPreview').removeAttribute('srcdoc');
+  $('copperResultTitle').textContent='';$('copperResultSummary').textContent='';
+  try{
+   const {route}=selectedCopperRoute();
+   const archive=await copperProjectPayload();
+   copperMessage('Native KiCad is checking exact pad UUIDs, F/B copper and through-via geometry, physical DRC and saved copper identity…');
+   const send=await fetch('/api/native-copper',{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({...archive,...route}),cache:'no-store'
+   });
+   const started=await send.json();
+   if(!send.ok||started.state!=='running'||!started.id)throw Error(started.error||'Native route request rejected');
+   for(let attempt=0;attempt<500;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,450));
+    const response=await fetch('/api/jobs/'+encodeURIComponent(started.id),
+      {headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!response.ok)throw Error('Native KiCad route verification status unavailable');
+    const job=await response.json();
+    if(job.state==='failed')throw Error(job.message||'KiCad rejected route and kept original source');
+    if(job.state==='complete'){
+     const data=job.native_copper;
+     if(!data||data.fabApproved!==false)throw Error('Route evidence incomplete');
+     copperId=started.id;
+     $('copperResultTitle').textContent=data.link.net+' · '+data.link.segment_count+
+      ' track segment(s) · '+data.link.via_count+' through-via(s) · Native KiCad verified copy · NOT APPROVED';
+     $('copperResultSummary').textContent='Unconnected: '+data.before_unconnected+' → '+
+      data.after_unconnected+' · Physical DRC: '+data.before_violations+' → '+
+      data.after_violations+' · Native parity unchanged at zero. '+data.link.length_mm.toFixed(2)+
+      ' mm copper, 0.20 mm width, layers '+data.link.segment_layers.join(' → ')+
+      ', through-vias '+data.link.via_count+'. '+
+      (data.rule_context?.mode==='project_with_custom_rules'
+       ? 'Custom .kicad_dru loader proof + independent default KiCad DRC passed; rule semantics NOT independently approved. '
+       : 'Standard project KiCad DRC passed. ')+
+      'No fabrication or electrical signoff.';
+     copperResult.hidden=false;
+     try{
+      const previewReply=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/PREVIEW.html',
+       {headers:{'X-Review-Token':token},cache:'no-store'});
+      if(!previewReply.ok)throw Error('Native KiCad copper preview not available');
+      $('copperPreview').srcdoc=await previewReply.text();
+      copperMessage('Actual KiCad before/after copper plots and independent DRC evidence ready. Download or discard the private result.','success');
+     }catch(previewError){
+      copperMessage('Native DRC copy is available, but the optional copper plot could not load. '+(previewError?.message||''),'error');
+     }
+     copperResult.scrollIntoView({behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'),block:'nearest'});
+     return;
+    }
+   }
+   throw Error('Native KiCad validation timed out. Do not infer approval.');
+  }catch(error){copperMessage(error?.message||'Native KiCad copper route blocked.','error');}
+  finally{copperRouteRun.disabled=Boolean(copperId)||!copperCandidates.length;}
+ });
+ async function copperDownloadArtifact(filename){
+  if(!copperId)return;
+  const response=await fetch('/api/native-copper/result/'+encodeURIComponent(copperId)+'/'+filename,
+   {headers:{'X-Review-Token':token},cache:'no-store'});
+  if(!response.ok)throw Error('Private native KiCad copper evidence unavailable');
+  const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2500);
+ }
+ $('copperDownload').addEventListener('click',async()=>{
+  try{await copperDownloadArtifact('native-copper-project.zip');}
+  catch(error){copperMessage(error?.message||'Native KiCad ZIP download failed.','error');}
+ });
+ $('copperEvidence').addEventListener('click',async()=>{
+  try{await copperDownloadArtifact('EVIDENCE.json');}
+  catch(error){copperMessage(error?.message||'Native copper DRC evidence unavailable.','error');}
+ });
+ $('copperDiscard').addEventListener('click',async()=>{
+  if(!copperId)return;
+  $('copperDiscard').disabled=true;
+  try{
+   const response=await fetch('/api/native-copper/discard',{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({id:copperId}),cache:'no-store'
+   });
+   const report=await response.json();
+   if(!response.ok||report.state!=='discarded')throw Error(report.error||'Private native copy not discarded');
+   copperId=null;copperResult.hidden=true;$('copperPreview').removeAttribute('srcdoc');
+   copperClear();copperMessage('Private native KiCad copper draft discarded. Original project ZIP remains unchanged.','success');
+  }catch(error){copperMessage(error?.message||'Private native copper draft discard failed.','error');}
+  finally{$('copperDiscard').disabled=false;}
+ });
+ $('pcbAuditForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const sch=$('pcbAuditSch').files?.[0],pcb=$('pcbAuditPcb').files?.[0];
+  pcbAuditData=null;auditResult.hidden=true;auditRun.disabled=true;
+  try{
+   if(!sch||!pcb||!sch.name.endsWith('.kicad_sch')||!pcb.name.endsWith('.kicad_pcb')||
+      sch.size<101||sch.size>4*1024*1024||pcb.size<101||pcb.size>10*1024*1024)
+    throw Error('Select one real KiCad schematic ≤4 MB and PCB ≤10 MB.');
+   auditMessage('Hashing both local originals; running KiCad-native schematic netlist and PCB inspection…');
+   const [first,second]=await Promise.all([ecoUploadBase64(sch),ecoUploadBase64(pcb)]);
+   const request={schematic_base64:first.source_base64,schematic_sha256:first.original_sha256,
+    pcb_base64:second.source_base64,pcb_sha256:second.original_sha256};
+   const response=await fetch('/api/schematic-pcb-audit',{method:'POST',
+    headers:{'X-Review-Token':token,'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify(request)});
+   const report=await response.json();
+   if(!response.ok||report.automatic_sync_authorized!==false)throw Error(report.error||'Native audit cannot establish safe parity');
+   pcbAuditData=report;
+   const counts=report.component_counts;
+   $('pcbAuditSummary').textContent='Schematic: '+counts.schematic+' · PCB: '+counts.pcb+
+    ' · shared refs: '+counts.shared_references+' · field discrepancies: '+
+    report.component_field_discrepancies.length;
+   const items=$('pcbAuditDifferences');items.replaceChildren();
+   for(const issue of report.component_field_discrepancies){
+    const item=document.createElement('li');
+    item.textContent=issue.reference+' · '+issue.field+' · '+issue.issue+
+     (issue.schematic!==undefined?' · schematic: '+issue.schematic+' · PCB: '+issue.pcb:'');
+    items.append(item);
+   }
+   if(!items.children.length){
+    const ok=document.createElement('li');ok.textContent='Component fields match; this is NOT proof of pin/net linkage.';
+    items.append(ok);
+   }
+   const linkage=report.native_uuid_linkage;
+   if(!linkage||typeof linkage.verified!=='boolean'||!Array.isArray(linkage.findings))
+    throw Error('KiCad native UUID association evidence is unavailable');
+   $('pcbAuditLinkage').textContent='KiCad UUID linkage verified: '+(linkage.verified?'YES':'NO')+
+    ' ('+linkage.verified_reference_count+'/'+linkage.expected_reference_count+
+    ' native symbol paths) · Pin/net association: '+report.pin_net_correspondence+
+    ' · Automatic sync: BLOCKED · Fabrication: NOT APPROVED.';
+   $('pcbAuditPathSummary').textContent='KiCad UUID path findings: '+linkage.findings.length+
+    ' · '+linkage.status;
+   const pathFindings=$('pcbAuditPathFindings');pathFindings.replaceChildren();
+   for(const issue of linkage.findings){
+    const item=document.createElement('li');
+    item.textContent=issue.reference+' · '+issue.issue+
+     (issue.other_reference?' · also linked to '+issue.other_reference:'');
+    pathFindings.append(item);
+   }
+   if(!linkage.findings.length){
+    const item=document.createElement('li');
+    item.textContent='Each footprint has an exact unique KiCad schematic symbol UUID path. This is not electrical/pin/net signoff.';
+    pathFindings.append(item);
+   }
+   const pinEvidence=report.native_pin_net_evidence;
+   if(!pinEvidence||!Array.isArray(pinEvidence.issue_samples))
+    throw Error('KiCad native pin/net diagnostic evidence is unavailable');
+   $('pcbAuditPinSummary').textContent='Native KiCad pin-number/net-label disagreement: '+
+     pinEvidence.issue_count+' · '+pinEvidence.matching_pin_identifiers_by_reference+
+     ' identical ref/pin labels · '+pinEvidence.pcb_physical_pads+
+     ' physical pads · '+(pinEvidence.native_root_scope_slash_pattern_not_parity||0)+
+     ' KiCad-conflicting /NET vs NET label patterns · '+(pinEvidence.native_unexplained_net_label_disagreements||0)+
+     ' literal native net conflicts · connected-pin subset: '+
+     (pinEvidence.connected_schematic_pin_net_subset_verified?'MATCHED':'NOT VERIFIED')+
+     ' · not electrical signoff';
+   const pins=$('pcbAuditPinFindings');pins.replaceChildren();
+   for(const issue of pinEvidence.issue_samples){
+    const item=document.createElement('li');
+    item.textContent=issue.reference+' · '+(issue.schematic_pin||issue.pcb_pad||issue.pin)+
+      ' · '+issue.issue+(issue.schematic_net!==undefined?
+       ' · schematic net: '+issue.schematic_net+' · PCB net: '+issue.pcb_net:'');
+    pins.append(item);
+   }
+   if(pinEvidence.issue_count>pinEvidence.issue_samples.length){
+    const more=document.createElement('li');
+    more.textContent=(pinEvidence.issue_count-pinEvidence.issue_samples.length)+
+      ' additional source differences in the downloadable local JSON report.';
+    pins.append(more);
+   }
+   if(!pinEvidence.issue_count){
+    const item=document.createElement('li');
+    item.textContent='Native pin IDs and net strings agree exactly by reference; requires separate UUID, connectivity and electrical validation.';
+    pins.append(item);
+   }
+   auditResult.hidden=false;
+   auditMessage('Native source comparison complete; separate unresolved engineering checks remain.','success');
+  }catch(error){
+   auditMessage(error?.message||'KiCad native audit blocked; no source changed.','error');
+  }finally{auditRun.disabled=false;}
+ });
+ $('pcbAuditDownload').addEventListener('click',()=>{
+  if(!pcbAuditData)return;
+  const blob=new Blob([JSON.stringify(pcbAuditData,null,2)+'\n'],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='zaptrace-native-schematic-pcb-audit.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ });
+ $('ecoForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(lastEcoId){ecoMessage('Discard the current local ECO draft before authoring another.','error');return;}
+  const file=$('ecoSource').files?.[0];
+  const reference=$('ecoRef').value.trim(),value=$('ecoValue').value.trim();
+  if(!file||!file.name.endsWith('.kicad_sch')||file.size>4*1024*1024||file.size<100||
+     !/^[A-Za-z]{1,5}[1-9][0-9]{0,5}$/.test(reference)||
+     !/^[A-Za-z0-9][A-Za-z0-9 .,_+/%Ωµμ°()-]{0,62}$/.test(value)){
+   ecoMessage('Choose a native .kicad_sch under 4 MB, an exact component reference (R1) and a safe value.','error');return;
+  }
+  ecoCreate.disabled=true;
+  try{
+   ecoMessage('Preparing local source hash and validating the native KiCad schematic…');
+   const payload={...await ecoUploadBase64(file),reference,value};
+   const res=await fetch('/api/eco',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload),cache:'no-store'});
+   const start=await res.json();
+   if(!res.ok||start.state!=='running'||!start.id)throw Error(start.error||'Native KiCad ECO rejected');
+   for(let i=0;i<300;i++){
+    await new Promise(r=>setTimeout(r,500));
+    const poll=await fetch('/api/jobs/'+encodeURIComponent(start.id),{headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!poll.ok)throw Error('Local KiCad validation status unavailable');
+    const job=await poll.json();
+    if(job.state==='failed')throw Error(job.message||'Native KiCad ECO validation blocked');
+    if(job.state==='complete'){
+     const preview=await (await ecoFile(start.id,'PREVIEW.html')).text();
+     ecoResult.dataset.frameReady='false';
+     $('ecoPreview').addEventListener('load',()=>{ecoResult.dataset.frameReady='true';},{once:true});
+     $('ecoPreview').srcdoc=preview;
+     $('ecoResultTitle').textContent=job.eco.reference+' · '+job.eco.old_value+' → '+job.eco.new_value+
+      ' · KiCad verified copy · PCB NOT synchronized';
+     lastEcoId=start.id;ecoResult.dataset.id=start.id;ecoResult.hidden=false;
+     ecoMessage('KiCad native netlist + ERC validated. Examine the visual diff before downloading a separate draft.','success');
+     ecoResult.scrollIntoView({behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'),block:'nearest'});
+     return;
+    }
+   }
+   throw Error('KiCad ECO validation timed out; no approval or source overwrite');
+  }catch(err){ecoMessage(err?.message||'KiCad ECO failed; source unchanged.','error');}
+  finally{ecoCreate.disabled=false;}
+ });
+ // Native PCB authoring lives in a separate security namespace from the
+ // schematic-value ECO; neither editor can read the other's artifacts.
+ let pcbEcoId=null,pcbEcoBundle=false,pcbEcoReviewSha=null;
+ const pcbResult=$('pcbEcoResult'),pcbStatus=$('pcbEcoStatus'),pcbButton=$('pcbEcoCreate');
+ const pcbMessage=(message,kind='info')=>{
+  pcbStatus.hidden=false;pcbStatus.textContent=message;
+  pcbStatus.classList.toggle('error',kind==='error');
+  pcbStatus.classList.toggle('success',kind==='success');
+  pcbStatus.setAttribute('role',kind==='error'?'alert':'status');
+  pcbStatus.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ };
+ async function pcbFile(id,file){
+  const r=await fetch('/api/pcb-eco/result/'+encodeURIComponent(id)+'/'+file,
+   {headers:{'X-Review-Token':token},cache:'no-store'});
+  if(!r.ok)throw Error('Native verified PCB ECO result unavailable');
+  return r;
+ }
+ $('pcbEcoForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(pcbEcoId){pcbMessage('Discard the current PCB working copy before starting another move.','error');return;}
+  const file=$('pcbEcoSource').files?.[0],reference=$('pcbEcoRef').value.trim();
+  const dx=Number($('pcbEcoDx').value),dy=Number($('pcbEcoDy').value),rotate=Number($('pcbEcoRotate').value);
+  if(!file||!file.name.endsWith('.kicad_pcb')||file.size<200||file.size>10*1024*1024||
+     !/^[A-Za-z]{1,5}[1-9][0-9]{0,5}$/.test(reference)||[dx,dy].some(x=>!Number.isFinite(x)||Math.abs(x)>5||Math.abs(x*20-Math.round(x*20))>1e-7)||
+     ![0,90,-90,180].includes(rotate)||(dx===0&&dy===0&&rotate===0)){
+   pcbMessage('Select a valid native PCB, exact reference, ±5 mm on a 0.05 mm grid and/or quarter-turn.','error');return;
+  }
+  pcbButton.disabled=true;
+  try{
+   pcbMessage('Hashing source file and checking real copper endpoints, KiCad pad net identity and native DRC…');
+   const project=$('pcbEcoProject').files?.[0],rules=$('pcbEcoRules').files?.[0];
+   if(rules&&!project)throw Error('Custom .kicad_dru rules require their matching .kicad_pro project.');
+   if(rules&&(rules.name!==file.name.replace(/\.kicad_pcb$/,'.kicad_dru')||
+      rules.size>512*1024||rules.size<11))throw Error('Custom .kicad_dru must match PCB basename and be under 512 KB.');
+   if(project&&(project.name!==file.name.replace(/\.kicad_pcb$/,'.kicad_pro')||
+      project.size>3*1024*1024||project.size<9))throw Error('Project .kicad_pro must match PCB basename and be under 3 MB.');
+   const payload={...await ecoUploadBase64(file),reference,dx,dy,rotate};
+   if(project){
+    const encoded=await ecoUploadBase64(project);
+    Object.assign(payload,{source_filename:file.name,project_filename:project.name,
+     project_base64:encoded.source_base64,project_sha256:encoded.original_sha256});
+   }
+   if(rules){
+    const encoded=await ecoUploadBase64(rules);
+    Object.assign(payload,{rules_filename:rules.name,rules_base64:encoded.source_base64,
+     rules_sha256:encoded.original_sha256});
+   }
+   const send=await fetch('/api/pcb-eco',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify(payload),cache:'no-store'});
+   const started=await send.json();
+   if(!send.ok||started.state!=='running'||!started.id)throw Error(started.error||'KiCad refused PCB ECO source');
+   for(let i=0;i<450;i++){
+    await new Promise(r=>setTimeout(r,450));
+    const check=await fetch('/api/jobs/'+encodeURIComponent(started.id),{headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!check.ok)throw Error('PCB KiCad validation status unavailable');
+    const job=await check.json();
+    if(job.state==='failed')throw Error(job.message||'PCB native ECO blocked by KiCad');
+    if(job.state==='complete'){
+     const html=await(await pcbFile(started.id,'PREVIEW.html')).text();
+     pcbResult.dataset.frameReady='false';
+     $('pcbEcoPreview').addEventListener('load',()=>{pcbResult.dataset.frameReady='true';},{once:true});
+     $('pcbEcoPreview').srcdoc=html;
+     pcbResult.dataset.id=started.id;pcbEcoId=started.id;pcbResult.hidden=false;
+     pcbEcoReviewSha=job.pcb_eco.change_review_available===true &&
+      /^[0-9a-f]{64}$/.test(job.pcb_eco.change_review_sha256)?job.pcb_eco.change_review_sha256:null;
+     $('pcbEcoReviewDownload').hidden=!pcbEcoReviewSha;
+     pcbEcoBundle=['project','project_with_custom_rules'].includes(job.pcb_eco.rule_context);
+     $('pcbEcoDownload').textContent=pcbEcoBundle?'Download PCB + project rules ZIP':'Download separate PCB copy';
+     $('pcbEcoResultTitle').textContent=job.pcb_eco.ref+' · '+job.pcb_eco.old_mm.join(', ')+' → '+
+      job.pcb_eco.new_mm.join(', ')+' mm · '+job.pcb_eco.old_angle_degrees+'° → '+
+      job.pcb_eco.new_angle_degrees+'° · native DRC verified · NOT fab approved';
+     const probed=job.pcb_eco.custom_rule_loader_probe_passed;
+     pcbMessage(probed?'Native KiCad custom-rule loader probe passed; individual rule semantics and fabrication remain unverified. Matching PCB/project/rules are preserved in ZIP.':
+      pcbEcoBundle?'Native PCB compared with the selected project file present; effective custom rule enforcement not independently certified. Download preserves that file.':
+      'Native PCB compared with KiCad defaults only; no production project rules verified.');
+     pcbResult.scrollIntoView({behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'),block:'nearest'});return;
+    }
+   }
+   throw Error('Native PCB validation exceeded the local timeout; no approval or source overwrite.');
+  }catch(error){pcbMessage(error?.message||'Native PCB placement refused; original remains unchanged.','error');}
+  finally{pcbButton.disabled=false;}
+ });
+ $('pcbEcoReviewDownload').addEventListener('click',async()=>{
+  if(!pcbEcoId||!pcbEcoReviewSha)return;
+  try{
+   const response=await pcbFile(pcbEcoId,'CHANGE_REVIEW.html');
+   const bytes=await response.arrayBuffer();
+   if(bytes.byteLength>12*1024*1024)throw Error('Verified offline review exceeded the size limit');
+   const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))]
+    .map(x=>x.toString(16).padStart(2,'0')).join('');
+   if(hash!==pcbEcoReviewSha)throw Error('Native source-linked review SHA differs: download blocked');
+   const blob=new Blob([bytes],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=url;link.download='ZapTrace-Source-Bound-Change-Review.html';
+   document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),2500);
+   pcbMessage('Downloaded exact-state offline KiCad change review. Open locally to record a repair/reject/defer decision; fabrication and electrical approval remain blocked.','success');
+  }catch(error){pcbMessage(error?.message||'Native source-linked comparison unavailable.','error');}
+ });
+ $('pcbEcoDownload').addEventListener('click',async()=>{
+  if(!pcbEcoId)return;
+  try{
+   const reply=await pcbFile(pcbEcoId,pcbEcoBundle?'source.project.zip':'source.kicad_pcb');
+   const file=await reply.blob(),url=URL.createObjectURL(file),link=document.createElement('a');
+   link.href=url;link.download=pcbEcoBundle?'source-PCB-ECO-project.zip':'source-edited-PCB-ECO.kicad_pcb';
+   document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),2500);
+   pcbMessage(pcbEcoBundle?'Downloaded a separate PCB/project/rules evidence ZIP (where supplied). Source files remain unchanged.':'Downloaded PCB copy checked only with KiCad defaults; original unchanged.');
+  }catch(error){pcbMessage(error?.message||'Edited PCB download unavailable.','error');}
+ });
+ $('pcbEcoDiscard').addEventListener('click',async()=>{
+  if(!pcbEcoId)return;
+  $('pcbEcoDiscard').disabled=true;
+  try{
+   const reply=await fetch('/api/pcb-eco/discard',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({id:pcbEcoId}),cache:'no-store'});
+   const result=await reply.json();
+   if(!reply.ok||result.state!=='discarded')throw Error(result.error||'Could not discard PCB copy');
+   pcbEcoId=null;pcbEcoBundle=false;pcbEcoReviewSha=null;
+   $('pcbEcoReviewDownload').hidden=true;
+   $('pcbEcoDownload').textContent='Download separate PCB copy';
+   delete pcbResult.dataset.id;delete pcbResult.dataset.frameReady;
+   pcbResult.hidden=true;$('pcbEcoPreview').removeAttribute('srcdoc');
+   pcbMessage('Private PCB move draft discarded; original KiCad PCB was never modified.','success');
+  }catch(error){pcbMessage(error?.message||'Could not discard PCB draft.','error');}
+  finally{$('pcbEcoDiscard').disabled=false;}
+ });
+ $('ecoDownload').addEventListener('click',async()=>{
+  if(!lastEcoId)return;
+  try{
+   const result=await ecoFile(lastEcoId,'source.kicad_sch');
+   const blob=await result.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+   a.href=url;a.download='source-edited-ECO.kicad_sch';document.body.append(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),2500);
+   ecoMessage('Downloaded a separate KiCad ECO copy. Original PCB, source and BOM remain unchanged.');
+  }catch(err){ecoMessage(err?.message||'KiCad edited copy unavailable.','error');}
+ });
+ $('ecoDiscard').addEventListener('click',async()=>{
+  if(!lastEcoId)return;
+  const id=lastEcoId;$('ecoDiscard').disabled=true;
+  try{
+   const res=await fetch('/api/eco/discard',{method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/json'},
+    body:JSON.stringify({id}),cache:'no-store'});
+   const result=await res.json();if(!res.ok||result.state!=='discarded')throw Error(result.error||'Could not discard draft');
+   lastEcoId=null;delete ecoResult.dataset.id;delete ecoResult.dataset.frameReady;
+   ecoResult.hidden=true;$('ecoPreview').removeAttribute('srcdoc');
+   ecoMessage('Local ECO draft discarded; no original source file was modified.','success');
+  }catch(err){ecoMessage(err?.message||'Could not discard local ECO draft.','error');}
+  finally{$('ecoDiscard').disabled=false;}
+ });
+ for(const [field,caption] of [[board,$('nativeBoardName')],[sch,$('nativeSchName')],[project,$('nativeProName')],[rules,$('nativeDruName')]]){
+  field.addEventListener('change',()=>{caption.textContent=field.files?.[0]?.name||'No file selected';});
+ }
+ sheetFolder.addEventListener('change',()=>{
+  const count=[...(sheetFolder.files||[])].filter(f=>f.name.endsWith('.kicad_sch')).length;
+  $('nativeSheetName').textContent=count?count+' schematic files found in selected folder':'No native sheets found in selected folder';
+ });
+ const job=$('nativeJob'),status=$('nativeJobText'),run=$('nativeRun');
+ const phases=['preparing','geometry','drc','netlist','erc','complete'];
+ function observedPhase(phase,observed=[]){
+  $('nativeStages').hidden=false;
+  $('nativeStages').querySelectorAll('[data-phase]').forEach(item=>{
+   const tag=item.dataset.phase;
+   const verified=tag==='preparing'||(tag==='complete'&&phase==='complete')||observed.includes(tag);
+   const current=tag===phase;
+   item.classList.toggle('observed',verified);
+   item.classList.toggle('current',current);
+   item.setAttribute('aria-current',current?'step':'false');
+  });
+ }
+ function report(message,type='running'){
+  job.hidden=false;job.classList.toggle('error',type==='error');job.classList.toggle('success',type==='success');
+  job.setAttribute('role',type==='error'?'alert':'status');
+  job.setAttribute('aria-live',type==='error'?'assertive':'polite');
+  status.textContent=message;
+ }
+ document.getElementById('stopLocalStudio').addEventListener('click',async()=>{
+  const button=document.getElementById('stopLocalStudio');
+  button.disabled=true;button.textContent='Stopping local service…';
+  try{
+   const reply=await fetch('/api/shutdown',{method:'POST',headers:{'X-Review-Token':token},cache:'no-store'});
+   if(!reply.ok)throw Error('Local service could not be stopped');
+   document.getElementById('localStopped').hidden=false;
+   document.getElementById('nativeRun').disabled=true;
+   document.getElementById('localSessionControls').hidden=true;
+  }catch(err){
+   button.disabled=false;button.textContent='Stop local Review Studio';
+   document.getElementById('nativeJob').hidden=false;
+   document.getElementById('nativeJobText').textContent='Could not stop local server; close it from your application menu or process manager.';
+  }
+ });
+ const restoreForm=$('nativeRestoreForm'),restoreStatus=$('nativeRestoreStatus'),restoreRun=$('nativeRestoreRun');
+ restoreForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const name=$('nativeRestoreName').value.trim(),file=$('nativeRestoreZip').files?.[0];
+  restoreStatus.hidden=false;
+  restoreStatus.classList.remove('error');
+  restoreStatus.setAttribute('role','status');restoreStatus.setAttribute('aria-live','polite');
+  if(!name||name.length>90||!file||!file.name.toLowerCase().endsWith('.zip')||file.size>34*1024*1024){
+   restoreStatus.classList.add('error');
+   restoreStatus.setAttribute('role','alert');restoreStatus.setAttribute('aria-live','assertive');
+   restoreStatus.textContent='Choose a local Review Studio ZIP (max 34 MB) and a new review name.';
+   return;
+  }
+  restoreRun.disabled=true;
+  try{
+   restoreStatus.textContent='Validating backup and its source SHA-256 locally…';
+   const response=await fetch('/api/projects/restore?name='+encodeURIComponent(name),{
+    method:'POST',headers:{'X-Review-Token':token,'Content-Type':'application/zip'},body:file,cache:'no-store'});
+   const item=await response.json();
+   if(!response.ok||item.state!=='running'||!item.id)throw Error(item.error||'Restore was rejected');
+   restoreStatus.textContent='KiCad sources recovered. Regenerating geometry, ERC and DRC (archived reports are ignored).';
+   for(let i=0;i<160;i++){
+    await new Promise(r=>setTimeout(r,1000));
+    const check=await fetch('/api/jobs/'+encodeURIComponent(item.id),{headers:{'X-Review-Token':token},cache:'no-store'});
+    if(!check.ok)throw Error('Native restore analysis status unavailable');
+    const job=await check.json();
+    if(job.state==='complete'){
+     restoreStatus.textContent='New native KiCad review complete. Opening your verified project library…';
+     location.reload();return;
+    }
+    if(job.state==='failed')throw Error(job.message||'Native KiCad verification failed');
+    if(typeof job.message==='string')restoreStatus.textContent=job.message;
+   }
+   throw Error('Review still running; it will appear in Projects when native KiCad completes.');
+  }catch(error){
+   restoreStatus.classList.add('error');
+   restoreStatus.setAttribute('role','alert');restoreStatus.setAttribute('aria-live','assertive');
+   restoreStatus.textContent=(error instanceof Error?error.message:'Restore failed')+
+    ' · Existing reviews and your ZIP backup remain unchanged.';
+  }finally{restoreRun.disabled=false;}
+ });
+ const headers={'X-Review-Token':token};
+ const modal=$('reviewDeleteDialog'),deletePhrase=$('reviewDeletePhrase'),deleteButton=$('reviewDeleteConfirm');
+ let deleteTarget=null;
+ for(const controls of document.querySelectorAll('.data-actions')){
+  controls.hidden=false;
+  controls.querySelector('.backup-review').addEventListener('click',async()=>{
+   const trigger=controls.querySelector('.backup-review');
+   trigger.disabled=true;trigger.textContent='Preparing local ZIP…';
+   try{
+    const url='/api/projects/export?key='+encodeURIComponent(controls.dataset.key)+'&sha='+encodeURIComponent(controls.dataset.sha);
+    const response=await fetch(url,{headers,cache:'no-store'});
+    if(!response.ok){const error=await response.json();throw Error(error.error||'Backup failed');}
+    const blob=await response.blob();
+    const objectUrl=URL.createObjectURL(blob);
+    const link=document.createElement('a');link.href=objectUrl;
+    link.download='zaptrace-review-'+controls.dataset.key+'.zip';
+    document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),2000);
+   }catch(error){
+    trigger.title=error instanceof Error?error.message:'Local backup failed';
+    trigger.textContent='Backup failed · retry';
+   }finally{trigger.disabled=false;if(trigger.textContent==='Preparing local ZIP…')trigger.textContent='Export private ZIP backup';}
+  });
+  controls.querySelector('.delete-review').addEventListener('click',()=>{
+   deleteTarget=controls;deletePhrase.value='';deleteButton.disabled=true;
+   $('reviewDeleteError').textContent='';
+   $('reviewDeleteLabel').textContent=controls.dataset.label+' · PCB SHA '+controls.dataset.sha.slice(0,12)+'…';
+   modal.showModal();deletePhrase.focus();
+  });
+ }
+ $('reviewDeleteCancel').addEventListener('click',()=>modal.close());
+ modal.addEventListener('close',()=>{deleteTarget=null;deletePhrase.value='';});
+ deletePhrase.addEventListener('input',()=>{deleteButton.disabled=deletePhrase.value!=='DELETE';});
+ $('reviewDeleteForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!deleteTarget||deletePhrase.value!=='DELETE')return;
+  deleteButton.disabled=true;$('reviewDeleteError').textContent='Deleting the selected local snapshot…';
+  try{
+   const response=await fetch('/api/projects/delete',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
+    body:JSON.stringify({key:deleteTarget.dataset.key,sha:deleteTarget.dataset.sha,
+    confirmation:'DELETE_LOCAL_REVIEW_AND_STAGED_COPIES'})});
+   const result=await response.json();if(!response.ok||result.state!=='deleted')throw Error(result.error||'Deletion was not completed');
+   modal.close();location.reload();
+  }catch(error){$('reviewDeleteError').textContent=error instanceof Error?error.message:'Local deletion failed';
+   deleteButton.disabled=false;}
+ });
+ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ $('nativeImportForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const selected=board.files?.[0],schematic=sch.files?.[0],projectSettings=project.files?.[0],customRules=rules.files?.[0],title=name.value.trim();
+  if(!title||!selected||!selected.name.toLowerCase().endsWith('.kicad_pcb')||
+   selected.size>10*1024*1024||schematic&&(schematic.size>4*1024*1024||!schematic.name.endsWith('.kicad_sch'))||
+   projectSettings&&(projectSettings.size>3*1024*1024||!projectSettings.name.endsWith('.kicad_pro'))||
+   customRules&&(customRules.size>512*1024||!customRules.name.endsWith('.kicad_dru'))){
+   report('Choose a valid KiCad PCB (max 10 MB) and optional schematic (max 4 MB).','error');return;
+  }
+  run.disabled=true;report('Transferring selected files to the localhost KiCad engine…');
+  $('nativeStages').hidden=true;
+  try{
+   const data=new FormData();data.append('name',title);data.append('board',selected);
+   if(schematic)data.append('schematic',schematic);
+   if(projectSettings)data.append('project',projectSettings);
+   if(customRules)data.append('rules',customRules);
+   const sheets=[...(sheetFolder.files||[])].filter(f=>f.name.toLowerCase().endsWith('.kicad_sch'));
+   if(sheets.length>32)throw Error('A maximum of 32 hierarchical KiCad schematic files is supported');
+   let totalSheets=0;
+   const paths=[];
+   for(const [i,file] of sheets.entries()){
+    totalSheets+=file.size;
+    if(totalSheets>16*1024*1024)throw Error('Hierarchy too large for the local analysis limit');
+    const fullPath=file.webkitRelativePath||file.name;
+    const rel=fullPath.split('/').slice(1).join('/');
+    if(!rel||rel.includes('..')||rel.startsWith('/'))throw Error('Invalid schematic hierarchy path');
+    // The selected root schematic is staged under source.kicad_sch;
+    // do not overwrite it with the folder copy.
+    if(rel===schematic?.name)continue;
+    const key='sheet'+String(i).padStart(3,'0');
+    paths.push({key,path:rel});data.append(key,file);
+   }
+   if(paths.length)data.append('sheet_paths',JSON.stringify(paths));
+   if(sheets.length&&!schematic)throw Error('Select the root .kicad_sch file as well as its folder');
+
+   const response=await fetch('/api/import',{method:'POST',headers,body:data,cache:'no-store'});
+   const result=await response.json();
+   if(!response.ok)throw Error(result.error||'Local KiCad import request failed');
+   if(result.state!=='running'||!result.id)throw Error('Native engine did not start');
+   observedPhase('preparing');
+   report('KiCad is verifying the board, generating native plots, and running design-rule checks. No production approval is implied.');
+   for(let i=0;i<120;i++){
+    await sleep(1200);
+    const poll=await fetch('/api/jobs/'+encodeURIComponent(result.id),{headers,cache:'no-store'});
+    if(!poll.ok)throw Error('Native engine status unavailable');
+    const state=await poll.json();
+    if(state.phase&&state.state==='running'){
+     observedPhase(state.phase,state.observed||[]);
+     if(typeof state.message==='string')report(state.message+' · Engineering approval still required.');
+    }
+    if(state.state==='complete'){
+     observedPhase('complete',state.observed||[]);
+     report('Native review created. Returning to Projects…','success');
+     location.assign(state.openUrl||'/');return;
+    }
+    if(state.state==='failed')throw Error(state.message||'Native KiCad analysis failed');
+   }
+   throw Error('Native analysis is still running; refresh Projects later. No fabrication approval.');
+  }catch(error){report((error instanceof Error?error.message:'Local native import failed')+' · Source files remain unchanged.','error');}
+  finally{run.disabled=false;}
+ });
+}
+// Avoid presenting broken image icons as evidence. Only native, registered
+// real KiCad screenshots / native layer plots are shown. Never invent geometry.
+for(const card of document.querySelectorAll('.project')){
+ const art=card.querySelector('.art'),images=[...art.querySelectorAll('img')];
+ if(!images.length)continue;
+ const update=()=>{
+  for(const img of images){
+   if(img.complete&&img.naturalWidth===0)img.hidden=true;
+  }
+  if(!images.every(img=>img.complete)||images.some(img=>img.naturalWidth>0)||
+   art.querySelector('.image-unavailable'))return;
+  const fallback=document.createElement('div');
+  fallback.className='image-unavailable';
+  fallback.setAttribute('role','img');
+  fallback.setAttribute('aria-label','Native image preview unavailable');
+  const title=document.createElement('strong'),note=document.createElement('small');
+  title.textContent='Preview image unavailable';
+  note.textContent='Open the registered native evidence to inspect the source';
+  fallback.append(title,note);
+  art.append(fallback);
+ };
+ for(const img of images){
+  img.addEventListener('error',update);
+  img.addEventListener('load',update);
+ }
+ update();
+}
+// Compare *native source snapshots* only. Every number is taken from each
+// independently generated evidence.json; no inferred green sign-off or DRC
+// equivalence when the original project/manufacturing rules differ.
+const comparisonItems=[...document.querySelectorAll('.project')],selectedSnapshots=[];
+const byId=id=>document.getElementById(id);
+const compareState=byId('compareSelection'),comparePanel=byId('comparePanel');
+const make=(tag,cls,body)=>{const el=document.createElement(tag);if(cls)el.className=cls;
+ if(body!==undefined)el.textContent=String(body);return el;};
+function compareValue(card,key){const val=card.dataset[key];return /^\d+$/.test(val||'')?Number(val):null;}
+function renderComparison(){
+ const count=selectedSnapshots.length;
+ compareState.textContent=count===2?'2 of 2 snapshots · inspect evidence only':
+  count===1?'1 of 2 snapshots selected · choose another':'Select two snapshots';
+ comparisonItems.forEach(card=>{
+  card.classList.toggle('compare-active',selectedSnapshots.includes(card));
+  card.querySelector('.compare-checkbox').checked=selectedSnapshots.includes(card);
+ });
+ comparePanel.hidden=count!==2;
+ if(count!==2)return;
+ const [a,b]=selectedSnapshots;
+ const name=card=>card.querySelector('h3')?.textContent||'KiCad snapshot';
+ const settingsDiffer=a.dataset.projectRules!==b.dataset.projectRules||
+  a.dataset.customRules!==b.dataset.customRules;
+ // The verified native digest covers PCB bytes, KiCad project/custom rules
+ // and schematic sheets: boolean "project present" flags are not enough.
+ const ctxA=a.dataset.analysisContext||'',ctxB=b.dataset.analysisContext||'';
+ const sameContext=/^[0-9a-f]{64}$/.test(ctxA)&&ctxA===ctxB;
+ const sameSource=/^[0-9a-f]{64}$/.test(a.dataset.sourceSha||'')&&a.dataset.sourceSha===b.dataset.sourceSha;
+ const sameTool=Boolean(a.dataset.kicadTool)&&a.dataset.kicadTool===b.dataset.kicadTool;
+ const comparableEngineering=sameContext&&sameSource&&sameTool&&!settingsDiffer;
+ const context=byId('compareContext');context.replaceChildren();
+ if(settingsDiffer){
+  context.className='compare-context caution';
+  context.append(make('strong','', 'DIFFERENT KICAD RULE CONTEXTS'));
+  context.append(make('p','', 'One snapshot was checked with different supplied project/custom rules. Raw DRC totals are NOT an apples-to-apples manufacturability comparison; KiCad footprints/libraries may also differ.'));
+ }else if(!sameContext||!sameSource||!sameTool){
+  context.className='compare-context caution';
+  context.append(make('strong','', 'SOURCE / ANALYSIS CONTEXT OR KICAD TOOL UNVERIFIED'));
+  context.append(make('p','', 'Exact PCB, project/custom rules, schematic analysis, source SHA or native KiCad toolchain differ or lack trustworthy provenance. DRC/ERC counts are separate observations; their numerical deltas cannot establish a verified repair, risk reduction or fabrication readiness.'));
+ }else{
+  context.className='compare-context neutral';
+  context.append(make('strong','', 'MATCHED SOURCE, INPUTS AND KICAD TOOL · NOT FABRICATION EQUIVALENCE'));
+  context.append(make('p','', 'Recorded KiCad board/source, project/schematic digest and tool version match; external library resolution, engineering intent and manufacturing suitability are still not independently qualified.'));
+ }
+ if(!comparableEngineering){
+  context.append(make('p','', 'NEXT ACTION: inspect both source reviews and evidence reports; compare the actual PCB/schematic and project rules under the same KiCad toolchain. Re-run native DRC/ERC on the intended candidate before making any engineering decision. Do not approve fabrication.'));
+ }
+ if(a.dataset.boardSize!==b.dataset.boardSize){
+  context.append(make('p','', 'Native board bounds also differ: '+a.dataset.boardSize+' mm versus '+b.dataset.boardSize+' mm.'));
+ }
+ const designs=byId('compareDesigns');designs.replaceChildren();
+ for(const [idx,card] of selectedSnapshots.entries()){
+  const side=make('div','compare-side');side.append(make('span','compare-letter',idx===0?'SNAPSHOT A':'SNAPSHOT B'));
+  side.append(make('h3','',name(card)));
+  side.append(make('p','',card.querySelector('.ref span:last-child')?.textContent||'Source fingerprint unavailable'));
+  const links=make('div','compare-links');
+  for(const [css,label] of [['primary','Open native review ↗'],['secondary','Open evidence report ↗']]){
+   const source=card.querySelector('.actions a.'+css);
+   if(!source)continue;
+   const link=make('a','',label);link.href=source.getAttribute('href');links.append(link);
+  }
+  side.append(links);designs.append(side);
+ }
+ const metrics=byId('compareMetrics');metrics.replaceChildren();
+ const specs=[['copper','Copper items','Items per source PCB, not evidence of continuity'],
+  ['pads','Physical pads','Count of native pcbnew pad instances'],
+  ['open','Open connections','KiCad unconnected_items, not straight-line routing proposals'],
+  ['ruleFindings','PCB rule findings','Non-open findings excluding KiCad library consistency'],
+  ['libraryFindings','Library findings','KiCad footprint library consistency under each source context'],
+  ['erc','Schematic ERC','Enabled schematic rules; NOT RUN when no schematic was supplied']];
+ for(const [key,title,note] of specs){
+  const va=compareValue(a,key),vb=compareValue(b,key);
+  const item=make('article','compare-metric');item.append(make('div','compare-metric-title',title));
+  const values=make('div','compare-metric-values');
+  values.append(make('strong','',va===null?'NOT RUN':va));
+  const countOnly=key==='copper'||key==='pads';
+  const delta=va!==null&&vb!==null&&(countOnly||comparableEngineering)
+   ?'B − A '+(vb-va>0?'+':'')+(vb-va)+(countOnly?' · COUNT ONLY':' · IDENTICAL INPUTS')
+   :'NOT COMPARABLE';
+  values.append(make('span','',delta));
+  values.append(make('strong','',vb===null?'NOT RUN':vb));item.append(values);
+  item.append(make('p','',note));metrics.append(item);
+ }
+}
+comparisonItems.forEach(card=>{
+ card.querySelector('.compare-checkbox').addEventListener('change',event=>{
+  if(event.target.checked){
+   if(selectedSnapshots.length===2){event.target.checked=false;
+    compareState.textContent='Maximum two snapshots. Clear a selection before adding another.';return;}
+   selectedSnapshots.push(card);
+  }else{
+   const index=selectedSnapshots.indexOf(card);if(index>=0)selectedSnapshots.splice(index,1);
+  }
+  renderComparison();
+  if(selectedSnapshots.length===2)comparePanel.scrollIntoView({block:'nearest',behavior:'instant'});
+ });
+});
+byId('compareClear').addEventListener('click',()=>{selectedSnapshots.length=0;renderComparison();});
+const filter=document.getElementById('filterProjects'),cards=[...document.querySelectorAll('.project')],empty=document.getElementById('emptyFilter');
+const searchFeedback=document.getElementById('projectSearchFeedback');
+function filterReviews(){
+ const query=filter.value.trim().toLocaleLowerCase();
+ let shown=0;
+ for(const card of cards){
+  card.hidden=!card.dataset.search.toLocaleLowerCase().includes(query);
+  if(!card.hidden)shown++;
+ }
+ empty.hidden=shown>0||!query;
+ searchFeedback.textContent=query
+  ? 'Showing '+shown+' of '+cards.length+' native snapshots'
+  : cards.length+' native snapshots available';
+}
+filter.addEventListener('input',filterReviews);
+document.getElementById('clearProjectSearch').addEventListener('click',()=>{
+ filter.value='';filterReviews();filter.focus();
+});
+// Non-destructive keyboard accelerators only: never intercept form typing,
+// dialogs, editor iframes, or system Ctrl/Alt/Meta shortcuts.
+document.addEventListener('keydown',event=>{
+ if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||event.isComposing)return;
+ const active=document.activeElement;
+ const typing=active&&(active.matches('input,textarea,select,[contenteditable]')||active.isContentEditable);
+ if(event.key==='/'&&!typing&&!document.querySelector('dialog[open]')){
+  event.preventDefault();filter.focus();filter.select();
+ }else if(event.key==='Escape'&&active===filter&&filter.value){
+  event.preventDefault();filter.value='';filterReviews();
+ }
+});
+filterReviews();
+const fields={name:document.getElementById('importName'),board:document.getElementById('importBoard'),schematic:document.getElementById('importSchematic')};
+const shellQuote=value=>"'"+value.replaceAll("'","'\\''")+"'";
+document.getElementById('importForm').addEventListener('submit',event=>{
+ event.preventDefault();
+ const name=fields.name.value.trim(),board=fields.board.value.trim(),schematic=fields.schematic.value.trim();
+ const err=document.getElementById('importError'),box=document.getElementById('preparedCommand');
+ box.hidden=true;err.textContent='';
+ if(!name||name.length>90||name.includes('\n')||name.includes('\r')){err.textContent='Enter one project display name (up to 90 characters).';return;}
+ if(!board.startsWith('/')||!board.endsWith('.kicad_pcb')||board.includes('\n')||board.includes('\r')){
+  err.textContent='Enter an absolute path to an actual .kicad_pcb source. The browser cannot verify local files.';return;
+ }
+ if(schematic&&(!schematic.startsWith('/')||!schematic.endsWith('.kicad_sch')||schematic.includes('\n')||schematic.includes('\r'))){
+  err.textContent='Optional schematic must be an absolute .kicad_sch path.';return;
+ }
+ const parts=['/usr/bin/python3','scripts/review_studio_workspace.py','--workspace',
+  shellQuote(__WORKSPACE_JS__),'add','--name',shellQuote(name),'--board',shellQuote(board)];
+ if(schematic)parts.push('--schematic',shellQuote(schematic));
+ document.getElementById('importSnippet').textContent=parts.join(' ');
+ box.hidden=false;box.scrollIntoView({block:'nearest',behavior:(matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth')});
+});
+document.getElementById('copyImport').addEventListener('click',async()=>{
+ const text=document.getElementById('importSnippet').textContent,button=document.getElementById('copyImport');
+ try{if(!navigator.clipboard?.writeText)throw Error('Clipboard access unavailable');
+  await navigator.clipboard.writeText(text);button.textContent='Copied to clipboard';
+ }catch{
+  button.textContent='Select command manually';
+  const range=document.createRange();range.selectNodeContents(document.getElementById('importSnippet'));
+  const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
+ }
+});
+</script></body></html>

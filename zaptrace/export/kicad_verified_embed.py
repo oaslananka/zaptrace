@@ -137,6 +137,9 @@ def render_verified_footprint(
     net_name: Callable[[int], str],
     uuid_for: Callable[[str], str],
     copper_layers: list[str],
+    *,
+    schematic_symbol_path: str,
+    pin_net_number: Callable[[str], int] | None = None,
 ) -> str:
     """Build a KiCad board footprint from a digest-pinned, unmodified source.
 
@@ -156,9 +159,13 @@ def render_verified_footprint(
         f"ZapTrace:{root[1]}",
         ["layer", "F.Cu"],
         ["uuid", uuid_for(f"footprint-{component.ref}")],
+        ["path", schematic_symbol_path],
         ["at", str(at[0]), str(at[1]), "0"],
     ]
     mapped_pads: set[str] = set()
+    properties_seen: set[str] = set()
+    native_value = component.value or component.type or component.ref
+    native_description = "ZapTrace generated connectivity symbol"
     for idx, child in enumerate(root[2:]):
         if not isinstance(child, list) or not child:
             raise ValueError("Unexpected source footprint expression")
@@ -171,35 +178,70 @@ def render_verified_footprint(
         if kind == "zone":
             _board_zone_coordinates(child, at, copper_layers)
         if kind == "property" and len(child) >= 3:
+            properties_seen.add(str(child[1]))
             if child[1] == "Reference":
                 child[2] = component.ref
-            elif child[1] == "Value" and component.value:
-                child[2] = component.value
+            elif child[1] == "Value":
+                child[2] = native_value
+            elif child[1] == "Description":
+                child[2] = native_description
         if kind == "fp_text" and len(child) >= 3:
             # KiCad <8 legacy library fields become named footprint
             # properties on the board; text geometry stays from vendor.
             if child[1] == "reference":
                 child[:3] = ["property", "Reference", component.ref]
+                properties_seen.add("Reference")
             elif child[1] == "value":
-                child[:3] = ["property", "Value", component.value or str(child[2])]
+                child[:3] = ["property", "Value", native_value]
+                properties_seen.add("Value")
         if kind == "pad" and len(child) >= 3:
             pad_id = str(child[1])
             logical_pin = component.package_pin_map.get(pad_id) if component.package_pin_map else pad_id
-            if logical_pin is not None and logical_pin in component.pins:
-                pin_net = component.pins[logical_pin].net
-                if pin_net in net_index:
-                    num = net_index[pin_net]
+            if logical_pin is not None and (pad_id in component.package_pin_map or logical_pin in component.pins):
+                # Keep physically mapped vendor pads even if the bounded logical
+                # model omits unconnected pins (e.g. STM32 PD0 and PD1).
+                # The canonical design netlist is authoritative: never invent a net.
+                mapped_pads.add(pad_id)
+                if pin_net_number is not None:
+                    num = pin_net_number(pad_id)
+                else:
+                    pin = component.pins.get(logical_pin)
+                    num = net_index.get(pin.net, 0) if pin is not None and pin.net is not None else 0
+                if num > 0:
                     child.append(["net", str(num), net_name(num)])
-                    mapped_pads.add(pad_id)
         _instance_identity(child, component.ref, str(idx), uuid_for)
         if kind == "pad":
-            # Match KiCad's usual field order for exact net/UUID evidence.
-            ids = [field for field in child[3:] if _form(field, "uuid")]
+            # Vendor libraries commonly omit pad UUIDs. pcbnew otherwise
+            # assigns random identities on each reload; DRC findings then
+            # cannot be matched to the original or audited after a route.
+            # Every source pad gets exactly one stable *instance*-unique ID.
+            ids: list[SexpNode] = [field for field in child[3:] if _form(field, "uuid")]
+            if len(ids) > 1:
+                raise ValueError(f"Supplier pad has multiple native UUIDs: {component.ref}.{child[1]}")
+            if not ids:
+                ids.append(["uuid", uuid_for(f"vendor-{component.ref}-{idx}-pad")])
             child[:] = child[:3] + [field for field in child[3:] if not _form(field, "uuid")] + ids
         footprint.append(child)
 
+    # The supplier may omit a KiCad 10 per-instance Description field.
+    # Exactly match our Eeschema's native custom Description for F8 parity,
+    # preserving all unrelated supplier geometry and metadata untouched.
+    if "Reference" not in properties_seen or "Value" not in properties_seen:
+        raise ValueError(f"Verified library missing editable reference/value fields: {component.ref!r}")
+    if "Description" not in properties_seen:
+        footprint.append(
+            [
+                "property",
+                "Description",
+                native_description,
+                ["at", "0", "0", "0"],
+                ["layer", "F.Fab"],
+                ["hide", "yes"],
+            ]
+        )
+
     expected = set(component.package_pin_map) if component.package_pin_map else set(component.pins)
     if not expected.issubset(mapped_pads):
-        raise ValueError(f"Verified footprint failed to bind all mapped nets: {component.ref!r}")
+        raise ValueError(f"Verified footprint missing physical pin identifiers: {component.ref!r}")
 
     return _kicad_format(footprint)

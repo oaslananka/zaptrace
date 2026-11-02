@@ -48,6 +48,8 @@ class TestVendorRegistry:
         assert len(resolve_vendored_footprint("SHT31-DIS-DFN8").pads) == 9  # 8 + thermal EP  # type: ignore[union-attr]
         assert len(resolve_vendored_footprint("ESP32-WROOM-32").pads) == 60  # type: ignore[union-attr]
         assert (
+            # 16 contacts + 4 plated oval shell slots + 2 anonymous NPTH pegs.
+            # The two mechanical holes were previously lost by the importer.
             len(resolve_vendored_footprint("USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal").pads) == 22  # type: ignore[union-attr]
         )
 

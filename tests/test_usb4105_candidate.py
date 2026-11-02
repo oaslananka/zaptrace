@@ -132,8 +132,12 @@ def test_usb4105_vendored_footprint_is_pinned_and_covers_all_unique_physical_pad
 
     footprint = resolve_vendored_footprint(_FOOTPRINT_NAME)
     assert footprint is not None
+    # The original GCT footprint also has two unnumbered NPTH alignment
+    # holes; they are mechanical and must never be interpreted as signal pads.
     assert {pad.id for pad in footprint.pads if pad.id} == set(_EXPECTED_PACKAGE_MAP)
-    assert sum(pad.id == "" and not pad.plated and pad.drill == 0.65 for pad in footprint.pads) == 2
+    mechanical = [pad for pad in footprint.pads if not pad.id]
+    assert len(mechanical) == 2
+    assert all(not pad.plated and pad.drill == 0.65 for pad in mechanical)
 
     source = FootprintSourceProvenance(
         source_type=FootprintSourceType.VENDORED,
@@ -160,3 +164,28 @@ def test_usb4105_vendored_footprint_is_pinned_and_covers_all_unique_physical_pad
     assert risky.family == "USB-C"
     assert risky.blocked is True
     assert any(item.code == "unreviewed-risky-package" for item in risky.diagnostics)
+
+
+def test_usb4105_mechanical_hole_bypass_is_not_allowed_for_plated_copper() -> None:
+    source_path = vendored_footprint_path(_FOOTPRINT_NAME)
+    footprint = resolve_vendored_footprint(_FOOTPRINT_NAME)
+    assert footprint is not None
+    proof = build_footprint_proof(
+        "SMD-16P",
+        footprint,
+        footprint_name=_FOOTPRINT_NAME,
+        source=FootprintSourceProvenance(
+            source_type=FootprintSourceType.VENDORED,
+            source_name="KiCad official USB4105 footprint",
+            source_path=str(source_path),
+            source_sha256=_FOOTPRINT_SHA256,
+        ),
+        expected_pin_count=len(_EXPECTED_PACKAGE_MAP),
+        pin_map={pin_id: pin_id for pin_id in _EXPECTED_PACKAGE_MAP},
+    )
+    assert not validate_footprint_proof(proof, expected_physical_pins=set(_EXPECTED_PACKAGE_MAP)).blocked
+    anonymous = next(p for p in proof.pads if not p.pad_id)
+    anonymous.plated = True
+    result = validate_footprint_proof(proof, expected_physical_pins=set(_EXPECTED_PACKAGE_MAP))
+    assert result.blocked
+    assert any(diag.code == "unnumbered-electrical-pad" for diag in result.diagnostics)

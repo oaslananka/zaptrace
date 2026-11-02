@@ -71,6 +71,33 @@ def test_vendored_footprint_proof_records_source_hash() -> None:
     assert proof.pin1.present is True
 
 
+def test_usb_c_npth_holes_do_not_inflate_pin_count_or_weaken_pin_proof() -> None:
+    fp = resolve_vendored_footprint("USB-C-16P-SMD")
+    assert fp is not None
+
+    proof = build_footprint_proof("USB-C-16P-SMD", fp)
+    report = validate_footprint_proof(proof)
+
+    # Sixteen numbered signal contacts plus repeated S1 shell copper, which
+    # shares one physical ID across four contacts. The two blank NPTH holes
+    # are mechanical only and must remain visible in the evidence.
+    assert proof.pad_count == 22
+    assert sum(not pad.pad_id for pad in proof.pads) == 2
+    assert sum(pad.pad_id == "S1" for pad in proof.pads) == 4
+    assert proof.pin_count == 17
+    assert "" not in proof.pin_map
+    assert len(proof.pin_map) == 17
+    assert report.blocked is False
+
+    # Do not accidentally admit an unnumbered plated/electrical contact.
+    invalid = fp.model_copy(deep=True)
+    blank = next(pad for pad in invalid.pads if not pad.id)
+    blank.plated = True
+    invalid_report = validate_footprint_proof(build_footprint_proof("USB-C-16P-SMD", invalid))
+    assert invalid_report.blocked is True
+    assert any(diag.code == "unnumbered-electrical-pad" for diag in invalid_report.diagnostics)
+
+
 def test_write_footprint_proof(tmp_path: Path) -> None:
     fp = footprint_sot("SOT-23")
     assert fp is not None

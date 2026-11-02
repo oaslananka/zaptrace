@@ -60,6 +60,10 @@ qualified. This fail-closed result is **not** a successful physical route.
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
 fabricator or certify their safety.
+When routing evidence is available, the CLI reports unresolved physical nets and
+marks continuity and fabrication readiness as unverified. The corresponding
+tool result provides additive routing_evidence; completed pipeline stages
+are not evidence that all PCB connections have been routed.
 
 ## Run the strict Proof Pack — expected to block
 

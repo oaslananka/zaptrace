@@ -363,7 +363,9 @@ def _check_composition(plan: ArchitecturePlan) -> None:
     """Flag any ``requires`` token not satisfied by some block's ``provides``."""
     provided: set[str] = set(_GLOBAL_NETS)
     for block in plan.blocks:
-        provided.update(block.contract.provides)
+        # An unsupported/unrealized block cannot supply working hardware tokens.
+        if block.realized:
+            provided.update(block.contract.provides)
     for block in plan.blocks:
         for token in block.contract.requires:
             if token not in provided:
@@ -541,24 +543,36 @@ def _emit_realized_block(context: _ArchitectureEmissionContext, block: PlannedBl
         emitter(context, block)
 
 
-def _emit_architecture_blocks(context: _ArchitectureEmissionContext, plan: ArchitecturePlan) -> None:
+def _emit_architecture_blocks(
+    context: _ArchitectureEmissionContext,
+    plan: ArchitecturePlan,
+    *,
+    component_owners: dict[str, str] | None = None,
+) -> None:
     for block in plan.blocks:
         if not block.realized:
             context.log.record("gap", block.block_id, "unrealized", rationale=block.rationale, confidence=0.0)
             continue
+        before = set(context.design.components) if component_owners is not None else set()
         _emit_realized_block(context, block)
+        if component_owners is not None:
+            # Capture actual emitted objects, not heuristic matches on component names.
+            # This is the explicit evidence used by the bounded candidate compiler.
+            for component_id in context.design.components.keys() - before:
+                component_owners[component_id] = block.block_id
 
 
 def build_architecture_design(
     requirements: Requirements,
     *,
     name: str = "SynthesizedBoard",
+    component_owners: dict[str, str] | None = None,
 ) -> tuple[Design, ArchitecturePlan, SynthesisDecisionLog]:
     """Emit a Design from the composed block graph and return its decision log."""
     from zaptrace.ee.classifier import assign_net_types
 
     plan = plan_architecture(requirements)
     context = _build_emission_context(requirements, name)
-    _emit_architecture_blocks(context, plan)
+    _emit_architecture_blocks(context, plan, component_owners=component_owners)
     assign_net_types(context.design)
     return context.design, plan, context.log

@@ -231,28 +231,77 @@ def _schematic_number(value: float) -> str:
 
 
 def _schematic_nodes_for_component(design: Design, component: Component) -> list[tuple[str, str]]:
-    """Return unique logical pins and net names connected to *component*."""
+    """Use genuine physical package pad identifiers for native schematic pin numbers.
+
+    Keep logical names in the KiCad symbol pin *name*. Each physical pad
+    sharing a logical net must have its own numbered symbol pin. Unknown or
+    incomplete package mappings are not guessed.
+    """
     nodes: list[tuple[str, str]] = []
-    seen_pins: set[str] = set()
+    seen_logical: set[str] = set()
     for net in design.nets.values():
         for node in net.nodes:
-            if node.component_ref not in (component.id, component.ref) or node.pin_name in seen_pins:
+            if node.component_ref not in (component.id, component.ref) or node.pin_name in seen_logical:
                 continue
-            seen_pins.add(node.pin_name)
-            nodes.append((node.pin_name, net.name))
+            seen_logical.add(node.pin_name)
+            physical = sorted(
+                pad_id for pad_id, logical in component.package_pin_map.items() if logical == node.pin_name
+            )
+            if physical:
+                nodes.extend((pad_id, net.name) for pad_id in physical)
+            else:
+                nodes.append((node.pin_name, net.name))
     return nodes
 
 
-def _schematic_component_position(index: int) -> tuple[float, float]:
-    """Place components on KiCad's 2.54 mm connection grid."""
-    return 50.8 + (index % 8) * 50.8, 50.8 + (index // 8) * 50.8
+def _schematic_geometry(nodes: list[tuple[str, str]]) -> tuple[float, float, float]:
+    """Fit real library pin labels inside the outline without overlapping sides."""
+    rows = max(1, (len(nodes) + 1) // 2)
+    body_half_width = max(13.97, max((len(name) for name, _ in nodes), default=0) * 0.9 + 6.35)
+    body_half_height = max(5.08, (rows - 1) * 2.54 + 2.54)
+    property_distance = body_half_height + 3.81
+    return body_half_width, body_half_height, property_distance
 
 
-def _schematic_pin_geometry(index: int) -> tuple[float, float, int]:
-    """Return local pin endpoint and orientation on KiCad's connection grid."""
+def _schematic_page_layout(component_count: int, max_pins: int) -> tuple[str, int, float]:
+    """Select an explicit page whose board-like review grid holds all symbols."""
+    rows_per_symbol = max(1, (max_pins + 1) // 2)
+    row_spacing = max(67.31, rows_per_symbol * 5.08 + 22.86)
+    _w, half_height, property_distance = _schematic_geometry([("PIN", "NET")] * max_pins)
+    for page, page_width, page_height, columns in (
+        ("A4", 297.0, 210.0, 3),
+        ("A3", 420.0, 297.0, 4),
+        ("A2", 594.0, 420.0, 6),
+        ("A1", 841.0, 594.0, 8),
+        ("A0", 1189.0, 841.0, 12),
+    ):
+        rows = (component_count + columns - 1) // columns
+        last_x = 50.8 + (min(component_count, columns) - 1) * 88.9
+        last_y = 50.8 + (rows - 1) * row_spacing
+        if (
+            last_x + 35.56 < page_width
+            and last_y + property_distance + 8 < page_height
+            and half_height < row_spacing / 2
+        ):
+            return page, columns, row_spacing
+    raise ValueError("Generated schematic cannot fit the supported KiCad A0 page without clipping symbols")
+
+
+def _schematic_component_position(index: int, *, columns: int, row_spacing: float) -> tuple[float, float]:
+    """Place symbols on a KiCad grid with generous row and column spacing."""
+    return 50.8 + (index % columns) * 88.9, 50.8 + (index // columns) * row_spacing
+
+
+def _schematic_pin_geometry(index: int, pin_count: int, half_width: float) -> tuple[float, float, int]:
+    """Center pin rows and leave adequate space for long logical pin names."""
+    rows = max(1, (pin_count + 1) // 2)
     left_side = index % 2 == 0
     row = index // 2
-    return (-5.08 if left_side else 5.08), row * 2.54, (0 if left_side else 180)
+    return (
+        (-half_width - 2.54 if left_side else half_width + 2.54),
+        ((rows - 1) / 2 - row) * 5.08,
+        (0 if left_side else 180),
+    )
 
 
 def _schematic_property(
@@ -270,17 +319,27 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
     """Build a self-contained minimal KiCad library symbol for one component."""
     symbol_name = f"ZapTrace_{_schematic_identifier(component.ref)}"
     lib_id = f"ZapTrace:{symbol_name}"
+    half_width, half_height, property_distance = _schematic_geometry(nodes)
+    if component.package_pin_map:
+        longest = max((len(component.package_pin_map.get(pin, pin)) for pin, _ in nodes), default=0)
+        half_width = max(half_width, longest * 0.9 + 6.35)
     lines = [
         f'    (symbol "{lib_id}"',
         "      (exclude_from_sim no)",
         "      (in_bom yes)",
         "      (on_board yes)",
-        f'      (property "Reference" "{_schematic_string(component.ref[:1] or "U")}" (at 0 2.54 0)',
+        "      (pin_numbers (hide yes))",
+        (
+            '      (property "Reference" '
+            f'"{_schematic_string(component.ref[:1] or "U")}" '
+            f"(at 0 {_schematic_number(property_distance)} 0)"
+        ),
         "        (effects (font (size 1.27 1.27)))",
         _DOUBLE_INDENTED_CLOSE,
         (
             '      (property "Value" '
-            f'"{_schematic_string(component.value or component.type or component.ref)}" (at 0 -2.54 0)'
+            f'"{_schematic_string(component.value or component.type or component.ref)}" '
+            f"(at 0 -{_schematic_number(property_distance)} 0)"
         ),
         "        (effects (font (size 1.27 1.27)))",
         _DOUBLE_INDENTED_CLOSE,
@@ -294,20 +353,25 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
         _SCHEMATIC_HIDDEN_EFFECTS,
         _DOUBLE_INDENTED_CLOSE,
         f'      (symbol "{symbol_name}_1_1"',
-        "        (rectangle (start -2.54 2.54) (end 2.54 -2.54)",
+        (
+            f"        (rectangle (start -{_schematic_number(half_width)} "
+            f"{_schematic_number(half_height)}) "
+            f"(end {_schematic_number(half_width)} -{_schematic_number(half_height)})"
+        ),
         "          (stroke (width 0) (type default))",
         "          (fill (type background))",
         "        )",
     ]
-    for pin_index, (pin_name, _net_name) in enumerate(nodes):
-        local_x, local_y, rotation = _schematic_pin_geometry(pin_index)
-        safe_pin = _schematic_string(pin_name)
+    for pin_index, (physical_pin, _net_name) in enumerate(nodes):
+        local_x, local_y, rotation = _schematic_pin_geometry(pin_index, len(nodes), half_width)
+        logical_display = _schematic_string(component.package_pin_map.get(physical_pin, physical_pin))
+        physical_number = _schematic_string(physical_pin)
         lines.extend(
             [
                 f"        (pin passive line (at {_schematic_number(local_x)} {_schematic_number(local_y)} {rotation})",
                 "          (length 2.54)",
-                f'          (name "{safe_pin}" (effects (font (size 1.27 1.27))))',
-                f'          (number "{safe_pin}" (effects (font (size 1.27 1.27))))',
+                f'          (name "{logical_display}" (effects (font (size 1.27 1.27))))',
+                f'          (number "{physical_number}" (effects (font (size 1.27 1.27))))',
                 "        )",
             ]
         )
@@ -315,14 +379,41 @@ def _schematic_library_symbol(component: Component, nodes: list[tuple[str, str]]
     return lines
 
 
+def _pinned_vendor_excludes_from_bom(component: Component) -> bool:
+    """Mirror an explicit, SHA-verified vendor footprint BOM attribute.
+
+    Never infer it from a reference prefix (TP, etc.) or silently change
+    supplier pads/attributes to make a DRC warning disappear.
+    """
+    if not component.footprint_asset:
+        return False
+    from zaptrace.io.sexp import parse
+    from zaptrace.kicad.verified_vendor import verified_footprint_bytes
+
+    _filename, content = verified_footprint_bytes(component.footprint_asset)
+    root = parse(content.decode("utf-8"))
+    if not isinstance(root, list) or root[0] != "footprint":
+        raise ValueError("Malformed verified KiCad source footprint")
+    return any(
+        isinstance(item, list) and item and item[0] == "attr" and "exclude_from_bom" in item[1:] for item in root[1:]
+    )
+
+
 def _schematic_symbol_instance(
     design: Design,
     component: Component,
     nodes: list[tuple[str, str]],
     index: int,
+    *,
+    columns: int,
+    row_spacing: float,
 ) -> tuple[list[str], list[str]]:
     """Build one symbol instance plus same-coordinate labels for connected pins."""
-    x, y = _schematic_component_position(index)
+    x, y = _schematic_component_position(index, columns=columns, row_spacing=row_spacing)
+    half_width, _half_height, property_distance = _schematic_geometry(nodes)
+    if component.package_pin_map:
+        longest = max((len(component.package_pin_map.get(pin, pin)) for pin, _ in nodes), default=0)
+        half_width = max(half_width, longest * 0.9 + 6.35)
     lib_id = f"ZapTrace:ZapTrace_{_schematic_identifier(component.ref)}"
     symbol_uuid = _schematic_uuid(design, "symbol", component.ref)
     lines = [
@@ -331,26 +422,43 @@ def _schematic_symbol_instance(
         f"    (at {_schematic_number(x)} {_schematic_number(y)} 0)",
         "    (unit 1)",
         "    (exclude_from_sim no)",
-        "    (in_bom yes)",
+        f"    (in_bom {'no' if _pinned_vendor_excludes_from_bom(component) else 'yes'})",
         "    (on_board yes)",
         "    (dnp no)",
         f'    (uuid "{symbol_uuid}")',
     ]
-    _schematic_property(lines, "Reference", component.ref, x, y - 7.62)
-    _schematic_property(lines, "Value", component.value or component.type or component.ref, x, y + 7.62)
+    _schematic_property(lines, "Reference", component.ref, x, y - property_distance)
+    _schematic_property(lines, "Value", component.value or component.type or component.ref, x, y + property_distance)
     _schematic_property(lines, "Footprint", _physical_footprint_library_id(component), x, y, hidden=True)
     _schematic_property(lines, "Datasheet", "", x, y, hidden=True)
     _schematic_property(lines, "Description", "ZapTrace generated connectivity symbol", x, y, hidden=True)
 
     labels: list[str] = []
     for pin_index, (pin_name, net_name) in enumerate(nodes):
-        local_x, local_y, _rotation = _schematic_pin_geometry(pin_index)
+        local_x, local_y, _rotation = _schematic_pin_geometry(pin_index, len(nodes), half_width)
+        # Net labels must project *away* from the symbol body. Their anchor
+        # stays at the exact pin endpoint, preserving Eeschema connectivity.
+        label_angle = 180 if local_x < 0 else 0
         pin_uuid = _schematic_uuid(design, "pin", component.ref, pin_name)
         lines.append(f'    (pin "{_schematic_string(pin_name)}" (uuid "{pin_uuid}"))')
         label_uuid = _schematic_uuid(design, "label", component.ref, pin_name, net_name)
+        wire_uuid = _schematic_uuid(design, "label-stub", component.ref, pin_name, net_name)
+        pin_x = x + local_x
+        pin_y = y - local_y
+        label_x = pin_x + (-7.62 if local_x < 0 else 7.62)
+        # Actual schematic wire: Eeschema net remains grounded in a physical
+        # connection, even though the label is moved away for legibility.
         labels.append(
-            f'  (label "{_schematic_string(net_name)}" '
-            f"(at {_schematic_number(x + local_x)} {_schematic_number(y - local_y)} 0) "
+            f"  (wire (pts (xy {_schematic_number(pin_x)} {_schematic_number(pin_y)}) "
+            f"(xy {_schematic_number(label_x)} {_schematic_number(pin_y)})) "
+            f'(stroke (width 0) (type default)) (uuid "{wire_uuid}"))'
+        )
+        # A one-sheet generated design uses global labels to preserve the
+        # authoritative net name verbatim in KiCad's PCB parity model.
+        # Local labels would be exported as /NET and conflict with PCB NET.
+        labels.append(
+            f'  (global_label "{_schematic_string(net_name)}" (shape passive) '
+            f"(at {_schematic_number(label_x)} {_schematic_number(pin_y)} {label_angle}) "
             f'(effects (font (size 1.27 1.27))) (uuid "{label_uuid}"))'
         )
     lines.append("  )")
@@ -368,10 +476,16 @@ def _build_schematic(design: Design) -> str:
     directions that the canonical model cannot distinguish reliably.
     """
     root_uuid = _schematic_uuid(design, "root")
+    component_nodes = [
+        (component, _schematic_nodes_for_component(design, component)) for component in design.components.values()
+    ]
+    max_pins = max((len(nodes) for _, nodes in component_nodes), default=0)
+    page, columns, row_spacing = _schematic_page_layout(len(component_nodes), max_pins)
     lines = [
         "(kicad_sch",
         "  (version 20231120)",
         '  (generator "zaptrace")',
+        f'  (paper "{page}")',
         f'  (uuid "{root_uuid}")',
         (
             "  (title_block "
@@ -382,16 +496,15 @@ def _build_schematic(design: Design) -> str:
         "  )",
         "  (lib_symbols",
     ]
-    component_nodes = [
-        (component, _schematic_nodes_for_component(design, component)) for component in design.components.values()
-    ]
     for component, nodes in component_nodes:
         lines.extend(_schematic_library_symbol(component, nodes))
     lines.append("  )")
 
     labels: list[str] = []
     for index, (component, nodes) in enumerate(component_nodes):
-        instance_lines, instance_labels = _schematic_symbol_instance(design, component, nodes, index)
+        instance_lines, instance_labels = _schematic_symbol_instance(
+            design, component, nodes, index, columns=columns, row_spacing=row_spacing
+        )
         lines.extend(instance_lines)
         labels.extend(instance_labels)
     lines.extend(labels)
@@ -804,9 +917,9 @@ def _build_footprint(
     fp = comp.footprint_def
     net_idx = _net_index(design)
 
-    # Pinned physical assets must embed their exact vendor footprint artwork,
-    # including courtyard, antenna keepout and models; pads-only redraws are
-    # not equivalent to the library and trigger KiCad footprint mismatch DRC.
+    # Digest-pinned vendor art is authoritative, including thermal pads,
+    # routed oval drills, courtyard, antenna zone and STEP/VRML models.
+    # Preserve this branch's verified Eeschema symbol KIID linkage.
     if comp.footprint_asset:
         from zaptrace.export.kicad_verified_embed import render_verified_footprint
 
@@ -818,17 +931,22 @@ def _build_footprint(
             lambda num: _net_name(design, num),
             _uuid4,
             _copper_layers(canonical_board_definition(design).layers),
+            schematic_symbol_path=f"/{_schematic_uuid(design, 'symbol', comp.ref)}",
+            pin_net_number=lambda pad_id: _pin_net_number(comp, pad_id, net_idx, design),
         )
         lines.append("  " + instance.replace("\n", "\n  "))
         return
 
-    # Synthetic / unverified assets retain the legacy explicit pad format.
+    # Synthetic footprints still retain their explicitly bounded pad models.
     lib_id = f"zaptrace:{comp.type or 'unknown'}"
     has_pads = fp is not None and len(fp.pads) > 0
 
     lines.append(f'  (footprint "{lib_id}"')
     lines.append('    (layer "F.Cu")')
     lines.append(f'    (uuid "{uid}")')
+    # This root-sheet footprint is linked to the same deterministically
+    # generated schematic symbol by KiCad's hierarchical KIID_PATH.
+    lines.append(f'    (path "/{_schematic_uuid(design, "symbol", comp.ref)}")')
     lines.append(f"    (at {x} {y} 0)")
 
     # The ESP32 module's dense center GND pad/thermal vias lie at y≈-2;
@@ -847,14 +965,24 @@ def _build_footprint(
     lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
     lines.append(_INDENTED_CLOSE)
 
-    # Value
-    if comp.value:
-        lines.append(f'    (property "Value" "{comp.value}"')
-        lines.append("      (at 0 3 0)")
-        lines.append('      (layer "F.Fab")')
-        lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-val-prop")}")')
-        lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
-        lines.append(_INDENTED_CLOSE)
+    # Use the same native Value as the generated Eeschema symbol even
+    # when a design relies on its component type as the default value.
+    physical_value = comp.value or comp.type or comp.ref
+    lines.append(f'    (property "Value" "{_schematic_string(physical_value)}"')
+    lines.append("      (at 0 3 0)")
+    lines.append('      (layer "F.Fab")')
+    lines.append(f'      (uuid "{_uuid4(f"fp-{comp.ref}-val-prop")}")')
+    lines.append("      (effects (font (size 1 1) (thickness 0.15)))")
+    lines.append(_INDENTED_CLOSE)
+
+    # Keep the same native KiCad custom Description field on both sides.
+    # Otherwise KiCad's independent PCB --schematic-parity DRC reports
+    # one footprint_symbol_field_mismatch for every linked component.
+    lines.append('    (property "Description" "ZapTrace generated connectivity symbol"')
+    lines.append("      (at 0 0 0)")
+    lines.append('      (layer "F.Fab")')
+    lines.append("      (hide yes)")
+    lines.append(_INDENTED_CLOSE)
 
     # Footprint property
     lines.append(f'    (property "Footprint" "{fp.description if fp else ""}"')
@@ -883,7 +1011,7 @@ def _build_pad(
     uid = _uuid4(f"pad-{comp.ref}-{pad.id}-{pad_ordinal}")
     pad_id = pad.id
     if pad.drill is not None and pad.drill_slot is not None:
-        raise ValueError(f"Ambiguous round and oval drill on pad {pad.id!r}")
+        raise ValueError(f"Ambiguous round/oval drill on {pad.id!r}")
     has_hole = pad.drill is not None or pad.drill_slot is not None
     pad_type = ("thru_hole" if pad.plated else "np_thru_hole") if has_hole else "smd"
     pad_shape = _pad_shape_kicad(pad.shape)
@@ -911,6 +1039,9 @@ def _build_pad(
         layers_str = '"*.Cu" "*.Mask"' if pad.plated else '"F&B.Cu" "*.Mask"'
         if pad.solder_paste:
             layers_str += ' "F.Paste"'
+    elif not pad.solder_paste:
+        # Preserve supplier no-paste SMD pads in both the PCB instance and library.
+        layers_str = layers_str.replace(' "F.Paste"', "").replace(' "B.Paste"', "")
     lines.append(f"      (layers {layers_str})")
     if pad.shape == PadShape.ROUNDRECT and pad.roundrect_rratio is not None:
         lines.append(f"      (roundrect_rratio {pad.roundrect_rratio})")

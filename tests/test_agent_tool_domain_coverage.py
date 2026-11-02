@@ -238,6 +238,7 @@ def test_pipeline_run_and_status_paths(tmp_path: Path, monkeypatch: pytest.Monke
     )
     assert from_file["all_successful"] is True
     assert from_file["duration_seconds"] == 1.25
+    assert from_file["routing_evidence"] is None
     assert "DomainCoverage" in facade._get_session("pipeline")["erc_results"]
 
     from_intent = pipeline_tools.tool_pipeline_run(intent="demo intent", session_id="pipeline-intent")

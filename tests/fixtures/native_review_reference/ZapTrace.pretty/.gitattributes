@@ -1,0 +1,2 @@
+# Canonical LF-normalized KiCad fixture; prevent line-ending normalization.
+*.kicad_mod -diff -text

@@ -120,8 +120,9 @@ def load_kicad_footprint(path: str | Path) -> FootprintDef | None:
     root = _parse_one(fp_path.read_text(encoding="utf-8"))
     if not isinstance(root, list) or _head(root) != "footprint":
         return None
-    # Anonymous NPTH alignment pegs are real physical hole geometry.
-    pads = [_pad_from_form(pad) for pad in _children(root, "pad") if _atom(pad, 1) or _first(pad, "drill") is not None]
+    # Unnumbered NPTH alignment/locating holes are physical fabrication
+    # geometry, not electrical pins. Do not discard valid blank-id NPTH pads.
+    pads = [_pad_from_form(pad) for pad in _children(root, "pad") if _atom(pad, 1) or _atom(pad, 2) == "np_thru_hole"]
     if not pads:
         return None
     return FootprintDef(
@@ -375,9 +376,7 @@ def _footprint_pins_and_pads(
     pads: list[Pad] = []
     for pad_form in _children(footprint, "pad"):
         pad_id = _atom(pad_form, 1)
-        if not pad_id:
-            if _first(pad_form, "drill") is not None:
-                pads.append(_pad_from_form(pad_form))
+        if not pad_id and _atom(pad_form, 2) != "np_thru_hole":
             continue
         net_id = _pad_net_id(pad_form, net_number_to_id)
         pins[pad_id] = Pin(name=pad_id, type=PinType.PASSIVE, net=net_id)
@@ -515,9 +514,9 @@ def _pad_from_form(pad_form: list[SExpr]) -> Pad:
             try:
                 round_hole = float(raw)
             except ValueError as exc:
-                raise ValueError(f"Invalid KiCad drill for pad {pad_id!r}: {raw!r}") from exc
+                raise ValueError(f"Invalid KiCad drill on {pad_id!r}: {raw!r}") from exc
             if not math.isfinite(round_hole) or round_hole <= 0:
-                raise ValueError(f"Invalid KiCad drill for pad {pad_id!r}: {raw!r}")
+                raise ValueError(f"Invalid KiCad drill on {pad_id!r}: {raw!r}")
             slot = None
     else:
         round_hole = None

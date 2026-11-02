@@ -39,6 +39,28 @@ def test_esp32_and_bme280_physical_pin_maps_match_documented_land_patterns() -> 
     assert "U2.VDDIO" in {f"{node.component_ref}.{node.pin_name}" for node in design.nets["VCC_3V3"].nodes}
 
 
+def test_example_pipeline_reports_real_unrouted_nets_to_tool_consumers() -> None:
+    from tempfile import TemporaryDirectory
+
+    from zaptrace.agent.tool_impls.pipeline import tool_pipeline_run
+
+    # The tool enforces that output stays inside its sandboxed workspace.
+    # Keep the transient result within this checkout; TemporaryDirectory
+    # deletes every created artifact even if the assertions fail.
+    with TemporaryDirectory(prefix=".zaptrace-cli-evidence-", dir=ROOT) as temporary:
+        result = tool_pipeline_run(
+            source=str(EXAMPLE / "design.yaml"),
+            output_dir=str(Path(temporary) / "generated"),
+            session_id="esp32-routing-evidence-contract",
+        )
+    assert result["all_successful"]  # Artifact generation, not PCB validation.
+    evidence = result["routing_evidence"]
+    assert evidence["reported_routed_nets"] == 0
+    assert evidence["total_routable_nets"] == 6
+    assert evidence["unrouted_nets"] == ["VCC_5V", "VCC_3V3", "USB_CC1", "USB_CC2", "I2C_SDA", "I2C_SCL"]
+    assert evidence["physical_continuity_verified"] is False
+
+
 def test_regulator_vout_and_tab_share_physical_pad_id_without_short(tmp_path: Path) -> None:
     import re
 

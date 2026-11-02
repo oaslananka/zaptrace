@@ -180,6 +180,14 @@ nav:
       - Generated KiCad PCB: design/generated-kicad-pcb.md
       - Generated Project Evidence: design/generated-project-evidence.md
       - Generated Board Acceptance: design/generated-board-acceptance.md
+      - Historical AI-native EDA Experiments:
+          - Architecture Candidate (Local Stage): design/ai-native-candidate-pilot-local.md
+          - Native ERC and Footprints: design/ai-native-candidate-native-erc-local.md
+          - Portable KiCad ERC: design/ai-native-pilot-portable-native-erc-local.md
+          - USB-C Shield and Copper: design/ai-native-pilot-shield-copper-native-erc.md
+          - STM32 and USB-C Pin Mapping: design/ai-native-pilot-stm32-usbc-physical-pin-check.md
+          - Footprint Clearance Investigation: design/ai-native-pilot-source-footprint-clearance-repair-local.md
+          - Native PCB Placement Baseline: design/ai-native-pilot-complete-native-pcb-placement-local.md
 
   - Strategy and Historical Snapshots:
       - Status Reconciliation (2026-06-19): strategy/2026-06-19-status-reconciliation.md
