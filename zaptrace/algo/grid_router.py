@@ -396,8 +396,10 @@ class GridRouter:
         Opt-in conservative RECT/CIRCLE/OVAL/ROUNDRECT copper masks by
         net and layer. Off-grid pad centres are connected only by explicit
         copper stubs to grid anchors inside the actual pad geometry.
-        Requires a shared accessible copper layer; vias remain disabled
-        until their physical emission/drill clearance is separately verified.
+        Requires a shared accessible copper layer. Through-vias are emitted
+        only at unchanged XY with explicit net identity and conservative
+        all-layer pad/trace/hole clearance. Physical KiCad verification is
+        still required before exporting any candidate as valid copper.
     """
 
     def __init__(
@@ -453,6 +455,16 @@ class GridRouter:
                 ref_positions[component.ref] = positions[component.ref]
             if component.position is not None and component.ref not in ref_positions:
                 ref_positions[component.ref] = component.position
+        via_hole_mm = max(
+            DEFAULT_VIA_SPECS.get("hole_diameter", 0.2),
+            board.constraints.via_hole,
+            board.constraints.min_hole,
+        )
+        via_pad_mm = max(
+            DEFAULT_VIA_SPECS.get("pad_diameter", 0.45),
+            board.constraints.via_pad,
+            via_hole_mm + 2 * board.constraints.min_annular_ring,
+        )
         return _GridRouteContext(
             obstacles=obstacles,
             grid_w=grid_w,
@@ -460,8 +472,8 @@ class GridRouter:
             num_layers=num_layers,
             ref_positions=ref_positions,
             component_by_ref=component_by_ref,
-            via_pad=DEFAULT_VIA_SPECS.get("pad_diameter", 0.45),
-            via_hole=DEFAULT_VIA_SPECS.get("hole_diameter", 0.2),
+            via_pad=via_pad_mm,
+            via_hole=via_hole_mm,
             rotation_by_ref=rotation_by_ref,
         )
 
@@ -608,8 +620,12 @@ class GridRouter:
         layer: int,
         clear_cells: int,
         net_id: str,
+        max_vias: int | None = None,
     ) -> list[list[GridPos]] | None:
         edge_paths: list[list[GridPos]] = []
+        used_vias = 0
+        if self.pad_aware and (context.via_hole <= 0 or context.via_pad < context.via_hole):
+            return None
         for first, second in self._mst(grid_positions):
             start = GridPos(*grid_positions[first], layer)
             goal = GridPos(*grid_positions[second], layer)
@@ -619,14 +635,31 @@ class GridRouter:
                 goal,
                 net_id=net_id,
                 clear_cells=clear_cells if self.pad_aware else 0,
+                via_radius_cells=(
+                    int(math.ceil(context.via_pad / (2 * self.resolution))) + clear_cells if self.pad_aware else 0
+                ),
             )
             if not path:
                 return None
             smooth = _simplify_path(path)
+            used_vias += sum(left.layer != right.layer for left, right in zip(smooth, smooth[1:], strict=False))
+            if self.pad_aware and max_vias is not None and used_vias > max_vias:
+                return None
             edge_paths.append(smooth)
             try:
                 for index in range(len(smooth) - 1):
-                    context.obstacles.block_line(smooth[index], smooth[index + 1], clear_cells, net_id=net_id)
+                    here, there = smooth[index], smooth[index + 1]
+                    if here.layer != there.layer:
+                        if here.x != there.x or here.y != there.y:
+                            return None
+                        via_radius = int(math.ceil(context.via_pad / (2 * self.resolution))) + clear_cells
+                        if not context.obstacles.can_place_through_via(here, net_id, via_radius):
+                            return None
+                        for via_layer in range(context.num_layers):
+                            point = GridPos(here.x, here.y, via_layer)
+                            context.obstacles.block_line(point, point, via_radius, net_id=net_id)
+                    else:
+                        context.obstacles.block_line(here, there, clear_cells, net_id=net_id)
             except ValueError:
                 return None
         return edge_paths
@@ -697,7 +730,14 @@ class GridRouter:
         if not self.pad_aware:
             for gx, gy in grid_positions:
                 self._unblock_endpoint(staged, GridPos(gx, gy, layer), max(clear_cells, 1), net_id=net.id)
-        edge_paths = self._route_mst_paths(staged_context, grid_positions, layer, clear_cells, net.id)
+        edge_paths = self._route_mst_paths(
+            staged_context,
+            grid_positions,
+            layer,
+            clear_cells,
+            net.id,
+            max_vias=rule.max_vias if self.pad_aware else None,
+        )
         if edge_paths is not None:
             context.obstacles = staged
         return _GridNetPlan(
@@ -736,6 +776,12 @@ class GridRouter:
                 y1 = round(second.y * self.resolution, 3)
                 layer_name = f"layer_{first.layer}"
                 state.layers_used.add(layer_name)
+                if first.layer != second.layer:
+                    if first.x != second.x or first.y != second.y:
+                        raise ValueError("Via changes layer at mismatched coordinates")
+                    state.layers_used.add(f"layer_{second.layer}")
+                    state.vias.append((x0, y0, context.via_pad, context.via_hole, plan.net_id))
+                    continue
                 state.traces.append(
                     TraceSegment(
                         layer=layer_name,
@@ -745,8 +791,6 @@ class GridRouter:
                         net_id=plan.net_id,
                     )
                 )
-                if first.layer != second.layer:
-                    state.vias.append((x0, y0, context.via_pad, context.via_hole, plan.net_id))
 
     def _route_ordered_nets(
         self,
@@ -887,13 +931,16 @@ class GridRouter:
         current: _Node,
         goal: GridPos,
         net_id: str | None = None,
+        via_radius_cells: int = 0,
     ) -> None:
         for layer_delta in (-1, 1):
             layer = current.pos.layer + layer_delta
             if not 0 <= layer < obstacles.layers:
                 continue
             position = GridPos(current.pos.x, current.pos.y, layer)
-            if not obstacles.is_free(position, net_id=net_id):
+            if not obstacles.is_free(position, net_id=net_id) or (
+                self.pad_aware and not obstacles.can_place_through_via(current.pos, net_id or "", via_radius_cells)
+            ):
                 continue
             key = (position.x, position.y, position.layer)
             if key in closed:
@@ -910,6 +957,7 @@ class GridRouter:
         *,
         net_id: str | None = None,
         clear_cells: int = 0,
+        via_radius_cells: int = 0,
     ) -> list[GridPos] | None:
         """Find lowest-cost path with net-owned existing copper reuse."""
         if self.pad_aware and (not obs.is_free(start, net_id) or not obs.is_free(goal, net_id)):
@@ -941,8 +989,7 @@ class GridRouter:
             if current.pos == resolved_goal:
                 return _reconstruct(current)
             self._push_planar_neighbors(open_set, closed, obs, current, resolved_goal, net_id, clear_cells)
-            if not self.pad_aware:
-                self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id)
+            self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id, via_radius_cells)
         return None
 
     @staticmethod

@@ -139,7 +139,7 @@ def test_actual_esp32_static_pad_halo_is_single_expanded_but_not_approved() -> N
     route = router.route(d, d.placement)
     assert route.routed_net_count >= 1
     assert route.routed_net_count < route.net_count
-    assert route.vias == []
+    assert all(len(via) == 5 and via[2] > via[3] > 0 for via in route.vias)
     # Partial graph routing is not complete pad/net continuity and cannot
     # be promoted to a physical source export.
     assert not verified_route_candidate_safe(d, route, d.placement)
