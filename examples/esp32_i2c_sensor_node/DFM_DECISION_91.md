@@ -83,6 +83,36 @@ All routing remains experimental review-only copper.
 
 The table below is the original dated 2026-10-11 decision baseline.
 
+## Reproduced source baseline — KiCad 10.0.8 (2026-11-02)
+
+The default pipeline was regenerated from the unchanged design.yaml at
+PR #119 head 7ec1e8a. The report now exposes **7 unresolved routed nets**:
+VCC_5V, VCC_3V3, GND, USB_CC1, USB_CC2, I2C_SDA and
+I2C_SCL. Ground is intentionally not poured (copper_pour_gnd=false), so
+GND is not eligible to disappear from the routing-completeness denominator.
+
+System KiCad 10.0.8 independently reproduced the source board baseline:
+
+| Native check | Result |
+|---|---:|
+| Schematic ERC | **0 violations** |
+| PCB DRC | **16 errors** |
+| PCB unconnected items | **37** |
+| Default exported copper tracks | **0** |
+| Physical acceptance | **BLOCKED** |
+
+The 16 DRC findings are exactly 12 drill_out_of_range violations on
+U1 pad 39 PTH drills (0.2000 mm actual vs 0.3000 mm board minimum) and
+four hole_clearance violations between J1's two 0.65 mm NPTH locating
+holes and duplicated A/B GND contacts (0.1944 mm actual vs 0.2500 mm
+board rule). The four entries describe two physical peg locations and
+four overlapping contact-pad observations; they are not four separate
+mechanical holes. No rule was waived, and no footprint or board geometry
+was altered during this baseline reproduction.
+
+This verifies the current blocker identity; it does not make the board
+production-ready or qualify assembly, thermal, RF, ESD or USB behavior.
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)
@@ -238,7 +268,7 @@ the unchanged board production-ready.
 |---|---|---|
 | D1: twelve U1 thermal vias | 0.20 mm drills, 0.60 mm pads, 0.30 mm project drill minimum; isolated drill/pad trials exposed annular-ring and adjacent-pad constraints | Choose a physically defensible module land pattern and drill/pad arrangement backed by exact component drawings; independent KiCad DRC without rule suppression or new footprint mismatches |
 | D2: four J1 contact/locating-peg findings | 0.1944 mm NPTH-to-GND pad clearance vs 0.25 mm board rule; actual footprint matches the selected connector drawing | Evaluate exact part/footprint compatibility and revised layout/connector options; preserve peg fit, pad pinout, shell slots and electrical constraints; independent KiCad DRC without waivers |
-| Default routing | Source exports zero accepted copper and reports six unrouted nets; separate opt-in review overlay has 37 genuine joins / 92 tracks / 18 vias / 0 native unconnected, but still D1/D2 | Integrate valid geometry/routing behavior through the owned deterministic pipeline; independently reproduce complete pad/net continuity in generated output with zero critical shorts/clearance defects |
+| Default routing | Source exports zero accepted copper and reports **seven unresolved nets** (six signal/power nets plus GND because copper_pour_gnd=false); separate opt-in review overlay has 37 genuine joins / 92 tracks / 18 vias / 0 native unconnected, but still D1/D2 | Integrate valid geometry/routing behavior through the owned deterministic pipeline; independently reproduce complete pad/net continuity in generated output with zero critical shorts/clearance defects |
 | Proof/electrical evidence | Source strict Proof Pack 6 PASS / 2 FAIL and native PCB DRC 16; real RF, ESD, power and thermal qualification not established | Preserve fail-closed checks and negative regression tests; demonstrate independent native ERC/DRC and strict Proof Pack outcomes without misrepresenting hardware approval |
 
 ### Execution order
