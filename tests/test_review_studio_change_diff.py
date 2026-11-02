@@ -134,6 +134,56 @@ def test_accessible_offline_report_keeps_hash_based_content_security_policy() ->
     assert 'id="approvalBlockReason"' in rendered
 
 
+def test_source_bound_decision_overview_links_actual_evidence_and_unsigned_outcome() -> None:
+    """The first screen must explain the decision without inventing signoff."""
+    from html.parser import HTMLParser
+
+    class BriefParser(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.ids: set[str] = set()
+            self.links: list[str] = []
+            self.inside_brief = False
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            properties = dict(attrs)
+            if properties.get("id") == "decisionBriefTitle":
+                self.inside_brief = True
+            if properties.get("id"):
+                assert properties["id"] not in self.ids
+                self.ids.add(str(properties["id"]))
+            if tag == "a" and self.inside_brief:
+                self.links.append(str(properties.get("href")))
+
+        def handle_endtag(self, tag: str) -> None:
+            if tag == "nav" and self.inside_brief:
+                self.inside_brief = False
+
+    template = change.TEMPLATE.read_text()
+    parser = BriefParser()
+    parser.feed(template)
+    assert {
+        "briefChange",
+        "briefRisk",
+        "briefEvidence",
+        "briefNext",
+        "briefStateHash",
+        "decisionBriefTitle",
+        "briefStatus",
+    } <= parser.ids
+    assert parser.links == ["#changeTitle", "#verificationTitle", "#reviewDecisionTitle"]
+    assert all(anchor[1:] in parser.ids for anchor in parser.links)
+    assert '<nav class="brief-links" aria-label="Review this exact design state">' in template
+    assert "FABRICATION BLOCKED" in template
+    assert 'Schematic/ERC: "+(sch?"REPORTED (not full parity)":"NOT CHECKED")' in template
+    assert 'Pin/net crossprobe: "+crossprobe' in template
+    assert '$("briefStateHash").textContent=DATA.state_hash;' in template
+    assert 'cp.scoped_pin_net_consistent?"SCOPED MATCH ONLY"' in template
+    assert "A local decision never authorizes fabrication." in template
+    assert "initDecisionBrief();" in template
+    assert template.count("__CHANGE_DATA__") == 1
+
+
 def test_native_pin_net_verdict_is_screen_reader_announced_without_implying_approval() -> None:
     """Current, mismatch and unverifiable findings must be text, not color only."""
     html = change.TEMPLATE.read_text()

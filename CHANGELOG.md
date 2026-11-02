@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add an evidence-bound decision overview to the offline native KiCad change comparison. Reviewers see measured footprint moves, native DRC/open-connection blockers, explicit missing schematic/pin-net verification and the next unsigned review action before opening detailed panels. Exact review hash and inspection anchors remain visible; no electrical, DFM, or fabrication approval is implied.
+
 - Turn the local viewer into a responsive inspection workspace with a real browser-rendered, clearly synthetic UX fixture; improve keyboard inspection, protect embedded user-supplied JSON, and distinguish missing component placement from actual `(0,0)` geometry. The viewer remains read-only, does not verify fabrication and never treats a proof manifest as executed evidence.
 
 - Add a fail-closed, inspection-only Review Studio readiness summary to the offline interactive PCB viewer: embedded DRC findings, distinct proof-manifest-vs-executed-proof status, fabrication human-review requirement and accessible navigation to recorded findings. Missing evidence is never interpreted as a pass; no actual PCB approval is implied.
