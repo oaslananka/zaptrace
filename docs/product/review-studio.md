@@ -42,6 +42,10 @@ When editing is needed, Review Studio should send users back to the source EDA t
 6. **Authenticated identity only.** Reviewer identity comes from the authenticated request principal; client-supplied reviewer names are never trusted as sign-off identity.
 7. **Automated pass is not human approval.** `automated_gate_status` and `fabrication_status` are separate fields and must remain visibly distinct.
 
+### Source-scoped assistant handoff (offline)
+
+From the exact native evidence reference selected for unsigned review, an explicit local action may prepare an explanatory or repair-planning request for a separate engineering assistant. The request contains the original/proposed PCB and review-state hashes, selected native rule/object/reference and bounded source-reported summary. It is selectable text only: no model/API call, clipboard auto-copy, upload, mutation, engineering sign-off or fabrication authority. Choosing a different finding or request type clears the previously prepared text. This is an intermediate contextual handoff, not completed contextual AI integration or validated assistant output.
+
 ### Native offline decision overview
 
 The overview and native evidence panel also display a bounded list of real KiCad DRC findings, with the original rule type, reported severity, and description. A finding can be selected into the unsigned evidence review without automatically counting it as inspected. Additional findings remain counted as omitted rather than silently implied clean; warning is not an automatic approval.
