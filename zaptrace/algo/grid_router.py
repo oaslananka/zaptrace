@@ -674,6 +674,17 @@ class GridRouter:
         net_class = get_net_class(design, net.id)
         layer = self._layer_for_net_class(net_class, context.num_layers)
         if layer < 0:
+            if (
+                net_class == NetClass.GROUND
+                and len(net.nodes) >= 2
+                and not canonical_board_definition(design).copper_pour_gnd
+            ):
+                # Ground is deliberately delegated to a copper pour only
+                # when the canonical board model actually enables one.
+                # With pours disabled, keep the GND net in the unresolved
+                # denominator instead of silently reporting it as out of
+                # scope or fully routed.
+                return _GridNetPlan(True, False, net.id)
             return _GridNetPlan(False, False, net.id)
         route_points = self._collect_net_route_points(net, context)
         if len(route_points) < 2:

@@ -10,6 +10,7 @@ from typing import Any
 from zaptrace.algo.grid_router import GridRouter
 from zaptrace.algo.placer import place_components
 from zaptrace.algo.router import RoutingResult, route_design_smart
+from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Design, NetClass, RouteResult
 from zaptrace.core.parser import parse_file, parse_str
 from zaptrace.ee.classifier import get_net_class
@@ -296,7 +297,12 @@ class Autopilot:
         unresolved_net_ids = [
             net.id
             for net in design.nets.values()
-            if len(net.nodes) > 1 and get_net_class(design, net.id) != NetClass.GROUND and net.id not in routed_net_ids
+            if len(net.nodes) > 1
+            and (
+                get_net_class(design, net.id) != NetClass.GROUND
+                or not canonical_board_definition(design).copper_pour_gnd
+            )
+            and net.id not in routed_net_ids
         ]
         if route_result.routed_net_count > 0:
             ctx.routing = RoutingResult(

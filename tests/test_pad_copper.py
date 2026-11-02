@@ -8,6 +8,7 @@ import pytest
 
 from zaptrace.algo.grid_router import GridPos, GridRouter, ObstacleMap
 from zaptrace.algo.pad_copper import copper_layers, pad_cells, rotated_offset
+from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import (
     BoardConfig,
     Component,
@@ -143,6 +144,43 @@ def test_actual_esp32_static_pad_halo_is_single_expanded_but_not_approved() -> N
     # Partial graph routing is not complete pad/net continuity and cannot
     # be promoted to a physical source export.
     assert not verified_route_candidate_safe(d, route, d.placement)
+
+
+def test_ground_net_is_unresolved_when_copper_pour_is_disabled() -> None:
+    from copy import deepcopy
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    assert design.board_def is None
+    assert not canonical_board_definition(design).copper_pour_gnd
+    assert "GND" in design.nets
+    ground_only = deepcopy(design)
+    ground_only.nets = {"GND": ground_only.nets["GND"]}
+    route = GridRouter(pad_aware=True).route(ground_only, ground_only.placement or {})
+    assert route.net_count == 1
+    assert route.routed_net_count == 0
+    assert route.traces == []
+
+
+def test_ground_net_is_delegated_only_when_copper_pour_is_enabled() -> None:
+    from copy import deepcopy
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    assert design.board_def is None
+    design.board.copper_pour_gnd = True
+    assert canonical_board_definition(design).copper_pour_gnd
+    ground_only = deepcopy(design)
+    ground_only.nets = {"GND": ground_only.nets["GND"]}
+    route = GridRouter(pad_aware=True).route(ground_only, ground_only.placement or {})
+    assert route.net_count == 0
+    assert route.routed_net_count == 0
 
 
 def test_overlapping_usb_contacts_with_same_logical_pin_share_copper_owner() -> None:
