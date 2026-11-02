@@ -188,7 +188,8 @@ def test_native_drc_findings_preserve_source_rule_and_severity_with_bounded_evid
     """Do not turn native KiCad warnings into approvals or generic green status."""
     rows = [{"type": f"rule_{i}", "severity": "warning", "description": f"Actual finding {i}"} for i in range(11)]
     findings, omitted = change.native_reported_findings({"violations": rows})
-    assert len(findings) == 8 and omitted == 3
+    assert len(findings) == 8
+    assert omitted == 3
     assert findings[0] == {"rule": "rule_0", "severity": "warning", "description": "Actual finding 0"}
     record = {
         "changed": [{"ref": "R1"}],
