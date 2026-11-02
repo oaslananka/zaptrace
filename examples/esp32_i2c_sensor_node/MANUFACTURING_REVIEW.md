@@ -6,13 +6,10 @@ component placement are provisional; no PCB stackup, copper weight, thermal
 performance or order options have been signed off.
 
 **Technical decision record:** [DFM_DECISION_91.md](DFM_DECISION_91.md)
-compares a written, revision-specific manufacturing exception inquiry against
-a qualified geometry/footprint redesign. It records the exact sixteen DRC
-findings, supplier questions and explicit no-fabrication acceptance gates.
-Neither decision path is approved yet.
-The [unsent supplier DFM inquiry packet](DFM_SUPPLIER_INQUIRY_91.md)
-contains exact KiCad defect coordinates and process-specific questions for
-a human-approved, non-ordering feasibility review. No vendor has been contacted.
+records the exact sixteen native KiCad DRC findings and the internal-only
+routing, footprint and geometry remediation path. No external outreach or
+manufacturing work is in scope. Do not weaken the native checks or treat
+the review-only copper overlay as verified source routing.
 
 ## Manufacturer evidence (reviewed 2026-10-11)
 
@@ -35,11 +32,11 @@ Primary sources:
 approval for this particular board, copper stack, assembly profile or connector.
 A genuine zero-DRC, zero-unconnected board is **not attainable responsibly with
 the current unchanged footprint/DRC constraints**. The four J1 peg-to-copper
-violations require a supplier-specific written DFM exception supported by
-engineering evidence or a qualified different connector/land-pattern decision;
-they must not be suppressed locally. The 12 ESP32 0.20 mm drill findings likewise
-need a documented selected-process profile before the 0.30 mm design restriction
-can be changed.
+violations require a qualified connector/land-pattern or geometry decision;
+they must not be suppressed locally. The twelve ESP32 0.20 mm drill findings
+likewise require a defensible design/footprint revision before the present
+0.30 mm design restriction could be changed. These are internal engineering
+tasks, not reasons to initiate manufacturer contact.
 
 ## Thirty-two pad routes plus five verified native copper island connections (review-only, not production pipeline)
 

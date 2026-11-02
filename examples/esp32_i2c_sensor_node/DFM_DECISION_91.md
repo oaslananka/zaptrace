@@ -2,14 +2,15 @@
 
 **Record date:** 2026-10-11. **Disposition:** BLOCKED — engineering options only;
 **no fabricator DFM acceptance, board release, or production authorization.**
-The decision is to **prepare a revision-specific written DFM inquiry first**,
-without ordering boards or changing the geometry or DRC rules. If the supplier
-cannot explicitly support both problem classes for the actual board/process,
-select a controlled footprint/component and board-layout revision instead.
-Neither path, by itself, establishes finished routing, RF performance, or
-fabrication readiness.
+**Owner direction (2026-11-02): internal engineering only.** No supplier
+inquiry, external contact, fabrication quote, or order is part of this work.
+The engineering path is to repair the default routing/export pipeline and
+investigate geometry-correct, independently verifiable footprint/component
+and board-layout alternatives without weakening native DRC or source proofs.
+An internal clean DRC is necessary engineering evidence, not fabrication or
+RF/electrical sign-off.
 
-## New independent routing evidence — 2026-11-02 (historical DFM decision unchanged)
+## New independent routing evidence — 2026-11-02
 
 System KiCad **10.0.8** reproduced the existing 25-link / 61-segment
 partial review, then independently checked an additional genuine
@@ -19,8 +20,8 @@ tracks_crossing and was rejected. A two-layer alternative with
 passed the independent native KiCad DRC comparison: **26 actual
 connections, 66 tracks, 2 vias, 37 → 11 unconnected**, with the same
 16 manufacturability defects by exact rule, object and position.
-The original D1/D2 geometry, constraints, unsent supplier-inquiry scope,
-qualified engineering/DFM hold and no-fabrication decision are **unchanged**.
+The original D1/D2 geometry, constraints, engineering/DFM hold and
+no-fabrication decision are **unchanged**.
 A second independent native two-layer R1.1→R2.1 VCC_3V3 review route
 was verified on the same source, adding 3 tracks and two vias: **27
 connections, 69 tracks, 4 vias and 37→10 unconnected**. The 16 defects
@@ -226,74 +227,52 @@ board-process verification, not an assumed DRC-only fix.
   removing locating holes or relaxing clearance globally. Each would change
   actual connector fit, soldering or electrical/EMI behavior without evidence.
 
-## Two controlled resolution paths
+## Engineering-only remediation (owner direction: no external outreach)
 
-| Decision dimension | Path A — written, revision-bound fabricator DFM | Path B — qualified footprint / component redesign |
+The objective is an honest and reproducible **default** pipeline, not a
+fabrication order. The historical published capability figures above provide
+design constraints only; they do not authorize changing a rule or calling
+the unchanged board production-ready.
+
+| Work item | Existing evidence | Internal acceptance target |
 |---|---|---|
-| Scope | Retain exact supplier footprints and conservative design rules while gathering explicit exceptions/process capability for **both D1 and D2** | Choose a verified manufacturer land pattern or mechanically/electrically qualified alternate part, update actual board geometry and routing |
-| Benefit | Potentially avoids altering module/connector and existing pad provenance | Can eliminate geometric conflicts at source and target unwaived, clean DRC |
-| Main risk | Published minimums or a vague support reply are insufficient; small copper/NPTH margin may not be acceptable on the quoted panel, finish or assembly line | May require new connector envelope, pin maps, shell/EMI policy, paste, antenna keepout, placement and RF/electrical requalification |
-| Required proof | Written supplier response bound to exact board revision, layer count, stackup, copper weight, finished drill and tolerance, via fill/tent/paste, J1 NPTH-to-*pad* gap and registration, plated-slot/assembly and process limits | Datasheets/drawings for exact orderable variants; provenance-locked footprint/3D geometry; fresh schematic/ERC, net/pad mapping, complete copper routing, native DRC and production DFM |
-| Current decision | **Prepare inquiry only — not accepted or ordered** | **Fallback if A is rejected, ambiguous or unreproducible; not yet implemented** |
+| D1: twelve U1 thermal vias | 0.20 mm drills, 0.60 mm pads, 0.30 mm project drill minimum; isolated drill/pad trials exposed annular-ring and adjacent-pad constraints | Choose a physically defensible module land pattern and drill/pad arrangement backed by exact component drawings; independent KiCad DRC without rule suppression or new footprint mismatches |
+| D2: four J1 contact/locating-peg findings | 0.1944 mm NPTH-to-GND pad clearance vs 0.25 mm board rule; actual footprint matches the selected connector drawing | Evaluate exact part/footprint compatibility and revised layout/connector options; preserve peg fit, pad pinout, shell slots and electrical constraints; independent KiCad DRC without waivers |
+| Default routing | Source exports zero accepted copper and reports six unrouted nets; separate opt-in review overlay has 37 genuine joins / 92 tracks / 18 vias / 0 native unconnected, but still D1/D2 | Integrate valid geometry/routing behavior through the owned deterministic pipeline; independently reproduce complete pad/net continuity in generated output with zero critical shorts/clearance defects |
+| Proof/electrical evidence | Source strict Proof Pack 6 PASS / 2 FAIL and native PCB DRC 16; real RF, ESD, power and thermal qualification not established | Preserve fail-closed checks and negative regression tests; demonstrate independent native ERC/DRC and strict Proof Pack outcomes without misrepresenting hardware approval |
 
-**Recommended sequence:** keep both paths open while obtaining a *non-ordering*
-DFM feasibility answer for the measured revision. Prefer a geometry-correct,
-independently DRC-clean redesign when a supplier cannot explicitly accept the
-**0.1944 mm NPTH-to-pad** case or the twelve thermal via structures. A
-supplier-specific exception, if one is ever signed, needs a separately reviewed
-controlled process-profile decision and traceable evidence; it is **not**
-authorization to suppress a native DRC or overwrite the strict Proof Pack.
+### Execution order
 
-**Supplier-ready, unsent engineering questionnaire:**
-[DFM_SUPPLIER_INQUIRY_91.md](DFM_SUPPLIER_INQUIRY_91.md) includes all sixteen
-native KiCad finding coordinates, a copyable English feasibility request,
-JLCPCB/PCBWay-specific clarifications, response log and controlled disclosure
-gates. It has not been sent to any manufacturer.
+1. Characterize why the ordinary grid router reports graph-connected nets
+   yet rejects actual exported traces. Use the real ESP32 input and preserve
+   provenance-locked footprint/pad identities; translate the already verified
+   review-only routes into algorithmic regression expectations, not an
+   unvalidated static default copper overlay.
+2. Investigate D1 and D2 as *source geometry and placement* constraints.
+   Validate any potential replacement part and land pattern internally
+   against exact public drawings and native KiCad DRC. Rejected experimental
+   variants remain rejected; do not silently change the project design
+   rules, pad/pin mapping, antenna keepout or shell-stake handling.
+3. Re-run source-generation end to end, native schematic ERC, PCB DRC,
+   complete actual pad/net connectivity, strict Proof Pack and targeted
+   negative fixtures. Distinguish software verification from unperformed
+   RF, ESD, thermal, USB power and assembly qualification.
 
-## Precise non-production DFM questions (not sent)
+**Stop rule:** if a physical geometry change cannot be independently
+justified without compromising the chosen part's mechanical/electrical
+requirements, keep it as an honest unresolved finding. Do not create
+speculative design variants merely to reach zero warnings.
 
-1. For **the stated 2-layer board revision**, what stackup, copper weight,
-   surface finish, plating and hole-tolerance options apply? Is the thermal
-   **0.20 mm drill / 0.60 mm pad** configuration manufacturable at all
-   twelve U1 locations? Distinguish nominal drill versus **finished hole**,
-   annular ring after registration tolerance, solder wicking, and any
-   thermal-pad via tenting, filling or plugging requirement.
-2. Can the quoted production **and assembly** process explicitly accept
-   two 0.65 mm J1 **NPTH locating holes**, with minimum measured
-   **0.1944 mm NPTH-to-GND pad clearance**, including hole-position
-   tolerance, soldermask and copper proximity? Do *not* substitute the
-   unrelated NPTH-to-track design limit as the answer. If not, what exact
-   geometry/process constraint must change?
-3. Are the four J1 **plated** oval S1 mounting slots (0.60 mm width,
-   1.40/1.70 mm lengths) supported with the connector's actual plated-stake
-   dimensions, thickness, finished-slot tolerance and assembly process?
-   Confirm which fabrication versus assembly operations apply.
-4. What written exceptions, cost/lead-time assumptions, failure risks,
-   yield or coupon/test requirements apply to each nonstandard feature?
-   Can the manufacturer issue a revision/stackup/part-specific DFM report
-   citing **each of the sixteen KiCad findings** without silently modifying
-   source geometry or drill tables?
-5. If *any* answer is negative or qualified, request the **required geometry
-   envelope** for a redesign; do not request a fabrication order or treat a
-   general capabilities page as written approval.
-
-Before sharing source artifacts outside the project, a human must confirm the
-recipient, disclosure scope and non-production purpose. No DFM inquiry or
-manufacturer submission was sent as part of this record; never represent the
-review-only PCB or its Gerbers as a manufacturing release.
-
-## Sign-off gates and current owner/action
+## Current engineering gates
 
 | Gate | Required evidence | Current disposition |
 |---|---|---|
-| Manufacturing process choice | Named supplier and approved stackup/copper/finish and written DFM answer explicitly covering D1 **and** D2 | **OPEN** — no supplier acceptance |
-| BOM / footprint design choice | Exact orderable ESP32-WROOM-32 lifecycle decision and USB4105 variant or qualified substitutions; digest-pinned 3D, slots, NPTH, pinout and paste geometry | **OPEN** — no redesign or variant approval |
-| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board has 0 KiCad unconnected (but 16 physical DRC violations); default 37 |
-| PCB/assembly electrical assurance | Independent ERC/DRC plus honest strict Proof Pack results; RF antenna/ground return, USB-C CC/shell/ESD/VBUS and LDO power/thermal validation | **OPEN** — ERC 0 but DRC 16, strict Proof 6/2 |
-| Production handoff | Approved final BOM/stackup/DFM, controlled fabrication drill/Gerber package, independent qualified hardware sign-off | **BLOCKED** — no fabrication authorization |
+| Source routing | Deterministic default copper with zero real unconnected items and no new shorts | **OPEN** — default copper zero; separate review-only PCB 0 unconnected |
+| Source geometry | Exact component/footprint compatibility and independent justified KiCad DRC | **OPEN** — D1 12 + D2 4 violations |
+| Strict proof | All applicable unwaived checks and regression fixtures pass | **OPEN** — source 6 PASS / 2 FAIL |
+| Electrical/RF behavior | Ground return, RF keepout, USB-C CC/shell/ESD/VBUS, regulator thermal and qualified evidence | **OPEN** — not hardware-qualified |
+| Fabrication release | Separate professional review and final physical evidence | **BLOCKED** — no authorization; not part of this work |
 
-**Next engineering action:** prepare a supplier-question packet keyed to the
-measured D1/D2 findings; independently derive a geometry-correct redesign
-variant *only if* the supplier does not explicitly accept the precise
-features. Neither action should mutate the protected `main` branch, waive
-constraints, start a fab order or mark Draft PR #119 / issue #91 complete.
+**Next:** work within #91 and #35 on genuine default copper and physical
+geometry/footprint correctness; preserve the Draft PR and all fail-closed
+checks while the above gates are unresolved. No external communications.
