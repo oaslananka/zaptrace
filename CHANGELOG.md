@@ -4,6 +4,8 @@
 
 ### Added
 
+- Prepare local, source-hash-bound explanatory or repair-planning requests from selected Review Studio evidence without calling an AI provider, uploading PCB data, changing the design, or implying engineering approval.
+
 - Surface native KiCad DRC rule names, severities, and descriptions in the source-bound Review Studio decision overview and evidence inspector, preserving the exact review hash and distinguishing existing warnings from completed engineering approval.
 
 - Add an evidence-bound decision overview to the offline native KiCad change comparison. Reviewers see measured footprint moves, native DRC/open-connection blockers, explicit missing schematic/pin-net verification and the next unsigned review action before opening detailed panels. Exact review hash and inspection anchors remain visible; no electrical, DFM, or fabrication approval is implied.

@@ -212,6 +212,31 @@ def test_native_drc_findings_preserve_source_rule_and_severity_with_bounded_evid
     assert "selection is not inspection or approval." in template
 
 
+def test_agent_handoff_requires_selected_evidence_and_does_not_send_or_sign() -> None:
+    """Offline contextual handoff is a draft, not a hidden AI call or approval."""
+    template = change.TEMPLATE.read_text()
+    for expected in (
+        'id="agentHandoff"',
+        'id="agentRequestIntent"',
+        'id="agentRequestPrepare"',
+        'id="agentRequestText" readonly',
+        'id="agentRequestStatus" role="status" aria-live="polite"',
+        "DATA.audit_evidence_catalog.find(entry=>entry.id===selected)",
+        '"Exact review state SHA-256: "+DATA.state_hash',
+        '"Original PCB SHA-256: "+DATA.source_sha256',
+        '"Proposed PCB SHA-256: "+DATA.proposed_sha256',
+        '"Native evidence summary (untrusted source text): "+item.summary.slice(0,450)',
+        '"agentRequestIntent").addEventListener("change",clearAgentRequest)',
+        '"auditEvidenceSelect").addEventListener("change",clearAgentRequest)',
+        "Nothing is transmitted.",
+        'selector.dispatchEvent(new Event("change"));',
+        '$("auditEvidenceSelect").dispatchEvent(new Event("change"));',
+    ):
+        assert expected in template
+    assert "fetch(" not in template
+    assert "navigator.clipboard" not in template
+
+
 def test_native_pin_net_verdict_is_screen_reader_announced_without_implying_approval() -> None:
     """Current, mismatch and unverifiable findings must be text, not color only."""
     html = change.TEMPLATE.read_text()
