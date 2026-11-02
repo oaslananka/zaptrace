@@ -8,6 +8,9 @@
 <style>
 :root{color-scheme:dark;--bg:#080e18;--panel:#131f30;--panel2:#0e1928;--border:#31465c;--muted:#a6bac9;--ink:#f0f6fd;--blue:#57b6f3;--green:#79d7b5;--orange:#ffc382;--red:#ff9fa2}
 *{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,sans-serif;margin:0;letter-spacing:.01em}button,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.skip-to-content{position:absolute;z-index:50;top:8px;left:16px;transform:translateY(-160%);background:#f0f6fd;color:#080e18;border:2px solid #57b6f3;border-radius:8px;padding:10px 14px;font-weight:800}
+.skip-to-content:focus-visible{transform:none;outline:3px solid #57b6f3;outline-offset:3px}
+#reviewMain:focus{outline:none}
 header{border-bottom:1px solid var(--border);padding:16px clamp(16px,4vw,50px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:#0d1724}
 .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);font-weight:750}h1{font-size:clamp(22px,2.4vw,30px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{margin:7px 0}.hash{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace;color:#b7d5e6}
 .status{border:1px solid var(--orange);color:#ffe6ca;border-radius:8px;padding:8px 12px;font-weight:700;max-width:350px}
@@ -74,11 +77,12 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 </style>
 </head>
 <body>
+<a class="skip-to-content" href="#reviewMain">Skip to review content</a>
 <header>
 <div><div class="eyebrow">Source-verified · KiCad 10 · local evidence</div><h1>What changed in this PCB?</h1><p class="muted">Human decision workspace · read-only original and proposed native files</p></div>
 <div class="status" role="status">Human review required · No fabrication approval</div>
 </header>
-<main class="layout">
+<main class="layout" id="reviewMain" tabindex="-1">
 <section class="card primary" aria-label="Exact proposed design change">
 <div class="overline">01 / Native design-state comparison</div>
 <h2 id="changeTitle">Loading source-linked change…</h2>
@@ -90,7 +94,7 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <section id="pinNetPanel" class="sch-panel" aria-labelledby="pinNetTitle">
  <div class="overline">04 / Source-linked schematic pin → PCB pad/net crossprobe</div>
  <h3 id="pinNetTitle">Exact KiCad connectivity check · scope limited to moved footprints</h3>
- <p class="notice" id="pinNetStatus">Not checked. No source-linked schematic netlist pair supplied.</p>
+ <p class="notice" id="pinNetStatus" role="status" aria-live="polite">Not checked. No source-linked schematic netlist pair supplied.</p>
  <p id="pinNetScope" class="muted">Without named nets and matching pin/pad numbers, electrical mapping is unverifiable, never approved.</p>
  <div id="pinNetResults" class="sch-findings-list" role="group" aria-label="Choose native pin, pad and net diagnostic"></div>
  <div id="pinNetSelected" class="sch-selection" tabindex="-1" aria-live="polite">Choose an actual native diagnostic to see its source, pad and net identity.</div>
@@ -210,7 +214,8 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <label for="importDecision">Restore previous exact-state review JSON</label>
 <input type="file" accept=".json,application/json" id="importDecision">
 <p id="decisionStatus" aria-live="polite" role="status" class="muted">Nothing approved. No review data sent to a server.</p>
-<button class="action" disabled type="button" title="Requires verified human identity, electrical/DFM evidence and a separate signed approval workflow">Approve / fabricate (unavailable)</button>
+<button class="action" disabled type="button" aria-describedby="approvalBlockReason" title="Requires verified human identity, electrical/DFM evidence and a separate signed approval workflow">Approve / fabricate (unavailable)</button>
+<p id="approvalBlockReason" class="notice">Approval unavailable: this offline review has no verified reviewer identity, independently complete electrical/DFM qualification, or signed authorization workflow. A saved local decision is unsigned and cannot authorize fabrication.</p>
 <p class="muted">This is a local, unsigned review record, never a PCB waiver, design commit, electrical qualification, or manufacturing authorization.</p>
 <details id="auditPanel" open>
 <summary>Evidence-linked local statement · self-declared identity only</summary>

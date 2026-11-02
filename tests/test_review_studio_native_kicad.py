@@ -667,6 +667,17 @@ def test_professional_workspace_uses_real_metrics_and_operable_local_controls() 
     assert "Fabrication blocked" in template
 
 
+def test_native_offline_report_has_visible_keyboard_skip_link() -> None:
+    """Static DRC reports remain keyboard accessible and source-bound."""
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "scripts/review_studio_native_report_template.html").read_text(encoding="utf-8")
+    css = (root / "scripts/review_studio_native_report.css").read_text(encoding="utf-8")
+    assert '<a class="skip-to-content" href="#nativeEvidenceMain">Skip to native evidence</a>' in html
+    assert '<main id="nativeEvidenceMain" tabindex="-1">' in html
+    assert ".skip-to-content:focus-visible{transform:none;" in css
+    assert "NOT FABRICATION APPROVED" in html
+
+
 def test_locally_rendered_evidence_report_is_static_styled_and_deterministic() -> None:
     from copy import deepcopy
 

@@ -119,6 +119,102 @@ def test_offline_view_explicitly_blocks_fabrication_and_shows_mode_options() -> 
         assert label in template
 
 
+def test_accessible_offline_report_keeps_hash_based_content_security_policy() -> None:
+    """Visible explanation/skip link must not require weakening offline CSP."""
+    from review_studio_local_csp import apply_offline_csp
+
+    html = change.TEMPLATE.read_text()
+    assert html.count("__CHANGE_DATA__") == 1
+    rendered = apply_offline_csp(html.replace("__CHANGE_DATA__", "{}"))
+    assert "__CSP__" not in rendered
+    assert "style-src 'sha256-" in rendered
+    assert "script-src 'sha256-" in rendered
+    assert "unsafe-inline" not in rendered
+    assert 'href="#reviewMain"' in rendered
+    assert 'id="approvalBlockReason"' in rendered
+
+
+def test_native_pin_net_verdict_is_screen_reader_announced_without_implying_approval() -> None:
+    """Current, mismatch and unverifiable findings must be text, not color only."""
+    html = change.TEMPLATE.read_text()
+    assert 'id="pinNetStatus" role="status" aria-live="polite"' in html
+    assert '"Exact native pin/pad/net crossprobe: "+status.toUpperCase()' in html
+    assert '"Blocking reasons: "+cp.reasons_when_unverified.join(", ")' in html
+    assert "Full PCB/schematic parity: NOT VERIFIED." in html
+
+
+def test_offline_review_has_keyboard_skip_link_to_main_landmark() -> None:
+    """The offline comparison remains navigable before all engineering controls."""
+    from html.parser import HTMLParser
+
+    class LandmarkParser(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.skip_link: dict[str, str | None] | None = None
+            self.main: dict[str, str | None] | None = None
+            self.ordered: list[str] = []
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            properties = dict(attrs)
+            if tag == "a" and properties.get("class") == "skip-to-content":
+                self.skip_link = properties
+                self.ordered.append("skip")
+            if tag == "main":
+                self.main = properties
+                self.ordered.append("main")
+
+    html = change.TEMPLATE.read_text()
+    parser = LandmarkParser()
+    parser.feed(html)
+    assert parser.ordered[:2] == ["skip", "main"]
+    assert parser.skip_link is not None
+    assert parser.main is not None
+    assert parser.skip_link["href"] == "#" + str(parser.main["id"])
+    assert parser.main["tabindex"] == "-1"
+    assert ".skip-to-content:focus-visible{transform:none;" in html
+
+
+def test_disabled_fabrication_action_has_visible_accessible_block_reason() -> None:
+    """Missing production authorization must not be disclosed by tooltip alone."""
+    from html.parser import HTMLParser
+
+    class ApprovalSemantics(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.button_attributes: dict[str, str | None] = {}
+            self.block_reason_attributes: dict[str, str | None] = {}
+            self.reason_text: list[str] = []
+            self.in_reason = False
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            properties = dict(attrs)
+            if tag == "button" and properties.get("aria-describedby") == "approvalBlockReason":
+                self.button_attributes = properties
+            if tag == "p" and properties.get("id") == "approvalBlockReason":
+                self.block_reason_attributes = properties
+                self.in_reason = True
+
+        def handle_endtag(self, tag: str) -> None:
+            if tag == "p" and self.in_reason:
+                self.in_reason = False
+
+        def handle_data(self, data: str) -> None:
+            if self.in_reason:
+                self.reason_text.append(data)
+
+    parser = ApprovalSemantics()
+    parser.feed(change.TEMPLATE.read_text())
+    assert parser.button_attributes.get("disabled") is None
+    assert "disabled" in parser.button_attributes
+    assert parser.button_attributes["aria-describedby"] == parser.block_reason_attributes["id"]
+    assert "hidden" not in parser.block_reason_attributes
+    reason = " ".join(parser.reason_text)
+    assert "verified reviewer identity" in reason
+    assert "electrical/DFM" in reason
+    assert "signed authorization workflow" in reason
+    assert "cannot authorize fabrication" in reason
+
+
 def test_decision_export_is_not_a_signed_approval_or_drc_waiver() -> None:
     js = change.TEMPLATE.read_text()
     assert "fabrication_approved:false,electrically_approved:false,source_modified:false" in js
