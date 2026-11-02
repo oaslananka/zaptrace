@@ -153,6 +153,47 @@ The route candidate and temporary KiCad copy are not the default pipeline
 output. Strict source physical preflight remains false and fabApproved
 remains false.
 
+## Power-net pad-width qualification — 2026-11-03
+
+The current POWER_MED routing rule is 0.50 mm trace width / 0.20 mm
+clearance. This is correctly rejected by the pad-aware geometric fan-out
+guard when a source pad is narrower than the constant-width trace; it is not
+a missing grid anchor.
+
+| Net / endpoint | Physical pad copper | POWER_MED trace | Consequence |
+|---|---:|---:|---|
+| VCC_3V3 / U2 BME280 VDD, VDDIO, CSB | 0.50 × 0.35 mm | 0.50 mm | No constant-width pad escape is geometrically valid |
+| VCC_5V / D1 IO | 0.60 × 0.45 mm | 0.50 mm | No constant-width pad escape is geometrically valid |
+| VCC_5V / J1 VBUS | 0.60 × 1.15 mm | 0.50 mm | Pad width itself is sufficient; complete net still fails because D1 and board-wide obstacles remain |
+
+The BME280 manufacturer's datasheet lists typical consumption up to
+3.6 µA at 1 Hz for humidity, pressure and temperature. That supports
+treating the BME branch as a low-current branch only after the actual
+operating mode and pull-up loads are included; it does **not** justify
+narrowing the shared VCC_3V3 trunk. The ESP32-WROOM-32 datasheet specifies
+0.5 A minimum current delivered by the external 3.3 V supply. Therefore the
+shared regulator-to-ESP32 trunk must be qualified separately from the
+sensor/logic branches.
+
+At 5.0 V input and 3.3 V output, a linear AMS1117 dissipates
+(5.0 - 3.3) × I. At the ESP32 module's 0.5 A supply figure that is 0.85 W
+before considering input tolerance, regulator dropout, board copper and
+ambient temperature. The current schematic does not contain a verified
+thermal calculation or exact production-grade regulator qualification;
+the regulator/power tree remains an independent electrical/thermal blocker.
+
+Decision: do not reduce the 0.50 mm POWER_MED width globally, do not route a
+0.50 mm line into a 0.35/0.45 mm pad, and do not add a blind via-in-pad.
+The next legitimate implementation is a topology-aware power tree: preserve
+a qualified wide trunk for the high-current path; allow a narrower branch
+only where its branch current is bounded by the connected loads; represent
+the width transition as real copper geometry (not merely a width metadata
+change); verify pad and track clearances along the complete transition; and
+validate the exported board with native KiCad DRC. No branch-width values
+are approved by this analysis. The relevant official references are the
+[Espressif ESP32-WROOM-32 datasheet](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
+and [Bosch BME280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)
