@@ -210,6 +210,8 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <section class="card" aria-label="Actual native verification evidence">
 <div class="overline">02 / Engineering evidence</div><h2 id="verificationTitle" tabindex="-1">What can be trusted?</h2>
 <div class="row"><span>Native PCB DRC checks</span><strong id="ruleCounts"></strong></div>
+<p id="drcFindingSummary" class="muted">Native KiCad finding details not yet loaded.</p>
+<div id="drcFindings" class="sch-findings-list" role="group" aria-label="Native KiCad PCB DRC findings linked to review evidence"></div>
 <div class="row"><span>KiCad version</span><strong id="engine"></strong></div>
 <div class="row"><span>Rules explicitly ignored by KiCad</span><strong id="ignored"></strong></div>
 <div class="row"><span>Native KiCad project rule context</span><strong id="ruleContext"></strong></div>
@@ -331,6 +333,10 @@ function initDecisionBrief(){
  $("briefRisk").textContent="FABRICATION BLOCKED · "+drc.after_rules+
   " proposed PCB DRC violations and "+drc.after_open+
   " open copper connections reported. Electrical/DFM and human approval remain unverified.";
+ if(drc.reported_findings?.length){
+  const first=drc.reported_findings[0];
+  $("briefRisk").textContent+=" Native finding: "+first.severity.toUpperCase()+" "+first.rule+" — "+first.description+".";
+ }
  let crossprobe="NOT CHECKED";
  if(cp){
   if(cp.scoped_pin_net_consistent)crossprobe="SCOPED MATCH ONLY";
@@ -341,7 +347,7 @@ function initDecisionBrief(){
   " → "+drc.after_rules+"). Schematic/ERC: "+(sch?"REPORTED (not full parity)":"NOT CHECKED")+
   ". Pin/net crossprobe: "+crossprobe+".";
  $("briefNext").textContent=drc.after_rules>0||drc.after_open>0?
-  "Inspect the native blockers and request repair, reject, or defer. Save only an unsigned review record.":
+  "Inspect native DRC findings and request repair, reject, or defer. Save only an unsigned review record.":
   "Inspect missing electrical/DFM evidence and select defer, repair or reject. A local decision never authorizes fabrication.";
 }
 function init(){
@@ -381,6 +387,24 @@ function init(){
  $("openDrc").textContent=DATA.drc.before_open+" → "+DATA.drc.after_open;
  $("riskMessage").textContent="Native PCB DRC unchanged is not electrical, mechanical, or manufacturing approval. "+DATA.drc.ignored_checks+" KiCad checks ignored by the project.";
  $("ruleCounts").textContent=DATA.drc.before_rules+" → "+DATA.drc.after_rules+" violations";
+ const drcFindings=DATA.drc.reported_findings||[];
+ $("drcFindingSummary").textContent=drcFindings.length?
+  "Native KiCad reported findings · showing "+drcFindings.length+
+  " · additional not shown: "+(DATA.drc.omitted_findings||0)+
+  ". Select one to connect its rule to local evidence; selection is not inspection or approval.":
+  "No native PCB DRC findings reported; other engineering checks and fabrication approval remain unverified.";
+ for(const [index,finding] of drcFindings.entries()){
+  const button=document.createElement("button");
+  button.type="button";
+  button.textContent=finding.severity.toUpperCase()+" · "+finding.rule+" · "+finding.description;
+  button.addEventListener("click",()=>{
+   const selector=$("auditEvidenceSelect");
+   const id="pcb-drc:finding:"+index;
+   if([...selector.options].some(option=>option.value===id))selector.value=id;
+   selector.focus();
+  });
+  $("drcFindings").append(button);
+ }
  $("ignored").textContent=String(DATA.drc.ignored_checks);
  $("engine").textContent=DATA.drc.engine;
  $("ruleContext").textContent=DATA.rule_context.mode.replaceAll("_"," ");

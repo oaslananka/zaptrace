@@ -184,6 +184,33 @@ def test_source_bound_decision_overview_links_actual_evidence_and_unsigned_outco
     assert template.count("__CHANGE_DATA__") == 1
 
 
+def test_native_drc_findings_preserve_source_rule_and_severity_with_bounded_evidence() -> None:
+    """Do not turn native KiCad warnings into approvals or generic green status."""
+    rows = [{"type": f"rule_{i}", "severity": "warning", "description": f"Actual finding {i}"} for i in range(11)]
+    findings, omitted = change.native_reported_findings({"violations": rows})
+    assert len(findings) == 8 and omitted == 3
+    assert findings[0] == {"rule": "rule_0", "severity": "warning", "description": "Actual finding 0"}
+    record = {
+        "changed": [{"ref": "R1"}],
+        "drc": {"before_rules": 11, "after_rules": 11, "reported_findings": findings},
+        "schematic": None,
+    }
+    catalog = change.evidence_catalog(record)
+    assert len([item for item in catalog if item["kind"] == "native_pcb_drc_finding"]) == 8
+    assert catalog[2]["id"] == "pcb-drc:finding:0"
+    assert catalog[2]["rule"] == "rule_0"
+    assert catalog[2]["summary"] == "WARNING: Actual finding 0"
+    altered = deepcopy(record)
+    altered["drc"]["reported_findings"][0]["description"] = "Different native rule evidence"
+    assert change.canonical_decision_hash(record) != change.canonical_decision_hash(altered)
+    template = change.TEMPLATE.read_text()
+    assert 'id="drcFindings"' in template
+    assert 'id="drcFindingSummary"' in template
+    assert '"pcb-drc:finding:"+index' in template
+    assert '" Native finding: "+first.severity.toUpperCase()' in template
+    assert "selection is not inspection or approval." in template
+
+
 def test_native_pin_net_verdict_is_screen_reader_announced_without_implying_approval() -> None:
     """Current, mismatch and unverifiable findings must be text, not color only."""
     html = change.TEMPLATE.read_text()
