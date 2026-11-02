@@ -170,17 +170,18 @@ def test_physical_demo_rejects_graph_routes_without_real_pad_continuity(tmp_path
     assert ctx.routing is not None
     assert ctx.routing.routed_nets == 0
     assert ctx.routing.total_nets > 0
-    # Both USB-C CC termination paths are now explicit source nets.
-    # All six nets must remain visibly unrouted instead of unsafe fallback copper.
+    # Both USB-C CC paths and the source GND net (whose pour is disabled)
+    # must remain visibly unresolved instead of unsafe fallback copper.
     assert set(ctx.routing.unrouted_nets) == {
         "VCC_5V",
         "VCC_3V3",
+        "GND",
         "I2C_SDA",
         "I2C_SCL",
         "USB_CC1",
         "USB_CC2",
     }
-    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 6
+    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 7
     assert design.routing is not None
     assert not design.routing.traces
     assert not design.routing.vias
