@@ -149,7 +149,9 @@ def build_footprint_proof(
     """Build a footprint proof from a FootprintDef."""
     resolved_source = source or _default_source(source_type, footprint.source or package_id, source_path)
     thermal = set(footprint.thermal_pads or [])
-    mapping = pin_map or {pad.id: pad.id for pad in footprint.pads if pad.id not in thermal}
+    # Blank NPTH mounting holes remain in the physical proof but cannot be
+    # logical signal pins; numbered copper contacts retain their identities.
+    mapping = pin_map or {pad.id: pad.id for pad in footprint.pads if pad.id and pad.id not in thermal}
     pin_count = expected_pin_count if expected_pin_count is not None else len(mapping)
     paste_enabled = sum(1 for pad in footprint.pads if pad.solder_paste)
     paste_disabled = len(footprint.pads) - paste_enabled
@@ -463,6 +465,22 @@ def _courtyard_diagnostic(proof: FootprintProof) -> FootprintProofDiagnostic | N
     )
 
 
+def _unnumbered_electrical_pad_diagnostic(proof: FootprintProof) -> FootprintProofDiagnostic | None:
+    # Manufacturer packages may include real unnumbered NPTH alignment holes,
+    # but any blank signal/plated pad is not a valid named pin and must block.
+    invalid = [pad for pad in proof.pads if not pad.pad_id and (pad.plated or pad.drill_mm is None)]
+    if not invalid:
+        return None
+    return FootprintProofDiagnostic(
+        package_id=proof.package_id,
+        code="unnumbered-electrical-pad",
+        severity=FootprintProofSeverity.ERROR,
+        message="Unnumbered copper/plated pad cannot be excluded as a mechanical NPTH hole",
+        expected="unnumbered non-plated through-hole with known drill only",
+        observed=str(len(invalid)),
+    )
+
+
 def validate_footprint_proof(
     proof: FootprintProof,
     *,
@@ -474,10 +492,13 @@ def validate_footprint_proof(
     """Validate pad/pin-count and pin-map consistency for one footprint proof."""
     pad_ids = {pad.pad_id for pad in proof.pads}
     thermal = set(proof.thermal_pads)
-    signal_pad_ids = pad_ids - thermal
+    # Preserve physical blank NPTH pads in the proof artifact and total
+    # pad count, but they are not electrical contact identities.
+    signal_pad_ids = (pad_ids - {""}) - thermal
     mapped_pads = set(proof.pin_map.values())
 
     candidates = (
+        _unnumbered_electrical_pad_diagnostic(proof),
         _pad_count_diagnostic(proof),
         _pad_pin_count_diagnostic(proof, signal_pad_ids),
         _pin_map_count_diagnostic(proof),

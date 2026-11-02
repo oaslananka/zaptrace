@@ -1,0 +1,23 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta http-equiv='Content-Security-Policy' content="__CSP__">
+<title>ZapTrace · native KiCad engineering evidence</title><style>__CSS__</style></head>
+<body><header><strong>Zap<span class='brand-accent'>Trace</span> / Review Studio</strong><b>NOT FABRICATION APPROVED</b></header>
+<main><span class='eyebrow'>LOCAL ENGINEERING RECORD · NATIVE KICAD</span>
+<h1>Board evidence &amp; manufacturing blockers</h1>
+<p class='lead'>Read-only results from actual KiCad inputs. Not a production release, electrical-operation proof, routing recommendation or fabricator acceptance. Counts refer to reported checks only.</p>
+<section class='block alert'><span class='eyebrow'>PRODUCTION GATE</span><h2>Fabrication remains blocked</h2>
+<p>Native DRC, board continuity and supplier/manufacturing acceptance are separate gates. No design-rule waiver or production approval has been issued.</p></section>
+<section class='block'><span class='eyebrow'>VALIDATION</span><h2>Source-backed gate status</h2><div class='scroll'><table><thead><tr><th>Gate</th><th>Reported state</th><th>Scope</th></tr></thead><tbody>__GATE_ROWS__</tbody></table></div></section>
+<section class='block'><span class='eyebrow'>PROVENANCE</span><h2>Immutable source identity</h2><div class='sources'>
+<div class='source'><span>PCB SOURCE SHA-256</span><code>__PCB_SHA__</code></div>__SCHEMATIC_INFO____DESIGN_INFO__
+</div><p class='note'>All evidence is generated in the separate local review output directory. The input PCB, schematic and design remain unchanged.</p></section>
+<section class='block'><span class='eyebrow'>NATIVE DRC</span><h2>Remaining manufacturing findings</h2>
+<p class='note'>__DRC_NOTE__</p>
+<div class='scroll'><table><thead><tr><th>Rule</th><th>Native position</th><th>Explanation</th></tr></thead><tbody>__DRC_ROWS__</tbody></table></div></section>
+<section class='block'><span class='eyebrow'>NATIVE CONNECTIONS</span><h2>Open copper pairs</h2>
+<p class='note warn'>Straight-line airwire separations are visual only, never a clearance-safe track or autorouter result.</p>
+<div class='scroll'><table><thead><tr><th>Net</th><th>Endpoint A</th><th>Endpoint B</th><th>Distance, mm</th></tr></thead><tbody>__OPEN_ROWS__</tbody></table></div></section>
+<section class='block'><span class='eyebrow'>ENGINEERING FOLLOW-UP</span><h2>Before a manufacturing release</h2><ol><li>Finish copper connectivity and rerun independent native KiCad ERC/DRC.</li><li>Resolve ESP32 thermal-via drill and USB-C locating-hole constraints without silent rule relaxation.</li><li>Qualify independent supplier pinouts, thermal/antenna constraints, fab capabilities and assembly.</li><li>Complete independent Proof Pack and documented human/fabricator approval.</li></ol></section>
+<footer>ZapTrace Review Studio · Offline source-derived engineering record · Not Gerber release authorization</footer>
+</main></body></html>

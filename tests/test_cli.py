@@ -75,6 +75,87 @@ class TestCLICommands:
         assert result.exit_code != 0
 
 
+def test_pipeline_warns_when_generated_artifacts_have_unrouted_nets(tmp_path, monkeypatch) -> None:
+    import zaptrace.cli.main as cli_main
+
+    def fake_pipeline(**kwargs):
+        return {
+            "all_successful": True,
+            "stages_completed": 10,
+            "duration_seconds": 1.0,
+            "stages": {"route": {"success": True}},
+            "routing_evidence": {
+                "reported_routed_nets": 0,
+                "total_routable_nets": 2,
+                "unrouted_nets": ["I2C_SDA", "I2C_SCL"],
+                "physical_continuity_verified": False,
+            },
+        }
+
+    monkeypatch.setattr(cli_main, "tool_pipeline_run", fake_pipeline)
+    source = tmp_path / "source.yaml"
+    source.write_text("meta:\n  name: demo\n", encoding="utf-8")
+    result = _runner().invoke(cli, ["pipeline", "--source", str(source)])
+    assert result.exit_code == 0
+    assert "ROUTING INCOMPLETE" in result.output
+    assert "I2C_SDA" in result.output
+    assert "I2C_SCL" in result.output
+    assert "Physical continuity and fabrication readiness NOT VERIFIED" in result.output
+    assert "Pipeline completed: 10 stages" in result.output
+
+
+def test_pipeline_escapes_untrusted_net_labels(tmp_path, monkeypatch) -> None:
+    import zaptrace.cli.main as cli_main
+
+    def fake_pipeline(**kwargs):
+        return {
+            "all_successful": True,
+            "stages_completed": 10,
+            "duration_seconds": 1.0,
+            "stages": {"route": {"success": True}},
+            "routing_evidence": {
+                "reported_routed_nets": 0,
+                "total_routable_nets": 1,
+                "unrouted_nets": ["[red]Fake Success[/red]"],
+                "physical_continuity_verified": False,
+            },
+        }
+
+    monkeypatch.setattr(cli_main, "tool_pipeline_run", fake_pipeline)
+    source = tmp_path / "source.yaml"
+    source.write_text("meta:\n  name: demo\n", encoding="utf-8")
+    result = _runner().invoke(cli, ["pipeline", "--source", str(source)])
+    assert result.exit_code == 0
+    assert "[red]Fake Success[/red]" in result.output
+    assert "ROUTING INCOMPLETE" in result.output
+
+
+def test_pipeline_explicitly_marks_routed_output_unverified(tmp_path, monkeypatch) -> None:
+    import zaptrace.cli.main as cli_main
+
+    def fake_pipeline(**kwargs):
+        return {
+            "all_successful": True,
+            "stages_completed": 10,
+            "duration_seconds": 1.0,
+            "stages": {"route": {"success": True}},
+            "routing_evidence": {
+                "reported_routed_nets": 2,
+                "total_routable_nets": 2,
+                "unrouted_nets": [],
+                "physical_continuity_verified": False,
+            },
+        }
+
+    monkeypatch.setattr(cli_main, "tool_pipeline_run", fake_pipeline)
+    source = tmp_path / "source.yaml"
+    source.write_text("meta:\n  name: demo\n", encoding="utf-8")
+    result = _runner().invoke(cli, ["pipeline", "--source", str(source)])
+    assert result.exit_code == 0
+    assert "ROUTING INCOMPLETE" not in result.output
+    assert "Physical continuity and fabrication readiness NOT VERIFIED" in result.output
+
+
 class TestRequirementsCommand:
     def test_requirements_prints_json(self) -> None:
         result = _runner().invoke(cli, ["requirements", "esp32 usb-c 3.3v i2c"])

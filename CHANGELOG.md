@@ -2,8 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Turn the local viewer into a responsive inspection workspace with a real browser-rendered, clearly synthetic UX fixture; improve keyboard inspection, protect embedded user-supplied JSON, and distinguish missing component placement from actual `(0,0)` geometry. The viewer remains read-only, does not verify fabrication and never treats a proof manifest as executed evidence.
+
+- Add a fail-closed, inspection-only Review Studio readiness summary to the offline interactive PCB viewer: embedded DRC findings, distinct proof-manifest-vs-executed-proof status, fabrication human-review requirement and accessible navigation to recorded findings. Missing evidence is never interpreted as a pass; no actual PCB approval is implied.
+
 ### Fixed
 
+- Surface unresolved physical routing nets and an explicit non-fabrication warning in the pipeline CLI and tool response. Successful generation alone is not PCB continuity evidence.
 - Correct Renovate package-rule precedence so the Ruff Python package and ruff-pre-commit hook share one update group, preserving their exact lockfile/pre-commit version-parity test rather than creating independently failing PRs.
 - Harden default plugin process admission: do not inherit the host PYTHONPATH into plugin Python imports, reject directory entrypoints, and reject the schema-reserved WASM entry type until a dedicated WASI sandbox exists. Add adversarial regression tests without claiming OS-level plugin isolation.
 - Add opt-in conservative GridRouter pad-owned F.Cu/B.Cu/through-hole copper projection for rotated rectangular, oval and circular pads, with immutable foreign-net mask, NPTH drill keepout, net ownership, grid-anchored terminals, fail-closed unsupported custom shapes and unverified via transfers. Conservatively exclude polygonal board boundaries, cutouts and drilled mounting holes on every layer, rejecting invalid/self-intersecting outlines. Expand independent KiCad 10 oracle with a 90-degree-rotated SMD footprint and a deliberately shorted negative control; keep existing routing defaults unchanged and avoid physical manufacturing claims.

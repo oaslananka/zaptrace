@@ -27,7 +27,18 @@ def tool_pipeline_run(
             **session.get("erc_results", {}),
             ctx.design.meta.name: ctx.erc_result,
         }
+    # Stage completion is only artifact-generation evidence, not proof that
+    # every physical net has routed copper or passed native KiCad DRC/ERC.
+    routing_evidence = None
+    if ctx.routing is not None:
+        routing_evidence = {
+            "reported_routed_nets": ctx.routing.routed_nets,
+            "total_routable_nets": ctx.routing.total_nets,
+            "unrouted_nets": list(ctx.routing.unrouted_nets),
+            "physical_continuity_verified": False,
+        }
     return {
+        "routing_evidence": routing_evidence,
         "stages_completed": len(ctx.results),
         "all_successful": ctx.all_successful,
         "duration_seconds": round(ctx.duration, 2),

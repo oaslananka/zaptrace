@@ -61,7 +61,7 @@ jobs:
   validation-environment:
     name: Validation environment parity
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Skip heavyweight validation for non-heavy PR
         if: needs.changes.outputs.heavy_ci != 'true'
@@ -237,6 +237,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           sync-explicit-python: "true"
 
+      - name: Install native Debian package test dependency
+        if: needs.changes.outputs.test_mode != 'docs'
+        run: |
+          bash scripts/ci_install_kicad.sh desktop-file-utils
+
       - name: Run fast compatibility lanes
         if: needs.changes.outputs.test_mode != 'docs'
         shell: bash
@@ -390,7 +395,7 @@ jobs:
   kicad-oracle:
     name: KiCad Oracle
     needs: changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Skip KiCad oracle for non-heavy PR
         if: needs.changes.outputs.heavy_ci != 'true'

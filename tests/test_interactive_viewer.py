@@ -177,6 +177,45 @@ class TestViewerDataExtraction:
         assert len(data.non_claims) >= 1
         assert any("human review" in nc for nc in data.non_claims)
 
+    def test_review_summary_preserves_warning_without_implying_fab_approval(self, simple_design: Design) -> None:
+        review = _extract_viewer_data(simple_design).review
+        assert review.drc_state == "warning"
+        assert review.drc_findings == 1
+        assert review.proof_state == "not_provided"
+        assert review.fabrication_state == "human_review_required"
+
+    def test_review_summary_does_not_treat_missing_drc_as_success(self, simple_design: Design) -> None:
+        simple_design.drc_result = None
+        review = _extract_viewer_data(simple_design).review
+        assert review.drc_state == "not_checked"
+        assert review.drc_findings == 0
+
+    def test_review_summary_respects_failed_gate_with_no_violation_entries(self, simple_design: Design) -> None:
+        assert simple_design.drc_result is not None
+        simple_design.drc_result.passed = False
+        simple_design.drc_result.violations = []
+        simple_design.drc_result.total_violations = 0
+        simple_design.drc_result.errors = 0
+        simple_design.drc_result.warnings = 0
+        assert _extract_viewer_data(simple_design).review.drc_state == "blocking"
+
+    def test_review_summary_zero_findings_only_describes_embedded_drc(self, simple_design: Design) -> None:
+        assert simple_design.drc_result is not None
+        simple_design.drc_result.violations = []
+        simple_design.drc_result.total_violations = 0
+        simple_design.drc_result.warnings = 0
+        review = _extract_viewer_data(simple_design).review
+        assert review.drc_state == "no_recorded_findings"
+        assert review.fabrication_state == "human_review_required"
+
+    def test_missing_component_placement_is_not_a_real_origin_location(self, simple_design: Design) -> None:
+        simple_design.placement = None
+        for component in simple_design.components.values():
+            component.position = None
+        data = _extract_viewer_data(simple_design)
+        assert all(not component.placed for component in data.components)
+        assert all(component.x == 0.0 and component.y == 0.0 for component in data.components)
+
     def test_schema_version(self, simple_design: Design) -> None:
         data = _extract_viewer_data(simple_design)
         assert data.schema_version == "2.0"
@@ -247,12 +286,77 @@ class TestInteractiveViewerGeneration:
         assert "infoPanel" in html_content
         assert "statusBar" in html_content
 
+    def test_readiness_ui_has_nonclaims_and_navigation(self, simple_design: Design, tmp_path: Path) -> None:
+        result = generate_interactive_viewer(simple_design, tmp_path)
+        page = Path(result.index_path).read_text(encoding="utf-8")
+        data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
+        assert 'aria-label="Review readiness"' in page
+        assert 'id="reviewDrc"' in page
+        assert 'id="reviewProof"' in page
+        assert 'id="reviewFabrication"' in page
+        assert 'id="btnReviewFindings"' in page
+        assert 'activeTab = "violations"' in page
+        assert 'document.getElementById("tabContent").focus()' in page
+        assert "native KiCad" in page
+        assert data["review"]["drc_state"] == "warning"
+        assert data["review"]["fabrication_state"] == "human_review_required"
+
+    def test_proof_manifest_not_mistaken_for_executed_result(self, simple_design: Design, tmp_path: Path) -> None:
+        proof = tmp_path / "proof.yaml"
+        proof.write_text("name: sample\nchecks: []\nstatus: pass\n", encoding="utf-8")
+        result = generate_interactive_viewer(simple_design, tmp_path / "review", proof_path=proof)
+        data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
+        assert data["review"]["proof_state"] == "manifest_only"
+        assert data["review"]["fabrication_state"] == "human_review_required"
+
     def test_html_contains_viewer_data(self, simple_design: Design, tmp_path: Path) -> None:
         result = generate_interactive_viewer(simple_design, tmp_path)
         html_content = Path(result.index_path).read_text(encoding="utf-8")
         # Data is embedded as JSON
         assert '"schema_version":"2.0"' in html_content
         assert '"zaptrace-interactive-viewer"' in html_content
+
+    def test_visual_demo_fixture_reports_embedded_blockers_only(self, tmp_path: Path) -> None:
+        path = Path(__file__).resolve().parents[1] / "examples/review_studio_ux_fixture/design.yaml"
+        proof = path.with_name("synthetic-proof-manifest.yaml")
+        result = generate_interactive_viewer(path, tmp_path, proof_path=proof)
+        data = json.loads(Path(result.data_path).read_text(encoding="utf-8"))
+        assert len(data["components"]) == 8
+        assert all(component["placed"] for component in data["components"])
+        assert len(data["traces"]) == 9
+        assert len(data["violations"]) == 2
+        assert data["review"] == {
+            "drc_state": "blocking",
+            "drc_findings": 2,
+            "proof_state": "manifest_only",
+            "fabrication_state": "human_review_required",
+        }
+        assert all(v["rule_id"].startswith("UX-EXAMPLE-") for v in data["violations"])
+
+    def test_untrusted_design_names_cannot_end_embedded_script(self, simple_design: Design, tmp_path: Path) -> None:
+        payload = '</script><script id="malicious">alert(1)</script>'
+        simple_design.meta.name = payload
+        simple_design.components["u1"].ref = 'U" onfocus="alert(1)'
+        result = generate_interactive_viewer(simple_design, tmp_path)
+        content = Path(result.index_path).read_text(encoding="utf-8")
+        assert content.count("<script>") == 1
+        assert content.count("</script>") == 1
+        assert '<script id="malicious">' not in content
+        assert "\\u003c/script\\u003e" in content
+        assert "function escAttr(s)" in content
+
+    def test_studio_has_responsive_keyboard_controls(self, simple_design: Design, tmp_path: Path) -> None:
+        result = generate_interactive_viewer(simple_design, tmp_path)
+        content = Path(result.index_path).read_text(encoding="utf-8")
+        assert 'role="tablist"' in content
+        assert 'role="tabpanel"' in content
+        assert 'aria-selected="true"' in content
+        assert "data-layer=" in content
+        assert "btnReviewFindings" in content
+        assert 'role="img"' in content
+        assert "@media(max-width:650px)" in content
+        assert "if (!c.placed) return;" in content
+        assert "var topSafe =" in content
 
     def test_non_claims_propagated(self, simple_design: Design, tmp_path: Path) -> None:
         result = generate_interactive_viewer(simple_design, tmp_path)

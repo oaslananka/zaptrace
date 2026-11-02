@@ -1,0 +1,122 @@
+"""Local release kit contains only exact QA-bound package and install guide."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import sys
+import zipfile
+from pathlib import Path
+
+import pytest
+
+SOURCE = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SOURCE))
+
+from review_studio_build_deb import build  # noqa: E402
+from review_studio_release_kit import VERSIONED_KIT, create  # noqa: E402
+from review_studio_release_manifest import manifest, sha256  # noqa: E402
+
+
+@pytest.fixture
+def local_evidence(tmp_path: Path) -> tuple[Path, Path]:
+    distribution = tmp_path / "dist"
+    package = build(SOURCE.parent, distribution)
+    gate = tmp_path / "gate.txt"
+    gate.write_text(
+        "\n".join(f"[{x}/9] PASS" for x in range(1, 10))
+        + "\n0 errors, 0 warnings, 0 informations\nRELEASE GATE: PASS\n"
+    )
+    qa = distribution / "CLEAN_UBUNTU_2404_0112_QA.txt"
+    qa.write_text(
+        "PACKAGE_SHA256=" + sha256(package) + "\n"
+        "Actual APT update=0; apt-get install zaptrace-review-studio 0.1.11 = 0\n"
+        "Real APT in-place upgrade to installed 0.1.12 passed\n"
+        "Installed 0.1.12 native KiCad 8 orbit and 2 fixed OpenGL camera views: PASS\n"
+        "Installed 0.1.12 native browser ECO value copy-on-write with KiCad netlist/ERC and separate download: PASS\n"
+        "Installed 0.1.12 native browser PCB footprint placement ECO, copper/DRC and separate download: PASS\n"
+        "Installed 0.1.12 native PCB quarter-turn and KiCad DRC: PASS\n"
+        "Installed 0.1.12 native schematic/PCB readonly comparison: PASS\n"
+        "Exact package 0.1.12 Chrome quarter-turn and private parity audit: PASS\n"
+        "Installed 0.1.12 guarded native copper route and SHA-bounded DRC proof: PASS\n"
+        "Exact package 0.1.12 Chrome guarded copper ZIP, SVG, discard: PASS\n"
+        "Installed 0.1.12 native custom KiCad rules loader + independent default DRC verified: PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_TWO_VIA_AND_LEGACY_FCU_CHROME: PASS\n"
+        "EXACT_PACKAGE_0112_NATIVE_TWO_NET_PROJECT_AND_SHA_EVIDENCE=PASS\n"
+        "EXACT_PACKAGE_0112_CUSTOM_THROUGH_VIAS_MULTINET_AND_LEGACY_CHROME: PASS\n"
+        "INSTALLED_0112_NATIVE_MULTINET_37_TO_35_AND_16_TO_16=PASS\n"
+        "UBUNTU_24_04_APT_0112_MULTINET_BATCH_CHROME=PASS\n"
+        "Legacy 0.1.1 private ZIP restore: approved by source SHA\n"
+        "Native localhost startup/shutdown after upgrade passed\n"
+        "Actual APT remove 0.1.12 passed\n"
+    )
+    output = manifest(package, gate, qa)
+    (distribution / "RELEASE_MANIFEST.json").write_text(json.dumps(output, indent=2) + "\n")
+    return distribution, SOURCE / "REVIEW_STUDIO_INSTALL_QUICKSTART.md"
+
+
+def test_release_kit_reproducible_and_never_contains_private_or_unverified_files(
+    local_evidence: tuple[Path, Path],
+) -> None:
+    directory, guide = local_evidence
+    package = directory / "zaptrace-review-studio_0.1.12_all.deb"
+    kit = create(directory, guide)
+    first = kit.read_bytes()
+    assert kit.name == VERSIONED_KIT
+    assert create(directory, guide).read_bytes() == first
+    with zipfile.ZipFile(kit) as archive:
+        assert archive.testzip() is None
+        assert len(archive.namelist()) == 5
+        assert archive.read(package.name) == package.read_bytes()
+        assert archive.read("RELEASE_MANIFEST.json") == (directory / "RELEASE_MANIFEST.json").read_bytes()
+        assert b"unsigned" in archive.read("INSTALL_AND_RELEASE_NOTES.md")
+        assert not any(
+            name.endswith((".kicad_pcb", ".kicad_sch", ".kicad_pro", ".kicad_prl")) for name in archive.namelist()
+        )
+    actual = hashlib.sha256(first).hexdigest()
+    assert kit.with_suffix(kit.suffix + ".sha256").read_text().strip() == f"{actual}  {kit.name}"
+
+
+def test_release_kit_refuses_package_tampering_or_unqualified_manifest(local_evidence: tuple[Path, Path]) -> None:
+    directory, guide = local_evidence
+    target = directory / "zaptrace-review-studio_0.1.12_all.deb"
+    target.write_bytes(target.read_bytes() + b"injected")
+    with pytest.raises(ValueError, match="hash"):
+        create(directory, guide)
+    assert not (directory / VERSIONED_KIT).exists()
+
+
+def test_release_kit_replaces_output_links_without_touching_their_targets(
+    local_evidence: tuple[Path, Path], tmp_path: Path
+) -> None:
+    directory, guide = local_evidence
+    destination = directory / VERSIONED_KIT
+    checksum = destination.with_suffix(destination.suffix + ".sha256")
+    outside_zip = tmp_path / "external.zip"
+    outside_hash = tmp_path / "external.sha256"
+    outside_zip.write_bytes(b"protected-zip")
+    outside_hash.write_bytes(b"protected-hash")
+    destination.symlink_to(outside_zip)
+    checksum.symlink_to(outside_hash)
+
+    kit = create(directory, guide)
+
+    assert kit.is_file() and not kit.is_symlink()
+    assert checksum.is_file() and not checksum.is_symlink()
+    assert outside_zip.read_bytes() == b"protected-zip"
+    assert outside_hash.read_bytes() == b"protected-hash"
+
+
+def test_release_kit_rejects_symlinked_evidence_and_guide(local_evidence: tuple[Path, Path], tmp_path: Path) -> None:
+    directory, guide = local_evidence
+    linked_guide = tmp_path / "guide.md"
+    linked_guide.symlink_to(guide)
+    with pytest.raises(ValueError, match="installation guide"):
+        create(directory, linked_guide)
+
+    manifest = directory / "RELEASE_MANIFEST.json"
+    backup = directory / "manifest.saved"
+    manifest.rename(backup)
+    manifest.symlink_to(backup)
+    with pytest.raises(ValueError, match="nonregular QA release evidence"):
+        create(directory, guide)
