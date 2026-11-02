@@ -44,6 +44,8 @@ When editing is needed, Review Studio should send users back to the source EDA t
 
 ### Native offline decision overview
 
+The overview and native evidence panel also display a bounded list of real KiCad DRC findings, with the original rule type, reported severity, and description. A finding can be selected into the unsigned evidence review without automatically counting it as inspected. Additional findings remain counted as omitted rather than silently implied clean; warning is not an automatic approval.
+
 The source-bound KiCad PCB comparison places a compact decision overview before its detailed inspection panels: actual measured footprint changes, reported DRC/open-connection risk, the distinction between available and missing schematic/pin-net evidence, and an unsigned next action. Its visible state identity uses the same exact review hash as the imported/exported local decision; navigation leads to the underlying native evidence, rather than substituting for it. A reported DRC result or scoped pin/net match is never electrical/DFM clearance, verified reviewer identity, or fabrication approval.
 
 ## Core Screens

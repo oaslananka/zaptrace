@@ -469,6 +469,19 @@ def native_schematic_comparison(source: Path, candidate: Path, output: Path) -> 
     }
 
 
+def native_reported_findings(report: dict, limit: int = 8) -> tuple[list[dict], int]:
+    """Expose a bounded subset of genuine KiCad DRC findings, not inferred approval."""
+    rows = report["violations"]
+    result = []
+    for row in rows[:limit]:
+        if not isinstance(row, dict) or any(
+            not isinstance(row.get(k), str) for k in ("type", "severity", "description")
+        ):
+            raise ValueError("Unexpected native KiCad DRC finding")
+        result.append({"rule": row["type"], "severity": row["severity"], "description": row["description"]})
+    return result, max(0, len(rows) - len(result))
+
+
 def evidence_catalog(document: dict) -> list[dict]:
     """Stable source-derived review references, no free-text/fabrication claims."""
     entries = []
@@ -493,6 +506,16 @@ def evidence_catalog(document: dict) -> list[dict]:
             ),
         }
     )
+    for index, finding in enumerate(document["drc"].get("reported_findings", [])):
+        entries.append(
+            {
+                "id": f"pcb-drc:finding:{index}",
+                "kind": "native_pcb_drc_finding",
+                "ref": None,
+                "rule": finding["rule"],
+                "summary": f"{finding['severity'].upper()}: {finding['description']}",
+            }
+        )
     schematic = document.get("schematic")
     if schematic is not None:
         for index, change in enumerate(schematic["changed_values"]):
@@ -688,6 +711,7 @@ def create_review(
             )
         ):
             raise ValueError("Schematic state changed during review rendering")
+    reported_findings, omitted_findings = native_reported_findings(b)
     document = {
         "schema_version": 1,
         "kind": "unsigned_local_design_change_decision_not_approval",
@@ -712,6 +736,8 @@ def create_review(
             "ignored_checks": len(a["ignored_checks"]),
             "engine": a["kicad_version"],
             "included_severities": a["included_severities"],
+            "reported_findings": reported_findings,
+            "omitted_findings": omitted_findings,
         },
         "approval_supported": False,
         "fabrication_approved": False,
