@@ -1193,6 +1193,33 @@ def render_native_3d(cli: str, board: Path, output: Path, *, enabled: bool) -> d
     return status
 
 
+def prepare_native_review_output(board: Path, output: Path) -> Path:
+    """Preserve user-chosen destinations without overwriting unrelated content."""
+    destination = output.resolve(strict=False)
+    source_dir = board.parent.resolve(strict=True)
+    if destination == source_dir or destination in source_dir.parents:
+        raise ValueError("Native review output must not overwrite the KiCad source tree or its ancestors")
+    if output.is_symlink():
+        raise ValueError("Refusing a symlinked native review output directory")
+    if destination.exists():
+        if not destination.is_dir():
+            raise ValueError("Native review output must be a directory")
+        if any(destination.iterdir()):
+            proof = destination / "evidence.json"
+            try:
+                evidence = json.loads(read_regular_bytes(proof, max_size=4 * 1024 * 1024))
+            except ValueError as exc:
+                raise ValueError("Native review output directory contains unrelated files") from exc
+            source_digest = hashlib.sha256(read_regular_bytes(board, max_size=10 * 1024 * 1024)).hexdigest()
+            if not isinstance(evidence, dict) or evidence.get("source_sha256") != source_digest:
+                raise ValueError("Native review output belongs to a different PCB source")
+            if any(item.is_symlink() for item in destination.rglob("*")):
+                raise ValueError("Native review output contains an unsafe symlink")
+    else:
+        destination.mkdir(parents=True, exist_ok=False)
+    return destination
+
+
 def build(
     board: Path,
     output: Path,
@@ -1223,7 +1250,7 @@ def build(
 
     sheet_inventory = validate_schematic_hierarchy(schematic) if schematic is not None else []
     source = _read_kicad(board)
-    output.mkdir(parents=True, exist_ok=True)
+    output = prepare_native_review_output(board, output)
     layers = {}
     dims = None
     names = ["F.Cu", "B.Cu", "F.Mask", "B.Mask", "F.SilkS", "B.SilkS", "Edge.Cuts"]

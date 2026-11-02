@@ -197,6 +197,53 @@ def test_native_review_output_rejects_symlink_directory(tmp_path: Path) -> None:
         native.build(board, output_link, TEMPLATE)
 
 
+def test_review_output_refuses_unrelated_existing_files(tmp_path: Path) -> None:
+    board = tmp_path / "source" / "source.kicad_pcb"
+    board.parent.mkdir()
+    board.write_bytes(b"verified-native-input")
+    unwanted = tmp_path / "destination"
+    unwanted.mkdir()
+    protected = unwanted / "index.html"
+    protected.write_text("unrelated user content")
+    with pytest.raises(ValueError, match="unrelated files"):
+        native.prepare_native_review_output(board, unwanted)
+    assert protected.read_text() == "unrelated user content"
+
+
+def test_review_output_allows_new_and_same_board_existing_evidence(tmp_path: Path) -> None:
+    import hashlib
+
+    board = tmp_path / "source" / "source.kicad_pcb"
+    board.parent.mkdir()
+    board.write_bytes(b"current PCB")
+    output = tmp_path / "reviews" / "selected"
+    assert native.prepare_native_review_output(board, output) == output
+    digest = hashlib.sha256(board.read_bytes()).hexdigest()
+    (output / "evidence.json").write_text(json.dumps({"source_sha256": digest}))
+    (output / "index.html").write_text("previous local review")
+    assert native.prepare_native_review_output(board, output) == output
+    (output / "index.html").unlink()
+    (output / "index.html").symlink_to(board)
+    with pytest.raises(ValueError, match="unsafe symlink"):
+        native.prepare_native_review_output(board, output)
+
+
+def test_review_output_rejects_source_ancestor_and_other_board(tmp_path: Path) -> None:
+    import hashlib
+
+    source_dir = tmp_path / "pcb"
+    source_dir.mkdir()
+    board = source_dir / "source.kicad_pcb"
+    board.write_bytes(b"original")
+    with pytest.raises(ValueError, match="ancestors"):
+        native.prepare_native_review_output(board, tmp_path)
+    output = tmp_path / "review"
+    output.mkdir()
+    (output / "evidence.json").write_text(json.dumps({"source_sha256": hashlib.sha256(b"different pcb").hexdigest()}))
+    with pytest.raises(ValueError, match="different PCB"):
+        native.prepare_native_review_output(board, output)
+
+
 def test_root_schematic_symbols_exclude_library_templates() -> None:
     source = (
         """"""
