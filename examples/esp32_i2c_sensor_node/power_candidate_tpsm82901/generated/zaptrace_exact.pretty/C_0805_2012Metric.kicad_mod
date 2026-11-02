@@ -1,0 +1,66 @@
+(footprint "C_0805_2012Metric"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "C2"
+		(at 0 -2 0)
+		(layer "F.SilkS")
+		(uuid "fd991c87-5041-4461-8e6e-aab63eae044c")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "22uF 10V X7S TDK C2012X7S1A226M125AC"
+		(at 0 3 0)
+		(layer "F.Fab")
+		(uuid "f9bb31f3-03a4-43b7-b404-b55abaeed9e6")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "430afad7-77f2-42c7-8e98-b641e3cd15df")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "ZapTrace generated connectivity symbol"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "f453d7c1-2eb1-4415-bbc6-d7b3d4a1e442")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(duplicate_pad_numbers_are_jumpers no)
+	(pad "1" smd roundrect
+		(at -0.95 0)
+		(size 1 1.45)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "ca536894-7cce-4e0d-ac7a-65c0b7484fd8")
+	)
+	(pad "2" smd roundrect
+		(at 0.95 0)
+		(size 1 1.45)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "6c7fd60c-a48f-4caa-a9d0-371c957f84a5")
+	)
+	(embedded_fonts no)
+)

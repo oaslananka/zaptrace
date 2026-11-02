@@ -1,0 +1,338 @@
+{
+    "$schema": "https://schemas.kicad.org/erc.v1.json",
+    "coordinate_units": "mm",
+    "date": "2026-11-03T01:25:21",
+    "ignored_checks": [
+        {
+            "description": "Global label only appears once in the schematic",
+            "key": "single_global_label"
+        },
+        {
+            "description": "Four connection points are joined together",
+            "key": "four_way_junction"
+        },
+        {
+            "description": "SPICE model issue",
+            "key": "simulation_model_issue"
+        },
+        {
+            "description": "Assigned footprint doesn't match footprint filters",
+            "key": "footprint_filter"
+        }
+    ],
+    "included_severities": [
+        "error",
+        "warning",
+        "exclusion"
+    ],
+    "kicad_version": "10.0.8",
+    "sheets": [
+        {
+            "path": "/",
+            "uuid_path": "/55381252-4ccb-59b9-988a-e1ce710aac7b",
+            "violations": [
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol C1 [ZapTrace_C1]",
+                            "pos": {
+                                "x": 50.8,
+                                "y": 118.11
+                            },
+                            "uuid": "68c98c07-def1-5acb-a8e6-e98de9043f7a"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol R3 [ZapTrace_R3]",
+                            "pos": {
+                                "x": 50.8,
+                                "y": 185.42
+                            },
+                            "uuid": "37f1a058-6f14-559f-b489-a0443e6b61da"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol C2 [ZapTrace_C2]",
+                            "pos": {
+                                "x": 139.7,
+                                "y": 118.11
+                            },
+                            "uuid": "66a37deb-13ba-5245-a612-dbc0f8444414"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol C3 [ZapTrace_C3]",
+                            "pos": {
+                                "x": 139.7,
+                                "y": 185.42
+                            },
+                            "uuid": "a2ac40b9-9f20-58ac-bdc0-71e3d19f1511"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol R1 [ZapTrace_R1]",
+                            "pos": {
+                                "x": 228.6,
+                                "y": 118.11
+                            },
+                            "uuid": "87e04e79-a06c-548f-875e-6a279c39e017"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol C4 [ZapTrace_C4]",
+                            "pos": {
+                                "x": 228.6,
+                                "y": 185.42
+                            },
+                            "uuid": "32fea265-90fd-595c-a796-d6dbdcb0c6c0"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 299.61,
+                                "y": 40.64
+                            },
+                            "uuid": "9d3bb6da-f8a2-5778-aae1-c178d37c7998"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Symbol U3 Pin 1 [VIN_A, Passive, Line]",
+                            "pos": {
+                                "x": 299.61,
+                                "y": 40.64
+                            },
+                            "uuid": "ce9bfa10-1eca-50be-8b75-76e782190f8e"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 299.61,
+                                "y": 45.72
+                            },
+                            "uuid": "1f95fe62-be95-568c-9d60-c0bae51c33bb"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 299.61,
+                                "y": 50.8
+                            },
+                            "uuid": "691b5521-c519-5d47-801d-ab4803817ebd"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 299.61,
+                                "y": 55.88
+                            },
+                            "uuid": "4c1bf545-7411-5e3c-9c27-d7ca1be53ef5"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 299.61,
+                                "y": 60.96
+                            },
+                            "uuid": "7e7fd61d-60d4-5240-9839-99e8c274290f"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol U3 [ZapTrace_U3]",
+                            "pos": {
+                                "x": 317.5,
+                                "y": 50.8
+                            },
+                            "uuid": "e6e2073a-503c-5ad3-b97e-82d80a99a2a5"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol R2 [ZapTrace_R2]",
+                            "pos": {
+                                "x": 317.5,
+                                "y": 118.11
+                            },
+                            "uuid": "9f83676c-6806-533c-9bac-b27993bd33c2"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "The current configuration does not include the footprint library ''",
+                    "items": [
+                        {
+                            "description": "Symbol R4 [ZapTrace_R4]",
+                            "pos": {
+                                "x": 317.5,
+                                "y": 185.42
+                            },
+                            "uuid": "ee65d568-0ae4-5561-b984-caf5ffc187b4"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "footprint_link_issues"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 335.39,
+                                "y": 40.64
+                            },
+                            "uuid": "f210aa2a-dcaf-5fbf-97b5-38139b3ae0a0"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 335.39,
+                                "y": 45.72
+                            },
+                            "uuid": "b73b8a81-3ef4-5550-9d9e-047977e453d5"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 335.39,
+                                "y": 50.8
+                            },
+                            "uuid": "4aa4548d-0b8a-59fe-bbf6-9e638a11f798"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 335.39,
+                                "y": 55.88
+                            },
+                            "uuid": "889476ef-7b10-54d9-bb8c-d71e07503fb5"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                },
+                {
+                    "description": "Symbol pin or wire end off connection grid",
+                    "items": [
+                        {
+                            "description": "Horizontal Wire, length 7.62 mm",
+                            "pos": {
+                                "x": 335.39,
+                                "y": 60.96
+                            },
+                            "uuid": "bc15ddb3-864a-55bd-83fc-d4d5bf388204"
+                        }
+                    ],
+                    "severity": "warning",
+                    "type": "endpoint_off_grid"
+                }
+            ]
+        }
+    ],
+    "source": "ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"
+}

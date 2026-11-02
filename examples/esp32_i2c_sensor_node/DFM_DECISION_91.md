@@ -394,6 +394,54 @@ References: [Espressif ESP32-WROOM-32E / 32UE datasheet v2.1](https://documentat
 [TI TUSB320LAI product and datasheet](https://www.ti.com/product/TUSB320LAI),
 and [ST AN5225 Rev 7](https://www.st.com/resource/en/application_note/dm00536349.pdf).
 
+## Isolated TPSM82901SISR power-stage candidate — 2026-11-03
+
+A separate review-only KiCad project now exists at
+examples/esp32_i2c_sensor_node/power_candidate_tpsm82901/. It does not
+replace U3 in the active ESP32 source design and is not connected to its
+routing pipeline.
+
+- Exact TI production MPN: TPSM82901SISR (11-pin SIS/uSiP; TI package
+  addendum dated 2026-02-06 lists Active / Production).
+- Pin mapping follows TI datasheet Table 5-1: 1/2 VIN, 3 EN,
+  4 MODE/S-CONF, 5 SS/TR, 6 PG, 7 FB/VSET, 8 SW/NC, 9/10 VOUT,
+  11 exposed GND. Pin 8 intentionally has no net or copper; pad 11 is GND.
+- Electrical configuration follows TI TPSM82901EVM BSR188-001:
+  113k/24.9k external FB divider, 7.15k MODE/S-CONF to GND,
+  22pF optional feed-forward, 3.3nF SS/TR, and 1M PG pull-up.
+  Nominal divider target is 3.3229V; this is a resistor calculation, not
+  a measured output.
+- Candidate caps: TDK C3216X7R1E106K160AE (10uF/25V X7R input) and
+  C2012X7S1A226M125AC (22uF/10V X7S output). They remain candidates pending
+  effective-capacitance-at-bias, tolerance, temperature and aging checks.
+- A local, explicitly DRAFT 11-pad footprint follows the TI SIS0011A
+  nominal geometry (10 perimeter lands at 0.55×0.25mm / 0.5mm pitch and
+  0.9×2.1mm center thermal land). It is not in the verified-footprint
+  registry; solder-mask/paste details and exact assembly tolerances remain
+  subject to review. The generated symbol is connectivity-only and still
+  emits ERC warnings; it is not yet a typed electrical library symbol.
+- Native KiCad 10.0.8 on the isolated four-copper-layer candidate:
+  schematic ERC **0 errors / 20 warnings** (9 symbol/footprint-library
+  mismatches, 11 off-grid endpoints); PCB DRC **0 violations**;
+  **22 unconnected items** because no copper tracks or vias have been
+  routed. This does not constitute electrical, EMI, thermal or fabrication
+  acceptance.
+- TI recommends at least four copper layers with 1oz copper for improved
+  thermal behavior, large GND planes, and thermal vias on GND/VIN/VOUT.
+  The candidate has four copper layers but has **no** ground planes,
+  thermal vias, power-current loops or finalized placement/routing yet.
+- Selected contract tests lock the production MPN, pin mapping, pin-8 NC,
+  pin-11 GND pad, EVM values, and draft footprint dimensions.
+
+Decision: keep this as an isolated review candidate. Do not replace the
+active AMS1117 placeholder or route power nets until the official footprint,
+symbol electrical types, capacitor DC-bias, current budget, 5V efficiency,
+RF behavior, thermal layout and routed-board native DRC are all reviewed.
+
+References: [TI TPSM82901 datasheet](https://www.ti.com/lit/ds/symlink/tpsm82901.pdf),
+[TI TPSM8290x EVM user's guide](https://www.ti.com/lit/ug/snvu796/snvu796.pdf),
+[TI product/orderable details](https://www.ti.com/product/TPSM82901).
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)

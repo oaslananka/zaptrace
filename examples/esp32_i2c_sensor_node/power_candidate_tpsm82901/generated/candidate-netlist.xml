@@ -1,0 +1,537 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>/home/msi/Desktop/OPS_WORKSPACE/GITHUB/.worktrees/oaslananka/zaptrace/issue91-tpsm82901-candidate-20261103/examples/esp32_i2c_sensor_node/power_candidate_tpsm82901/generated/ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch</source>
+    <date>2026-11-03T01:25:26</date>
+    <tool>Eeschema 10.0.8-10.0.8~ubuntu24.04.1</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title>ESP32 Sensor Node — TPSM82901 Review-Only Power Stage</title>
+        <company/>
+        <rev>0.1.0-review-only</rev>
+        <date/>
+        <source>ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="C1">
+      <value>10uF 25V X7R TDK C3216X7R1E106K160AE</value>
+      <footprint>1206</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">1206</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_C1" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>68c98c07-def1-5acb-a8e6-e98de9043f7a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C2">
+      <value>22uF 10V X7S TDK C2012X7S1A226M125AC</value>
+      <footprint>0805</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_C2" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>66a37deb-13ba-5245-a612-dbc0f8444414</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C3">
+      <value>22pF C0G (EVM optional feed-forward)</value>
+      <footprint>0603</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0603</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_C3" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>a2ac40b9-9f20-58ac-bdc0-71e3d19f1511</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C4">
+      <value>3.3nF (EVM SS/TR capacitor)</value>
+      <footprint>0603</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0603</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_C4" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>32fea265-90fd-595c-a796-d6dbdcb0c6c0</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R1">
+      <value>113k 1%</value>
+      <footprint>0603</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0603</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_R1" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>87e04e79-a06c-548f-875e-6a279c39e017</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R2">
+      <value>24.9k 1%</value>
+      <footprint>0603</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0603</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_R2" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>9f83676c-6806-533c-9bac-b27993bd33c2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R3">
+      <value>7.15k 1%</value>
+      <footprint>0603</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0603</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_R3" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>37f1a058-6f14-559f-b489-a0443e6b61da</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R4">
+      <value>1M 1% (EVM PG pull-up)</value>
+      <footprint>0603</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">0603</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_R4" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>ee65d568-0ae4-5561-b984-caf5ffc187b4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP_GND">
+      <value>GND boundary</value>
+      <footprint>ZapTrace:TestPoint_Pad_D1.0mm</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">ZapTrace:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_TP_GND" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>0c7b65a8-958f-527d-a508-cb1331f44ea4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP_IN">
+      <value>VIN boundary</value>
+      <footprint>ZapTrace:TestPoint_Pad_D1.0mm</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">ZapTrace:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_TP_IN" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>03cf7ada-377f-5668-a566-e71689e98d7f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP_OUT">
+      <value>3V3 boundary</value>
+      <footprint>ZapTrace:TestPoint_Pad_D1.0mm</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">ZapTrace:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_TP_OUT" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>ebae1095-ab06-56de-803d-86e92d3f84cd</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U3">
+      <value>TPSM82901SISR</value>
+      <footprint>TPSM82901</footprint>
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Footprint">TPSM82901</field>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <libsource lib="ZapTrace" part="ZapTrace_U3" description="ZapTrace generated connectivity symbol"/>
+      <property name="Sheetname" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage"/>
+      <property name="Sheetfile" value="ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e6e2073a-503c-5ad3-b97e-82d80a99a2a5</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="10"/>
+            <pin num="7"/>
+            <pin num="5"/>
+            <pin num="2"/>
+            <pin num="9"/>
+            <pin num="11"/>
+            <pin num="4"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="ZapTrace" part="ZapTrace_C1">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">10uF 25V X7R TDK C3216X7R1E106K160AE</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_C2">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">22uF 10V X7S TDK C2012X7S1A226M125AC</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_C3">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">22pF C0G (EVM optional feed-forward)</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_C4">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">3.3nF (EVM SS/TR capacitor)</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_R1">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">113k 1%</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_R2">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">24.9k 1%</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_R3">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">7.15k 1%</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_R4">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">1M 1% (EVM PG pull-up)</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+        <pin num="2" name="P2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_TP_GND">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">T</field>
+        <field name="Value">GND boundary</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_TP_IN">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">T</field>
+        <field name="Value">VIN boundary</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_TP_OUT">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">T</field>
+        <field name="Value">3V3 boundary</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="P1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="ZapTrace" part="ZapTrace_U3">
+      <description>ZapTrace generated connectivity symbol</description>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TPSM82901SISR</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">ZapTrace generated connectivity symbol</field>
+      </fields>
+      <pins>
+        <pin num="1" name="VIN_A" type="passive"/>
+        <pin num="2" name="VIN_B" type="passive"/>
+        <pin num="3" name="EN" type="passive"/>
+        <pin num="4" name="MODE_SCONF" type="passive"/>
+        <pin num="5" name="SS_TR" type="passive"/>
+        <pin num="6" name="PG" type="passive"/>
+        <pin num="7" name="FB_VSET" type="passive"/>
+        <pin num="9" name="VOUT_A" type="passive"/>
+        <pin num="10" name="VOUT_B" type="passive"/>
+        <pin num="11" name="GND" type="passive"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="ZapTrace">
+      <uri>${KIPRJMOD}/ZapTrace.kicad_sym</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="FB_NODE" class="Default">
+      <node ref="C3" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="R1" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="R2" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="U3" pin="7" pinfunction="FB_VSET_7" pintype="passive"/>
+    </net>
+    <net code="2" name="GND" class="Default">
+      <node ref="C1" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="C2" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="C4" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="R2" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="R3" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="TP_GND" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="U3" pin="11" pinfunction="GND_11" pintype="passive"/>
+    </net>
+    <net code="3" name="MODE_CFG" class="Default">
+      <node ref="R3" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="U3" pin="4" pinfunction="MODE_SCONF_4" pintype="passive"/>
+    </net>
+    <net code="4" name="PG_NODE" class="Default">
+      <node ref="R4" pin="2" pinfunction="P2_2" pintype="passive"/>
+      <node ref="U3" pin="6" pinfunction="PG_6" pintype="passive"/>
+    </net>
+    <net code="5" name="SS_NODE" class="Default">
+      <node ref="C4" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="U3" pin="5" pinfunction="SS_TR_5" pintype="passive"/>
+    </net>
+    <net code="6" name="VCC_3V3" class="Default">
+      <node ref="C2" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="C3" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="R1" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="R4" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="TP_OUT" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="U3" pin="10" pinfunction="VOUT_B_10" pintype="passive"/>
+      <node ref="U3" pin="9" pinfunction="VOUT_A_9" pintype="passive"/>
+    </net>
+    <net code="7" name="VCC_5V" class="Default">
+      <node ref="C1" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="TP_IN" pin="1" pinfunction="P1_1" pintype="passive"/>
+      <node ref="U3" pin="1" pinfunction="VIN_A_1" pintype="passive"/>
+      <node ref="U3" pin="2" pinfunction="VIN_B_2" pintype="passive"/>
+      <node ref="U3" pin="3" pinfunction="EN_3" pintype="passive"/>
+    </net>
+  </nets>
+</export>

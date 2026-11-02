@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "version": 1
+  },
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "copper_line_width": 0.25
+      }
+    }
+  },
+  "sheets": [
+    [
+      "",
+      "ESP32 Sensor Node \u2014 TPSM82901 Review-Only Power Stage"
+    ]
+  ]
+}
