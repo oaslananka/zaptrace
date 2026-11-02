@@ -334,7 +334,11 @@ class Autopilot:
         design = ctx.design
         if design is None:
             raise PipelineHaltError("No design for report generation")
-        ctx.report = generate_report(design, erc_result=ctx.erc_result)
+        ctx.report = generate_report(
+            design,
+            erc_result=ctx.erc_result,
+            unrouted_net_count=len(ctx.routing.unrouted_nets) if ctx.routing is not None else None,
+        )
 
         report_path = self._output_dir / f"{design.meta.name}_report.md"
         self._output_dir.mkdir(parents=True, exist_ok=True)

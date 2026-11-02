@@ -94,7 +94,12 @@ def _erc_coverage_gap_lines(erc_result: ERCResult | None) -> list[str]:
     ]
 
 
-def generate_report(design: Design, erc_result: ERCResult | None = None) -> str:
+def generate_report(
+    design: Design,
+    erc_result: ERCResult | None = None,
+    *,
+    unrouted_net_count: int | None = None,
+) -> str:
     """Generate a comprehensive Markdown design report.
 
     The generated timestamp is fixed for the lifetime of the Python process.
@@ -104,6 +109,11 @@ def generate_report(design: Design, erc_result: ERCResult | None = None) -> str:
     boundary.
     """
     lines = _summary_lines(design, erc_result)
+    if unrouted_net_count is not None:
+        if unrouted_net_count < 0:
+            raise ValueError("Unrouted net count cannot be negative")
+        lines.append(f"| Copper routing | {unrouted_net_count} net(s) unrouted; not native-verified |")
+    lines.append("| Fabrication readiness | NOT VERIFIED — report is not native KiCad DRC or fabrication approval |")
     lines.extend(_component_lines(design))
     lines.extend(_net_lines(design))
     lines.extend(_erc_violation_lines(erc_result))
