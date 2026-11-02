@@ -85,6 +85,92 @@ def test_route_graph_success_does_not_count_if_wrong_layer() -> None:
     assert not verified_route_candidate_safe(design, routed, positions)
 
 
+def test_two_separate_stubs_touch_all_pads_but_are_not_one_net() -> None:
+    design, positions = _contact_design()
+    routed = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(12, 10), net_id="n"),
+            TraceSegment(layer="F.Cu", start=(18, 10), end=(20, 10), net_id="n"),
+        ],
+        net_count=1,
+        routed_net_count=1,
+    )
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
+    assert _physical_pad_terminal_coverage(design, routed, positions)
+    assert not verified_route_candidate_safe(design, routed, positions)
+
+
+def test_touching_segments_connect_real_pads_without_approving_fabrication() -> None:
+    design, positions = _contact_design()
+    routed = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(15, 10), net_id="n"),
+            TraceSegment(layer="F.Cu", start=(15, 10), end=(20, 10), net_id="n"),
+        ],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert verified_route_candidate_safe(design, routed, positions)
+
+
+def test_pad_connected_net_with_extra_isolated_copper_is_not_complete() -> None:
+    design, positions = _contact_design()
+    routed = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(20, 10), net_id="n"),
+            TraceSegment(layer="F.Cu", start=(25, 15), end=(26, 15), net_id="n"),
+        ],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert not verified_route_candidate_safe(design, routed, positions)
+
+
+def test_two_layers_at_same_xy_are_not_joined_without_a_real_via() -> None:
+    from zaptrace.core.models import LayerSet
+
+    design, positions = _contact_design()
+    left = design.components["R1"].footprint_def
+    right = design.components["R2"].footprint_def
+    assert left is not None and right is not None
+    right.pads[0].layer = LayerSet.BOTTOM
+    routed = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(15, 10), net_id="n"),
+            TraceSegment(layer="B.Cu", start=(15, 10), end=(20, 10), net_id="n"),
+        ],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert not verified_route_candidate_safe(design, routed, positions)
+    routed.vias = [(15, 10, 0.7, 0.3, "n")]
+    assert verified_route_candidate_safe(design, routed, positions)
+
+
+def test_via_on_different_net_or_without_ownership_does_not_bridge_layers() -> None:
+    from zaptrace.core.models import LayerSet
+
+    design, positions = _contact_design()
+    right = design.components["R2"].footprint_def
+    assert right is not None
+    right.pads[0].layer = LayerSet.BOTTOM
+    routed = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(15, 10), net_id="n"),
+            TraceSegment(layer="B.Cu", start=(15, 10), end=(20, 10), net_id="n"),
+        ],
+        net_count=1,
+        routed_net_count=1,
+        vias=[(15, 10, 0.7, 0.3, "foreign")],
+    )
+    assert not verified_route_candidate_safe(design, routed, positions)
+    routed.vias = [(15, 10, 0.7, 0.3)]
+    assert not verified_route_candidate_safe(design, routed, positions)
+    routed.vias = [(15, 10, 0.3, 0.3, "n")]
+    assert not verified_route_candidate_safe(design, routed, positions)
+
+
 def test_rotated_footprint_pad_requires_real_board_space_contact() -> None:
     design, positions = _contact_design()
     footprint = design.components["R1"].footprint_def
