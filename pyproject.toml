@@ -21,7 +21,7 @@ dependencies = [
     "Pillow>=13.0.0",
     "httpx>=0.28.1",
     "certifi>=2026.10.19",
-    "pydantic-settings>=2.15.0",
+    "pydantic-settings>=2.16.0",
     "defusedxml>=0.7.1",
 ]
 
@@ -33,9 +33,9 @@ Documentation = "https://oaslananka.github.io/zaptrace"
 Changelog = "https://github.com/oaslananka/zaptrace/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-mcp = ["fastmcp>=4.0.10,<5", "mcp>=2.2.0,<3"]
-server = ["fastapi>=0.142.1", "uvicorn>=0.54.0", "httpx>=0.28.1", "cryptography>=50.0.1", "starlette>=1.7.0"]
-all = ["fastmcp>=4.0.10,<5", "mcp>=2.2.0,<3", "fastapi>=0.142.1", "uvicorn>=0.54.0", "httpx>=0.28.1", "cryptography>=50.0.1", "starlette>=1.7.0"]
+mcp = ["fastmcp>=4.0.10,<5", "mcp>=2.3.0,<3"]
+server = ["fastapi>=0.143.5", "uvicorn>=0.54.0", "httpx>=0.28.1", "cryptography>=50.0.2", "starlette>=1.8.0"]
+all = ["fastmcp>=4.0.10,<5", "mcp>=2.3.0,<3", "fastapi>=0.143.5", "uvicorn>=0.54.0", "httpx>=0.28.1", "cryptography>=50.0.2", "starlette>=1.8.0"]
 
 [project.scripts]
 zaptrace = "zaptrace.cli.main:cli"
@@ -118,17 +118,17 @@ include = [{ path = "data/**/*", format = ["wheel", "sdist"] }]
 dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.9.0",
+    "ruff>=0.17.1",
     "maturin>=1.15.0",
 ]
 lint = [
-    "ruff>=0.9.0",
+    "ruff>=0.17.1",
 ]
 typecheck = [
     "pyright>=1.1.414",
 ]
 test = [
-    "hypothesis>=6.168.5",
+    "hypothesis>=6.170.8",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
 ]
