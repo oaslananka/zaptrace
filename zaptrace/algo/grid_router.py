@@ -130,6 +130,9 @@ class ObstacleMap:
         # Pad copper masks are immutable obstacles, independently owned from
         # mutable trace reservations. None is unassigned copper, never free.
         self._pads: dict[GridPos, str | None] = {}
+        # A dilated routing clearance is NOT physical copper: overlapping
+        # clearance halos may coexist without proving two pads short.
+        self._pad_clearance: dict[GridPos, set[str | None]] = {}
         self._pad_conflicts: set[GridPos] = set()
         self.enforce_static_clearance = False
 
@@ -139,6 +142,7 @@ class ObstacleMap:
         other._cells = [[row[:] for row in layer] for layer in self._cells]
         other._copper = self._copper.copy()
         other._pads = self._pads.copy()
+        other._pad_clearance = {point: owners.copy() for point, owners in self._pad_clearance.items()}
         other._pad_conflicts = self._pad_conflicts.copy()
         other.enforce_static_clearance = self.enforce_static_clearance
         return other
@@ -154,6 +158,15 @@ class ObstacleMap:
         if pos in self._pad_conflicts:
             return False
         if pos in self._pads and (net_id is None or self._pads[pos] != net_id):
+            return False
+        # Clearance halos are not copper ownership. Preserve an own-pad
+        # terminal even where another pad's halo overlaps it, but forbid
+        # foreign traces in the air gap.
+        if (
+            pos in self._pad_clearance
+            and self._pads.get(pos) != net_id
+            and (net_id is None or any(owner != net_id for owner in self._pad_clearance[pos]))
+        ):
             return False
         owner = self._copper.get(pos)
         return owner is None or (net_id is not None and owner == net_id)
@@ -173,6 +186,10 @@ class ObstacleMap:
         if point in self._pads and self._pads[point] != net_id:
             self._pad_conflicts.add(point)
         self._pads[point] = net_id
+
+    def mark_pad_clearance(self, point: GridPos, net_id: str | None) -> None:
+        """Block foreign routing in a pad's halo without claiming copper overlap."""
+        self._pad_clearance.setdefault(point, set()).add(net_id)
 
     def can_place_through_via(self, at: GridPos, net_id: str, radius_cells: int) -> bool:
         """Conservative through-via aperture across every layer.
@@ -469,13 +486,22 @@ class GridRouter:
                 comp = components.get(node.component_ref)
                 if comp is None:
                     continue
-                pad = self._pad_for_pin(comp, node.pin_name)
-                if pad is None:
+                fp = self._component_footprint(comp)
+                if fp is None:
                     continue
-                key = (comp.ref, str(pad.id))
-                if key in nets_by_pad and nets_by_pad[key] != net.id:
-                    raise ValueError(f"Pad {key} assigned to multiple electrical nets")
-                nets_by_pad[key] = net.id
+                # A single logical pin may occupy multiple physical lands
+                # (e.g. USB-C A4/B9 and A1/B12). Every matching pad is
+                # net-owned, even when these pads deliberately overlap.
+                # Taking only the first alias creates a false copper short.
+                aliases = self._pin_aliases(node.pin_name)
+                for pad in fp.pads:
+                    logical = comp.package_pin_map.get(pad.id, pad.id) if comp.package_pin_map else pad.id
+                    if str(logical).strip().lower() not in aliases:
+                        continue
+                    key = (comp.ref, str(pad.id))
+                    if key in nets_by_pad and nets_by_pad[key] != net.id:
+                        raise ValueError(f"Pad {key} assigned to multiple electrical nets")
+                    nets_by_pad[key] = net.id
 
         obstacles.enforce_static_clearance = True
         for comp in design.components.values():
@@ -507,9 +533,17 @@ class GridRouter:
                     keepout,
                 )
                 owner = nets_by_pad.get((comp.ref, str(pad.id)))
+                dx, dy = rotated_offset(*pad.position, rotation)
+                center = (pos[0] + dx, pos[1] + dy)
                 for gx, gy in projected:
+                    actual_copper = point_in_pad_copper(
+                        pad, center, (gx * self.resolution, gy * self.resolution), rotation
+                    )
                     for layer in layers:
-                        obstacles.mark_pad(GridPos(gx, gy, layer), owner)
+                        grid = GridPos(gx, gy, layer)
+                        obstacles.mark_pad_clearance(grid, owner)
+                        if actual_copper:
+                            obstacles.mark_pad(grid, owner)
 
     def _to_grid_point(self, point: tuple[float, float], context: _GridRouteContext) -> tuple[int, int]:
         return (

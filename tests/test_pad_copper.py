@@ -75,6 +75,81 @@ def test_smd_top_only_does_not_reserve_bottom_layer() -> None:
     assert not ctx.obstacles.can_place_through_via(bottom, "foreign", 1)
 
 
+def test_overlapping_usb_contacts_with_same_logical_pin_share_copper_owner() -> None:
+    d, pos = _board(
+        ("usb", (10, 10), Pad(id="A4", size=(1, 1))),
+        ("other", (22, 10), Pad(id="1", size=(1, 1))),
+    )
+    fp = d.components["usb"].footprint_def
+    assert fp is not None
+    fp.pads.append(Pad(id="B9", size=(1, 1)))
+    d.components["usb"].package_pin_map = {"A4": "VBUS", "B9": "VBUS"}
+    d.nets["VCC"] = Net(
+        id="VCC",
+        name="VCC_5V",
+        nodes=[
+            NetNode(component_ref="USB", pin_name="VBUS"),
+            NetNode(component_ref="OTHER", pin_name="1"),
+        ],
+    )
+    obs = GridRouter(resolution_mm=0.5, pad_aware=True)._prepare_route_context(d, pos).obstacles
+    center = GridPos(20, 20)
+    assert center not in obs._pad_conflicts
+    assert obs._pads[center] == "VCC"
+    assert obs.is_free(center, "VCC")
+    assert not obs.is_free(center, "OTHER")
+
+
+def test_esp32_usb_duplicate_contacts_do_not_create_fake_grid_shorts() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    assert design.placement is not None
+    router = GridRouter(resolution_mm=0.25, pad_aware=True)
+    obstacles = router._prepare_route_context(design, design.placement).obstacles
+    assert obstacles._pad_conflicts == set()
+    # The two net-equivalent USB-C A4/B9 pads are superimposed by the
+    # supplier footprint; B9 must not become unidentified foreign copper.
+    assert obstacles._pads[GridPos(310, 253)] == "VCC_5V"
+    assert obstacles._pads[GridPos(307, 253)] == "GND"
+
+
+def test_overlapping_pad_clearance_halos_are_not_fabricated_copper_shorts() -> None:
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1))),
+        ("b", (11.5, 10), Pad(id="1", size=(1, 1))),
+    )
+    _net(d, "A", "a")
+    _net(d, "B", "b")
+    obs = GridRouter(resolution_mm=0.5, pad_aware=True)._prepare_route_context(d, pos).obstacles
+    a, b = GridPos(20, 20), GridPos(23, 20)
+    assert not obs._pad_conflicts
+    assert obs._pads[a] == "A" and obs._pads[b] == "B"
+    assert obs.is_free(a, "A")
+    assert obs.is_free(b, "B")
+    assert not obs.is_free(a, "B")
+    assert not obs.is_free(b, "A")
+    # The air gap is not free for a third net's copper corridor.
+    assert not obs.is_free(GridPos(21, 20), "THIRD")
+
+
+def test_real_foreign_pad_copper_overlap_still_blocks_both_nets() -> None:
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1))),
+        ("b", (10, 10), Pad(id="1", size=(1, 1))),
+    )
+    _net(d, "A", "a")
+    _net(d, "B", "b")
+    obs = GridRouter(resolution_mm=0.5, pad_aware=True)._prepare_route_context(d, pos).obstacles
+    center = GridPos(20, 20)
+    assert center in obs._pad_conflicts
+    assert not obs.is_free(center, "A")
+    assert not obs.is_free(center, "B")
+
+
 def test_plated_holes_and_npht_keepouts_span_all_copper_layers() -> None:
     pth = Pad(id="1", drill=0.8, layer=LayerSet.TOP, shape=PadShape.CIRCLE, size=(1.8, 1.8))
     npth = Pad(id="", drill=1.2, plated=False, layer=LayerSet.TOP, shape=PadShape.CIRCLE, size=(1.2, 1.2))
