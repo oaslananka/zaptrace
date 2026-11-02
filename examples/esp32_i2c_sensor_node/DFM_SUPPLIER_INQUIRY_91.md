@@ -175,7 +175,7 @@ owner; this draft has not been sent.*
 | U1 thermal-pad D1 determination | **OPEN — 12 findings** |
 | J1 NPTH-to-pad D2 determination | **OPEN — 4 findings** |
 | Alternate connector/module lifecycle decision | **OPEN — independent qualification required** |
-| Remaining 4 native copper connections after 2026-11-02 independent I2C_SCL, VCC_3V3, GND, via-stitch, pad-to-via and USB-C VBUS tests / RF, ESD, power and thermal | **OPEN** |
+| 0 unconnected in 2026-11-02 independent optional KiCad 10.0.8 copper review, but sixteen manufacturability DRC defects and qualified RF/electrical/DFM approval outstanding / RF, ESD, power and thermal | **OPEN** |
 | Production sign-off / board order | **BLOCKED — prohibited by current evidence** |
 
 ## 6. Controlled disclosure and acceptance gates

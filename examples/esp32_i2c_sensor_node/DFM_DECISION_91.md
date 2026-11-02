@@ -66,6 +66,18 @@ and 37→4 unconnected**. Original sixteen manufacturability
 violations persist identically, especially all four J1 NPTH
 clearances; no production sign-off or copper completeness.
 
+Four more system KiCad 10.0.8 verified lower-connector/ground/
+I2C routes (VCC_5V source track→J1 via; J1 GND A1→B1;
+J1 GND→board ground track; R2.2 I2C_SCL→existing back
+track) complete the opt-in native net connectivity:
+**37 physical copper joins, 92 segments, 18 vias and
+37→0 KiCad unconnected items**, while the exact sixteen
+original DRC defects remain **unchanged**. No electrical
+measurement, qualified RF/thermal/ESD validation, official
+manufacturer exception or fabrication authorization was obtained.
+The *default* PCB export is still an intentionally unrouted
+zero-copper design and source Proof Pack remains blocked.
+
 All routing remains experimental review-only copper.
 
 The table below is the original dated 2026-10-11 decision baseline.
@@ -204,7 +216,7 @@ review-only PCB or its Gerbers as a manufacturing release.
 |---|---|---|
 | Manufacturing process choice | Named supplier and approved stackup/copper/finish and written DFM answer explicitly covering D1 **and** D2 | **OPEN** — no supplier acceptance |
 | BOM / footprint design choice | Exact orderable ESP32-WROOM-32 lifecycle decision and USB4105 variant or qualified substitutions; digest-pinned 3D, slots, NPTH, pinout and paste geometry | **OPEN** — no redesign or variant approval |
-| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board still 4 unconnected; default 37 |
+| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board has 0 KiCad unconnected (but 16 physical DRC violations); default 37 |
 | PCB/assembly electrical assurance | Independent ERC/DRC plus honest strict Proof Pack results; RF antenna/ground return, USB-C CC/shell/ESD/VBUS and LDO power/thermal validation | **OPEN** — ERC 0 but DRC 16, strict Proof 6/2 |
 | Production handoff | Approved final BOM/stackup/DFM, controlled fabrication drill/Gerber package, independent qualified hardware sign-off | **BLOCKED** — no fabrication authorization |
 

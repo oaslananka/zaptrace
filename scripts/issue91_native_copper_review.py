@@ -39,6 +39,24 @@ class PadToViaConnection:
     existing_via: tuple[float, float]
 
 
+@dataclass(frozen=True)
+class TrackToViaConnection:
+    net: str
+    existing_track_start: tuple[float, float]
+    existing_track_end: tuple[float, float]
+    new_via: tuple[float, float]
+    existing_via: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class PadToTrackConnection:
+    net: str
+    source: tuple[str, str, tuple[float, float]]
+    points: tuple[tuple[float, float], ...]
+    existing_track_start: tuple[float, float]
+    existing_track_end: tuple[float, float]
+
+
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6/10.0.7.
 # These are only the paths KiCad independently proved physically connected.
 # Do NOT extrapolate success to the remaining unrouted copper items.
@@ -260,6 +278,17 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("F.Cu", "B.Cu", "F.Cu"),
         ((78.2, 65.5), (81.8, 65.5)),
     ),
+    # USB-C A1/B1 ground contact pair; upper/lateral exits crossed
+    # CC copper or caused NPTH clearance defects. This narrower
+    # two-layer escape is native KiCad 10.0.8 DRC verified.
+    RoutedConnection(
+        "GND",
+        ("J1", "A1", (76.8, 63.32)),
+        ("J1", "B1", (83.2, 63.32)),
+        ((76.8, 63.32), (76.5, 62.5), (83.5, 62.5), (83.2, 63.32)),
+        ("F.Cu", "B.Cu", "F.Cu"),
+        ((76.5, 62.5), (83.5, 62.5)),
+    ),
 )
 
 
@@ -274,6 +303,28 @@ VIA_STITCHES: tuple[tuple[str, tuple[float, float], tuple[float, float]], ...] =
 # from the previously verified R1.1-to-R2.1 pad-backed route.
 PAD_TO_VIA_LINKS: tuple[PadToViaConnection, ...] = (
     PadToViaConnection("VCC_3V3", ("U3", "2", (61.85, 36.0)), (62.4, 36.4), (57.1, 58.8)),
+)
+
+
+# The existing 5V source route spans the new via's F.Cu center;
+# the opposite endpoint is a previously verified J1 VBUS same-net via.
+TRACK_TO_VIA_LINKS: tuple[TrackToViaConnection, ...] = (
+    TrackToViaConnection("VCC_5V", (67.52, 42.0), (67.52, 68.0), (67.52, 65.5), (78.2, 65.5)),
+    # Existing J1 ground-pair via is stitched to the genuine board ground track.
+    TrackToViaConnection("GND", (77.51, 58.8), (77.51, 60.0), (77.51, 59.2), (76.5, 62.5)),
+)
+
+
+# Final native-only R2.2 SCL branch: two 45-degree front-layer
+# turns and a single new via placed on the existing SCL B.Cu track.
+PAD_TO_TRACK_LINKS: tuple[PadToTrackConnection, ...] = (
+    PadToTrackConnection(
+        "I2C_SCL",
+        ("R2", "2", (58.51, 58.0)),
+        ((58.51, 58.0), (58.51, 56.0), (57.51, 55.0), (49.5, 55.0)),
+        (49.5, 55.0),
+        (49.5, 58.975),
+    ),
 )
 
 
@@ -466,6 +517,101 @@ def prepare_review(board_path: Path, output_path: Path) -> Path:
         via.SetNet(net)
         board.Add(via)
 
+    for link in TRACK_TO_VIA_LINKS:
+        if (link.net, link.existing_via) not in source_via_terminals:
+            raise ValueError("Track-to-via destination must be an existing same-net route via")
+        if (link.net, link.new_via) in source_via_terminals:
+            raise ValueError("Track-to-via source must be a distinct new via")
+        net = board.FindNet(link.net)
+        if net is None:
+            raise ValueError("Unknown track-to-via net")
+        start, end, via_point = link.existing_track_start, link.existing_track_end, link.new_via
+        existing_track = any(
+            isinstance(item, pcbnew.PCB_TRACK)
+            and not isinstance(item, pcbnew.PCB_VIA)
+            and item.GetNetname() == link.net
+            and item.GetLayer() == pcbnew.F_Cu
+            and (
+                (
+                    (pcbnew.ToMM(item.GetStart().x), pcbnew.ToMM(item.GetStart().y)) == start
+                    and (pcbnew.ToMM(item.GetEnd().x), pcbnew.ToMM(item.GetEnd().y)) == end
+                )
+                or (
+                    (pcbnew.ToMM(item.GetStart().x), pcbnew.ToMM(item.GetStart().y)) == end
+                    and (pcbnew.ToMM(item.GetEnd().x), pcbnew.ToMM(item.GetEnd().y)) == start
+                )
+            )
+            for item in board.GetTracks()
+        )
+        if not existing_track:
+            raise ValueError("Track-to-via anchor copper is not the expected physical F.Cu segment")
+        if not (
+            min(start[0], end[0]) <= via_point[0] <= max(start[0], end[0])
+            and min(start[1], end[1]) <= via_point[1] <= max(start[1], end[1])
+            and (end[0] - start[0]) * (via_point[1] - start[1]) == (end[1] - start[1]) * (via_point[0] - start[0])
+        ):
+            raise ValueError("Track-to-via source point is not on the verified copper centerline")
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(via_point[0]), pcbnew.FromMM(via_point[1])))
+        track.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(link.existing_via[0]), pcbnew.FromMM(link.existing_via[1])))
+        track.SetWidth(pcbnew.FromMM(0.20))
+        track.SetLayer(pcbnew.B_Cu)
+        track.SetNet(net)
+        board.Add(track)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(via_point[0]), pcbnew.FromMM(via_point[1])))
+        via.SetWidth(pcbnew.FromMM(0.70))
+        via.SetDrill(pcbnew.FromMM(0.30))
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(net)
+        board.Add(via)
+
+    for link in PAD_TO_TRACK_LINKS:
+        check_pad(*link.source, link.net)
+        if len(link.points) < 2 or link.points[0] != link.source[2]:
+            raise ValueError("Pad-to-track route must start at the verified pad center")
+        if any(start == end for start, end in zip(link.points[:-1], link.points[1:], strict=True)):
+            raise ValueError("Zero-length pad-to-track copper segment")
+        via_point = link.points[-1]
+        if (link.net, via_point) in source_via_terminals:
+            raise ValueError("Pad-to-track link requires a distinct new transition via")
+        if via_point != link.existing_track_start:
+            raise ValueError("Pad-to-track new via must terminate on the existing B.Cu track")
+        net = board.FindNet(link.net)
+        if net is None:
+            raise ValueError("Unknown pad-to-track net")
+        existing = any(
+            isinstance(item, pcbnew.PCB_TRACK)
+            and not isinstance(item, pcbnew.PCB_VIA)
+            and item.GetNetname() == link.net
+            and item.GetLayer() == pcbnew.B_Cu
+            and {
+                (pcbnew.ToMM(item.GetStart().x), pcbnew.ToMM(item.GetStart().y)),
+                (pcbnew.ToMM(item.GetEnd().x), pcbnew.ToMM(item.GetEnd().y)),
+            }
+            == {link.existing_track_start, link.existing_track_end}
+            for item in board.GetTracks()
+        )
+        if not existing:
+            raise ValueError("Pad-to-track destination is not the verified same-net native B.Cu segment")
+        for start, end in zip(link.points[:-1], link.points[1:], strict=True):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(start[0]), pcbnew.FromMM(start[1])))
+            track.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(end[0]), pcbnew.FromMM(end[1])))
+            track.SetWidth(pcbnew.FromMM(0.20))
+            track.SetLayer(pcbnew.F_Cu)
+            track.SetNet(net)
+            board.Add(track)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(via_point[0]), pcbnew.FromMM(via_point[1])))
+        via.SetWidth(pcbnew.FromMM(0.70))
+        via.SetDrill(pcbnew.FromMM(0.30))
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(net)
+        board.Add(via)
+
     candidate, manifest, _, _ = _evidence_paths(output_path)
     candidate.unlink(missing_ok=True)
     manifest.unlink(missing_ok=True)
@@ -489,7 +635,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     before = _read_native_report(before_path)
     after = _read_native_report(after_path)
     expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 4}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
     before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
@@ -499,9 +645,17 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
 
     pcbnew = _require_native_pcbnew()
     routed = pcbnew.LoadBoard(str(candidate))
-    total_segments = sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS)
+    total_segments = (
+        sum(len(route.points) - 1 for route in ROUTES)
+        + len(VIA_STITCHES)
+        + 2 * len(PAD_TO_VIA_LINKS)
+        + len(TRACK_TO_VIA_LINKS)
+        + sum(len(link.points) - 1 for link in PAD_TO_TRACK_LINKS)
+    )
     expected_vias = {(route.net, point) for route in ROUTES for point in route.via_points}
     expected_vias.update((link.net, link.layer_transition) for link in PAD_TO_VIA_LINKS)
+    expected_vias.update((link.net, link.new_via) for link in TRACK_TO_VIA_LINKS)
+    expected_vias.update((link.net, link.points[-1]) for link in PAD_TO_TRACK_LINKS)
     actual_vias = {}
     for item in routed.GetTracks():
         if isinstance(item, pcbnew.PCB_VIA):
@@ -524,15 +678,22 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
         "kiCadVersion": kicad_version,
         "baseline": dict(before),
         "partialRouted": dict(after),
-        "connectionsAdded": len(ROUTES) + len(VIA_STITCHES) + len(PAD_TO_VIA_LINKS),
+        "connectionsAdded": len(ROUTES)
+        + len(VIA_STITCHES)
+        + len(PAD_TO_VIA_LINKS)
+        + len(TRACK_TO_VIA_LINKS)
+        + len(PAD_TO_TRACK_LINKS),
         "padToPadRoutes": len(ROUTES),
         "viaStitchConnections": len(VIA_STITCHES),
         "padToViaConnections": len(PAD_TO_VIA_LINKS),
+        "trackToViaConnections": len(TRACK_TO_VIA_LINKS),
+        "padToTrackConnections": len(PAD_TO_TRACK_LINKS),
+        "nativeConnectivityComplete": True,
         "traceSegments": total_segments,
         "twoLayerVias": len(expected_vias),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "4 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "0 native unconnected items, but 16 physical manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result

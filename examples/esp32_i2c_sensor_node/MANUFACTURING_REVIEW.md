@@ -28,8 +28,8 @@ Primary sources:
 | ESP32 U1 thermal pad-39 drilled vias | Twelve 0.20 mm PTH; KiCad minimum 0.30 mm; 0.60 mm annular pads | JLCPCB supports 0.15 mm drilling on 2-layer boards, **prefers 0.20 mm** minimum vias; 0.20 mm small-via options may have additional cost. PCBWay publishes 0.15 mm mechanical capability with extra charges below 0.20 mm. | **Conditional only.** 0.20 mm is in published capacity, but our conservative 0.30 mm rule is unchanged until stackup, via plugging/tenting and supplier DFM are explicitly agreed. A 0.60 mm / 0.20 mm PTH has a 0.20 mm nominal annular ring, meeting JLCPCB's quoted absolute 0.18 mm minimum for 2-layer 1 oz but below the 0.25 mm recommendation. |
 | GCT J1 four plated S1 oval slots | Width 0.60 mm; two length 1.40 mm, two length 1.70 mm; Excellon G85 and native KiCad plated-slot geometry verified | JLCPCB's published 2-layer minimum plated slot width is 0.50 mm and slot length must be at least 2× width; advertised slot tolerance +0.13/-0.08 mm | **Plausible**, not ordered/approved. All four slots pass the published width and 2× width length limits; specific tolerance/connector stake fit still require a supplier check. |
 | J1 two nonplated locating pegs | Two 0.65 mm NPTH; adjacent GND pad gap is **0.1944 mm**, native KiCad rule **0.25 mm** | JLCPCB advertises 0.50 mm minimum NPTH diameter and 0.20 mm NPTH-to-track clearance; pad-to-NPTH acceptance is **not** guaranteed by the track limit | **BLOCKED.** 0.1944 mm is even 0.0056 mm below the published NPTH-to-track minimum and 0.0556 mm below our 0.25 mm rule. The footprint is constrained by the actual connector locating peg and contact layout. Do not shift pegs, shrink solder contacts, delete holes or change clearance rules merely to get a green DRC. |
-| Copper width / spacing | Review-only thirty-one pad-to-pad routes, one via stitch and one pad-to-via link use 0.20 mm F.Cu/B.Cu tracks, including thirteen 0.70 mm / 0.30 mm through-vias | JLCPCB advertises 0.10/0.10 mm min width/spacing for 2-layer 1 oz | Potentially viable in a **1 oz** process, but DRC and physical electrical performance still need a complete routed PCB and DFM. |
-| Complete interconnect and RF | Native KiCad current source: 37 unconnected / 16 manufacturing DRC; optional 33-link review board: **4 unconnected / 16 manufacturing DRC** | No manufacturer publishes acceptance of incomplete nets or an unqualified ESP32 antenna layout | **BLOCKED.** No copper plane/antenna ground fill was invented; U1 RF keepout is retained. TVS on USB 5 V, AMS1117 stability/thermal and connector-shell EMI require separate evidence. |
+| Copper width / spacing | Review-only thirty-two pad-to-pad routes, one via stitch, one pad-to-via link, two track-to-via links and one pad-to-existing-track link use 0.20 mm F.Cu/B.Cu tracks, including eighteen 0.70 mm / 0.30 mm through-vias | JLCPCB advertises 0.10/0.10 mm min width/spacing for 2-layer 1 oz | Potentially viable in a **1 oz** process, but DRC and physical electrical performance still need a complete routed PCB and DFM. |
+| Complete interconnect and RF | Native KiCad current source: 37 unconnected / 16 manufacturing DRC; optional 37-link review board: **0 unconnected / 16 manufacturing DRC** | No manufacturer approval or qualified electrical/RF assessment is implied by zero KiCad unconnected items | **BLOCKED despite zero native unconnected.** No copper plane/antenna ground fill was invented; U1 RF keepout is retained. TVS on USB 5 V, AMS1117 stability/thermal and connector-shell EMI require separate evidence. |
 
 **Important:** A supplier's generalized capability table does not constitute an
 approval for this particular board, copper stack, assembly profile or connector.
@@ -41,7 +41,7 @@ they must not be suppressed locally. The 12 ESP32 0.20 mm drill findings likewis
 need a documented selected-process profile before the 0.30 mm design restriction
 can be changed.
 
-## Thirty-one pad routes plus two verified native copper island connections (review-only, not production pipeline)
+## Thirty-two pad routes plus five verified native copper island connections (review-only, not production pipeline)
 
 The 2026-11-02 KiCad 10.0.8 addition connects U1.36 to U2.4 on
 I2C_SCL using one F.Cu–B.Cu–F.Cu route with **two 0.30 mm drilled
@@ -116,6 +116,21 @@ shorting USB_CC1/CC2 and GND alternatives creating new NPTH
 clearances were rejected. The original J1 mechanical DFM
 violations remain and there is **no fabrication approval**.
 
+Final native KiCad 10.0.8 copper-island review, on the **same
+unchanged reference source/footprints/rules**, added four further
+validated links: VCC_5V main-board track to existing J1 via
+(one new via/one B.Cu track); J1 A1→B1 GND contacts (two vias/three
+tracks); that GND island to the existing board ground F.Cu track
+(one via/one B.Cu track); and R2.2 I2C_SCL pad to an existing
+B.Cu SCL track through a 45-degree-bend F.Cu path (one new via,
+three tracks). All routes were tested **together**, yielding **zero
+native KiCad unconnected items** while retaining the exact
+original sixteen manufacturability DRC signatures. Unsafe
+shorts, crossings and new NPTH clearance candidates were rejected.
+This is native copper connectivity **only**, not measured
+electrical behavior, DFM/fab approval or a change to the default
+zero-track PCB pipeline.
+
 Run the usual demo pipeline, then apply a separately audited, **opt-in**
 native KiCad route overlay. The default pipeline intentionally continues
 to export no tracks rather than pretending to complete all nets.
@@ -138,8 +153,8 @@ of the same class is rejected even if the category totals stay constant. This
 avoids tainted arbitrary subprocess arguments and preserves fail-closed hardware
 evidence.
 
-The opt-in review emits **84 real 0.20 mm F.Cu/B.Cu segments joining 31 pad pairs, one via stitch and one pad-to-via link**,
-including thirteen 0.30 mm-drilled, 0.70 mm-diameter through-vias,
+The opt-in review emits **92 real 0.20 mm F.Cu/B.Cu segments joining 32 pad pairs, one via stitch, one pad-to-via, two track-to-via and one pad-to-existing-track link**,
+including eighteen 0.30 mm-drilled, 0.70 mm-diameter through-vias,
 of actual, pinned physical pad centers across USB-CC1/CC2, I²C, VCC_3V3,
 VCC_5V and GND. These include the two USB-C CC sink lines, internal ESP32
 VCC and GND terminals, BME280 supply/GND, R1/R2 I²C pullup-to-testpad,
@@ -162,14 +177,14 @@ native KiCad because they introduced shorts, crossing traces, solder-mask
 bridges or clearance violations. An
 attempted direct C1–ESP32 ground route was likewise rejected. Every path is checked against **actual KiCad net/pad
 positions and layers** and accepted only if native KiCad DRC has **no
-additional violations** and native connectivity finds exactly **33 fewer**
+additional violations** and native connectivity finds exactly **37 fewer**
 unconnected items. The complete DRC reports and a JSON evidence record are
 placed alongside the generated board. Any change to the source layout or
 footprint geometry causes the review script to fail closed until physically
 revalidated.
 
 Independent native **KiCad 10.0.8 on 2026-11-02**, using the same pinned
-source with thirty-one pad routes, one via stitch and one pad-to-via link (the first 25 retain their previous
+source with thirty-two pad routes and five separately verified copper island links (the first 25 retain their previous
 KiCad 10.0.7 evidence). Earlier native reviews
 progressed from **19 links / 41 segments / 18 unconnected**, to **20 / 45 / 17**,
 then **22 / 51 / 15**; those are historical evidence, not claims about this
@@ -178,9 +193,9 @@ updated route set:
 | Physical check | Default (0 tracks) | Opt-in routed evidence |
 |---|---:|---:|
 | PCB DRC violations | 16 | **16** |
-| Physically unconnected items | 37 | **4** |
+| Physically unconnected items | 37 | **0** |
 | Footprint library mismatches | 0 | **0** |
-| Real copper segments | 0 | **84** |
+| Real copper segments | 0 | **92** |
 | Schematic ERC | 0 | Source unchanged |
 
 **Do not generate production Gerbers from the partial-review file.**

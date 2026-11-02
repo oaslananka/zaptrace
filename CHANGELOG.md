@@ -4,6 +4,7 @@
 
 ### Added
 
+- Complete all 37 original ESP32 sensor-node native copper gaps in opt-in KiCad 10.0.8 evidence: add verified VBUS board feed, USB-C A1/B1 ground pair and ground-board link, plus a 45-degree-bend I2C_SCL pad-to-existing-track via. The 37 copper joins use 92 track segments and 18 vias; KiCad finds **0 unconnected**, but all 16 original DRC manufacturability errors remain and fabrication is NOT approved.
 - Verify the two USB-C J1 VBUS contacts A4→B4 with an independently native KiCad 10.0.8 two-layer corridor below the connector (three tracks, two vias): 31 pad-to-pad routes plus one via stitch and one pad-to-via link, 84 tracks, 13 vias and four remaining open connections; all sixteen manufacturability DRC findings unchanged. Unsafe top exits and GND candidates rejected.
 - Verify a KiCad 10.0.8 U3.2 VCC_3V3 pad-to-existing-via link using one new 0.30 mm drilled through-via and two traces: optional ESP32 board now has 30 physical pad-to-pad routes, one via stitch, one pad-to-via link, 81 traces, 11 vias and 5 unconnected, with original 16 DFM DRC defects unchanged.
 - Join two existing VCC_3V3 back-layer via terminals in the ESP32 issue #91 opt-in PCB review; the exact native KiCad 10.0.8 result is 30 pad-endpoint routes plus 1 via stitch, 79 copper tracks, 10 vias and 6 unconnected items, retaining all 16 original manufacturing DRC blockers without fabrication approval.

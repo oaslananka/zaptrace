@@ -7,8 +7,10 @@ from pathlib import Path
 import pytest
 
 from scripts.issue91_native_copper_review import (
+    PAD_TO_TRACK_LINKS,
     PAD_TO_VIA_LINKS,
     ROUTES,
+    TRACK_TO_VIA_LINKS,
     VIA_STITCHES,
     _blocking_finding_signatures,
     _file_sha256,
@@ -25,8 +27,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 31
-    assert sum(len(route.points) - 1 for route in ROUTES) == 81
+    assert len(ROUTES) == 32
+    assert sum(len(route.points) - 1 for route in ROUTES) == 84
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
@@ -48,14 +50,14 @@ def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints(
 
 
 def test_vcc3v3_via_stitch_joins_only_verified_route_via_terminals() -> None:
-    assert len(ROUTES) == 31
+    assert len(ROUTES) == 32
     assert VIA_STITCHES == (("VCC_3V3", (45.1, 61.6), (53.1, 58.8)),)
     via_terminals = {(route.net, point) for route in ROUTES for point in route.via_points}
     assert VIA_STITCHES[0][1] != VIA_STITCHES[0][2]
     for net, start, end in VIA_STITCHES:
         assert (net, start) in via_terminals
         assert (net, end) in via_terminals
-    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) == 82
+    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) == 85
 
 
 def test_32nd_real_connection_joins_u3_power_pad_to_known_same_net_via() -> None:
@@ -66,7 +68,56 @@ def test_32nd_real_connection_joins_u3_power_pad_to_known_same_net_via() -> None
     assert link.layer_transition == (62.4, 36.4)
     assert link.existing_via == (57.1, 58.8)
     assert (link.net, link.existing_via) in {(route.net, xy) for route in ROUTES for xy in route.via_points}
-    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS) == 84
+    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS) == 87
+
+
+def test_native_vbus_board_feed_joins_verified_track_center_to_existing_via() -> None:
+    assert len(TRACK_TO_VIA_LINKS) == 2
+    link = TRACK_TO_VIA_LINKS[0]
+    assert link.net == "VCC_5V"
+    assert link.existing_track_start == (67.52, 42.0)
+    assert link.existing_track_end == (67.52, 68.0)
+    assert link.new_via == (67.52, 65.5)
+    assert link.existing_via == (78.2, 65.5)
+    assert (link.net, link.existing_via) in {(route.net, via) for route in ROUTES for via in route.via_points}
+    assert len(ROUTES) + len(VIA_STITCHES) + len(PAD_TO_VIA_LINKS) + len(TRACK_TO_VIA_LINKS) == 36
+
+
+def test_last_scl_route_reaches_a_real_same_net_back_layer_track() -> None:
+    assert len(PAD_TO_TRACK_LINKS) == 1
+    link = PAD_TO_TRACK_LINKS[0]
+    assert link.net == "I2C_SCL"
+    assert link.source == ("R2", "2", (58.51, 58.0))
+    assert link.points == ((58.51, 58.0), (58.51, 56.0), (57.51, 55.0), (49.5, 55.0))
+    assert link.existing_track_start == (49.5, 55.0)
+    assert link.existing_track_end == (49.5, 58.975)
+    assert (
+        len(ROUTES) + len(VIA_STITCHES) + len(PAD_TO_VIA_LINKS) + len(TRACK_TO_VIA_LINKS) + len(PAD_TO_TRACK_LINKS)
+        == 37
+    )
+
+
+def test_native_usb_c_ground_connection_reaches_existing_board_track() -> None:
+    link = TRACK_TO_VIA_LINKS[1]
+    assert link.net == "GND"
+    assert link.existing_track_start == (77.51, 58.8)
+    assert link.existing_track_end == (77.51, 60.0)
+    assert link.new_via == (77.51, 59.2)
+    assert link.existing_via == (76.5, 62.5)
+    assert (link.net, link.existing_via) in {(route.net, via) for route in ROUTES for via in route.via_points}
+
+
+def test_native_usb_c_ground_pair_has_real_pad_centers_and_safe_vias() -> None:
+    matches = [
+        route
+        for route in ROUTES
+        if route.net == "GND" and route.source[:2] == ("J1", "A1") and route.target[:2] == ("J1", "B1")
+    ]
+    assert len(matches) == 1
+    route = matches[0]
+    assert route.points == ((76.8, 63.32), (76.5, 62.5), (83.5, 62.5), (83.2, 63.32))
+    assert route.segment_layers == ("F.Cu", "B.Cu", "F.Cu")
+    assert route.via_points == ((76.5, 62.5), (83.5, 62.5))
 
 
 def test_native_usb_c_two_vbus_contacts_have_distinct_pad_center_and_via_paths() -> None:
@@ -346,11 +397,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 4
+    after += "[unconnected_items]: gap\n" * 0
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 4}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()
