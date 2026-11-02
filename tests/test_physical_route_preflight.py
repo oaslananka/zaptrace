@@ -85,6 +85,85 @@ def test_route_graph_success_does_not_count_if_wrong_layer() -> None:
     assert not verified_route_candidate_safe(design, routed, positions)
 
 
+def test_rotated_footprint_pad_requires_real_board_space_contact() -> None:
+    design, positions = _contact_design()
+    footprint = design.components["R1"].footprint_def
+    assert footprint is not None
+    pad = footprint.pads[0]
+    pad.position = (1.0, 0.0)
+    pad.size = (0.6, 0.6)
+    design.components["R1"].properties["rotation"] = 90.0
+
+    routed = RouteResult(
+        traces=[TraceSegment(layer="F.Cu", start=(10.0, 9.0), end=(20.0, 10.0), net_id="n")],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert verified_route_candidate_safe(design, routed, positions)
+
+    # The unrotated pad location is not copper after the footprint rotates.
+    routed.traces[0].start = (11.0, 10.0)
+    assert not verified_route_candidate_safe(design, routed, positions)
+
+
+def test_rounded_pad_bounding_box_corner_does_not_count_as_contact() -> None:
+    from zaptrace.core.models import PadShape
+
+    design, positions = _contact_design()
+    footprint = design.components["R1"].footprint_def
+    assert footprint is not None
+    footprint.pads[0].shape = PadShape.CIRCLE
+    routed = RouteResult(
+        traces=[TraceSegment(layer="F.Cu", start=(10.49, 10.49), end=(20.0, 10.0), net_id="n")],
+        net_count=1,
+        routed_net_count=1,
+    )
+    # (0.49, 0.49) is within the one-millimetre pad's bounding square,
+    # but outside the actual 0.5 mm-radius round pad.
+    assert not verified_route_candidate_safe(design, routed, positions)
+    routed.traces[0].start = (10.3, 10.3)
+    assert verified_route_candidate_safe(design, routed, positions)
+
+
+def test_rotated_oval_pad_contact_checks_copper_in_local_axes() -> None:
+    from zaptrace.core.models import PadShape
+
+    design, positions = _contact_design()
+    footprint = design.components["R1"].footprint_def
+    assert footprint is not None
+    pad = footprint.pads[0]
+    pad.shape = PadShape.OVAL
+    pad.size = (2.0, 0.4)
+    pad.rotation = 90.0
+    routed = RouteResult(
+        traces=[TraceSegment(layer="F.Cu", start=(10.0, 10.75), end=(20.0, 10.0), net_id="n")],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert verified_route_candidate_safe(design, routed, positions)
+    routed.traces[0].start = (10.75, 10.0)
+    assert not verified_route_candidate_safe(design, routed, positions)
+
+
+def test_roundrect_corner_without_copper_is_not_a_pad_contact() -> None:
+    from zaptrace.core.models import PadShape
+
+    design, positions = _contact_design()
+    footprint = design.components["R1"].footprint_def
+    assert footprint is not None
+    pad = footprint.pads[0]
+    pad.shape = PadShape.ROUNDRECT
+    pad.roundrect_rratio = 0.5
+    routed = RouteResult(
+        traces=[TraceSegment(layer="F.Cu", start=(10.49, 10.49), end=(20.0, 10.0), net_id="n")],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert not verified_route_candidate_safe(design, routed, positions)
+    routed.traces[0].start = (10.0, 10.3)
+    assert verified_route_candidate_safe(design, routed, positions)
+
+
 def test_actual_usb_c_demo_graph_routing_is_rejected_before_export() -> None:
     design = parse_file(Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml")
     assert design.placement is not None

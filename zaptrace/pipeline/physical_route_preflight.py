@@ -7,27 +7,13 @@ as though it were routed copper; native KiCad DRC remains authoritative.
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 
+from zaptrace.algo.grid_router import GridRouter
+from zaptrace.algo.pad_copper import point_in_pad_copper, rotated_offset
 from zaptrace.core.models import Design, LayerSet, NetClass, Pad, RouteResult
 from zaptrace.ee.classifier import get_net_class
 from zaptrace.ee.drc.engine import DRCEngine
-
-
-def _pad_contains_endpoint(pad: Pad, center: tuple[float, float], endpoint: tuple[float, float]) -> bool:
-    """Reject approximated pad escapes that never actually reach pad copper.
-
-    Deliberately use a *conservative* interior rectangular envelope for
-    circles/ovals/rounded rectangles. It may reject a valid tangent connection,
-    but cannot promote an unsupported connection merely due to copper width.
-    """
-    angle = math.radians(pad.rotation)
-    dx, dy = endpoint[0] - center[0], endpoint[1] - center[1]
-    local_x = dx * math.cos(angle) + dy * math.sin(angle)
-    local_y = -dx * math.sin(angle) + dy * math.cos(angle)
-    epsilon = 1e-6
-    return abs(local_x) <= pad.size[0] / 2 + epsilon and abs(local_y) <= pad.size[1] / 2 + epsilon
 
 
 def _trace_layer_compatible(pad: Pad, layer: str) -> bool:
@@ -70,10 +56,13 @@ def _physical_pad_terminal_coverage(
             ]
             if not matching:
                 return False
+            footprint_rotation = GridRouter._footprint_rotation(design, comp)
             for pad in matching:
-                center = (location[0] + pad.position[0], location[1] + pad.position[1])
+                offset = rotated_offset(*pad.position, footprint_rotation)
+                center = (location[0] + offset[0], location[1] + offset[1])
                 if not any(
-                    _trace_layer_compatible(pad, layer) and _pad_contains_endpoint(pad, center, endpoint)
+                    _trace_layer_compatible(pad, layer)
+                    and point_in_pad_copper(pad, center, endpoint, footprint_rotation)
                     for layer, endpoint in endpoint_by_net[net.id]
                 ):
                     return False
