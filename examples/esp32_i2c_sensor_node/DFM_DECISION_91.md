@@ -194,6 +194,92 @@ are approved by this analysis. The relevant official references are the
 [Espressif ESP32-WROOM-32 datasheet](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
 and [Bosch BME280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf).
 
+## Power-budget and regulator qualification — 2026-11-03
+
+This is a source-level budget, not a measured current profile. The source
+has no exact BOM MPNs for U1, U3 or C1/C2/C3, no defined input supply/cable
+limits, and no operating-mode duty-cycle specification. Consequently, the
+following are constraints and calculations, not a power sign-off.
+
+| Load / constraint | Evidence in source or vendor data | Engineering interpretation |
+|---|---|---|
+| U1 ESP32-WROOM-32 | Espressif recommends an external power supply capable of delivering at least 0.5 A | This is a supply-capability requirement, **not** a claim that the module continuously consumes 0.5 A. The 3.3 V source must maintain voltage during radio/CPU transients. |
+| U2 BME280 | Typical 3.6 µA at 1 Hz with H/P/T; separate measurement-current figures are 340 µA humidity, 714 µA pressure and 350 µA temperature under different extreme-temperature conditions | The sensor is not the dominant 3.3 V load. Do not add the separate maxima as though they were simultaneous. |
+| R1/R2 I²C pull-ups | Two 4.7 kΩ pull-ups from 3.3 V | Ideal upper bound when both lines are low: 2 × 3.3 V / 4.7 kΩ = **1.40 mA**. Actual current is lower when VOL is nonzero. |
+| U3 AMS1117-3.3 | Generic type only; no manufacturer part number | Exact electrical limits, thermal characteristics, capacitor stability requirements and low-load behaviour cannot yet be bound to the fitted component. |
+| C2 output capacitor | 10 µF, 0805; no MPN, dielectric, voltage rating, tolerance or DC-bias data | Effective capacitance and ESR at 3.3 V are unknown. A value-only entry is insufficient for regulator stability proof. |
+| C3 input capacitor | 100 nF, 0402; no MPN or voltage/ESR specification | Input transient response and cable/source impedance still need analysis; the source does not define a bulk input capacitor. |
+
+### Linear-regulator thermal envelope (illustrative, not approved)
+
+For a linear regulator, use the first-order estimate PD = (VIN − VOUT) × IOUT.
+At 3.3 V output and a 0.5 A **supply-capability sizing point**:
+
+| Assumed U3 input | Calculated U3 dissipation |
+|---:|---:|
+| 5.0 V | **0.85 W** |
+| 5.5 V | **1.10 W** |
+
+The Advanced Monolithic Systems AMS1117 reference datasheet lists a SOT-223
+junction-to-ambient reference of 90 °C/W, while explaining that board copper
+and mounting can move the actual value from about 46 °C/W to above 90 °C;
+its application notes say about 45 °C/W is possible with a suitably sized
+copper-spreading board. At 0.85 W, 90 °C/W implies about **76.5 °C** junction
+rise; at 1.10 W it implies about **99 °C**. For example, 0.85 W at 50 °C
+ambient gives a simple estimate of 126.5 °C, above the datasheet's 125 °C
+operating junction range. At 85 °C ambient, even the optimistic 45 °C/W
+case gives about 123.3 °C at 5.0 V input and 0.5 A; at 5.5 V input it gives
+about 134.5 °C. The datasheet's 1.2 W SOT-223 dissipation figure is
+not available across the full input/output range and does not replace a
+board-specific thermal calculation. Actual temperature depends on real load,
+copper area, enclosure, airflow and nearby heat sources.
+
+That reference datasheet also calls for 22 µF solid tantalum at the output to
+ensure stability under all operating conditions; it notes that smaller
+values may work in the configuration without an adjustment-pin bypass.
+Current C2 is only described as 10 µF ceramic/0805 by value and footprint,
+with no exact dielectric, effective capacitance or ESR. Since U3 itself has
+no exact MPN, neither a definite stability failure nor a pass can be claimed.
+The fitted regulator and output capacitor must be identified before this is
+qualified. The same AMS1117 reference specifies guaranteed regulation above
+10 mA load under the stated differential; low-load/deep-sleep behaviour also
+needs checking against the actual fitted variant.
+
+### USB-C source-current availability
+
+The source schematic connects R3/R4 (5.1 kΩ) from CC1/CC2 to GND, providing
+the sink Rd terminations. It contains no CC voltage measurement/current-
+advertisement detector or USB-PD sink controller. ST AN5225 distinguishes
+sink identification (Rd) from detection of the source's advertised current:
+a 5.1 kΩ ±20% Rd does not detect power capability, while accurate CC voltage
+monitoring is required to determine whether the source advertises default,
+1.5 A or 3 A. Thus the board must not assume 1.5 A/3 A availability from the
+resistors alone. The 0.5 A ESP32 supply-capability point is already at the nominal USB 2.0
+default-current level; the regulator's own current, other loads, cable drop
+and design margin are additional. Since the schematic neither measures the
+source advertisement nor constrains system load to a lower value, the source
+may not be able to support the required transient supply capability. This is
+a system-level power compatibility blocker, not a reason to silently draw
+more current.
+
+### Decision / next engineering step
+
+Do not assign narrower power-branch widths from sensor current alone and do
+not change the global POWER_MED rule. First identify exact U1/U3/capacitor
+MPNs; determine the intended USB source class and add/validate CC current
+capability detection or explicitly constrain the permitted source; obtain
+actual ESP32 worst-case/transient and sleep currents; include the I²C pull-up
+loads; and calculate regulator loss/temperature with the real SOT-223 copper
+and enclosure conditions. A buck regulator may be the simpler thermal
+architecture if the 5 V → 3.3 V / 0.5 A operating point is required, but no
+replacement part is selected in this change. Any power-trunk/branch width
+transition still requires real tapered copper geometry and native KiCad DRC.
+
+References: [Espressif ESP32-WROOM-32 datasheet](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html),
+[Bosch BME280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf),
+[Advanced Monolithic Systems AMS1117 datasheet](https://datasheet.lcsc.com/lcsc/1811142212_Advanced-Monolithic-Systems-AMS1117-3-3_C6186.pdf),
+and [ST AN5225 USB Type-C current detection](https://www.st.com/content/ccc/resource/technical/document/application_note/group1/38/94/1d/41/0e/ba/49/21/DM00536349/files/DM00536349.pdf/jcr%3Acontent/translations/en.DM00536349.pdf).
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)
