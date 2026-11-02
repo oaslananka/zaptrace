@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from scripts.issue91_native_copper_review import (
+    PAD_TO_VIA_LINKS,
     ROUTES,
     VIA_STITCHES,
     _blocking_finding_signatures,
@@ -55,6 +56,17 @@ def test_vcc3v3_via_stitch_joins_only_verified_route_via_terminals() -> None:
         assert (net, start) in via_terminals
         assert (net, end) in via_terminals
     assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) == 79
+
+
+def test_32nd_real_connection_joins_u3_power_pad_to_known_same_net_via() -> None:
+    assert len(PAD_TO_VIA_LINKS) == 1
+    link = PAD_TO_VIA_LINKS[0]
+    assert link.net == "VCC_3V3"
+    assert link.source == ("U3", "2", (61.85, 36.0))
+    assert link.layer_transition == (62.4, 36.4)
+    assert link.existing_via == (57.1, 58.8)
+    assert (link.net, link.existing_via) in {(route.net, xy) for route in ROUTES for xy in route.via_points}
+    assert sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS) == 81
 
 
 def test_new_ground_connection_is_verified_pad_center_to_pad_center() -> None:
@@ -321,11 +333,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 6
+    after += "[unconnected_items]: gap\n" * 5
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 6}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 5}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()

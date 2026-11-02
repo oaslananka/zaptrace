@@ -31,6 +31,14 @@ class RoutedConnection:
     via_points: tuple[tuple[float, float], ...] = ()
 
 
+@dataclass(frozen=True)
+class PadToViaConnection:
+    net: str
+    source: tuple[str, str, tuple[float, float]]
+    layer_transition: tuple[float, float]
+    existing_via: tuple[float, float]
+
+
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6/10.0.7.
 # These are only the paths KiCad independently proved physically connected.
 # Do NOT extrapolate success to the remaining unrouted copper items.
@@ -250,6 +258,13 @@ VIA_STITCHES: tuple[tuple[str, tuple[float, float], tuple[float, float]], ...] =
 )
 
 
+# KiCad 10.0.8: source pad U3.2 to an existing VCC_3V3 B.Cu via
+# from the previously verified R1.1-to-R2.1 pad-backed route.
+PAD_TO_VIA_LINKS: tuple[PadToViaConnection, ...] = (
+    PadToViaConnection("VCC_3V3", ("U3", "2", (61.85, 36.0)), (62.4, 36.4), (57.1, 58.8)),
+)
+
+
 def _violations(text: str) -> Counter[str]:
     return Counter(re.findall(r"^\[([^]]+)\]:", text, re.MULTILINE))
 
@@ -406,6 +421,39 @@ def prepare_review(board_path: Path, output_path: Path) -> Path:
         track.SetNet(net)
         board.Add(track)
 
+    for link in PAD_TO_VIA_LINKS:
+        check_pad(*link.source, link.net)
+        if (link.net, link.existing_via) not in source_via_terminals:
+            raise ValueError("Pad-to-via link anchor must be an existing same-net route via")
+        if (link.net, link.layer_transition) in source_via_terminals:
+            raise ValueError("Pad-to-via transition must be a new distinct via")
+        if link.source[2] in (link.layer_transition, link.existing_via) or link.layer_transition == link.existing_via:
+            raise ValueError("Pad-to-via connection has coincident endpoints")
+        net = board.FindNet(link.net)
+        if net is None:
+            raise ValueError("Unknown pad-to-via net")
+        for start, end, layer in (
+            (link.source[2], link.layer_transition, pcbnew.F_Cu),
+            (link.layer_transition, link.existing_via, pcbnew.B_Cu),
+        ):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(start[0]), pcbnew.FromMM(start[1])))
+            track.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(end[0]), pcbnew.FromMM(end[1])))
+            track.SetWidth(pcbnew.FromMM(0.20))
+            track.SetLayer(layer)
+            track.SetNet(net)
+            board.Add(track)
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(
+            pcbnew.VECTOR2I(pcbnew.FromMM(link.layer_transition[0]), pcbnew.FromMM(link.layer_transition[1]))
+        )
+        via.SetWidth(pcbnew.FromMM(0.70))
+        via.SetDrill(pcbnew.FromMM(0.30))
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(net)
+        board.Add(via)
+
     candidate, manifest, _, _ = _evidence_paths(output_path)
     candidate.unlink(missing_ok=True)
     manifest.unlink(missing_ok=True)
@@ -429,7 +477,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     before = _read_native_report(before_path)
     after = _read_native_report(after_path)
     expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 6}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 5}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
     before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
@@ -439,8 +487,9 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
 
     pcbnew = _require_native_pcbnew()
     routed = pcbnew.LoadBoard(str(candidate))
-    total_segments = sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES)
+    total_segments = sum(len(route.points) - 1 for route in ROUTES) + len(VIA_STITCHES) + 2 * len(PAD_TO_VIA_LINKS)
     expected_vias = {(route.net, point) for route in ROUTES for point in route.via_points}
+    expected_vias.update((link.net, link.layer_transition) for link in PAD_TO_VIA_LINKS)
     actual_vias = {}
     for item in routed.GetTracks():
         if isinstance(item, pcbnew.PCB_VIA):
@@ -463,14 +512,15 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
         "kiCadVersion": kicad_version,
         "baseline": dict(before),
         "partialRouted": dict(after),
-        "connectionsAdded": len(ROUTES) + len(VIA_STITCHES),
+        "connectionsAdded": len(ROUTES) + len(VIA_STITCHES) + len(PAD_TO_VIA_LINKS),
         "padToPadRoutes": len(ROUTES),
         "viaStitchConnections": len(VIA_STITCHES),
+        "padToViaConnections": len(PAD_TO_VIA_LINKS),
         "traceSegments": total_segments,
         "twoLayerVias": len(expected_vias),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "6 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "5 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
