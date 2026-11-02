@@ -33,7 +33,7 @@ class RoutedConnection:
 
 # Tested against the pinned 100 x 75 mm reference placement with KiCad 10.0.6/10.0.7.
 # These are only the paths KiCad independently proved physically connected.
-# Do NOT extrapolate success to the 12 remaining unconnected copper items.
+# Do NOT extrapolate success to the remaining unrouted copper items.
 ROUTES: tuple[RoutedConnection, ...] = (
     RoutedConnection(
         "USB_CC1",
@@ -229,6 +229,17 @@ ROUTES: tuple[RoutedConnection, ...] = (
         ("F.Cu", "B.Cu", "F.Cu"),
         ((30.0, 60.8), (23.5, 44.1)),
     ),
+    # Two native VCC_3V3 pads on the U2 sensor are physically
+    # disconnected despite the same netname. The 2-layer route was
+    # independently checked against every original DRC defect.
+    RoutedConnection(
+        "VCC_3V3",
+        ("U2", "2", (46.675, 58.975)),
+        ("U2", "8", (46.025, 61.025)),
+        ((46.675, 58.975), (46.4, 58.0), (45.1, 61.6), (46.025, 61.025)),
+        ("F.Cu", "B.Cu", "F.Cu"),
+        ((46.4, 58.0), (45.1, 61.6)),
+    ),
 )
 
 
@@ -394,7 +405,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
     before = _read_native_report(before_path)
     after = _read_native_report(after_path)
     expected_before = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 8}
+    expected_after = {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 7}
     if before != expected_before or after != expected_after:
         raise RuntimeError(f"Native KiCad DRC rejected the physical board: {dict(before)} -> {dict(after)}")
     before_blockers = _blocking_finding_signatures(before_path.read_text(encoding="utf-8"))
@@ -433,7 +444,7 @@ def finalize_review(board_path: Path, output_path: Path, kicad_version: str) -> 
         "twoLayerVias": len(expected_vias),
         "fabApproved": False,
         "physicalContinuityComplete": False,
-        "warning": "8 real unconnected items and 16 manufacturability DRC violations remain",
+        "warning": "7 real unconnected items and 16 manufacturability DRC violations remain",
     }
     output_path.with_suffix(".review-evidence.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
