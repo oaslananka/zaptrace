@@ -42,6 +42,10 @@ When editing is needed, Review Studio should send users back to the source EDA t
 6. **Authenticated identity only.** Reviewer identity comes from the authenticated request principal; client-supplied reviewer names are never trusted as sign-off identity.
 7. **Automated pass is not human approval.** `automated_gate_status` and `fabrication_status` are separate fields and must remain visibly distinct.
 
+### Source-bound comparison of alternatives (offline)
+
+The existing saved-state alternative index compares two to eight independently produced native review reports for the same original PCB and rule context. It now rejects mismatched original DRC counters and displays per-alternative native DRC findings (bounded), remaining/open copper risks, provided/missing ERC evidence and scoped pin/net outcomes with explicit NOT CHECKED or NOT AVAILABLE states. This inspection-only index chooses no winner, does not run a model, never declares full electrical parity and cannot authorize fabrication. Each card links to the exact reviewed state for individual human evidence review.
+
 ### Source-scoped assistant handoff (offline)
 
 An explicit "Locate selected evidence" action also reverses the mapping from the audit catalog to the corresponding native footprint, schematic finding, DRC rule or scoped pin/net row. Records beyond the displayed native limits remain unavailable rather than matching a different object.

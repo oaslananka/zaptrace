@@ -4,6 +4,8 @@
 
 ### Added
 
+- Show source-bound native DRC findings, ERC and scoped pin/net evidence gaps in offline Review Studio alternative comparisons; reject incompatible original DRC baselines without automatically ranking or approving a board.
+
 - Bind offline Review Studio assistant handoffs to native schematic source/target hashes, selected ERC details and scoped pin/net findings, with explicit missing-evidence status and no added AI/network authority.
 
 - Preserve Review Studio evidence context across native schematic value/ERC findings and matching-reference PCB footprint views, including the exact audit/assistant selection, visible uninspected state and explicit limits on label-only parity.
