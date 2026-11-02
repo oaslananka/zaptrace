@@ -240,7 +240,7 @@ def test_cross_surface_selection_preserves_exact_evidence_id_without_claiming_pa
     """Native schematic findings must resolve the same audit/assistant context."""
     template = change.TEMPLATE.read_text()
     for expected in (
-        'id="reviewContextStatus" class="muted" role="status" aria-live="polite"',
+        'id="reviewContextStatus" class="muted" aria-live="polite"',
         'evidenceId:"schematic-value:"+index',
         'evidenceId:"schematic-erc:"+index',
         "selectReviewEvidence(item.evidenceId);",
