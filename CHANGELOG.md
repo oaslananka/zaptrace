@@ -4,6 +4,8 @@
 
 ### Added
 
+- Bind offline Review Studio assistant handoffs to native schematic source/target hashes, selected ERC details and scoped pin/net findings, with explicit missing-evidence status and no added AI/network authority.
+
 - Preserve Review Studio evidence context across native schematic value/ERC findings and matching-reference PCB footprint views, including the exact audit/assistant selection, visible uninspected state and explicit limits on label-only parity.
 
 - Prepare local, source-hash-bound explanatory or repair-planning requests from selected Review Studio evidence without calling an AI provider, uploading PCB data, changing the design, or implying engineering approval.

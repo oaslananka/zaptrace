@@ -265,6 +265,29 @@ def test_cross_surface_selection_preserves_exact_evidence_id_without_claiming_pa
     assert template.count("__CHANGE_DATA__") == 1
 
 
+def test_contextual_assistant_request_binds_schematic_and_scoped_native_evidence() -> None:
+    """A schematic/erc/pin-net handoff must not silently omit its source identity."""
+    template = change.TEMPLATE.read_text()
+    for expected in (
+        'selected.startsWith("schematic-erc:")',
+        'selected.startsWith("pin-net:")',
+        "schematic?.erc_findings_after?.[ercIndex]",
+        "DATA.crossprobe?.rows?.[pinIndex]",
+        '"Paired native schematic evidence: "+(schematic?"PROVIDED · not complete electrical parity":"NOT CHECKED")',
+        '"Original schematic SHA-256: "+(schematic?.source_sha256||"NOT CHECKED")',
+        '"Proposed schematic SHA-256: "+(schematic?.proposed_sha256||"NOT CHECKED")',
+        '"Native KiCad ERC severity: "+erc.severity',
+        '"Reported KiCad coordinate (not independently located on PCB): "+',
+        '"Scoped pin/net phase: "+pin.phase+" · pin/pad "+pin.pin+" · status "+pin.status',
+        '"Scoped schematic net: "+(pin.schematic_net??"UNVERIFIABLE")',
+        '"Scoped PCB pad net: "+(pin.pcb_net??"UNVERIFIABLE")',
+        "Full electrical/DFM parity and fabrication authority remain unverified.",
+    ):
+        assert expected in template
+    assert "fetch(" not in template
+    assert "navigator.clipboard" not in template
+
+
 def test_native_pin_net_verdict_is_screen_reader_announced_without_implying_approval() -> None:
     """Current, mismatch and unverifiable findings must be text, not color only."""
     html = change.TEMPLATE.read_text()
