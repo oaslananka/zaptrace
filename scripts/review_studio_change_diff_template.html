@@ -742,16 +742,20 @@ function prepareAgentRequest(){
   "Return: Explain the engineering risk and which native KiCad checks or independent evidence a human reviewer should request next."
  ];
  if(erc){
-  request.push("Native KiCad ERC severity: "+erc.severity);
-  request.push("ERC source phase: proposed KiCad schematic · no full-board parity claim");
-  request.push("Reported KiCad coordinate (not independently located on PCB): "+
-   (erc.coordinate_mm?erc.coordinate_mm.join(", ")+" mm":"not available"));
+  request.push(
+   "Native KiCad ERC severity: "+erc.severity,
+   "ERC source phase: proposed KiCad schematic · no full-board parity claim",
+   "Reported KiCad coordinate (not independently located on PCB): "+
+    (erc.coordinate_mm?erc.coordinate_mm.join(", ")+" mm":"not available")
+  );
  }
  if(pin){
-  request.push("Scoped pin/net phase: "+pin.phase+" · pin/pad "+pin.pin+" · status "+pin.status);
-  request.push("Scoped schematic net: "+(pin.schematic_net??"UNVERIFIABLE"));
-  request.push("Scoped PCB pad net: "+(pin.pcb_net??"UNVERIFIABLE"));
-  request.push("Scoped pin/net result: "+pin.reason+" · not full electrical parity");
+  request.push(
+   "Scoped pin/net phase: "+pin.phase+" · pin/pad "+pin.pin+" · status "+pin.status,
+   "Scoped schematic net: "+(pin.schematic_net??"UNVERIFIABLE"),
+   "Scoped PCB pad net: "+(pin.pcb_net??"UNVERIFIABLE"),
+   "Scoped pin/net result: "+pin.reason+" · not full electrical parity"
+  );
  }
  $("agentRequestText").value=request.join("\n");
  $("agentRequestStatus").textContent="Scoped text prepared locally. Select and copy it manually; nothing was sent or approved.";
