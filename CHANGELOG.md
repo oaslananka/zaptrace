@@ -4,6 +4,8 @@
 
 ### Added
 
+- Preserve Review Studio evidence context across native schematic value/ERC findings and matching-reference PCB footprint views, including the exact audit/assistant selection, visible uninspected state and explicit limits on label-only parity.
+
 - Prepare local, source-hash-bound explanatory or repair-planning requests from selected Review Studio evidence without calling an AI provider, uploading PCB data, changing the design, or implying engineering approval.
 
 - Surface native KiCad DRC rule names, severities, and descriptions in the source-bound Review Studio decision overview and evidence inspector, preserving the exact review hash and distinguishing existing warnings from completed engineering approval.
