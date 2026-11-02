@@ -23,6 +23,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from review_studio_local_file_guard import read_regular_bytes
+
 
 def sha(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
@@ -53,7 +55,7 @@ def smoke(package: Path, portable: Path) -> None:
     sys.path.insert(0, str(package.resolve()))
     from review_studio_local_server import ReviewLocalServer
 
-    raw = portable.read_bytes()
+    raw = read_regular_bytes(portable, max_size=34 * 1024 * 1024)
     original_sha = sha(raw)
     headers = {"project_base64": base64.b64encode(raw).decode(), "project_sha256": original_sha}
     with tempfile.TemporaryDirectory(prefix="zaptrace-installed-copper-qa-") as temp:
@@ -133,7 +135,9 @@ def smoke(package: Path, portable: Path) -> None:
             assert status == 404, "Discarded private native evidence must be unavailable"
             assert not list((workspace / "native-copper-working").glob("*/project"))
             assert not list((workspace / "native-copper-results").glob("*/EVIDENCE.json"))
-            assert sha(portable.read_bytes()) == original_sha, "Original KiCad source ZIP changed"
+            assert sha(read_regular_bytes(portable, max_size=34 * 1024 * 1024)) == original_sha, (
+                "Original KiCad source ZIP changed"
+            )
             print("INSTALLED_KICAD_NATIVE_COPPER_VERIFIED=37->36,16->16,PARITY=0")
             print("INSTALLED_KICAD_SOURCE_SHA256=" + original_sha)
             print("INSTALLED_KICAD_COPPER_PRIVATE_BUNDLE_DOWNLOAD_AND_DISCARD: PASS")

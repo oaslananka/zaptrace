@@ -22,6 +22,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from review_studio_local_file_guard import read_regular_bytes
+
 
 def call(base: str, token: str, path: str, payload: dict | None = None) -> tuple[int, bytes]:
     headers = {"X-Review-Token": token}
@@ -52,7 +54,7 @@ def verify(installed: Path, portable: Path) -> None:
     sys.path.insert(0, str(installed.resolve()))
     from review_studio_local_server import ReviewLocalServer
 
-    original = portable.read_bytes()
+    original = read_regular_bytes(portable, max_size=34 * 1024 * 1024)
     original_hash = hashlib.sha256(original).hexdigest()
     upload = {"project_base64": base64.b64encode(original).decode(), "project_sha256": original_hash}
     with tempfile.TemporaryDirectory(prefix="zaptrace-012-actual-installed-multinet-") as temp:
@@ -147,7 +149,7 @@ def verify(installed: Path, portable: Path) -> None:
             code, _ = call(base, server.secret, route + "/EVIDENCE.json")
             assert code == 404
             assert not list((base_dir / "private-workspace/native-copper-results").glob("*/EVIDENCE.json"))
-            assert hashlib.sha256(portable.read_bytes()).hexdigest() == original_hash
+            assert hashlib.sha256(read_regular_bytes(portable, max_size=34 * 1024 * 1024)).hexdigest() == original_hash
             print("INSTALLED_0112_NATIVE_MULTINET_37_TO_35_AND_16_TO_16=PASS")
             print("INSTALLED_0112_MULTINET_TWO_NET_SHA_CHAIN_AND_CUSTOM_DEFAULT_DRC=PASS")
             print("INSTALLED_0112_MULTINET_PRIVATE_ZIP_DOWNLOAD_DISCARD_AND_SOURCE_SHA=PASS")
