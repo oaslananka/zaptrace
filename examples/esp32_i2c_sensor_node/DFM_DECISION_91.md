@@ -170,6 +170,41 @@ U1 geometry. The project's native DRC minimum drill remains
 publish a 0.18 mm absolute and 0.25 mm recommended 1 oz
 PTH annular ring, not a board-specific authorization.
 
+### Independent manufacturer source cross-check — 2026-11-02
+
+The selected **GCT USB4105** manufacturer's [product page and
+drawing](https://gct.co/connector/usb4105) identify two Ø0.65 mm
+locating holes **5.78 mm center-to-center**, and a recommended
+component-side land pattern using **0.60 × 1.15 mm** outer
+ground-contact lands. Independent KiCad 10.0.8 extraction of
+the **unchanged J1 footprint**, relative to its board origin
+(80.0, 67.0) mm, shows:
+
+| Item | Actual local footprint coordinates (mm) | Dimensions |
+|---|---|---|
+| Two mechanical NPTH locating pegs | (−2.89, −2.605), (+2.89, −2.605) | Ø0.65, centers 5.78 apart |
+| A1/B12 shared ground contact | (−3.20, −3.68) | 0.60 × 1.15 copper |
+| A12/B1 shared ground contact | (+3.20, −3.68) | 0.60 × 1.15 copper |
+
+These dimensions agree with the listed **GCT recommended
+land pattern**; the two real Ø0.65 pegs must not be shifted
+just to suppress four duplicated-pad KiCad findings. The
+native hole-clearance result is **0.1944 mm** versus the
+unchanged 0.2500 mm board rule. Matching a drawing proves
+dimensional consistency, **not** assembly, manufacturing
+tolerance or supplier process acceptance. The exact
+USB4105-15-A-120 shell stake and assembly fit still require
+qualification.
+
+The current official [Espressif ESP32-WROOM-32 datasheet,
+Section 10.1](https://documentation.espressif.com/esp32-wroom-32_datasheet_en.html)
+depicts copper vias beneath the thermal pad, but does
+**not** by itself qualify the local twelve 0.20-mm drilled
+/ 0.60-mm land structures or a 0.30-mm drill replacement.
+The original module remains **NRND**. Any changes require
+pad/paste/thermal, manufacturer land-pattern and
+board-process verification, not an assumed DRC-only fix.
+
 ### Blocker D2 — USB-C J1 locating peg / GND land clearance (4 native errors)
 
 - KiCad rule: `hole_clearance`; J1 **NPTH** locating holes at

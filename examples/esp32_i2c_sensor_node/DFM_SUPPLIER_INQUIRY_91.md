@@ -40,6 +40,20 @@ default unrouted PCB can be manufactured as submitted. A favorable answer
 USB power/EMI, regulator thermal safety or assembly qualification
 on the separately fully connected review-only board.
 
+**Manufacturer drawing consistency verified without outreach:**
+GCT's public USB4105 recommended layout and the local
+footprint agree on two Ø0.65 mm NPTH locating pegs at
+±2.89 mm (5.78 mm separation) and overlapping A/B GND
+contact land pairs, 0.60 × 1.15 mm at ±3.20 mm. The
+native 0.1944 mm NPTH-to-pad gap remains below the
+unchanged 0.2500 mm board rule. This is a **process
+acceptance question**, not permission to move physical
+mechanical features or suppress a design rule.
+Espressif's official WROOM-32 land pattern depicts thermal
+vias without approving the exact local twelve Ø0.20-mm
+drills. Both are public references; no manufacturer
+was contacted.
+
 ## 2. Reproduced KiCad findings to be answered explicitly
 
 - **D1 — U1 pad 39 thermal vias (12 errors):** all have a nominal **0.2000 mm
