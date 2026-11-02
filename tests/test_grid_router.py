@@ -917,3 +917,81 @@ def test_pad_aware_via_aperture_respects_foreign_layer_and_hole_keepouts() -> No
     assert not obs.can_place_through_via(GridPos(10, 10, 0), "SIGNAL", 3)
     obs.block(GridPos(10, 10, 1))
     assert not obs.can_place_through_via(GridPos(10, 10, 0), "SIGNAL", 3)
+
+
+def test_astar_does_not_explore_via_transitions_when_disabled() -> None:
+    router = GridRouter(pad_aware=True, resolution_mm=0.5, max_iterations=100_000)
+    obstacles = ObstacleMap(50, 40, layers=2)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.block_rect(24, 0, 24, 39, layer=0)
+
+    calls = 0
+    original = router._push_via_neighbors
+
+    def observe_vias(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    router._push_via_neighbors = observe_vias
+    without_vias = router._astar(
+        obstacles,
+        GridPos(7, 20, 0),
+        GridPos(43, 20, 0),
+        net_id="SIGNAL",
+        clear_cells=1,
+        via_radius_cells=3,
+        allow_vias=False,
+    )
+    assert without_vias is None
+    assert calls == 0
+
+    with_vias = router._astar(
+        obstacles,
+        GridPos(7, 20, 0),
+        GridPos(43, 20, 0),
+        net_id="SIGNAL",
+        clear_cells=1,
+        via_radius_cells=3,
+        allow_vias=True,
+    )
+    assert with_vias is not None
+    assert any(a.layer != b.layer for a, b in zip(with_vias, with_vias[1:], strict=False))
+    assert calls > 0
+
+
+def test_mst_router_never_searches_vias_for_zero_via_net() -> None:
+    from zaptrace.algo.grid_router import _GridRouteContext
+
+    router = GridRouter(pad_aware=True, resolution_mm=0.5, max_iterations=100_000)
+    obstacles = ObstacleMap(50, 40, layers=2)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.block_rect(24, 0, 24, 39, layer=0)
+    context = _GridRouteContext(
+        obstacles=obstacles,
+        grid_w=50,
+        grid_h=40,
+        num_layers=2,
+        ref_positions={},
+        component_by_ref={},
+        via_pad=0.7,
+        via_hole=0.3,
+    )
+
+    def unexpected_via_search(*args, **kwargs):
+        raise AssertionError("zero-via net must not explore a via transition")
+
+    router._push_via_neighbors = unexpected_via_search
+    assert (
+        router._route_mst_paths(
+            context,
+            [(7, 20), (43, 20)],
+            0,
+            1,
+            "USB_DIFF",
+            max_vias=0,
+        )
+        is None
+    )

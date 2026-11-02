@@ -683,6 +683,7 @@ class GridRouter:
                 via_radius_cells=(
                     int(math.ceil(context.via_pad / (2 * self.resolution))) + clear_cells if self.pad_aware else 0
                 ),
+                allow_vias=max_vias is None or used_vias < max_vias,
             )
             if not path:
                 return None
@@ -1014,6 +1015,7 @@ class GridRouter:
         net_id: str | None = None,
         clear_cells: int = 0,
         via_radius_cells: int = 0,
+        allow_vias: bool = True,
     ) -> list[GridPos] | None:
         """Find lowest-cost path with net-owned existing copper reuse."""
         if self.pad_aware and (not obs.is_free(start, net_id) or not obs.is_free(goal, net_id)):
@@ -1045,7 +1047,8 @@ class GridRouter:
             if current.pos == resolved_goal:
                 return _reconstruct(current)
             self._push_planar_neighbors(open_set, closed, obs, current, resolved_goal, net_id, clear_cells)
-            self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id, via_radius_cells)
+            if allow_vias:
+                self._push_via_neighbors(open_set, closed, obs, current, resolved_goal, net_id, via_radius_cells)
         return None
 
     @staticmethod
