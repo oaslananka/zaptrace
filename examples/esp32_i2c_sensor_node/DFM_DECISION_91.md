@@ -133,6 +133,43 @@ offending object and location signatures, not merely by category count.
   mapping, RF/antenna layout, availability and electrical qualification;
   a similarly named module cannot be silently substituted.
 
+### Independent D1 what-if board trials — 2026-11-02 (NOT approved)
+
+On the **same exact PCB source** at Draft PR #119 head
+ea8549c65d25467e12c16ba3ad7f825dd0005c84, system
+**KiCad 10.0.8** validated the opt-in, completely routed reference
+PCB at **0 native unconnected / 16 original manufacturing DRC**.
+In isolated temporary copies, *only* the twelve U1/39 plated-drill
+diameters, and where noted their copper pad diameters, were changed.
+These were **not** modifications to the tracked vendor footprint,
+default design, manufacturing outputs or PR routing contract.
+
+| Temporary what-if, all 12 U1/39 vias | Nominal annular ring | Neighboring via-pad edge gap (0.7625 mm center pitch) | Native KiCad result | Qualification |
+|---|---:|---:|---|---|
+| Original 0.20 mm drill / 0.60 mm land | 0.200 mm | 0.1625 mm | 16 original errors | Source remains blocked by 0.30 mm minimum drill |
+| 0.30 / 0.60 mm | **0.150 mm** | 0.1625 mm | 4 J1 errors + 1 footprint-library mismatch | **Reject**: below vendor-published 0.18 mm absolute annular ring |
+| 0.30 / 0.65 mm | **0.175 mm** | 0.1125 mm | 4 J1 errors + 1 footprint-library mismatch | **Reject**: still below 0.18 mm absolute annular ring |
+| 0.30 / 0.75 mm | 0.225 mm | **0.0125 mm** | 4 J1 errors + 1 footprint-library mismatch | **Unqualified**: below 0.25 mm recommended ring and very tight same-net pad spacing |
+| 0.30 / 0.80 mm | 0.250 mm | **−0.0375 mm** (overlap) | 4 J1 errors + 1 footprint-library mismatch | **Unqualified**: adjacent copper pads overlap; paste, assembly and thermal behavior not approved |
+
+The ring values are **nominal geometric calculations**, not measured
+finished hole sizes. DRC does not certify process capability,
+registration tolerance, solder wicking, via filling, thermal-pad paste
+deposition, assembly, current/heat flow or RF performance. The
+footprint-library mismatch occurs because these temporary board pad
+edits do not match the unchanged original source footprint; removing
+that warning by editing both files would **not** prove manufacturability.
+No tested option changes the four J1 peg-to-pad clearance violations.
+
+These results are **feasibility evidence**, not a selected
+replacement footprint. An exact manufacturer land pattern and a
+qualified process/assembly decision are required before updating
+U1 geometry. The project's native DRC minimum drill remains
+0.30 mm and no physical violations were waived. JLCPCB's
+[2-layer capabilities](https://jlcpcb.com/capabilities/pcb-capabilities/)
+publish a 0.18 mm absolute and 0.25 mm recommended 1 oz
+PTH annular ring, not a board-specific authorization.
+
 ### Blocker D2 — USB-C J1 locating peg / GND land clearance (4 native errors)
 
 - KiCad rule: `hole_clearance`; J1 **NPTH** locating holes at

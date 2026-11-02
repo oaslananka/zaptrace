@@ -4,28 +4,41 @@
 qualified human owner to review, select a recipient and explicitly authorize
 external disclosure. It is **not a production order, order quote, waiver,
 request to fabricate, release package or manufacturing approval**. The
-candidate PCB is unfinished; **do not transmit its Gerbers/drill outputs to an
-ordering portal or place any order**.
+default source PCB remains unrouted, while the opt-in copper review
+still has sixteen physical manufacturing defects. **Do not transmit
+either PCB's Gerbers/drill outputs to an ordering portal or place an
+order**.
+
+**2026-11-02 evidence update:** Draft PR #119 head
+ea8549c65d25467e12c16ba3ad7f825dd0005c84
+independently passes system KiCad 10.0.8 with **0 native
+unconnected items** on an **opt-in review-only overlay**:
+37 copper joins, 92 tracks, 18 vias. The default source PCB
+still exports zero copper routing. Both remain **NOT fabrication
+ready** because the original 16 physical DRC errors, strict
+source Proof Pack, RF/electrical/thermal and assembly reviews
+remain blocked. The supplier questionnaire below is **UNSENT**.
 
 ## 1. Identify the candidate precisely
 
 | Field | Engineering source / status |
 |---|---|
 | Reference | ZapTrace Issue #91, Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119) |
-| Physical board source | Commit `89e0328263e2e907a690e09f1ba8e7819b42b1e4` (same board/footprints/DRC preserved by later documentation-only commits) |
+| Physical board source | Commit `89e0328263e2e907a690e09f1ba8e7819b42b1e4` (same board source/footprints/DRC preserved; later commits add opt-in native review overlays) |
 | Reference design | `examples/esp32_i2c_sensor_node/design.yaml` |
 | Board | Provisional **100 × 75 mm**, **2 copper layers**; *stackup, actual board thickness, copper weight, mask, surface finish and supplier are NOT chosen* |
 | Parts affecting question | **Espressif ESP32-WROOM-32**, U1; **GCT USB4105 series**, J1 (exact orderable connector suffix must be confirmed before assembly/fit acceptance) |
-| Test tool | Independently regenerated **KiCad 10.0.7** schematic/PCB and native ERC/DRC; baseline **ERC 0**, **16 physical PCB DRC violations**, **37 physical unconnected items** |
-| Review-only overlay | **25 pad/net-matched links / 61 F.Cu segments / 12 still unconnected**; original **16 DRC findings unchanged**; `fabApproved=false`, `physicalContinuityComplete=false` |
+| Test tool | KiCad 10.0.8 regenerated the unchanged source at **16 DRC / 37 unconnected**; separate opt-in native review has **identical 16 DRC / 0 unconnected**, while KiCad 10.0.7 remains the historical dated baseline |
+| Review-only overlay | **37 real copper joins / 92 F.Cu+B.Cu track segments / 18 vias / 0 unconnected**; original **16 DRC findings unchanged**; `fabApproved=false`, `physicalContinuityComplete=false` |
 | Strict source Proof Pack | **6 PASS / 2 FAIL** (`drc-clean`, `min-clearance`), `blocked-insufficient-evidence` |
 | Design authority | [DFM decision record](DFM_DECISION_91.md) and [manufacturing review](MANUFACTURING_REVIEW.md); pending qualified human owner approval |
 
 **Question scope is manufacturing *feasibility*** of the two measured feature
 classes on a hypothetical, explicitly stated process stackup, not whether the
-unrouted PCB can be manufactured as submitted. A favorable answer **cannot**
-resolve the unfinished copper connectivity, RF/antenna, USB power/EMI,
-regulator-thermal or final electrical verification requirements.
+default unrouted PCB can be manufactured as submitted. A favorable answer
+**cannot** establish physical electrical continuity, RF/antenna,
+USB power/EMI, regulator thermal safety or assembly qualification
+on the separately fully connected review-only board.
 
 ## 2. Reproduced KiCad findings to be answered explicitly
 
@@ -35,6 +48,16 @@ regulator-thermal or final electrical verification requirements.
   radial annular ring *before* hole/registration/etch tolerance. Simply
   increasing the drill to **0.30 mm** while holding the pad diameter would
   give only **0.15 mm** nominal ring; do not propose that as an unqualified fix.
+- **Independent U1 what-if (not production):** KiCad 10.0.8
+  trials on isolated temporary boards confirm that 0.30 mm
+  drill / 0.60 mm land gives **0.15 mm** nominal annular
+  ring (below the cited 0.18 mm absolute PTH limit);
+  0.30 / 0.65 gives 0.175 mm; 0.30 / 0.75 gives
+  0.225 mm with a mere 0.0125 mm pad-edge gap; and
+  0.30 / 0.80 overlaps adjacent copper. U1 drill DRC
+  errors fell but a footprint-library mismatch appeared
+  and all four J1 errors remained. None is a qualified
+  assembly choice, revised library or process approval.
 - **D2 — J1 USB-C NPTH locating pegs (4 errors across 2 holes):** the actual
   closest *NPTH-to-GND-pad* clearance is **0.1944 mm**, versus the unchanged
   KiCad project rule **0.2500 mm** (shortfall **0.0556 mm**). The four
