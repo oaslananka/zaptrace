@@ -113,6 +113,75 @@ def test_no_false_multiple_proposals_or_escaping_directories(tmp_path: Path) -> 
         alternatives.compare_saved_reviews([a, b], tmp_path / "two.html")
 
 
+def _replace_saved_state(path: Path, state: dict) -> None:
+    state["state_hash"] = canonical_decision_hash(state)
+    path.write_text(json.dumps(state))
+    page = path.with_name(path.name.removesuffix(".state.json") + ".html")
+    page.write_text("<script>\nconst DATA=" + json.dumps(state) + ";\n</script>")
+
+
+def test_comparison_surfaces_real_rule_identity_and_evidence_gaps_without_ranking(tmp_path: Path) -> None:
+    a, b = (_create_review(tmp_path, n) for n in (1, 2))
+    state = json.loads(a.read_text())
+    state["drc"].update(
+        after_rules=17,
+        new_drc_rules=1,
+        reported_findings=[
+            {"severity": "warning", "rule": "track_dangling", "description": "Track has unconnected end"},
+            {"severity": "warning", "rule": "untrusted", "description": "<script>alert(1)</script>"},
+        ],
+        omitted_findings=2,
+    )
+    state["schematic"]["erc_findings_after"] = [
+        {"severity": "warning", "rule": "power_pin_not_driven", "message": "Power input not driven"}
+    ]
+    state["crossprobe"] = {"totals": {"matched": 3, "mismatch": 2, "unverifiable": 1}}
+    _replace_saved_state(a, state)
+    result = alternatives.compare_saved_reviews([a, b], tmp_path / "INDEX.html")
+    first = result["proposals"][0]["risk_and_evidence"]
+    second = result["proposals"][1]["risk_and_evidence"]
+    assert first["drc_new"] == 1
+    assert first["native_findings"][0]["rule"] == "track_dangling"
+    assert first["native_findings_omitted"] == 2
+    assert first["erc_warnings"] == 1
+    assert first["pin_net_status"] == "MISMATCH"
+    assert second["erc_warnings"] is None
+    assert second["pin_net_status"] == "NOT CHECKED"
+    html_page = (tmp_path / "INDEX.html").read_text()
+    assert "track_dangling" in html_page
+    assert "Track has unconnected end" in html_page
+    assert "2 mismatched, 1 unverifiable" in html_page
+    assert "ERC: NOT AVAILABLE in this saved state" in html_page
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html_page
+    assert "<script>alert(1)</script>" not in html_page
+    assert "No automatic winner" in html_page
+    assert "Fabrication:</strong> BLOCKED" in html_page
+    assert html_page.count("Native KiCad DRC:</strong>") == 2
+
+
+def test_alternative_baseline_drc_disagreement_is_not_silently_compared(tmp_path: Path) -> None:
+    a, b = (_create_review(tmp_path, n) for n in (1, 2))
+    state = json.loads(b.read_text())
+    state["drc"]["before_rules"] += 2
+    _replace_saved_state(b, state)
+    with pytest.raises(ValueError, match="original native DRC baselines"):
+        alternatives.compare_saved_reviews([a, b], tmp_path / "INDEX.html")
+    assert not (tmp_path / "INDEX.html").exists()
+
+
+def test_two_pcb_only_alternatives_distinguish_missing_evidence(tmp_path: Path) -> None:
+    a, b = (_create_review(tmp_path, n) for n in (1, 2))
+    for index, state_path in enumerate((a, b)):
+        state = json.loads(state_path.read_text())
+        state["schematic"] = None
+        state["proposed_sha256"] = str(index + 1) * 64
+        _replace_saved_state(state_path, state)
+    result = alternatives.compare_saved_reviews([a, b], tmp_path / "INDEX.html")
+    assert all(row["risk_and_evidence"]["schematic_status"] == "NOT CHECKED" for row in result["proposals"])
+    assert all(row["risk_and_evidence"]["pin_net_status"] == "NOT CHECKED" for row in result["proposals"])
+    assert (tmp_path / "INDEX.html").read_text().count("Schematic:</strong> NOT CHECKED") == 2
+
+
 def test_unsigned_comparison_index_must_share_the_saved_reviews_directory(tmp_path: Path) -> None:
     a, b = (_create_review(tmp_path, n) for n in (1, 2))
     outside = tmp_path / "other"
