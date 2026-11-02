@@ -178,7 +178,7 @@ def test_source_bound_decision_overview_links_actual_evidence_and_unsigned_outco
     assert 'Schematic/ERC: "+(sch?"REPORTED (not full parity)":"NOT CHECKED")' in template
     assert 'Pin/net crossprobe: "+crossprobe' in template
     assert '$("briefStateHash").textContent=DATA.state_hash;' in template
-    assert 'cp.scoped_pin_net_consistent?"SCOPED MATCH ONLY"' in template
+    assert 'if(cp.scoped_pin_net_consistent)crossprobe="SCOPED MATCH ONLY";' in template
     assert "A local decision never authorizes fabrication." in template
     assert "initDecisionBrief();" in template
     assert template.count("__CHANGE_DATA__") == 1

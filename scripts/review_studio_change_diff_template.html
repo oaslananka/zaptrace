@@ -331,9 +331,12 @@ function initDecisionBrief(){
  $("briefRisk").textContent="FABRICATION BLOCKED · "+drc.after_rules+
   " proposed PCB DRC violations and "+drc.after_open+
   " open copper connections reported. Electrical/DFM and human approval remain unverified.";
- const crossprobe=!cp?"NOT CHECKED":
-  cp.scoped_pin_net_consistent?"SCOPED MATCH ONLY":
-  cp.totals.mismatch?"MISMATCH":"UNVERIFIABLE";
+ let crossprobe="NOT CHECKED";
+ if(cp){
+  if(cp.scoped_pin_net_consistent)crossprobe="SCOPED MATCH ONLY";
+  else if(cp.totals.mismatch)crossprobe="MISMATCH";
+  else crossprobe="UNVERIFIABLE";
+ }
  $("briefEvidence").textContent="Native PCB DRC reported ("+drc.before_rules+
   " → "+drc.after_rules+"). Schematic/ERC: "+(sch?"REPORTED (not full parity)":"NOT CHECKED")+
   ". Pin/net crossprobe: "+crossprobe+".";
