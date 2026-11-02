@@ -259,6 +259,8 @@ footer{padding:10px 28px 32px;color:var(--muted);max-width:1400px;margin:auto}
 <button id="auditStart" class="action" type="button">Start local review timer</button>
 <label for="auditEvidenceSelect">Native evidence reference</label>
 <select id="auditEvidenceSelect"></select>
+<output id="reviewContextStatus" class="muted" aria-live="polite">No source evidence selected or inspected.</output>
+<button id="reviewContextLocate" class="action" type="button">Locate selected evidence in native views</button>
 <button id="auditInspect" class="action" type="button" disabled>Inspect and link evidence</button>
 <p id="auditEvidenceDescription" class="sch-selection" aria-live="polite">No evidence inspected.</p>
 <p id="auditTiming" class="muted">Browser timing not started. Trustworthy decision time not measured.</p>
@@ -376,20 +378,28 @@ function init(){
    list[0].ref+" · footprint relocation":
    list.length+" independently checked footprint movements";
  $("changeExplanation").textContent=list.map(summary).join("\n");
- if(list.length>1){
+ if(list.length){
   const picker=$("pcbChangePicker");picker.hidden=false;
   const detail=$("pcbSelectedDetail");detail.hidden=false;
-  for(const change of list){
+  for(const [index,change] of list.entries()){
    const button=document.createElement("button");
    button.type="button";button.textContent=change.ref+" · measured translation";
    button.setAttribute("aria-pressed","false");
    button.addEventListener("click",()=>{
+    detail.hidden=false;
     focusedRef=change.ref;
     for(const b of picker.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===button));
     detail.textContent="Selected native object "+change.ref+"\n"+summary(change)+
      "\nAll remaining footprints, pad numbers/nets and copper were independently checked."+
      "\nNo schematic pin/net parity or fabrication authorization is inferred.";
-    update();detail.focus();
+    update();
+    if(DATA.schematic?.svg){
+     highlightNativeSymbol("current",change.ref);
+     highlightNativeSymbol("proposed",change.ref);
+     detail.textContent+="\nSchematic counterpart: matching reference label only where native anchors exist; electrical parity NOT VERIFIED.";
+    }
+    selectReviewEvidence("pcb-change:"+index);
+    detail.focus();
    });
    picker.append(button);
   }
@@ -413,10 +423,7 @@ function init(){
   button.addEventListener("click",()=>{
    const selector=$("auditEvidenceSelect");
    const id="pcb-drc:finding:"+index;
-   if([...selector.options].some(option=>option.value===id)){
-    selector.value=id;
-    selector.dispatchEvent(new Event("change"));
-   }
+   selectReviewEvidence(id);
    selector.focus();
   });
   $("drcFindings").append(button);
@@ -537,7 +544,19 @@ function focusNativeFinding(item,sourceButton){
  ];
  lines.push("Native schematic symbol XY: "+(sch.symbol_anchors?.proposed?.[ref]?
    sch.symbol_anchors.proposed[ref].x+", "+sch.symbol_anchors.proposed[ref].y+" mm":"not safely available"));
+ const move=[...document.querySelectorAll("#pcbChangePicker button")].find(
+  node=>node.textContent.startsWith(ref+" ·"));
+ lines.push("Native PCB change link: "+(move?"matching footprint reference label only":"no exact changed-footprint reference; not linked"));
  $("schematicSelection").textContent=lines.join("\n");
+ if(move)move.click();
+ else{
+  focusedRef=null;
+  update();
+  $("pcbSelectedDetail").hidden=true;
+  for(const button of document.querySelectorAll("#pcbChangePicker button"))
+   button.setAttribute("aria-pressed","false");
+ }
+ selectReviewEvidence(item.evidenceId);
  const nativeAnchor=sch.symbol_anchors?.proposed?.[ref];
  if(nativeAnchor&&Number($("schZoom").value)<200){
   $("schZoom").value="200";$("schZoom").dispatchEvent(new Event("input"));
@@ -558,9 +577,11 @@ function initNativeSchematic(sch){
   " · proposed SHA-256: "+sch.svg.proposed.sha256;
  const list=$("schematicFindingList");
  const entries=[
-  ...sch.changed_values.map(x=>({phase:"Netlist semantic value diff",ref:x.ref,rule:"component_value_changed",
-   severity:"human review required",message:x.ref+": "+x.before+" → "+x.after,coordinate_mm:null})),
-  ...sch.erc_findings_after.map(x=>({...x,phase:"Proposed KiCad ERC"}))
+  ...sch.changed_values.map((x,index)=>({phase:"Netlist semantic value diff",ref:x.ref,rule:"component_value_changed",
+   severity:"human review required",message:x.ref+": "+x.before+" → "+x.after,coordinate_mm:null,
+   evidenceId:"schematic-value:"+index})),
+  ...sch.erc_findings_after.map((x,index)=>({...x,phase:"Proposed KiCad ERC",
+   evidenceId:"schematic-erc:"+index}))
  ];
  $("schematicFindingCount").textContent=sch.erc_findings_after.length+" genuine proposed ERC messages · "+
   sch.changed_values.length+" value changes · source ERC: "+sch.erc_findings_before.length+
@@ -625,17 +646,55 @@ function initPinNetCrossprobe(){
    const move=[...document.querySelectorAll("#pcbChangePicker button")].find(
     node=>node.textContent.startsWith(entry.ref+" ·"));
    if(move)move.click();
-   const itemId="pin-net:"+index;
-   if([...$("auditEvidenceSelect").options].some(x=>x.value===itemId)){
-    $("auditEvidenceSelect").value=itemId;
-    $("auditEvidenceSelect").dispatchEvent(new Event("change"));
-   }
+   selectReviewEvidence("pin-net:"+index);
    // Selection never counts as "inspected": explicit audit action is still required.
    $("pinNetSelected").focus();
   });
   $("pinNetResults").append(button);
  }
 }
+function selectReviewEvidence(id){
+ const selector=$("auditEvidenceSelect");
+ if(!DATA.audit_evidence_catalog.some(item=>item.id===id))return false;
+ if(![...selector.options].some(option=>option.value===id))return false;
+ selector.value=id;
+ selector.dispatchEvent(new Event("change"));
+ return true;
+}
+function showSelectedEvidenceContext(){
+ const selected=$("auditEvidenceSelect").value;
+ const item=DATA.audit_evidence_catalog.find(entry=>entry.id===selected);
+ $("reviewContextStatus").textContent=item?
+  "Selected source evidence "+item.id+" · object "+(item.ref||"not linked")+
+  " · rule "+item.rule+". Selected is NOT inspected or approved.":
+  "No source evidence selected or inspected.";
+}
+function locateSelectedEvidence(){
+ const id=$("auditEvidenceSelect").value;
+ const position=id.lastIndexOf(":");
+ const kind=id.slice(0,position);
+ const index=Number(id.slice(position+1));
+ let target=null;
+ if(Number.isInteger(index)&&index>=0){
+  if(kind==="pcb-change")target=$("pcbChangePicker").querySelectorAll("button")[index];
+  if(kind==="pcb-drc:finding")target=$("drcFindings").querySelectorAll("button")[index];
+  if(kind==="schematic-value")target=$("schematicFindingList").querySelectorAll("button")[index];
+  if(kind==="schematic-erc")target=$("schematicFindingList").querySelectorAll("button")[
+   (DATA.schematic?.changed_values.length||0)+index];
+  if(kind==="pin-net")target=$("pinNetResults").querySelectorAll("button")[index];
+ }
+ if(id==="pcb-drc:summary")target=$("verificationTitle");
+ if(id==="pin-net:summary")target=$("pinNetStatus");
+ if(!target){
+  $("reviewContextStatus").textContent="Exact source record "+id+
+   " is not shown in this bounded native view. Use the evidence catalog; no cross-object match or approval inferred.";
+  return;
+ }
+ target.click();
+ target.focus();
+ target.scrollIntoView({block:"nearest"});
+}
+$("reviewContextLocate").addEventListener("click",locateSelectedEvidence);
 function initAudit(){
  const selector=$("auditEvidenceSelect");
  for(const item of DATA.audit_evidence_catalog){
@@ -643,6 +702,8 @@ function initAudit(){
   opt.textContent=item.id+" · "+(item.ref||item.rule);
   selector.append(opt);
  }
+ selector.addEventListener("change",showSelectedEvidenceContext);
+ showSelectedEvidenceContext();
  auditUpdate();
 }
 $("auditStart").addEventListener("click",()=>{

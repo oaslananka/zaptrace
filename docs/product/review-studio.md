@@ -44,6 +44,10 @@ When editing is needed, Review Studio should send users back to the source EDA t
 
 ### Source-scoped assistant handoff (offline)
 
+An explicit "Locate selected evidence" action also reverses the mapping from the audit catalog to the corresponding native footprint, schematic finding, DRC rule or scoped pin/net row. Records beyond the displayed native limits remain unavailable rather than matching a different object.
+
+Native schematic value and ERC findings now select their corresponding source-bound evidence IDs, focus a changed PCB footprint only where the same reference label exists, and preserve the rule/object context when returning to the unsigned audit and offline assistant request. A label-only link is explicitly not electrical parity. A selected finding does not count as inspected.
+
 From the exact native evidence reference selected for unsigned review, an explicit local action may prepare an explanatory or repair-planning request for a separate engineering assistant. The request contains the original/proposed PCB and review-state hashes, selected native rule/object/reference and bounded source-reported summary. It is selectable text only: no model/API call, clipboard auto-copy, upload, mutation, engineering sign-off or fabrication authority. Choosing a different finding or request type clears the previously prepared text. This is an intermediate contextual handoff, not completed contextual AI integration or validated assistant output.
 
 ### Native offline decision overview

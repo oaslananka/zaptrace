@@ -230,11 +230,39 @@ def test_agent_handoff_requires_selected_evidence_and_does_not_send_or_sign() ->
         '"auditEvidenceSelect").addEventListener("change",clearAgentRequest)',
         "Nothing is transmitted.",
         'selector.dispatchEvent(new Event("change"));',
-        '$("auditEvidenceSelect").dispatchEvent(new Event("change"));',
     ):
         assert expected in template
     assert "fetch(" not in template
     assert "navigator.clipboard" not in template
+
+
+def test_cross_surface_selection_preserves_exact_evidence_id_without_claiming_parity() -> None:
+    """Native schematic findings must resolve the same audit/assistant context."""
+    template = change.TEMPLATE.read_text()
+    for expected in (
+        'id="reviewContextStatus" class="muted" aria-live="polite"',
+        'evidenceId:"schematic-value:"+index',
+        'evidenceId:"schematic-erc:"+index',
+        "selectReviewEvidence(item.evidenceId);",
+        'selectReviewEvidence("pin-net:"+index);',
+        'selectReviewEvidence("pcb-change:"+index);',
+        "selectReviewEvidence(id);",
+        'selector.dispatchEvent(new Event("change"));',
+        'selector.addEventListener("change",showSelectedEvidenceContext);',
+        "Selected is NOT inspected or approved.",
+        'id="reviewContextLocate" class="action" type="button"',
+        'target.scrollIntoView({block:"nearest"});',
+        '("reviewContextLocate").addEventListener("click",locateSelectedEvidence)',
+        '$("pcbSelectedDetail").hidden=true;',
+        "detail.hidden=false;",
+        "no exact changed-footprint reference; not linked",
+        "matching reference label only where native anchors exist; electrical parity NOT VERIFIED.",
+    ):
+        assert expected in template
+    assert "if(move)move.click();" in template
+    assert "if(list.length){" in template
+    assert "No schematic pin/net parity or fabrication authorization is inferred." in template
+    assert template.count("__CHANGE_DATA__") == 1
 
 
 def test_native_pin_net_verdict_is_screen_reader_announced_without_implying_approval() -> None:
