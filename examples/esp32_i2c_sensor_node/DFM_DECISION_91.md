@@ -21,6 +21,13 @@ connections, 66 tracks, 2 vias, 37 → 11 unconnected**, with the same
 16 manufacturability defects by exact rule, object and position.
 The original D1/D2 geometry, constraints, unsent supplier-inquiry scope,
 qualified engineering/DFM hold and no-fabrication decision are **unchanged**.
+A second independent native two-layer R1.1→R2.1 VCC_3V3 review route
+was verified on the same source, adding 3 tracks and two vias: **27
+connections, 69 tracks, 4 vias and 37→10 unconnected**. The 16 defects
+are still identical by native DRC signature. Rejected J1 VBUS attempts
+introduced a short or new pad/hole/soldermask DRC errors and are excluded.
+All routing remains experimental review-only copper.
+
 The table below is the original dated 2026-10-11 decision baseline.
 
 ## Exact evidence and applicability
@@ -157,7 +164,7 @@ review-only PCB or its Gerbers as a manufacturing release.
 |---|---|---|
 | Manufacturing process choice | Named supplier and approved stackup/copper/finish and written DFM answer explicitly covering D1 **and** D2 | **OPEN** — no supplier acceptance |
 | BOM / footprint design choice | Exact orderable ESP32-WROOM-32 lifecycle decision and USB4105 variant or qualified substitutions; digest-pinned 3D, slots, NPTH, pinout and paste geometry | **OPEN** — no redesign or variant approval |
-| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board still 11 unconnected; default 37 |
+| Copper connectivity | Full routed native KiCad PCB with zero real unresolved connectivity breaks, all nets/layers correctly owned; RF keepout preserved | **OPEN** — newest opt-in board still 10 unconnected; default 37 |
 | PCB/assembly electrical assurance | Independent ERC/DRC plus honest strict Proof Pack results; RF antenna/ground return, USB-C CC/shell/ESD/VBUS and LDO power/thermal validation | **OPEN** — ERC 0 but DRC 16, strict Proof 6/2 |
 | Production handoff | Approved final BOM/stackup/DFM, controlled fabrication drill/Gerber package, independent qualified hardware sign-off | **BLOCKED** — no fabrication authorization |
 

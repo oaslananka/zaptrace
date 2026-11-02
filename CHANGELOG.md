@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add an independent two-layer native KiCad 10.0.8 VCC_3V3 pull-up route (R1.1 to R2.1): 27 true net/pad connections, 69 copper tracks and four through-vias reduce physical unconnected 11→10 while preserving all sixteen original DRC manufacturing defects; reject unsafe USB-C VBUS alternatives.
 - Verify a two-layer I2C_SCL review-only U1.36→U2.4 connection with two 0.30 mm drill vias: 26 authentic links, 66 copper segments, and native KiCad 10.0.8 connectivity 37→11; preserve all 16 manufacturing DRC defects, strict Proof Pack failures and fabrication hold. Reject the earlier crossing F.Cu-only candidate.
 - Prepare an unsent Issue #91 supplier DFM inquiry with a reproduced sixteen-item native KiCad 10.0.7 defect matrix, explicit JLCPCB/PCBWay hole/annular-ring and NPTH-to-pad questions, a bounded engineering email draft, written-response log and no-order/no-Gerber disclosure gates. Geometry, design rules and fabrication status remain unchanged.
 - Record the ESP32-WROOM-32 / GCT USB4105 Issue #91 sixteen-defect DFM decision: compare written revision-specific supplier acceptance with qualified geometry/footprint redesign, including via annular-ring trade-offs, original module NRND status, J1 NPTH-to-pad evidence and no-fabrication approval gates. No copper, part, footprint or DRC thresholds are changed.

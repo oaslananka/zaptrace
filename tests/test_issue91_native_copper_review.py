@@ -23,8 +23,8 @@ _DESIGN = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_n
 def test_native_copper_review_has_only_verified_complete_net_terminal_endpoints() -> None:
     design = parse_file(_DESIGN)
     assert design.placement is not None
-    assert len(ROUTES) == 26
-    assert sum(len(route.points) - 1 for route in ROUTES) == 66
+    assert len(ROUTES) == 27
+    assert sum(len(route.points) - 1 for route in ROUTES) == 69
     for route in ROUTES:
         assert route.net in design.nets
         assert route.points[0] == route.source[2]
@@ -133,6 +133,19 @@ def test_independent_native_two_layer_scl_route_retains_exact_via_transitions() 
     assert route.segment_layers == ("F.Cu", "B.Cu", "B.Cu", "B.Cu", "F.Cu")
     assert route.via_points == ((40.0, 28.29), (49.5, 58.975))
     assert len(route.via_points) == 2
+
+
+def test_native_two_layer_3v3_pullup_link_has_actual_pad_and_via_contract() -> None:
+    routes = [
+        route
+        for route in ROUTES
+        if route.net == "VCC_3V3" and route.source[:2] == ("R1", "1") and route.target[:2] == ("R2", "1")
+    ]
+    assert len(routes) == 1
+    route = routes[0]
+    assert route.points == ((53.49, 58.0), (53.1, 58.8), (57.1, 58.8), (57.49, 58.0))
+    assert route.segment_layers == ("F.Cu", "B.Cu", "F.Cu")
+    assert route.via_points == ((53.1, 58.8), (57.1, 58.8))
 
 
 def test_native_drc_result_cannot_hide_new_finding_classes() -> None:
@@ -257,11 +270,11 @@ def test_finalize_rejects_same_count_but_relocated_hole_violation(tmp_path: Path
     before = drills + holes + "[unconnected_items]: gap\n" * 37
     after = drills + holes.replace("@(1, 2): J1 peg", "@(9, 2): new J1 peg", 1)
     # One report entry changes, but the category counts remain exactly equal.
-    after += "[unconnected_items]: gap\n" * 11
+    after += "[unconnected_items]: gap\n" * 10
     (tmp_path / "review.baseline-drc.rpt").write_text(before, encoding="utf-8")
     (tmp_path / "review.review-drc.rpt").write_text(after, encoding="utf-8")
     assert _violations(before) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 37}
-    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 11}
+    assert _violations(after) == {"drill_out_of_range": 12, "hole_clearance": 4, "unconnected_items": 10}
     with pytest.raises(RuntimeError, match="changed physical defect"):
         finalize_review(source, output, "10.0.7")
     assert not output.exists()
