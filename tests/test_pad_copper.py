@@ -21,6 +21,7 @@ from zaptrace.core.models import (
     Pad,
     PadShape,
 )
+from zaptrace.ee.knowledge import KnowledgeBase
 
 
 def _board(
@@ -510,3 +511,94 @@ def test_non_circular_npth_slot_and_nonfinite_pad_geometry_fail_closed() -> None
         pad_cells(Pad(id="1", rotation=float("nan")), (10, 10), 0, 0.5, 80, 80, 0)
     with pytest.raises(ValueError, match="outside"):
         pad_cells(Pad(id="1"), (-3, 10), 0, 0.5, 80, 80, 0)
+
+
+def test_real_esp32_usb_cc_routes_use_geometric_pad_fanout_and_keep_unassigned_contacts_clear() -> None:
+    from pathlib import Path
+
+    from zaptrace.algo.pad_copper import _distance_in_local_shape
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    router = GridRouter(pad_aware=True, max_iterations=50_000)
+    context = router._prepare_route_context(design, design.placement or {})
+    kb = KnowledgeBase()
+
+    for net_id in ("USB_CC1", "USB_CC2"):
+        plan = router._plan_grid_net(design, design.nets[net_id], context, kb)
+        assert plan.success
+        assert len(plan.pad_stubs) == 2
+        assert len(plan.edge_paths) == 1
+        assert plan.width_mm == pytest.approx(0.2)
+        connector_stub = next(stub for stub in plan.pad_stubs if stub[0][0] > 77.0)
+        assert math.dist(*connector_stub) >= 0.5
+
+        # Unassigned connector contacts remain physical obstacles.
+        component = context.component_by_ref["J1"]
+        assert component.footprint_def is not None
+        rotation = context.rotation_by_ref["J1"]
+        pos = context.ref_positions["J1"]
+        for pad_id in ("B7", "B8", "A8", "A9"):
+            pad = next(pad for pad in component.footprint_def.pads if str(pad.id) == pad_id)
+            dx, dy = rotated_offset(*pad.position, rotation)
+            center = (pos[0] + dx, pos[1] + dy)
+            for step in range(21):
+                ratio = step / 20
+                x = connector_stub[0][0] + (connector_stub[1][0] - connector_stub[0][0]) * ratio
+                y = connector_stub[0][1] + (connector_stub[1][1] - connector_stub[0][1]) * ratio
+                angle = math.radians(-(float(pad.rotation) + rotation))
+                px, py = x - center[0], y - center[1]
+                local_x = math.cos(angle) * px + math.sin(angle) * py
+                local_y = -math.sin(angle) * px + math.cos(angle) * py
+                assert _distance_in_local_shape(local_x, local_y, pad) >= 0.25 - 1e-6
+
+    # VBUS retains its full 0.50mm POWER_MED width; do not invent a neck-down.
+    vbus = router._plan_grid_net(design, design.nets["VCC_5V"], context, kb)
+    assert not vbus.success
+    assert vbus.pad_stubs == []
+
+
+def test_real_esp32_pad_fanout_improves_only_physically_proven_nets() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+    from zaptrace.pipeline.physical_route_preflight import verified_route_candidate_safe
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    router = GridRouter(pad_aware=True, max_iterations=50_000, max_ripup_passes=2)
+    result = router.route(design, design.placement or {}, KnowledgeBase())
+    assert result.routed_net_count == 3
+    assert result.net_count == 7
+    assert {trace.net_id for trace in result.traces} == {"USB_CC1", "USB_CC2", "I2C_SCL"}
+    assert len(result.traces) == 27
+    assert result.vias == []
+    assert not verified_route_candidate_safe(design, result, design.placement or {})
+
+
+def test_geometric_pad_escape_only_skips_preexpanded_pad_halo_not_dynamic_copper() -> None:
+    obstacles = ObstacleMap(24, 24, layers=1)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.mark_pad_clearance(GridPos(8, 8), "OTHER")
+    # This option is used only after exact shape-distance validation of a
+    # physical pad stub; it avoids a second raster halo rejecting that stub.
+    obstacles.block_line(
+        GridPos(8, 8),
+        GridPos(8, 8),
+        radius=0,
+        net_id="SIGNAL",
+        geometric_pad_escape=True,
+    )
+    assert obstacles.owner(GridPos(8, 8)) == "SIGNAL"
+
+    obstacles.block_line(GridPos(12, 8), GridPos(12, 8), radius=0, net_id="POWER")
+    with pytest.raises(ValueError, match="Copper clearance"):
+        obstacles.block_line(
+            GridPos(11, 8),
+            GridPos(11, 8),
+            radius=1,
+            net_id="SIGNAL",
+            geometric_pad_escape=True,
+        )

@@ -23,10 +23,18 @@ import math
 from collections import deque
 from dataclasses import dataclass, field
 from functools import total_ordering
+from itertools import product
 from typing import Any
 
 from zaptrace.algo.board_keepout import blocked_profile_cells
-from zaptrace.algo.pad_copper import copper_layers, finished_hole_cells, pad_cells, point_in_pad_copper, rotated_offset
+from zaptrace.algo.pad_copper import (
+    _distance_in_local_shape,
+    copper_layers,
+    finished_hole_cells,
+    pad_cells,
+    point_in_pad_copper,
+    rotated_offset,
+)
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Component, Design, Net, NetClass, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import classify_design, get_net_class
@@ -294,8 +302,22 @@ class ObstacleMap:
             for x in range(x0c, x1c + 1):
                 row[x] = 1
 
-    def block_line(self, p0: GridPos, p1: GridPos, radius: int = 0, *, net_id: str | None = None) -> None:
-        """Reserve an optional net-owned dilated line using Bresenham."""
+    def block_line(
+        self,
+        p0: GridPos,
+        p1: GridPos,
+        radius: int = 0,
+        *,
+        net_id: str | None = None,
+        geometric_pad_escape: bool = False,
+    ) -> None:
+        """Reserve a line; geometric pad escapes may bypass only the pad raster halo.
+
+        ``geometric_pad_escape`` is reserved for the pad-fanout planner, which
+        has already checked the complete centreline against exact pad/hole
+        geometry. Hard raster obstacles and dynamic foreign copper remain
+        fully enforced by the normal reservation checks.
+        """
         dx = abs(p1.x - p0.x)
         sx = 1 if p0.x < p1.x else -1
         dy = -abs(p1.y - p0.y)
@@ -335,7 +357,11 @@ class ObstacleMap:
                 # raster obstacles still receive the full clearance radius.
                 centreline = {GridPos(x, y, p0.layer) for x, y in _bresenham_points(p0.x, p0.y, p1.x, p1.y)}
                 if any(
-                    not self.is_free(point, net_id)
+                    (
+                        self.owner(point) not in (None, net_id)
+                        if geometric_pad_escape
+                        else not self.is_free(point, net_id)
+                    )
                     or any(
                         not self.in_bounds(probe)
                         or self._cells[probe.layer][probe.y][probe.x]
@@ -710,6 +736,242 @@ class GridRouter:
                 return None
         return edge_paths
 
+    def _pad_escape_candidates(
+        self,
+        design: Design,
+        net: Net,
+        node: Any,
+        exact: tuple[float, float],
+        context: _GridRouteContext,
+        kb: KnowledgeBase,
+        layer: int,
+        *,
+        max_distance_mm: float = 2.5,
+        max_candidates: int = 12,
+    ) -> list[tuple[int, int]]:
+        """Find grid anchors reached by a real, clearance-checked pad fan-out.
+
+        The emitted pad stub follows the physical pad centre to the selected
+        anchor. Every foreign copper shape and NPTH hole is checked at its
+        real geometry; the endpoint must also be free in the conservative
+        routing map. No pad, courtyard or obstacle cell is opened.
+        """
+        component = context.component_by_ref.get(node.component_ref)
+        if component is None:
+            return []
+        own_pad = self._pad_for_pin(component, node.pin_name)
+        own_fp = component.footprint_def
+        own_pos = context.ref_positions.get(component.ref)
+        if own_pad is None or own_fp is None or own_pos is None:
+            return []
+        route_class = get_net_class(design, net.id)
+        route_rule = kb.get_rule(route_class)
+        board = canonical_board_definition(design)
+        net_owners: dict[tuple[str, str], str] = {}
+        for candidate_net in design.nets.values():
+            for candidate_node in candidate_net.nodes:
+                candidate_component = context.component_by_ref.get(candidate_node.component_ref)
+                if candidate_component is None or candidate_component.footprint_def is None:
+                    continue
+                aliases = self._pin_aliases(candidate_node.pin_name)
+                if candidate_component.package_pin_map:
+                    aliases.update(
+                        str(pad_id).strip().lower()
+                        for pad_id, logical_pin in candidate_component.package_pin_map.items()
+                        if str(logical_pin).strip().lower() in aliases
+                    )
+                for candidate_pad in candidate_component.footprint_def.pads:
+                    logical_pin = (
+                        candidate_component.package_pin_map.get(candidate_pad.id, candidate_pad.id)
+                        if candidate_component.package_pin_map
+                        else candidate_pad.id
+                    )
+                    if str(logical_pin).strip().lower() in aliases:
+                        net_owners[(candidate_component.ref, str(candidate_pad.id))] = candidate_net.id
+
+        required_by_pad: list[tuple[Any, tuple[float, float], float, bool, float]] = []
+        for other_component in design.components.values():
+            other_fp = other_component.footprint_def
+            other_pos = context.ref_positions.get(other_component.ref)
+            if other_fp is None or other_pos is None:
+                continue
+            other_rotation = context.rotation_by_ref[other_component.ref]
+            for other_pad in other_fp.pads:
+                owner = net_owners.get((other_component.ref, str(other_pad.id)))
+                if owner == net.id:
+                    continue
+                is_npth = bool(other_pad.drill and not other_pad.plated)
+                if not is_npth and layer not in copper_layers(other_pad, context.num_layers):
+                    continue
+                dx, dy = rotated_offset(*other_pad.position, other_rotation)
+                center = (other_pos[0] + dx, other_pos[1] + dy)
+                pad_class_clearance = (
+                    kb.get_clearance(route_class.value, get_net_class(design, owner).value)
+                    if owner in design.nets
+                    else 0.0
+                )
+                clearance = max(board.constraints.min_clearance, route_rule.clearance, pad_class_clearance)
+                required = route_rule.trace_width / 2 + clearance
+                if is_npth and other_pad.drill is not None:
+                    required += float(other_pad.drill) / 2
+                required_by_pad.append((other_pad, center, required, is_npth, other_rotation))
+
+        candidates: list[tuple[float, int, int]] = []
+        radius_cells = int(math.ceil(max_distance_mm / self.resolution))
+        samples_per_mm = max(20, int(math.ceil(1.0 / self.resolution * 8)))
+        for gx in range(
+            max(1, round(exact[0] / self.resolution) - radius_cells),
+            min(context.grid_w - 1, round(exact[0] / self.resolution) + radius_cells + 1),
+        ):
+            for gy in range(
+                max(1, round(exact[1] / self.resolution) - radius_cells),
+                min(context.grid_h - 1, round(exact[1] / self.resolution) + radius_cells + 1),
+            ):
+                endpoint = (gx * self.resolution, gy * self.resolution)
+                length = math.dist(exact, endpoint)
+                if length < 0.5 or length > max_distance_mm:
+                    continue
+                if point_in_pad_copper(own_pad, exact, endpoint, context.rotation_by_ref[component.ref]):
+                    continue
+                anchor = GridPos(gx, gy, layer)
+                if not context.obstacles.is_free(anchor, net.id):
+                    continue
+                legal = True
+                sample_count = max(2, int(math.ceil(length * samples_per_mm)))
+                for step in range(1, sample_count + 1):
+                    ratio = step / sample_count
+                    x = exact[0] + (endpoint[0] - exact[0]) * ratio
+                    y = exact[1] + (endpoint[1] - exact[1]) * ratio
+                    sample_grid = GridPos(
+                        int(round(x / self.resolution)),
+                        int(round(y / self.resolution)),
+                        layer,
+                    )
+                    if (
+                        not context.obstacles.in_bounds(sample_grid)
+                        or context.obstacles._cells[layer][sample_grid.y][sample_grid.x]
+                        or context.obstacles.owner(sample_grid) not in (None, net.id)
+                    ):
+                        legal = False
+                        break
+                    for other_pad, center, required, is_npth, other_rotation in required_by_pad:
+                        dx, dy = x - center[0], y - center[1]
+                        if is_npth:
+                            drill = float(other_pad.drill or 0.0)
+                            distance = math.hypot(dx, dy) - drill / 2
+                        else:
+                            angle = math.radians(-(float(other_pad.rotation) + other_rotation))
+                            local_x = math.cos(angle) * dx + math.sin(angle) * dy
+                            local_y = -math.sin(angle) * dx + math.cos(angle) * dy
+                            distance = _distance_in_local_shape(local_x, local_y, other_pad)
+                        if distance + 1e-6 < required:
+                            legal = False
+                            break
+                    if not legal:
+                        break
+                if legal:
+                    candidates.append((length, gx, gy))
+        candidates.sort()
+        return [(gx, gy) for _, gx, gy in candidates[:max_candidates]]
+
+    def _try_pad_fanout(
+        self,
+        design: Design,
+        net: Net,
+        context: _GridRouteContext,
+        kb: KnowledgeBase,
+        layer: int,
+        clear_cells: int,
+        rule: Any,
+    ) -> tuple[list[list[GridPos]], list[tuple[tuple[float, float], tuple[float, float]]]] | None:
+        """Try exact geometric pad stubs before continuing A* between anchors."""
+        if len(net.nodes) != 2:
+            # Multi-terminal fanout needs a bounded Steiner/escape search;
+            # do not fan out combinatorially in the per-net A* hot path.
+            return None
+        exact_points = self._collect_net_route_points(net, context)
+        if len(exact_points) != len(net.nodes):
+            return None
+        candidate_sets: list[list[tuple[int, int]]] = []
+        max_anchors = 12
+        for node, exact in zip(net.nodes, exact_points, strict=True):
+            candidates: list[tuple[int, int]] = []
+            direct = self._to_grid_point(exact, context)
+            direct_pad = self._pad_for_pin(context.component_by_ref[node.component_ref], node.pin_name)
+            snapped = (direct[0] * self.resolution, direct[1] * self.resolution)
+            if (
+                direct_pad is not None
+                and point_in_pad_copper(
+                    direct_pad,
+                    exact,
+                    snapped,
+                    context.rotation_by_ref[node.component_ref],
+                )
+                and context.obstacles.is_free(GridPos(*direct, layer), net.id)
+            ):
+                candidates.append(direct)
+            candidates.extend(
+                self._pad_escape_candidates(
+                    design,
+                    net,
+                    node,
+                    exact,
+                    context,
+                    kb,
+                    layer,
+                    max_candidates=max_anchors - 1,
+                )
+            )
+            candidate_sets.append(list(dict.fromkeys(candidates[:max_anchors])))
+        if any(not candidates for candidates in candidate_sets):
+            return None
+
+        # Two-terminal fanout is bounded by the candidate cap above. A
+        # multi-terminal Steiner search is intentionally out of scope here.
+        for selected in product(*candidate_sets):
+            staged = context.obstacles.clone()
+            anchors = [GridPos(*point, layer) for point in selected]
+            grid_sources = [GridPos(*self._to_grid_point(exact, context), layer) for exact in exact_points]
+            try:
+                for source, anchor in zip(grid_sources, anchors, strict=True):
+                    staged.block_line(
+                        source,
+                        anchor,
+                        clear_cells,
+                        net_id=net.id,
+                        geometric_pad_escape=True,
+                    )
+            except ValueError:
+                continue
+            staged_context = _GridRouteContext(
+                obstacles=staged,
+                grid_w=context.grid_w,
+                grid_h=context.grid_h,
+                num_layers=context.num_layers,
+                ref_positions=context.ref_positions,
+                component_by_ref=context.component_by_ref,
+                via_pad=context.via_pad,
+                via_hole=context.via_hole,
+                rotation_by_ref=context.rotation_by_ref,
+            )
+            paths = self._route_mst_paths(
+                staged_context,
+                list(selected),
+                layer,
+                clear_cells,
+                net.id,
+                max_vias=rule.max_vias,
+            )
+            if paths is not None:
+                stubs = [
+                    (exact, (point[0] * self.resolution, point[1] * self.resolution))
+                    for exact, point in zip(exact_points, selected, strict=True)
+                    if math.dist(exact, (point[0] * self.resolution, point[1] * self.resolution)) > 1e-6
+                ]
+                context.obstacles = staged_context.obstacles
+                return paths, stubs
+        return None
+
     def _plan_grid_net(
         self,
         design: Design,
@@ -797,6 +1059,10 @@ class GridRouter:
         )
         if edge_paths is not None:
             context.obstacles = staged
+        elif self.pad_aware and len(net.nodes) == 2:
+            fanout = self._try_pad_fanout(design, net, context, kb, layer, clear_cells, rule)
+            if fanout is not None:
+                edge_paths, pad_stubs = fanout
         return _GridNetPlan(
             True,
             edge_paths is not None,
