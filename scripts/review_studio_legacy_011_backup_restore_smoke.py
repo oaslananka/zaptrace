@@ -28,11 +28,17 @@ def digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def write_fresh_backup(path: Path, archive: bytes) -> None:
-    """Export to a new file only, never follow an existing backup symlink."""
-    if path.suffix != ".zip" or len(archive) > 34 * 1024 * 1024:
+def write_fresh_backup(path: Path, archive: bytes, *, workspace: Path) -> None:
+    """Create the exact backup leaf beside the disposable acceptance workspace."""
+    root = workspace.parent.resolve(strict=True)
+    if path.suffix != ".zip" or path.parent.resolve(strict=True) != root:
+        raise ValueError("ZIP backup must stay beside the disposable acceptance workspace")
+    if len(archive) > 34 * 1024 * 1024:
         raise ValueError("Expected a bounded local ZIP backup destination")
-    with path.open("xb") as stream:
+    # Build the filesystem target from a verified directory and basename,
+    # without following any existing symlink at the destination.
+    target = root / path.name
+    with target.open("xb") as stream:
         stream.write(archive)
 
 
@@ -132,7 +138,7 @@ def main() -> None:
                 assert zipped.read("selected-input-copies/source.kicad_pcb") == board
                 assert "review/evidence.json" in zipped.namelist()
                 assert "README-LOCAL-BACKUP.txt" in zipped.namelist()
-            write_fresh_backup(args.backup, archive)
+            write_fresh_backup(args.backup, archive, workspace=args.workspace)
             print("REAL_011_LEGACY_PRIVATE_ZIP_SHA256=" + digest(archive), flush=True)
             print("REAL_011_LEGACY_NATIVE_SOURCE_SHA256=" + sha, flush=True)
             print("REAL_011_LEGACY_PRIVATE_ZIP_EXPORT_WITH_KICAD: PASS", flush=True)

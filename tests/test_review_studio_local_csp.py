@@ -29,6 +29,28 @@ def test_generated_inline_blocks_are_content_hash_bound() -> None:
     assert "__CSP__" not in rendered
 
 
+def test_html_parser_accepts_browser_valid_script_end_tag_whitespace() -> None:
+    template = '<meta content="__CSP__"><style>body{color:white}</style><script>const count = 2 < 4;</script   >'
+    rendered = apply_offline_csp(template)
+    digest = base64.b64encode(hashlib.sha256(b"const count = 2 < 4;").digest()).decode()
+    assert f"'sha256-{digest}'" in rendered
+
+
+@pytest.mark.parametrize(
+    "untrusted_markup",
+    [
+        '<div STYLE="color:red"></div>',
+        '<button onClick="run()">Open</button>',
+        '<div style = "color:red"></div>',
+        '<script src="remote.js"></script>',
+    ],
+)
+def test_inline_attributes_and_external_scripts_are_forbidden(untrusted_markup: str) -> None:
+    html = '<meta content="__CSP__"><style>body{color:white}</style>' + untrusted_markup
+    with pytest.raises(ValueError):
+        apply_offline_csp(html)
+
+
 def test_generated_content_changes_csp_hash() -> None:
     template = '<meta content="__CSP__"><style>body{color:white}</style>'
     assert apply_offline_csp(template) != apply_offline_csp(template.replace("white", "black"))

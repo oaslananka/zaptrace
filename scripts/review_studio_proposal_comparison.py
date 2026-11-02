@@ -23,15 +23,16 @@ from review_studio_local_file_guard import read_regular_bytes
 def compare_saved_reviews(inputs: list[Path], output: Path) -> dict:
     if not 2 <= len(inputs) <= 8:
         raise ValueError("Comparison requires 2–8 independent saved native reviews")
-    if (
-        output.exists()
-        or output.is_symlink()
-        or output.with_suffix(".json").exists()
-        or output.with_suffix(".json").is_symlink()
-        or not output.parent.is_dir()
-    ):
+    if output.suffix.lower() != ".html" or not output.parent.is_dir() or output.parent.is_symlink():
         raise ValueError("Choose a fresh HTML/JSON index in an existing directory")
-    parent = output.parent.resolve(strict=True)
+    parent = inputs[0].parent.resolve(strict=True)
+    if parent != output.parent.resolve(strict=True):
+        raise ValueError("Comparison index must share the saved native-review directory")
+    # Only use a validated basename in the common native-review directory.
+    target = parent / output.name
+    summary_target = target.with_suffix(".json")
+    if target.exists() or target.is_symlink() or summary_target.exists() or summary_target.is_symlink():
+        raise ValueError("Choose a fresh HTML/JSON index in an existing directory")
     common = None
     options: list[dict] = []
     seen_states: set[str] = set()
@@ -168,9 +169,9 @@ review and recheck its evidence and source inputs before relying on a decision.<
     }
     # Exclusive creation prevents an attacker from replacing a checked absent
     # output with a symlink or existing file before the actual write.
-    with output.open("x", encoding="utf-8") as stream:
+    with target.open("x", encoding="utf-8") as stream:
         stream.write(page)
-    with output.with_suffix(".json").open("x", encoding="utf-8") as stream:
+    with summary_target.open("x", encoding="utf-8") as stream:
         stream.write(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     return summary
 

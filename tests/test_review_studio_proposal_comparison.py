@@ -113,6 +113,20 @@ def test_no_false_multiple_proposals_or_escaping_directories(tmp_path: Path) -> 
         alternatives.compare_saved_reviews([a, b], tmp_path / "two.html")
 
 
+def test_unsigned_comparison_index_must_share_the_saved_reviews_directory(tmp_path: Path) -> None:
+    a, b = (_create_review(tmp_path, n) for n in (1, 2))
+    outside = tmp_path / "other"
+    outside.mkdir()
+    forbidden = outside / "INDEX.html"
+    with pytest.raises(ValueError, match="share the saved native-review directory"):
+        alternatives.compare_saved_reviews([a, b], forbidden)
+    assert not forbidden.exists()
+
+    with pytest.raises(ValueError, match="fresh HTML/JSON index"):
+        alternatives.compare_saved_reviews([a, b], tmp_path / "INDEX.txt")
+    assert not (tmp_path / "INDEX.txt").exists()
+
+
 def test_canonical_hash_prevents_hidden_mutation_of_common_original(tmp_path: Path) -> None:
     a, b = (_create_review(tmp_path, n) for n in (1, 2))
     state = json.loads(b.read_text())
