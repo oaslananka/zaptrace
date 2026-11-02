@@ -19,54 +19,66 @@ from urllib.parse import quote
 from review_studio_change_diff import canonical_decision_hash
 from review_studio_local_file_guard import read_regular_bytes
 
+NOT_CHECKED = "NOT CHECKED"
+
+
+def _validated_rows(rows: object, fields: tuple[str, ...], kind: str) -> list[dict] | None:
+    if rows is None:
+        return None
+    if not isinstance(rows, list):
+        raise ValueError(f"Invalid native {kind} finding details")
+    for item in rows:
+        if not isinstance(item, dict) or any(not isinstance(item.get(key), str) for key in fields):
+            raise ValueError(f"Invalid native {kind} finding details")
+    return rows
+
+
+def _scoped_pin_counts(review: dict) -> dict | None:
+    cp = review.get("crossprobe")
+    counts = cp.get("totals") if isinstance(cp, dict) else None
+    if counts is None:
+        return None
+    if not isinstance(counts, dict) or any(
+        type(counts.get(key)) is not int or counts[key] < 0 for key in ("matched", "mismatch", "unverifiable")
+    ):
+        raise ValueError("Invalid native scoped pin/net counts")
+    return counts
+
 
 def summarize_native_risk(review: dict) -> dict:
     """Report source-bound KiCad findings, never a winner or engineering approval."""
     drc = review["drc"]
-    rows = drc.get("reported_findings")
-    if rows is not None and (
-        not isinstance(rows, list)
-        or any(
-            not isinstance(x, dict) or any(not isinstance(x.get(k), str) for k in ("rule", "severity", "description"))
-            for x in rows
-        )
-    ):
-        raise ValueError("Invalid native DRC finding details")
+    rows = _validated_rows(drc.get("reported_findings"), ("rule", "severity", "description"), "DRC")
     schematic = review.get("schematic")
-    erc = schematic.get("erc_findings_after") if schematic else None
-    if erc is not None and (
-        not isinstance(erc, list) or any(not isinstance(x, dict) or not isinstance(x.get("severity"), str) for x in erc)
-    ):
-        raise ValueError("Invalid native ERC finding details")
-    cp = review.get("crossprobe")
-    counts = cp.get("totals") if isinstance(cp, dict) else None
-    if counts is not None and (
-        not isinstance(counts, dict)
-        or any(type(counts.get(k)) is not int or counts[k] < 0 for k in ("matched", "mismatch", "unverifiable"))
-    ):
-        raise ValueError("Invalid native scoped pin/net counts")
+    erc = _validated_rows(schematic.get("erc_findings_after") if schematic else None, ("severity",), "ERC")
+    counts = _scoped_pin_counts(review)
+    if counts is None:
+        pin_status = NOT_CHECKED
+    elif counts["mismatch"]:
+        pin_status = "MISMATCH"
+    elif counts["unverifiable"]:
+        pin_status = "UNVERIFIABLE"
+    else:
+        pin_status = "SCOPED MATCH · NOT FULL PARITY"
+    erc_errors = None
+    erc_warnings = None
+    if erc is not None:
+        erc_errors = sum(item["severity"].lower() == "error" for item in erc)
+        erc_warnings = sum(item["severity"].lower() == "warning" for item in erc)
     return {
         "drc_new": drc["new_drc_rules"],
         "drc_remaining": drc["after_rules"],
         "open_connections": drc["after_open"],
         "native_findings": [
-            {"rule": x["rule"], "severity": x["severity"], "description": x["description"][:240]}
-            for x in (rows or [])[:3]
+            {"rule": item["rule"], "severity": item["severity"], "description": item["description"][:240]}
+            for item in (rows or [])[:3]
         ],
         "native_findings_unavailable": rows is None and drc["after_rules"] > 0,
         "native_findings_omitted": drc.get("omitted_findings", 0) + max(0, len(rows or []) - 3),
-        "schematic_status": "NOT CHECKED" if schematic is None else "NATIVE ERC REPORTED · NOT APPROVED",
-        "erc_errors": sum(x["severity"].lower() == "error" for x in erc) if erc is not None else None,
-        "erc_warnings": sum(x["severity"].lower() == "warning" for x in erc) if erc is not None else None,
-        "pin_net_status": (
-            "NOT CHECKED"
-            if counts is None
-            else "MISMATCH"
-            if counts["mismatch"]
-            else "UNVERIFIABLE"
-            if counts["unverifiable"]
-            else "SCOPED MATCH · NOT FULL PARITY"
-        ),
+        "schematic_status": NOT_CHECKED if schematic is None else "NATIVE ERC REPORTED · NOT APPROVED",
+        "erc_errors": erc_errors,
+        "erc_warnings": erc_warnings,
+        "pin_net_status": pin_status,
         "pin_net_totals": counts,
     }
 
@@ -201,13 +213,12 @@ def compare_saved_reviews(inputs: list[Path], output: Path) -> dict:
         )
         if risk["native_findings_omitted"]:
             finding_list += f"<li>{risk['native_findings_omitted']} more native findings not shown</li>"
-        erc_status = (
-            "NOT CHECKED"
-            if risk["schematic_status"] == "NOT CHECKED"
-            else "NOT AVAILABLE in this saved state"
-            if risk["erc_errors"] is None
-            else f"{risk['erc_errors']} errors, {risk['erc_warnings']} warnings reported"
-        )
+        if risk["schematic_status"] == NOT_CHECKED:
+            erc_status = NOT_CHECKED
+        elif risk["erc_errors"] is None:
+            erc_status = "NOT AVAILABLE in this saved state"
+        else:
+            erc_status = f"{risk['erc_errors']} errors, {risk['erc_warnings']} warnings reported"
         counts = risk["pin_net_totals"]
         pin_counts = (
             f" · {counts['mismatch']} mismatched, {counts['unverifiable']} unverifiable, {counts['matched']} matched"
