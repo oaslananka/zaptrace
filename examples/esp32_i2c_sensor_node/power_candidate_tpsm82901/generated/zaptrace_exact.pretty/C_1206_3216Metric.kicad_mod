@@ -6,7 +6,7 @@
 	(property "Reference" "C1"
 		(at 0 -2 0)
 		(layer "F.SilkS")
-		(uuid "098d2feb-fa2e-4cd9-985b-963bcf0a80f3")
+		(uuid "5d2fc3fb-a71e-48fc-9c36-c5a95dacabed")
 		(effects
 			(font
 				(size 1 1)
@@ -17,7 +17,7 @@
 	(property "Value" "10uF 25V X7R TDK C3216X7R1E106K160AE"
 		(at 0 3 0)
 		(layer "F.Fab")
-		(uuid "a20f127e-92f1-420e-a1e2-01203801d36f")
+		(uuid "6c46a0ef-4b14-4625-91ba-0fc00ee6c4f3")
 		(effects
 			(font
 				(size 1 1)
@@ -29,7 +29,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "b5ebc6f6-028e-49fc-8634-c2dfd4e83e20")
+		(uuid "3fe95a75-9102-40b6-8aa0-431196f2cf23")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -40,7 +40,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "5c08a51f-6ffd-4ef1-92d8-bb5479cb6364")
+		(uuid "2fdd6d3d-2cba-4559-8608-c6374fc0569a")
 		(effects
 			(font
 				(size 1.27 1.27)

@@ -442,6 +442,79 @@ References: [TI TPSM82901 datasheet](https://www.ti.com/lit/ds/symlink/tpsm82901
 [TI TPSM8290x EVM user's guide](https://www.ti.com/lit/ug/snvu796/snvu796.pdf),
 [TI product/orderable details](https://www.ti.com/product/TPSM82901).
 
+## TPSM82901SISR land-pattern and placement correction — 2026-11-03
+
+A deeper comparison against the TI SIS0011A package drawing found the first
+local draft too simplistic. Its ten perimeter lands had all been made the
+same 0.55 × 0.25 mm size and the exposed pad was 0.9 × 2.1 mm. This did not
+match the manufacturer drawing.
+
+The isolated candidate footprint has now been corrected to the TI example:
+- 10 perimeter lands, each 0.55 mm long; four corner lands 0.575 mm wide,
+  six middle lands 0.25 mm wide.
+- Inner pad pitch 0.5 mm; outer pin 1-to-5 / pin 10-to-6 center span
+  2.325 mm; horizontal side-to-side spacing 2.15 mm.
+- Center exposed pad 0.9 × 2.15 mm.
+- Solder-mask-defined example with nominal 0.05 mm mask encroachment. Two
+  split paste windows are an 80%-area local approximation; exact stencil
+  aperture/assembly tolerances remain review items.
+- TI drawing shows three optional 0.2 mm thermal-via locations inside the
+  exposed pad. They are deliberately not drilled in this candidate: TI says
+  vias under paste should be filled, plugged or tented, and the assembly
+  process has not been defined. No board rule was relaxed.
+
+At this intermediate checkpoint the passive placement had been compacted,
+but no copper had yet been routed. The subsequent section below records the
+later native copper/zone prototype and its actual DRC/ERC results; it does
+not retroactively qualify thermal or EMI performance.
+
+References: TI TPSM82901 datasheet SLVSG68 Figure 10-3 SIS0011A land-pattern
+example, Figure 10-4 stencil example and Section 8.5 / Figure 8-61 layout
+guidance; TI TPSM8290x EVM User Guide SNVU796 Figures 5-1 to 5-5.
+
+## TPSM82901SISR first native copper/layout prototype — 2026-11-03
+
+The isolated power_candidate_tpsm82901/ review board has advanced from an
+unrouted pinout proof into a first native copper topology. It remains
+separate from the active ESP32 source design and router/default pipeline.
+
+- Four copper layers are explicitly enabled: F.Cu, In1.Cu, In2.Cu and B.Cu.
+  A GND zone is present on all four layers; local VIN and VOUT top-layer
+  copper regions and In1.Cu spreading islands tie into the relevant pads.
+- Local placement has CIN adjacent to VIN, COUT adjacent to VOUT, FB/CFF
+  near FB, MODE resistor facing MODE/S-CONF, and SS capacitor facing SS/TR.
+  Symmetric non-polar 0603 resistor/capacitor footprint variants reverse the
+  logical pad numbering only; their copper geometries are unchanged.
+- The prototype includes **15 track segments and 10 through-vias** (0.60 mm
+  copper / 0.30 mm finished drill). The boundary VIN/3V3 feeds, local signal
+  routes and PG return are connected. Native KiCad 10.0.8 reports **0 PCB DRC
+  violations / 0 unconnected items**.
+- Review designators are visible on F.Fab, not on F.Silkscreen; they remain
+  readable without adding text to the switching-power solder-mask area.
+- An all-copper-layer keepout around SW/NC pad 8 forbids tracks, vias and zone
+  fills; the pad itself remains present and has no net/copper connection.
+  Native KiCad ERC now reports **0 errors / 0 warnings** after snapping the
+  symbol pin/wire endpoints to the 1.27 mm grid, aligning embedded/global
+  footprint references, and representing the internally-paralleled VOUT
+  pin pair without a false output-to-output ERC finding. Both physical U3
+  VOUT pads remain on VCC_3V3 in the PCB.
+- The three optional 0.2 mm TI thermal-via positions beneath exposed pad 11
+  are still not drilled. Current repository rules require at least 0.30 mm
+  finished drill, and TI requires vias under paste to be filled, plugged or
+  tented. No rule was relaxed and no unapproved via-in-pad construction was
+  introduced.
+- This remains a first-pass electrical/layout topology, not bench evidence:
+  no regulated-output measurement, load-step/transient test, input-current
+  measurement at 5 V, thermal simulation/measurement, conducted/radiated EMI
+  or assembly trial has been performed. Thermal planes and vias improve the
+  prototype's structure but do not constitute thermal qualification.
+
+Decision: keep the buck prototype isolated and review-only. The active
+source design, its U3, widths and default pipeline remain unchanged. Before
+adopting it, complete actual board-current budgeting, cap effective-value
+checks under DC bias, switching-loop/FB review, thermal and RF analysis, and
+bench validation at the expected input/load envelope.
+
 ## Exact evidence and applicability
 
 Evidence baseline: Draft [PR #119](https://github.com/oaslananka/zaptrace/pull/119)

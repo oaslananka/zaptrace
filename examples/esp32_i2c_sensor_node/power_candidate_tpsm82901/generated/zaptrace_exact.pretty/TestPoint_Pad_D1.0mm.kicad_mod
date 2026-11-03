@@ -8,7 +8,7 @@
 	(property "Reference" "TP_IN"
 		(at 0 -1.448 0)
 		(layer "F.SilkS")
-		(uuid "44ff9760-d747-43ba-8c31-20d780fdbd6f")
+		(uuid "e3755b68-5453-4cb4-8254-0a574f864397")
 		(effects
 			(font
 				(size 1 1)
@@ -19,7 +19,7 @@
 	(property "Value" "VIN boundary"
 		(at 0 1.55 0)
 		(layer "F.Fab")
-		(uuid "42e1b445-838d-4a25-8568-f7ba8ff42108")
+		(uuid "7ad53b63-7562-4f7c-9886-5ede77e8ed52")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "d2e80789-a83e-4b3f-b00e-4d8285a57755")
+		(uuid "7408d3ad-0a70-4b3c-bb8d-ed34d2befc87")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -45,7 +45,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "eb9fcad8-7057-400b-80c0-fbef2e2c4baa")
+		(uuid "e71988a3-38b4-44de-b2ce-2fd0199c148b")
 		(effects
 			(font
 				(size 1.27 1.27)

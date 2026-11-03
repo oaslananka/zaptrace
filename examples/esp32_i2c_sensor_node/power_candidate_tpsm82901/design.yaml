@@ -1,9 +1,9 @@
 meta:
   name: ESP32 Sensor Node — TPSM82901 Review-Only Power Stage
   version: 0.1.0-review-only
-  description: Four-layer isolated review candidate for TPSM82901SISR using TI TPSM82901EVM
-    BSR188-001 values. Initial non-overlapping placement only; detailed power-loop
-    placement, routing and thermal vias are not designed.
+  description: Four-layer isolated TPSM82901SISR candidate with TI package land dimensions,
+    EVM values, compact passive placement and first-pass current/thermal copper topology.
+    Not yet electrically, EMI or thermally qualified.
   tags:
   - power
   - buck
@@ -16,11 +16,11 @@ board:
   layers: 4
 placement:
   TP_IN:
-  - 4
-  - 10
+  - 3
+  - 12
   TP_OUT:
-  - 36
-  - 10
+  - 37
+  - 12
   TP_GND:
   - 20
   - 27
@@ -28,29 +28,29 @@ placement:
   - 20
   - 14
   C1:
-  - 14
-  - 10
+  - 16.4
+  - 12.8
   C2:
-  - 26
-  - 10
+  - 23.0
+  - 12.8
   R1:
-  - 28
-  - 14
+  - 26.0
+  - 14.0
   R2:
-  - 28
-  - 18
+  - 25.0
+  - 17.0
   R3:
-  - 12
-  - 18
+  - 17.2
+  - 14.5
   C3:
-  - 24
-  - 18
+  - 22.5
+  - 16.5
   C4:
-  - 15
-  - 22
+  - 17.2
+  - 16.5
   R4:
-  - 25
-  - 22
+  - 26.5
+  - 18.5
 components:
   TP_IN:
     id: TP_IN
@@ -109,17 +109,20 @@ components:
       switching_frequency_hz: 2500000
       mode: Auto PFM/PWM with AEE
       reference_design: TI TPSM82901EVM BSR188-001
-      land_pattern_status: draft, derived from TI SIS0011A example board layout
+      land_pattern_status: DRAFT; perimeter pad dimensions and center thermal land
+        reconciled to TI example drawing; stencil split is approximate; optional thermal
+        vias not yet added
       fb_mode: external feedback
       vout_calculated_v: 3.322892
       mode_setting: '7.15k to GND: 2.5MHz Auto PFM/PWM with AEE; output discharge
         disabled'
       sw_nc_pad: '8: intentionally unconnected'
       exposed_ground_pad: '11: solder to common ground plane'
-      thermal_layout_status: four-layer candidate; thermal vias and planes not yet
-        implemented
-      placement_status: non-overlapping review placeholder; not final power-stage
-        placement
+      thermal_layout_status: four copper layers with GND reference zones, local VIN/VOUT
+        copper and GND stitching vias implemented; optional exposed-pad thermal vias
+        omitted pending filled/plugged/tented assembly definition; not thermally qualified
+      placement_status: compact first-pass aligned to TI layout example; detailed
+        current loops/EMI/thermal acceptance still open
     package_pin_map:
       '1': VIN_A
       '2': VIN_B
@@ -177,10 +180,10 @@ components:
     pins:
       P1:
         type: passive
-        net: VCC_5V
+        net: GND
       P2:
         type: passive
-        net: GND
+        net: VCC_5V
   C2:
     id: C2
     ref: C2
@@ -232,9 +235,9 @@ components:
   R3:
     id: R3
     ref: R3
-    type: R_0603_1608Metric
+    type: R_0603_Mode_Rev
     value: 7.15k 1%
-    footprint: '0603'
+    footprint: zaptrace:R_0603_Mode_Rev
     package_pin_map:
       '1': P1
       '2': P2
@@ -264,9 +267,9 @@ components:
   C4:
     id: C4
     ref: C4
-    type: C_0603_1608Metric
+    type: C_0603_SS_Rev
     value: 3.3nF (EVM SS/TR capacitor)
-    footprint: '0603'
+    footprint: zaptrace:C_0603_SS_Rev
     package_pin_map:
       '1': P1
       '2': P2
@@ -303,7 +306,7 @@ nets:
     - U3.VIN_A
     - U3.VIN_B
     - U3.EN
-    - C1.P1
+    - C1.P2
   VCC_3V3:
     id: VCC_3V3
     name: VCC_3V3
@@ -323,11 +326,11 @@ nets:
     nodes:
     - TP_GND.P1
     - U3.GND
-    - C1.P2
     - C2.P2
     - R2.P2
     - R3.P2
     - C4.P2
+    - C1.P1
   FB_NODE:
     id: FB_NODE
     name: FB_NODE

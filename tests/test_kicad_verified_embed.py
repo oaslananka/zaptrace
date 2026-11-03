@@ -126,4 +126,4 @@ def test_heatsink_pad_enum_is_unquoted_for_native_kicad_parser(tmp_path: Path) -
     assert board_text.count("(property pad_prop_heatsink)") == vendor_count
     assert '(property "pad_prop_heatsink")' not in board_text
     assert board_text.count('(property "Reference" "U1"') == 1
-    assert board_text.count('(property "Value" "ESP32-WROOM-32"') == 1
+    assert board_text.count('(property "Value" "ESP32-WROOM-32E"') == 1
