@@ -154,3 +154,41 @@ def test_tpsm82901_review_board_keeps_all_reference_labels_visible_on_fab() -> N
         assert layers == [["layer", "F.Fab"]]
         assert not any(isinstance(item, list) and item[:2] == ["hide", "yes"] for item in reference[3:])
     assert references == {"U3", "C1", "C2", "C3", "C4", "R1", "R2", "R3", "R4", "TP_IN", "TP_OUT", "TP_GND"}
+
+
+def test_tpsm82901_candidate_has_near_exposed_pad_ground_stitch_via() -> None:
+    from zaptrace.io.sexp import parse
+
+    board_path = CANDIDATE / "generated" / "ESP32_Sensor_Node_TPSM82901_Review-Only_Power_Stage.kicad_pcb"
+    board = parse(board_path.read_text(encoding="utf-8"))
+    vias = [item for item in board[1:] if isinstance(item, list) and item and item[0] == "via"]
+    assert len(vias) == 11
+    thermal_stitches = []
+    for via in vias:
+        fields = {item[0]: item[1:] for item in via[1:] if isinstance(item, list) and item}
+        if fields.get("net") == ["GND"] and fields.get("at") == ["20", "15.8"]:
+            thermal_stitches.append(fields)
+    assert len(thermal_stitches) == 1
+    assert thermal_stitches[0]["size"] == ["0.6"]
+    assert thermal_stitches[0]["drill"] == ["0.3"]
+    assert thermal_stitches[0]["layers"] == ["F.Cu", "B.Cu"]
+
+
+def test_tpsm82901_power_review_matches_active_esp32_source_power_entry() -> None:
+    import math
+
+    source = parse_file(ROOT / "examples" / "esp32_i2c_sensor_node" / "design.yaml")
+    assert source.placement is not None
+    assert source.components["C3"].value == "100nF"
+    assert source.components["C3"].pins["P1"].net == "VCC_5V"
+    assert source.components["D1"].type == "PESD5V0S1BA"
+    assert source.components["C2"].value == "10uF"
+    assert source.components["C1"].value == "100nF"
+    assert math.dist(source.placement["U1"], source.placement["C2"]) > 26.0
+    assert math.dist(source.placement["U1"], source.placement["C1"]) > 25.0
+    assert math.dist(source.placement["J1"], source.placement["U3"]) > 34.0
+
+    decision = (ROOT / "examples" / "esp32_i2c_sensor_node" / "DFM_DECISION_91.md").read_text(encoding="utf-8")
+    assert "no 10 µF nominal" in decision
+    assert "26.9 mm / 26.0 mm" in decision
+    assert "active source design is unchanged" in decision

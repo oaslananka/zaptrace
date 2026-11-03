@@ -119,10 +119,16 @@ components:
       sw_nc_pad: '8: intentionally unconnected'
       exposed_ground_pad: '11: solder to common ground plane'
       thermal_layout_status: four copper layers with GND reference zones, local VIN/VOUT
-        copper and GND stitching vias implemented; optional exposed-pad thermal vias
-        omitted pending filled/plugged/tented assembly definition; not thermally qualified
+        copper, GND stitching vias and one extra GND via at (20.0, 15.8) adjacent
+        to exposed pad 11; via is outside the EP land/paste aperture; optional 0.2
+        mm via-in-pad pattern omitted pending assembly definition; copper weight is
+        unspecified; not thermally qualified
       placement_status: compact first-pass aligned to TI layout example; detailed
         current loops/EMI/thermal acceptance still open
+      power_budget_status: 1 A is converter rating, not available USB-C board current;
+        5 V input budget and Type-C source current advertisement are not measured
+        or monitored; effective input/output capacitance under DC bias and temperature
+        remains to be qualified
     package_pin_map:
       '1': VIN_A
       '2': VIN_B

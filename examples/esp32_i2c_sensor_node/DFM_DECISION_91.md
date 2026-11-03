@@ -485,10 +485,12 @@ separate from the active ESP32 source design and router/default pipeline.
   near FB, MODE resistor facing MODE/S-CONF, and SS capacitor facing SS/TR.
   Symmetric non-polar 0603 resistor/capacitor footprint variants reverse the
   logical pad numbering only; their copper geometries are unchanged.
-- The prototype includes **15 track segments and 10 through-vias** (0.60 mm
-  copper / 0.30 mm finished drill). The boundary VIN/3V3 feeds, local signal
-  routes and PG return are connected. Native KiCad 10.0.8 reports **0 PCB DRC
-  violations / 0 unconnected items**.
+- The prototype includes **15 track segments and 11 through-vias** (0.60 mm
+  copper / 0.30 mm finished drill). An additional GND stitching via at
+  (20.0, 15.8) ties the EP-side GND copper to inner/bottom layers; it is
+  outside the exposed-pad land and stencil windows, not via-in-pad. The
+  boundary VIN/3V3 feeds, local signal routes and PG return are connected.
+  Native KiCad 10.0.8 reports **0 PCB DRC violations / 0 unconnected items**.
 - Review designators are visible on F.Fab, not on F.Silkscreen; they remain
   readable without adding text to the switching-power solder-mask area.
 - An all-copper-layer keepout around SW/NC pad 8 forbids tracks, vias and zone
@@ -514,6 +516,64 @@ source design, its U3, widths and default pipeline remain unchanged. Before
 adopting it, complete actual board-current budgeting, cap effective-value
 checks under DC bias, switching-loop/FB review, thermal and RF analysis, and
 bench validation at the expected input/load envelope.
+
+## TPSM82901 input-current, capacitor and system integration audit — 2026-11-03
+
+**Nominal capacitor values are not yet effective-capacitance evidence.** TI
+specifies minimum effective input capacitance of 3 µF and, at 2.5 MHz,
+minimum effective output capacitance of 10 µF; it recommends 10 µF nominal
+input and 22 µF nominal output for most applications. Candidate C1/C2 match
+those nominal values. TDK publishes DC-bias curves for the selected MPNs,
+but the effective values at 5 V and 3.323 V respectively (including
+tolerance/temperature) have not been numerically confirmed. Do not call the
+minimums satisfied until the curve or direct measurement demonstrates it.
+The EVM's additional 47 µF tantalum input bulk capacitor is not a universal
+datasheet requirement; only consider it if real source/cable/transient evidence
+shows the 10 µF local MLCC is insufficient.
+
+First-order 5 V input-current estimates use
+I_IN = V_OUT × I_OUT / (V_IN × efficiency). At a 3.3 V / 500 mA output load,
+the 5 V input estimate is 413 mA at an assumed 80% efficiency, 388 mA at
+85%, and 367 mA at 90%. At the ESP32 datasheet's example 379 mA Wi-Fi TX
+peak, the corresponding estimates are 313/294/278 mA. At the converter's
+1 A output rating, the 85% scenario is about 776 mA at 5 V. The efficiencies
+are scenario inputs, not measured converter efficiency at this operating
+point. The ESP32 500 mA recommendation describes minimum source capability,
+not constant current draw; other board loads add to the total. Therefore
+the 1 A converter rating cannot be used as a claim that default USB-C power
+can sustain a 1 A 3.3 V load.
+
+The active USB-C source schematic has 5.1 kΩ CC pull-downs but no CC
+current-advertisement measurement/management represented. Do not assume
+1.5 A or 3 A source capability without compliant detection/management.
+The active source design is unchanged. Inspection found:
+- J1 VBUS entry has C3=100 nF and ESD element D1, but no 10 µF nominal
+  capacitor at the main power entrance. Candidate CIN (10 µF) sits near the
+  converter, which is about 34 mm from J1 after integration; it does not
+  replace a main-entry bulk capacitor.
+- Active 3.3 V C2=10 µF and C1=100 nF are about 26.9 mm / 26.0 mm from
+  ESP32 module U1, respectively. Espressif recommends local 10 µF support
+  for VDD3P3 and an additional 10 µF at the main entrance when those locations
+  are not close. The candidate's COUT does not replace module-local bypass.
+
+Thermal scenarios at 3.3 V / 500 mA (1.65 W) give converter dissipation of
+0.413/0.291/0.183 W at assumed 80/85/90% efficiencies. If TI's reference
+RθJA values of 58.2 °C/W (JEDEC board) or 48.7 °C/W (EVM) were applied, the
+indicative rises would be 24.0/20.1 °C, 16.9/14.2 °C and 10.7/8.9 °C. These
+figures are scenarios only; the actual candidate's RθJA is unknown. Although
+the candidate has four copper layers and 1.6 mm board thickness, its stackup
+does **not** state 1 oz copper weight. No thermal simulation, junction
+measurement, load-step test or EMI/RF validation exists.
+
+The additional EP-side GND stitch improves the path from top GND to inner
+and bottom planes without putting a via beneath the exposed-pad stencil
+aperture. It does not substitute for the TI example's dense thermal-via
+field or establish thermal qualification.
+
+Decision: keep this power candidate isolated and review-only. Resolve the
+main-entry capacitor, module-local 3.3 V bypass, source-current envelope,
+effective capacitance, copper weight, transient and thermal/EMI evidence
+before any adoption. Do not modify the active source design in this review.
 
 ## Exact evidence and applicability
 
