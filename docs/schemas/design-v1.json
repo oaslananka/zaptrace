@@ -2018,7 +2018,7 @@
             }
           ],
           "default": null,
-          "description": "Round drill diameter in mm (None for SMD or slot)",
+          "description": "Round hole diameter in mm (None for SMD or slot)",
           "title": "Drill"
         },
         "drill_slot": {
@@ -2041,7 +2041,7 @@
             }
           ],
           "default": null,
-          "description": "Oval drill width/height (mm)",
+          "description": "Oval routed-hole (width, height) in mm",
           "title": "Drill Slot"
         },
         "roundrect_rratio": {
@@ -2054,7 +2054,7 @@
             }
           ],
           "default": null,
-          "description": "KiCad rounded-rectangle corner ratio",
+          "description": "KiCad rounded rectangle corner ratio",
           "title": "Roundrect Rratio"
         },
         "plated": {

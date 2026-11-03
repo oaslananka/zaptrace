@@ -10,7 +10,8 @@ from typing import Any
 from zaptrace.algo.grid_router import GridRouter
 from zaptrace.algo.placer import place_components
 from zaptrace.algo.router import RoutingResult, route_design_smart
-from zaptrace.core.models import Design, NetClass
+from zaptrace.core.board import canonical_board_definition
+from zaptrace.core.models import Design, NetClass, RouteResult
 from zaptrace.core.parser import parse_file, parse_str
 from zaptrace.ee.classifier import get_net_class
 from zaptrace.erc.models import ERCResult
@@ -284,11 +285,24 @@ class Autopilot:
         # it is kept only as a fallback when A* routes nothing (e.g. a
         # degenerate board where every terminal collapses onto one grid cell).
         route_result = GridRouter().route(design, positions)
+        if route_result.routed_net_count and any(comp.footprint_asset for comp in design.components.values()):
+            from zaptrace.pipeline.physical_route_preflight import verified_route_candidate_safe
+
+            if not verified_route_candidate_safe(design, route_result, positions):
+                # A graph-based "6/6 nets routed" result can still contain
+                # dangling copper and physical shorts. Never export that copper.
+                # Leave all affected nets visibly unrouted for external review.
+                route_result = RouteResult(net_count=route_result.net_count)
         routed_net_ids = {trace.net_id for trace in route_result.traces}
         unresolved_net_ids = [
             net.id
             for net in design.nets.values()
-            if len(net.nodes) > 1 and get_net_class(design, net.id) != NetClass.GROUND and net.id not in routed_net_ids
+            if len(net.nodes) > 1
+            and (
+                get_net_class(design, net.id) != NetClass.GROUND
+                or not canonical_board_definition(design).copper_pour_gnd
+            )
+            and net.id not in routed_net_ids
         ]
         if route_result.routed_net_count > 0:
             ctx.routing = RoutingResult(
@@ -326,7 +340,11 @@ class Autopilot:
         design = ctx.design
         if design is None:
             raise PipelineHaltError("No design for report generation")
-        ctx.report = generate_report(design, erc_result=ctx.erc_result)
+        ctx.report = generate_report(
+            design,
+            erc_result=ctx.erc_result,
+            unrouted_net_count=len(ctx.routing.unrouted_nets) if ctx.routing is not None else None,
+        )
 
         report_path = self._output_dir / f"{design.meta.name}_report.md"
         self._output_dir.mkdir(parents=True, exist_ok=True)

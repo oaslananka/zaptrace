@@ -158,7 +158,7 @@ def test_route_stage_falls_back_when_grid_router_routes_nothing() -> None:
     assert design.routing.traces  # fallback router produced traces
 
 
-def test_physical_demo_does_not_emit_fallback_copper_when_grid_cannot_route(tmp_path: Path) -> None:
+def test_physical_demo_rejects_graph_routes_without_real_pad_continuity(tmp_path: Path) -> None:
     from zaptrace.core.parser import parse_file
 
     demo = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
@@ -170,19 +170,24 @@ def test_physical_demo_does_not_emit_fallback_copper_when_grid_cannot_route(tmp_
     assert ctx.routing is not None
     assert ctx.routing.routed_nets == 0
     assert ctx.routing.total_nets > 0
-    # Both USB-C CC termination paths are now explicit source nets.
-    # All six nets must remain visibly unrouted instead of unsafe fallback copper.
+    # Both USB-C CC paths and the source GND net (whose pour is disabled)
+    # must remain visibly unresolved instead of unsafe fallback copper.
     assert set(ctx.routing.unrouted_nets) == {
         "VCC_5V",
         "VCC_3V3",
+        "GND",
         "I2C_SDA",
         "I2C_SCL",
         "USB_CC1",
         "USB_CC2",
     }
-    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 6
+    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 7
     assert design.routing is not None
     assert not design.routing.traces
+    assert not design.routing.vias
+    assert ctx.positions == design.placement
+    # Reject the legacy source ground flood pending genuine RF keepout review.
+    assert not design.copper_pours
     pilot.run_stage(ctx, PipelineStage.KICAD)
     assert ctx.kicad_files is not None
     pcb = ctx.kicad_files["pcb"].read_text(encoding="utf-8")

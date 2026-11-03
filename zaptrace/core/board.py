@@ -20,7 +20,12 @@ def canonical_board_definition(design: Design) -> BoardDefinition:
     if design.board_def is not None:
         return design.board_def
     board = design.board
-    return BoardDefinition(width=board.width_mm, height=board.height_mm, layers=board.layers)
+    return BoardDefinition(
+        width=board.width_mm,
+        height=board.height_mm,
+        layers=board.layers,
+        copper_pour_gnd=board.copper_pour_gnd,
+    )
 
 
 def sync_legacy_board_from_definition(design: Design) -> None:

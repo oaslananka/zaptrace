@@ -15,7 +15,22 @@ EXAMPLE = ROOT / "examples" / "esp32_i2c_sensor_node"
 
 def test_esp32_and_bme280_physical_pin_maps_match_documented_land_patterns() -> None:
     design = parse_file(EXAMPLE / "design.yaml")
-    assert design.components["U1"].package_pin_map == {
+    from zaptrace.library.loader import LibraryLoader
+
+    u1 = design.components["U1"]
+    assert u1.type == "ESP32-WROOM-32E"
+    assert u1.mpn == "ESP32-WROOM-32E-N16"
+    spec = LibraryLoader().get("esp32-wroom-32")
+    assert spec.mpn == "ESP32-WROOM-32E-N16"
+    assert spec.properties["flash_mb"] == 16
+    assert "32e_esp32-wroom-32ue_datasheet_en.html" in spec.datasheet
+    assert u1.footprint_asset == "esp32-wroom-32"
+    assert u1.footprint_def is not None
+    perimeter_pads = {str(pad.id): pad for pad in u1.footprint_def.pads if str(pad.id) != "39"}
+    assert set(perimeter_pads) == {str(number) for number in range(1, 39)}
+    assert all(perimeter_pads[number].size == (1.5, 0.9) for number in perimeter_pads)
+    assert len([pad for pad in u1.footprint_def.pads if str(pad.id) == "39"]) == 22
+    assert u1.package_pin_map == {
         "1": "GND",
         "2": "VCC",
         "3": "EN",
@@ -53,11 +68,15 @@ def test_example_pipeline_reports_real_unrouted_nets_to_tool_consumers() -> None
             output_dir=str(Path(temporary) / "generated"),
             session_id="esp32-routing-evidence-contract",
         )
+        report = (Path(temporary) / "generated" / "ESP32 I2C Sensor Board_report.md").read_text(encoding="utf-8")
+    assert "| ERC status | PASS |" in report
+    assert "| Copper routing | 7 net(s) unrouted; not native-verified |" in report
+    assert "| Fabrication readiness | NOT VERIFIED" in report
     assert result["all_successful"]  # Artifact generation, not PCB validation.
     evidence = result["routing_evidence"]
     assert evidence["reported_routed_nets"] == 0
-    assert evidence["total_routable_nets"] == 6
-    assert evidence["unrouted_nets"] == ["VCC_5V", "VCC_3V3", "USB_CC1", "USB_CC2", "I2C_SDA", "I2C_SCL"]
+    assert evidence["total_routable_nets"] == 7
+    assert evidence["unrouted_nets"] == ["VCC_5V", "VCC_3V3", "GND", "USB_CC1", "USB_CC2", "I2C_SDA", "I2C_SCL"]
     assert evidence["physical_continuity_verified"] is False
 
 
@@ -126,7 +145,19 @@ def test_usb_c_sink_uses_two_independent_resistors_and_ground_returns() -> None:
 
     design = parse_file(EXAMPLE / "design.yaml")
     j1 = design.components["J1"]
-    assert j1.package_pin_map == {}
+    assert j1.footprint_asset == "usb4105-16p"
+    assert j1.package_pin_map == {
+        "A1": "GND",
+        "A4": "VBUS",
+        "A5": "CC1",
+        "A9": "VBUS",
+        "A12": "GND",
+        "B1": "GND",
+        "B4": "VBUS",
+        "B5": "CC2",
+        "B9": "VBUS",
+        "B12": "GND",
+    }
     assert {pin: j1.pins[pin].net for pin in ("CC1", "CC2")} == {
         "CC1": "USB_CC1",
         "CC2": "USB_CC2",
@@ -207,19 +238,11 @@ def test_esp32_demo_reports_partial_pinned_physical_pad_coverage(tmp_path: Path)
     evidence = json.loads(Path(artifact["netlist_evidence"]).read_text(encoding="utf-8"))
 
     assert evidence["node_count"] == 37
-    assert evidence["missing_pcb_pad_node_count"] == 4
+    assert evidence["missing_pcb_pad_node_count"] == 0
     assert evidence["missing_schematic_pin_node_count"] == 0
     assert evidence["fidelity"]["schematic_node_coverage"] == 1.0
-    assert evidence["fidelity"]["pcb_pad_coverage"] == 33 / 37
-    assert all(
-        node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"] if node["component_ref"] != "J1"
-    )
-    assert all(
-        not node["pcb_pad_present"]
-        for net in evidence["nets"]
-        for node in net["nodes"]
-        if node["component_ref"] == "J1"
-    )
+    assert evidence["fidelity"]["pcb_pad_coverage"] == 1.0
+    assert all(node["pcb_pad_present"] for net in evidence["nets"] for node in net["nodes"])
 
 
 def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() -> None:
@@ -232,11 +255,11 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
         "footprints-complete",
         "power-nets-connected",
         "gnd-connected",
+        "physical-pads-mapped",
     }
     assert {name for name, result in by_name.items() if not result.passed} == {
         "drc-clean",
         "min-clearance",
-        "physical-pads-mapped",
     }
     physical_details = by_name["physical-pads-mapped"].details
     drc_details = by_name["drc-clean"].details
@@ -244,9 +267,29 @@ def test_esp32_demo_exports_but_strict_proof_remains_blocked_on_real_geometry() 
     assert physical_details is not None
     assert drc_details is not None
     assert clearance_details is not None
-    assert physical_details["pcb_pad_coverage"] == 33 / 37
-    assert physical_details["missing_pcb_pad_node_count"] == 4
+    assert physical_details["pcb_pad_coverage"] == 1.0
+    assert physical_details["missing_pcb_pad_node_count"] == 0
     assert drc_details["violations"]
     assert clearance_details["violations"]
     assert not pack.passed
     assert pack.autonomous_signoff.status.value == "blocked-insufficient-evidence"
+
+
+def test_esp32_reference_field_is_outside_verified_pad_copper(tmp_path: Path) -> None:
+    import re
+
+    from zaptrace.export.kicad import export_kicad_pcb
+
+    design = parse_file(EXAMPLE / "design.yaml")
+    u1 = design.components["U1"]
+    assert u1.footprint_def is not None
+    left = min(pad.position[0] - pad.size[0] / 2 for pad in u1.footprint_def.pads)
+    right = max(pad.position[0] + pad.size[0] / 2 for pad in u1.footprint_def.pads)
+    bottom = min(pad.position[1] - pad.size[1] / 2 for pad in u1.footprint_def.pads)
+    top = max(pad.position[1] + pad.size[1] / 2 for pad in u1.footprint_def.pads)
+    board = Path(export_kicad_pcb(design, tmp_path)["pcb"]).read_text(encoding="utf-8")
+    block = next(part for part in board.split("\n  (footprint ") if '(property "Reference" "U1"' in part)
+    match = re.search(r'\(property "Reference" "U1"\s*\(at ([-.\d]+) ([-.\d]+) ([-.\d]+)\)', block)
+    assert match is not None
+    x, y, _angle = map(float, match.groups())
+    assert x < left - 0.5 or x > right + 0.5 or y < bottom - 0.5 or y > top + 0.5

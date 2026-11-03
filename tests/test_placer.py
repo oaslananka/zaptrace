@@ -168,3 +168,45 @@ def test_position_update_clamps_to_board_margin() -> None:
     forces = {"a": [-100.0, 100.0]}
     _update_positions(["a"], positions, forces, width=100.0, height=80.0, margin=5.0)
     assert positions["a"] == (5.0, 75.0)
+
+
+def test_verified_esp32_demo_explicit_placement_is_complete_bounded_and_stable() -> None:
+    from pathlib import Path
+
+    from zaptrace.algo.placer import _placement_overlap_count, _placement_within_board
+    from zaptrace.core.parser import parse_file
+
+    design = parse_file(Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml")
+    assert (design.board.width_mm, design.board.height_mm) == (100, 75)
+    assert design.placement is not None
+    assert set(design.placement) == set(design.components)
+    assert place_components(design) == design.placement
+    assert _placement_overlap_count(design, design.placement) == 0
+    assert _placement_within_board(design, design.placement)
+    assert design.board.copper_pour_gnd is False
+    assert not design.copper_pours
+
+
+def test_explicit_placement_does_not_silently_replace_partial_or_invalid_layout() -> None:
+    import pytest
+
+    from zaptrace.core.models import FootprintDef
+
+    design = _design_with_components(2)
+    design.components["c0"].footprint_def = FootprintDef(courtyard=(5.0, 5.0))
+    design.components["c1"].footprint_def = FootprintDef(courtyard=(5.0, 5.0))
+    design.placement = {"c0": (15.0, 15.0)}
+    with pytest.raises(ValueError, match="exactly all"):
+        place_components(design)
+
+    design.placement = {"c0": (15.0, 15.0), "c1": (16.0, 15.0)}
+    with pytest.raises(ValueError, match="overlapping"):
+        place_components(design)
+
+    design.placement = {"c0": (1.0, 15.0), "c1": (20.0, 15.0)}
+    with pytest.raises(ValueError, match="courtyard outside"):
+        place_components(design)
+
+    design.placement = {"c0": (15.0, 15.0), "c1": (float("inf"), 15.0)}
+    with pytest.raises(ValueError, match="invalid or off-board"):
+        place_components(design)

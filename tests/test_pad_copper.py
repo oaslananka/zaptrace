@@ -8,6 +8,7 @@ import pytest
 
 from zaptrace.algo.grid_router import GridPos, GridRouter, ObstacleMap
 from zaptrace.algo.pad_copper import copper_layers, pad_cells, rotated_offset
+from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import (
     BoardConfig,
     Component,
@@ -20,6 +21,7 @@ from zaptrace.core.models import (
     Pad,
     PadShape,
 )
+from zaptrace.ee.knowledge import KnowledgeBase
 
 
 def _board(
@@ -73,6 +75,215 @@ def test_smd_top_only_does_not_reserve_bottom_layer() -> None:
     assert ctx.obstacles.is_free(bottom, net_id="foreign")
     assert ctx.obstacles.owner(top) is None
     assert not ctx.obstacles.can_place_through_via(bottom, "foreign", 1)
+
+
+def test_preexpanded_track_reservation_does_not_dilate_static_pad_masks_again() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    obs.mark_pad(GridPos(10, 10), "B")
+    # The static clearance raster has already reserved the one-cell halo.
+    obs.mark_pad_clearance(GridPos(9, 10), "B")
+    assert obs.is_free(GridPos(8, 10), "A")
+    obs.block_line(GridPos(8, 10), GridPos(8, 10), radius=2, net_id="A")
+    assert obs.owner(GridPos(8, 10)) == "A"
+    # The clearance envelope is not materialized a second time.
+    assert obs.owner(GridPos(9, 10)) is None
+    # But subsequent routes still see the real dynamic track clearance.
+    assert not obs.is_corridor_free(GridPos(9, 10), "B", 1)
+
+
+def test_preexpanded_track_reservation_still_blocks_foreign_dynamic_copper() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    obs.block_line(GridPos(10, 10), GridPos(10, 10), radius=0, net_id="B")
+    with pytest.raises(ValueError, match="Copper clearance"):
+        obs.block_line(GridPos(11, 10), GridPos(11, 10), radius=1, net_id="A")
+    with pytest.raises(ValueError, match="Copper clearance"):
+        obs.block_line(GridPos(10, 10), GridPos(10, 10), radius=0, net_id="A")
+
+
+def test_preexpanded_pad_clearance_is_not_dilated_twice() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.mark_pad(GridPos(10, 10), "A")
+    obs.mark_pad_clearance(GridPos(12, 10), "B")
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    assert obs.is_corridor_free(GridPos(10, 10), "A", 1)
+    assert not obs.is_corridor_free(GridPos(12, 10), "A", 1)
+    assert not obs.is_corridor_free(GridPos(12, 10), "UNRELATED", 1)
+    obs.block_line(GridPos(11, 10), GridPos(11, 11), net_id="B")
+    assert not obs.is_corridor_free(GridPos(10, 10), "A", 1)
+    clone = obs.clone()
+    assert clone.preexpanded_static_clearance
+    assert not clone.is_corridor_free(GridPos(10, 10), "A", 1)
+
+
+def test_preexpanded_clearance_preserves_physical_obstacle_and_board_edge_margin() -> None:
+    obs = ObstacleMap(30, 30, 1)
+    obs.preexpanded_static_clearance = True
+    obs.enforce_static_clearance = True
+    obs.block(GridPos(11, 10))
+    assert not obs.is_corridor_free(GridPos(10, 10), "A", 1)
+    assert not obs.is_corridor_free(GridPos(0, 10), "A", 1)
+    plain = ObstacleMap(30, 30, 1)
+    plain.mark_pad_clearance(GridPos(11, 10), "B")
+    assert not plain.is_corridor_free(GridPos(10, 10), "A", 1)
+
+
+def test_wider_custom_net_class_keeps_wider_preexpanded_pad_halo() -> None:
+    from zaptrace.ee.constraints.net_classes import NetClass, NetClassRule
+    from zaptrace.ee.knowledge import KnowledgeBase
+
+    d, positions = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1))),
+        ("b", (25, 10), Pad(id="1", size=(1, 1))),
+    )
+    _net(d, "SIG", "a", "b")
+    router = GridRouter(resolution_mm=0.5, pad_aware=True)
+    standard = router._prepare_route_context(d, positions)
+    kb = KnowledgeBase()
+    kb.set_rule(
+        NetClass.SIGNAL_LOW,
+        NetClassRule(trace_width=1.2, clearance=0.55, max_vias=2, priority=5, description="wide custom rule"),
+    )
+    wide = router._prepare_route_context(d, positions, kb)
+    assert standard.obstacles.preexpanded_static_clearance
+    assert wide.obstacles.preexpanded_static_clearance
+    assert len(wide.obstacles._pad_clearance) > len(standard.obstacles._pad_clearance)
+    assert not wide.obstacles.is_free(GridPos(23, 20), "OTHER")
+
+
+def test_actual_esp32_static_pad_halo_is_single_expanded_but_not_approved() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+    from zaptrace.pipeline.physical_route_preflight import verified_route_candidate_safe
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    d = parse_file(source)
+    assert d.placement is not None
+    router = GridRouter(resolution_mm=0.25, max_iterations=25_000, pad_aware=True)
+    route = router.route(d, d.placement)
+    assert route.routed_net_count >= 1
+    assert route.routed_net_count < route.net_count
+    assert all(len(via) == 5 and via[2] > via[3] > 0 for via in route.vias)
+    # Partial graph routing is not complete pad/net continuity and cannot
+    # be promoted to a physical source export.
+    assert not verified_route_candidate_safe(d, route, d.placement)
+
+
+def test_ground_net_is_unresolved_when_copper_pour_is_disabled() -> None:
+    from copy import deepcopy
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    assert design.board_def is None
+    assert not canonical_board_definition(design).copper_pour_gnd
+    assert "GND" in design.nets
+    ground_only = deepcopy(design)
+    ground_only.nets = {"GND": ground_only.nets["GND"]}
+    route = GridRouter(pad_aware=True).route(ground_only, ground_only.placement or {})
+    assert route.net_count == 1
+    assert route.routed_net_count == 0
+    assert route.traces == []
+
+
+def test_ground_net_is_delegated_only_when_copper_pour_is_enabled() -> None:
+    from copy import deepcopy
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    assert design.board_def is None
+    design.board.copper_pour_gnd = True
+    assert canonical_board_definition(design).copper_pour_gnd
+    ground_only = deepcopy(design)
+    ground_only.nets = {"GND": ground_only.nets["GND"]}
+    route = GridRouter(pad_aware=True).route(ground_only, ground_only.placement or {})
+    assert route.net_count == 0
+    assert route.routed_net_count == 0
+
+
+def test_overlapping_usb_contacts_with_same_logical_pin_share_copper_owner() -> None:
+    d, pos = _board(
+        ("usb", (10, 10), Pad(id="A4", size=(1, 1))),
+        ("other", (22, 10), Pad(id="1", size=(1, 1))),
+    )
+    fp = d.components["usb"].footprint_def
+    assert fp is not None
+    fp.pads.append(Pad(id="B9", size=(1, 1)))
+    d.components["usb"].package_pin_map = {"A4": "VBUS", "B9": "VBUS"}
+    d.nets["VCC"] = Net(
+        id="VCC",
+        name="VCC_5V",
+        nodes=[
+            NetNode(component_ref="USB", pin_name="VBUS"),
+            NetNode(component_ref="OTHER", pin_name="1"),
+        ],
+    )
+    obs = GridRouter(resolution_mm=0.5, pad_aware=True)._prepare_route_context(d, pos).obstacles
+    center = GridPos(20, 20)
+    assert center not in obs._pad_conflicts
+    assert obs._pads[center] == "VCC"
+    assert obs.is_free(center, "VCC")
+    assert not obs.is_free(center, "OTHER")
+
+
+def test_esp32_usb_duplicate_contacts_do_not_create_fake_grid_shorts() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    assert design.placement is not None
+    router = GridRouter(resolution_mm=0.25, pad_aware=True)
+    obstacles = router._prepare_route_context(design, design.placement).obstacles
+    assert obstacles._pad_conflicts == set()
+    # The two net-equivalent USB-C A4/B9 pads are superimposed by the
+    # supplier footprint; B9 must not become unidentified foreign copper.
+    assert obstacles._pads[GridPos(310, 253)] == "VCC_5V"
+    assert obstacles._pads[GridPos(307, 253)] == "GND"
+
+
+def test_overlapping_pad_clearance_halos_are_not_fabricated_copper_shorts() -> None:
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1))),
+        ("b", (11.5, 10), Pad(id="1", size=(1, 1))),
+    )
+    _net(d, "A", "a")
+    _net(d, "B", "b")
+    obs = GridRouter(resolution_mm=0.5, pad_aware=True)._prepare_route_context(d, pos).obstacles
+    a, b = GridPos(20, 20), GridPos(23, 20)
+    assert not obs._pad_conflicts
+    assert obs._pads[a] == "A" and obs._pads[b] == "B"
+    assert obs.is_free(a, "A")
+    assert obs.is_free(b, "B")
+    assert not obs.is_free(a, "B")
+    assert not obs.is_free(b, "A")
+    # The air gap is not free for a third net's copper corridor.
+    assert not obs.is_free(GridPos(21, 20), "THIRD")
+
+
+def test_real_foreign_pad_copper_overlap_still_blocks_both_nets() -> None:
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1))),
+        ("b", (10, 10), Pad(id="1", size=(1, 1))),
+    )
+    _net(d, "A", "a")
+    _net(d, "B", "b")
+    obs = GridRouter(resolution_mm=0.5, pad_aware=True)._prepare_route_context(d, pos).obstacles
+    center = GridPos(20, 20)
+    assert center in obs._pad_conflicts
+    assert not obs.is_free(center, "A")
+    assert not obs.is_free(center, "B")
 
 
 def test_plated_holes_and_npht_keepouts_span_all_copper_layers() -> None:
@@ -129,13 +340,56 @@ def test_top_only_pad_pair_routes_on_top_and_detours_around_foreign_pad() -> Non
             assert ctx.obstacles.is_free(p, net_id="SIGNAL_A")
 
 
-def test_pad_mode_fails_closed_when_pad_center_off_grid() -> None:
+def test_pad_mode_connects_off_grid_centre_only_inside_real_pad_copper() -> None:
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
     d, pos = _board(("a", (10.1, 10), Pad(id="1")), ("b", (20, 10), Pad(id="1")))
+    _net(d, "SIG", "a", "b")
+    result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
+    assert result.net_count == result.routed_net_count == 1
+    assert any(segment.start == (10.1, 10) and segment.end == (10.0, 10.0) for segment in result.traces)
+    assert _physical_pad_terminal_coverage(d, result, pos)
+
+
+def test_pad_mode_offgrid_rotated_pad_emits_exact_copper_contact() -> None:
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
+    d, pos = _board(
+        ("a", (10.1, 10), Pad(id="1", position=(1.0, 0), shape=PadShape.OVAL, size=(1.2, 0.6))),
+        ("b", (20, 10), Pad(id="1")),
+    )
+    d.components["a"].properties["rotation"] = 90.0
+    _net(d, "SIG", "a", "b")
+    result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
+    assert result.net_count == result.routed_net_count == 1
+    assert any(segment.start == pytest.approx((10.1, 9.0)) for segment in result.traces)
+    assert _physical_pad_terminal_coverage(d, result, pos)
+
+
+def test_pad_mode_rejects_nearest_grid_point_outside_real_pad_copper() -> None:
+    d, pos = _board(
+        ("a", (10.1, 10), Pad(id="1", size=(0.1, 0.1))),
+        ("b", (20, 10), Pad(id="1")),
+    )
     _net(d, "SIG", "a", "b")
     result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
     assert result.net_count == 1
     assert result.routed_net_count == 0
     assert result.traces == []
+
+
+def test_pad_mode_offgrid_rounded_shape_corner_uses_explicit_geometric_stub() -> None:
+    from zaptrace.pipeline.physical_route_preflight import _physical_pad_terminal_coverage
+
+    d, pos = _board(
+        ("a", (10.2, 10.2), Pad(id="1", shape=PadShape.CIRCLE, size=(0.5, 0.5))),
+        ("b", (20, 10), Pad(id="1")),
+    )
+    _net(d, "SIG", "a", "b")
+    result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
+    assert result.routed_net_count == 1
+    assert any(segment.start == pytest.approx((10.2, 10.2)) for segment in result.traces)
+    assert _physical_pad_terminal_coverage(d, result, pos)
 
 
 def test_top_bottom_smd_pair_requires_unimplemented_via_and_is_not_counted() -> None:
@@ -260,3 +514,119 @@ def test_non_circular_npth_slot_and_nonfinite_pad_geometry_fail_closed() -> None
         pad_cells(Pad(id="1", rotation=float("nan")), (10, 10), 0, 0.5, 80, 80, 0)
     with pytest.raises(ValueError, match="outside"):
         pad_cells(Pad(id="1"), (-3, 10), 0, 0.5, 80, 80, 0)
+
+
+def test_real_esp32_usb_cc_routes_use_geometric_pad_fanout_and_keep_unassigned_contacts_clear() -> None:
+    from pathlib import Path
+
+    from zaptrace.algo.pad_copper import _distance_in_local_shape
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    router = GridRouter(pad_aware=True, max_iterations=50_000)
+    context = router._prepare_route_context(design, design.placement or {})
+    kb = KnowledgeBase()
+
+    for net_id in ("USB_CC1", "USB_CC2"):
+        plan = router._plan_grid_net(design, design.nets[net_id], context, kb)
+        assert plan.success
+        assert len(plan.pad_stubs) == 2
+        assert len(plan.edge_paths) == 1
+        assert plan.width_mm == pytest.approx(0.2)
+        connector_stub = next(stub for stub in plan.pad_stubs if stub[0][0] > 77.0)
+        assert math.dist(*connector_stub) >= 0.5
+
+        # Unassigned connector contacts remain physical obstacles.
+        component = context.component_by_ref["J1"]
+        assert component.footprint_def is not None
+        rotation = context.rotation_by_ref["J1"]
+        pos = context.ref_positions["J1"]
+        for pad_id in ("B7", "B8", "A8", "A9"):
+            pad = next(pad for pad in component.footprint_def.pads if str(pad.id) == pad_id)
+            dx, dy = rotated_offset(*pad.position, rotation)
+            center = (pos[0] + dx, pos[1] + dy)
+            for step in range(21):
+                ratio = step / 20
+                x = connector_stub[0][0] + (connector_stub[1][0] - connector_stub[0][0]) * ratio
+                y = connector_stub[0][1] + (connector_stub[1][1] - connector_stub[0][1]) * ratio
+                angle = math.radians(-(float(pad.rotation) + rotation))
+                px, py = x - center[0], y - center[1]
+                local_x = math.cos(angle) * px + math.sin(angle) * py
+                local_y = -math.sin(angle) * px + math.cos(angle) * py
+                assert _distance_in_local_shape(local_x, local_y, pad) >= 0.25 - 1e-6
+
+    # VBUS retains its full 0.50mm POWER_MED width; do not invent a neck-down.
+    vbus = router._plan_grid_net(design, design.nets["VCC_5V"], context, kb)
+    assert not vbus.success
+    assert vbus.pad_stubs == []
+
+
+def test_real_esp32_pad_fanout_improves_only_physically_proven_nets() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+    from zaptrace.pipeline.physical_route_preflight import verified_route_candidate_safe
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    router = GridRouter(pad_aware=True, max_iterations=50_000, max_ripup_passes=2)
+    result = router.route(design, design.placement or {}, KnowledgeBase())
+    assert result.routed_net_count == 4
+    assert result.net_count == 7
+    assert {trace.net_id for trace in result.traces} == {
+        "USB_CC1",
+        "USB_CC2",
+        "I2C_SCL",
+        "I2C_SDA",
+    }
+    assert len(result.traces) == 47
+    assert result.vias == []
+    assert not verified_route_candidate_safe(design, result, design.placement or {})
+
+
+def test_geometric_pad_escape_only_skips_preexpanded_pad_halo_not_dynamic_copper() -> None:
+    obstacles = ObstacleMap(24, 24, layers=1)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.mark_pad_clearance(GridPos(8, 8), "OTHER")
+    # This option is used only after exact shape-distance validation of a
+    # physical pad stub; it avoids a second raster halo rejecting that stub.
+    obstacles.block_line(
+        GridPos(8, 8),
+        GridPos(8, 8),
+        radius=0,
+        net_id="SIGNAL",
+        geometric_pad_escape=True,
+    )
+    assert obstacles.owner(GridPos(8, 8)) == "SIGNAL"
+
+    obstacles.block_line(GridPos(12, 8), GridPos(12, 8), radius=0, net_id="POWER")
+    with pytest.raises(ValueError, match="Copper clearance"):
+        obstacles.block_line(
+            GridPos(11, 8),
+            GridPos(11, 8),
+            radius=1,
+            net_id="SIGNAL",
+            geometric_pad_escape=True,
+        )
+
+
+def test_real_esp32_i2c_sda_uses_bounded_four_terminal_geometric_fanout() -> None:
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    net = design.nets["I2C_SDA"]
+    assert len(net.nodes) == 4
+    router = GridRouter(pad_aware=True, max_iterations=50_000)
+    context = router._prepare_route_context(design, design.placement or {})
+    plan = router._plan_grid_net(design, net, context, KnowledgeBase())
+    assert plan.success
+    assert len(plan.pad_stubs) == 4
+    assert len(plan.edge_paths) == 3
+    # Multi-terminal mode is intentionally one anchor and one MST attempt
+    # per terminal; no Cartesian combination search is performed.
+    assert all(math.dist(*stub) > 0 for stub in plan.pad_stubs)
