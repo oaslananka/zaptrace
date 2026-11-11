@@ -106,10 +106,10 @@ def test_committed_alpine_runtime_manifest_matches_pinned_base_repository() -> N
     assert manifest.read_text(encoding="utf-8").splitlines() == [
         "libcrypto3=3.5.9-r0",
         "libssl3=3.5.9-r0",
-        "musl=1.2.6-r2",
-        "musl-utils=1.2.6-r2",
+        "musl=1.2.6-r3",
+        "musl-utils=1.2.6-r3",
         "ngspice=46-r0",
-        "zlib=1.3.2-r0",
+        "zlib=1.3.2-r1",
     ]
 
 
