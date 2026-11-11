@@ -174,10 +174,8 @@ def test_label_at_wire_interior_names_the_connected_pins() -> None:
     }
 
 
-def test_explicit_junction_joins_crossing_wire_segments_only_when_marked() -> None:
-    """A KiCad junction dot is electrical, a geometrical crossing is not."""
-    from zaptrace.kicad.schematic_importer import _resolve_connectivity
-
+def _crossing_wires_and_symbols():
+    """Two independent wires crossing without an electrical junction."""
     wires = [((0.0, 0.0), (10.0, 0.0)), ((5.0, -5.0), (5.0, 5.0))]
     symbols = [
         {"ref": ref, "pins": [("1", x, y)]}
@@ -188,6 +186,14 @@ def test_explicit_junction_joins_crossing_wire_segments_only_when_marked() -> No
             ("C2", 5.0, 5.0),
         )
     ]
+    return wires, symbols
+
+
+def test_explicit_junction_joins_crossing_wire_segments_only_when_marked() -> None:
+    """A KiCad junction dot is electrical, a geometrical crossing is not."""
+    from zaptrace.kicad.schematic_importer import _resolve_connectivity
+
+    wires, symbols = _crossing_wires_and_symbols()
     without = _resolve_connectivity(symbols, wires, [], [])
     without_groups = [set(pins) for pins in without.values() if pins]
     assert len(without_groups) == 2
@@ -231,16 +237,7 @@ def test_label_on_unjoined_wire_crossing_does_not_short_nets() -> None:
     """A geometrical crossing without a junction is electrically distinct."""
     from zaptrace.kicad.schematic_importer import _resolve_connectivity
 
-    wires = [((0.0, 0.0), (10.0, 0.0)), ((5.0, -5.0), (5.0, 5.0))]
-    symbols = [
-        {"ref": ref, "pins": [("1", x, y)]}
-        for ref, x, y in (
-            ("R1", 0.0, 0.0),
-            ("R2", 10.0, 0.0),
-            ("C1", 5.0, -5.0),
-            ("C2", 5.0, 5.0),
-        )
-    ]
+    wires, symbols = _crossing_wires_and_symbols()
     unsupported = []
     nets = _resolve_connectivity(symbols, wires, [], [("ambiguous", "label", (5.0, 0.0))], unsupported)
     groups = [set(pins) for pins in nets.values() if pins]

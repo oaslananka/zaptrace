@@ -244,9 +244,7 @@ def _embedded_power_pin_labels(sexp: list[SexpNode]) -> dict[str, tuple[str, str
         if _find(symbol, "power") is None:
             continue
         pins = _nested_pin_definitions(symbol)
-        if len(pins) != 1:
-            continue
-        if _atom(pins[0]) != "power_in":
+        if len(pins) != 1 or _atom(pins[0]) != "power_in":
             continue
         number = _atom(_find(pins[0], "number") or [])
         name = _atom(_find(pins[0], "name") or [])
