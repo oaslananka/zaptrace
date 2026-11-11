@@ -19,6 +19,10 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
+
 MAX_COMPRESSED = 8 * 1024 * 1024
 MAX_EXPANDED = 28 * 1024 * 1024
 MAX_ITEM = 10 * 1024 * 1024
@@ -326,7 +330,7 @@ def inspect_native_pairs(board: Path, report: Path) -> dict:
         # untrusted uploaded rules remain isolated in the disposable temp.
         probe = subprocess.run(
             [
-                "/usr/bin/python3",
+                NATIVE_KICAD_PYTHON,
                 "-B",
                 "-c",
                 "import hashlib,sys;"

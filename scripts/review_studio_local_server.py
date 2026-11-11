@@ -41,6 +41,10 @@ from review_studio_workspace import (
     validate_schematic_hierarchy,
 )
 
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
+
 MAX_UPLOAD = 34 * 1024 * 1024
 MAX_SHEETS = 32
 MAX_TOTAL_SHEETS = 16 * 1024 * 1024
@@ -1253,7 +1257,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 report = folder / "result.json"
                 run = subprocess.run(
                     [
-                        "/usr/bin/python3",
+                        NATIVE_KICAD_PYTHON,
                         "-B",
                         str(Path(__file__).with_name("review_studio_schematic_pcb_parity.py")),
                         "--schematic",
@@ -1402,7 +1406,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             module = Path(__file__).with_name("review_studio_native_copper_link.py")
             run = subprocess.run(
                 [
-                    "/usr/bin/python3",
+                    NATIVE_KICAD_PYTHON,
                     "-B",
                     str(module),
                     "--board",
@@ -1563,7 +1567,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             script = Path(__file__).with_name("review_studio_native_copper_batch.py")
             command = subprocess.run(
                 [
-                    "/usr/bin/python3",
+                    NATIVE_KICAD_PYTHON,
                     "-B",
                     str(script),
                     "--board",
@@ -1713,7 +1717,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
             module = Path(__file__).with_name("review_studio_pcb_eco.py")
             run = subprocess.run(
                 [
-                    "/usr/bin/python3",
+                    NATIVE_KICAD_PYTHON,
                     "-B",
                     str(module),
                     "--board",
@@ -1746,7 +1750,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                     try:
                         reviewed = subprocess.run(
                             [
-                                "/usr/bin/python3",
+                                NATIVE_KICAD_PYTHON,
                                 "-B",
                                 str(review_module),
                                 "--source",

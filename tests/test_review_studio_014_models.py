@@ -5,10 +5,15 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 spec = importlib.util.spec_from_file_location("native_014_model_checks", SCRIPTS / "review_studio_native_kicad.py")
@@ -45,7 +50,7 @@ def test_014_real_native_model_inventory_preserves_original_board_sha() -> None:
         "from review_studio_native_kicad import _read_kicad;"
         f"print(json.dumps(_read_kicad(__import__('pathlib').Path({str(SOURCE)!r}))['model_assets']))"
     )
-    result = subprocess.run(["/usr/bin/python3", "-B", "-c", code], capture_output=True, text=True, timeout=22)
+    result = subprocess.run([NATIVE_KICAD_PYTHON, "-B", "-c", code], capture_output=True, text=True, timeout=22)
     assert result.returncode == 0, result.stderr
     diag = json.loads(result.stdout)
     assert (diag["footprints"], diag["declared_references"]) == (14, 12)

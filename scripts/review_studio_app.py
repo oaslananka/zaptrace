@@ -44,7 +44,13 @@ def dependencies() -> tuple[list[str], list[str]]:
         failed.append("Use Ubuntu's /usr/bin/python3 for the native KiCad pcbnew binding")
     else:
         passed.append("System Python /usr/bin/python3")
-    cli = shutil.which("kicad-cli")
+    appimage_ci = os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage"
+    cli_verified = False
+    cli = (
+        "/usr/local/bin/kicad-cli"
+        if appimage_ci and Path("/usr/local/bin/kicad-cli").is_file()
+        else shutil.which("kicad-cli")
+    )
     if not cli:
         failed.append("Missing kicad-cli; install KiCad 10")
     else:
@@ -54,12 +60,22 @@ def dependencies() -> tuple[list[str], list[str]]:
             ).stdout.strip()
             match = re.match(r"^(\d+)\.(\d+)", value)
             if match and int(match.group(1)) == 10:
+                if not appimage_ci or value == "10.0.8":
+                    cli_verified = True
                 passed.append("Native KiCad CLI " + value)
             else:
                 failed.append("This build requires KiCad 10.x; detected " + value[:70])
         except (OSError, subprocess.SubprocessError):
             failed.append("Native KiCad CLI could not start")
-    if importlib.util.find_spec("pcbnew") is None:
+    if appimage_ci:
+        # The immutable CI installer independently probes both bindings, and
+        # the trusted CLI wrapper repeats the native pcbnew check at each
+        # successful "version" probe. The doctor makes no second subprocess.
+        if cli_verified and Path("/usr/local/bin/kicad-python").is_file():
+            passed.append("Native pcbnew Python binding installed (KiCad AppImage 10.0.8)")
+        else:
+            failed.append("Missing or unverified KiCad AppImage Python pcbnew binding")
+    elif importlib.util.find_spec("pcbnew") is None:
         failed.append("Missing KiCad pcbnew Python binding in /usr/bin/python3")
     else:
         passed.append("Native pcbnew Python binding installed")
