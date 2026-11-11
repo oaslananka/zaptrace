@@ -1127,5 +1127,6 @@ def test_real_mitayi_pico_usb_net_names_remain_distinct() -> None:
     assert "/USB_D+" in by_name
     assert "/USB_D-" in by_name
     assert by_name["/USB_D+"].id != by_name["/USB_D-"].id
-    assert by_name["/USB_D+"].nodes and by_name["/USB_D-"].nodes
+    assert by_name["/USB_D+"].nodes
+    assert by_name["/USB_D-"].nodes
     assert 0.0 <= result.net_score <= 1.0

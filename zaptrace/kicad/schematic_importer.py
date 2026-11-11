@@ -701,6 +701,9 @@ def _group_pins(
     return group_pins
 
 
+_AUTO_PIN_NET_TOKEN = re.compile(r"[A-Za-z0-9_.+-]+")
+
+
 def _auto_generated_pin_net_name(
     pins: list[tuple[str, str]],
     ref_pin_names: dict[str, dict[str, str]],
@@ -721,10 +724,10 @@ def _auto_generated_pin_net_name(
             return ""
         pin_name = names[number]
         named = bool(pin_name and pin_name != "~" and pin_name != number)
-        if named and (list(names.values()).count(pin_name) != 1 or re.fullmatch(r"[A-Za-z0-9_.+-]+", pin_name) is None):
+        if named and (list(names.values()).count(pin_name) != 1 or _AUTO_PIN_NET_TOKEN.fullmatch(pin_name) is None):
             return ""
         suffix = pin_name if named else f"Pad{number}"
-        if re.fullmatch(r"[A-Za-z0-9_.+-]+", ref) is None or re.fullmatch(r"[A-Za-z0-9_.+-]+", suffix) is None:
+        if _AUTO_PIN_NET_TOKEN.fullmatch(ref) is None or _AUTO_PIN_NET_TOKEN.fullmatch(suffix) is None:
             return ""
         candidates.append((not named, f"Net-({ref}-{suffix})"))
     return min(candidates)[1]
