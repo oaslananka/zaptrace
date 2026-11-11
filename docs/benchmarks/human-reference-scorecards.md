@@ -55,6 +55,18 @@ Two additional diagnostics preserve the strict gate:
 
 Neither diagnostic can turn a different native/imported named graph into `verified`.
 
+The flat-sheet importer follows KiCad's explicit net naming precedence (global,
+power, local, hierarchical), alphabetical tie-breaking for equal-priority
+labels, root-sheet `/` qualification for local names, and display unescaping
+of `{slash}`. When a net has no labels, it uses embedded library pin names
+or pad numbers to form native-style `Net-(ref-pin)` names **only when all
+connected pins have complete, unambiguous pin metadata**. Otherwise the
+existing deterministic fallback remains; it is not claimed to be an exact
+KiCad net name. On the five current source-pinned KiCad 10 references,
+105 connected pin-group names now match independent native XML. This does not
+verify no-connect handling, complete project import, PCB equivalence, or
+hardware sign-off; `--strict` remains a separate fail-closed gate.
+
 The four reference-only records remain `not_run` until their pinned bytes are available; a missing
 KiCad CLI or identity mismatch cannot become a successful check. The default command records
 baseline evidence even when its verdict is `blocked`; use `--strict` for a failing exit status

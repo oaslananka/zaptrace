@@ -194,7 +194,7 @@ class TestFlatSheetImport:
     def test_flat_sheet_nets(self) -> None:
         result = import_kicad_project_from_string(_FLAT_SCH, project_name="flat")
         net_names = {n.name for n in result.design.nets.values()}
-        assert "VCC" in net_names
+        assert "/VCC" in net_names
 
     def test_single_sheet_in_hierarchy(self) -> None:
         result = import_kicad_project_from_string(_FLAT_SCH, project_name="flat")
