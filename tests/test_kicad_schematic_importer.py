@@ -147,6 +147,80 @@ def test_embedded_pin_transform_matches_kicad_sheet_coordinates(
     assert y == pytest.approx(116.84 + expected[1])
 
 
+def test_kicad_half_grid_rounding_does_not_lose_pin_connections() -> None:
+    """Transform drift on a half-grid tick cannot drop a connected pin."""
+    from zaptrace.kicad.schematic_importer import _quantise
+
+    assert _quantise((169.545, 278.765)) == _quantise((169.54500000000002, 278.76500000000004))
+    assert _quantise((-169.545, -278.765)) == _quantise((-169.54500000000002, -278.76500000000004))
+    assert _quantise((1.000, 2.000)) != _quantise((1.020, 2.000))
+
+
+def test_label_at_wire_interior_names_the_connected_pins() -> None:
+    """KiCad permits labels at segment interior, not only at wire endpoints."""
+    from zaptrace.kicad.schematic_importer import _resolve_connectivity
+
+    wires = [((0.0, 0.0), (10.0, 0.0)), ((20.0, 0.0), (30.0, 0.0))]
+    symbols = [
+        {"ref": ref, "pins": [("1", x, 0.0)]} for ref, x in (("R1", 0.0), ("R2", 10.0), ("R3", 20.0), ("R4", 30.0))
+    ]
+    labels = [
+        ("QSPI_SS", "label", (5.0, 0.0)),
+        ("QSPI_SS", "label", (25.0, 0.0)),
+    ]
+    result = _resolve_connectivity(symbols, wires, [], labels)
+    assert result == {
+        "QSPI_SS": [("R1", "1"), ("R2", "1"), ("R3", "1"), ("R4", "1")],
+    }
+
+
+def test_label_on_unjoined_wire_crossing_does_not_short_nets() -> None:
+    """A geometrical crossing without a junction is electrically distinct."""
+    from zaptrace.kicad.schematic_importer import _resolve_connectivity
+
+    wires = [((0.0, 0.0), (10.0, 0.0)), ((5.0, -5.0), (5.0, 5.0))]
+    symbols = [
+        {"ref": ref, "pins": [("1", x, y)]}
+        for ref, x, y in (
+            ("R1", 0.0, 0.0),
+            ("R2", 10.0, 0.0),
+            ("C1", 5.0, -5.0),
+            ("C2", 5.0, 5.0),
+        )
+    ]
+    unsupported = []
+    nets = _resolve_connectivity(symbols, wires, [], [("ambiguous", "label", (5.0, 0.0))], unsupported)
+    groups = [set(pins) for pins in nets.values() if pins]
+    assert {("R1", "1"), ("R2", "1")} in groups
+    assert {("C1", "1"), ("C2", "1")} in groups
+    assert all(not ({("R1", "1"), ("C1", "1")} <= group) for group in groups)
+    assert [r.kind for r in unsupported] == ["ambiguous_wire_label_crossing"]
+
+
+def test_real_mitayi_connected_pins_and_qspi_label_match_native_reference() -> None:
+    """All real Mitayi connector pins except 3 KiCad NC pins stay connected."""
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    result = import_kicad_schematic(source)
+    by_name = {
+        net.name: {(node.component_ref, node.pin_name) for node in net.nodes} for net in result.design.nets.values()
+    }
+    assert len(by_name) == 61
+    assert by_name["QSPI_SS"] == {("U3", "56"), ("U1", "1"), ("R1", "2"), ("R2", "1")}
+    # The independent KiCad XML omits synthetic #PWR* connection nodes.
+    all_pins = {pin for pins in by_name.values() for pin in pins if not pin[0].startswith("#PWR")}
+    assert {("J3", str(n)) for n in range(1, 21)} <= all_pins
+    assert {("J4", str(n)) for n in range(1, 21)} <= all_pins
+    assert {("J6", str(n)) for n in (1, 2, 3, 5, 6)} <= all_pins
+    assert {("J7", "1"), ("J10", "1"), ("R3", "2"), ("R4", "2")} <= all_pins
+    assert {("J2", "A8"), ("J2", "B8"), ("J6", "4")}.isdisjoint(all_pins)
+    assert len(all_pins) == 228
+    assert result.net_score == 1.0
+
+
 def test_power_input_symbols_merge_global_nets_but_not_power_output_flags() -> None:
     """KiCad (power) library pins identify nets; instance Value is not authority."""
     source = """
@@ -303,7 +377,7 @@ def test_real_mitayi_power_input_groups_not_silently_split() -> None:
         ("U3", "48"),
         ("U3", "49"),
     }
-    assert len(named) == 62
+    assert len(named) == 61  # Mid-wire QSPI_SS label merges its two physical groups.
 
 
 def test_real_sparkfun_native_kicad_pin_membership() -> None:
