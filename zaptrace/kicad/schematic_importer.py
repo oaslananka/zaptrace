@@ -11,6 +11,7 @@ Supported constructs
 * ``(junction ...)`` — explicit wire crossing junction
 * ``(label ...)``, ``(global_label ...)``, ``(hierarchical_label ...)`` — net naming
 * ``(no_connect ...)`` — unconnected pin marker (suppresses dangling-wire warning)
+* one-pin library ``(power)`` + ``power_in`` symbols — global net names
 * ``(net_tie ...)`` — noted as unsupported; does not fail import
 
 Connectivity resolution
@@ -226,6 +227,34 @@ def _embedded_library_pins(sexp: list[SexpNode]) -> dict[str, dict[str, tuple[fl
     return libraries
 
 
+def _embedded_power_pin_labels(sexp: list[SexpNode]) -> dict[str, tuple[str, str]]:
+    """Resolve a true KiCad power symbol to (pin number, global net name).
+
+    The symbol's embedded ``(power)`` marker and a single ``power_in``
+    library pin are required. The *library pin name* defines connectivity,
+    not an editable instance Value property. Power-output flags must never
+    inadvertently short together through an inferred label.
+    """
+    libraries = _find(sexp, "lib_symbols")
+    if libraries is None:
+        return {}
+    labels: dict[str, tuple[str, str]] = {}
+    for symbol in _find_all(libraries, "symbol"):
+        if _find(symbol, "power") is None:
+            continue
+        pins = _nested_pin_definitions(symbol)
+        if len(pins) != 1:
+            continue
+        if _atom(pins[0]) != "power_in":
+            continue
+        number = _atom(_find(pins[0], "number") or [])
+        name = _atom(_find(pins[0], "name") or [])
+        lib_id = _atom(symbol)
+        if lib_id and number and name and name != "~":
+            labels[lib_id] = number, name
+    return labels
+
+
 def _rotate_local_pin(
     local: tuple[float, float],
     origin: tuple[float, float],
@@ -352,6 +381,7 @@ def _parse_schematic(
 ]:
     """Parse a top-level kicad_sch S-expression into raw schematic objects."""
     library_pins = _embedded_library_pins(sexp)
+    power_pin_labels = _embedded_power_pin_labels(sexp)
     symbols: list[dict[str, Any]] = []
     wires: list[tuple[tuple[float, float], tuple[float, float]]] = []
     junctions: list[tuple[float, float]] = []
@@ -365,6 +395,14 @@ def _parse_schematic(
 
         if tag == "symbol":
             _parse_symbol(node, symbols, unsupported, library_pins)
+            instance = symbols[-1]
+            power_label = power_pin_labels.get(instance["lib_id"])
+            if power_label is not None:
+                pin_number, power_name = power_label
+                for number, x, y in instance["pins"]:
+                    if number == pin_number:
+                        labels.append((power_name, "global_label", (x, y)))
+                        break
         elif tag == "wire":
             _handle_wire_tag(node, wires, unsupported)
         elif tag == "junction":

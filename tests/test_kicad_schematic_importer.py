@@ -147,6 +147,165 @@ def test_embedded_pin_transform_matches_kicad_sheet_coordinates(
     assert y == pytest.approx(116.84 + expected[1])
 
 
+def test_power_input_symbols_merge_global_nets_but_not_power_output_flags() -> None:
+    """KiCad (power) library pins identify nets; instance Value is not authority."""
+    source = """
+    (kicad_sch (version 20250114)
+      (lib_symbols
+        (symbol "power:GND" (power)
+          (symbol "GND_0_1"
+            (pin power_in line (at 0 0 270) (name "GND") (number "1"))))
+        (symbol "power:PWR_FLAG" (power)
+          (symbol "PWR_FLAG_0_1"
+            (pin power_out line (at 0 0 90) (name "PWR_FLAG") (number "1")))))
+      (symbol (lib_id "power:GND") (at 10 20 0)
+        (property "Reference" "#PWR01") (property "Value" "renamed")
+        (pin "1" (uuid "a")))
+      (symbol (lib_id "power:GND") (at 40 20 0)
+        (property "Reference" "#PWR02") (property "Value" "renamed again")
+        (pin "1" (uuid "b")))
+      (symbol (lib_id "power:PWR_FLAG") (at 10 60 0)
+        (property "Reference" "#FLG01") (property "Value" "PWR_FLAG")
+        (pin "1" (uuid "c")))
+      (symbol (lib_id "power:PWR_FLAG") (at 40 60 0)
+        (property "Reference" "#FLG02") (property "Value" "PWR_FLAG")
+        (pin "1" (uuid "d")))
+      (symbol (lib_id "Device:R") (at 20 20 0)
+        (property "Reference" "R1") (property "Value" "10k")
+        (pin 1 20 20))
+      (symbol (lib_id "Device:R") (at 50 20 0)
+        (property "Reference" "R2") (property "Value" "10k")
+        (pin 1 50 20))
+      (symbol (lib_id "Device:R") (at 20 60 0)
+        (property "Reference" "R3") (property "Value" "10k")
+        (pin 1 20 60))
+      (symbol (lib_id "Device:R") (at 50 60 0)
+        (property "Reference" "R4") (property "Value" "10k")
+        (pin 1 50 60))
+      (wire (pts (xy 10 20) (xy 20 20)))
+      (wire (pts (xy 40 20) (xy 50 20)))
+      (wire (pts (xy 10 60) (xy 20 60)))
+      (wire (pts (xy 40 60) (xy 50 60)))
+    )
+    """
+    result = import_kicad_schematic_string(source)
+    nets = {
+        net.name: {(node.component_ref, node.pin_name) for node in net.nodes} for net in result.design.nets.values()
+    }
+    assert nets["GND"] == {("#PWR01", "1"), ("#PWR02", "1"), ("R1", "1"), ("R2", "1")}
+    assert "PWR_FLAG" not in nets
+    assert "renamed" not in nets and "renamed again" not in nets
+    assert len(result.design.nets) == 3
+    assert not any(
+        {("R3", "1"), ("R4", "1")}.issubset(pins) for pins in nets.values()
+    )  # Two independent power-output flags must not merge.
+
+
+def test_real_sparkfun_power_symbols_preserve_native_kicad_pin_graph() -> None:
+    """Expected GND/3.3V pin memberships are measured from KiCad 10 XML."""
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = (
+        Path(__file__).parents[1]
+        / "benchmarks/external/sparkfun-qwiic-navigation/source/SparkFun_Qwiic_Navigation.kicad_sch"
+    )
+    result = import_kicad_schematic(source)
+    named = {
+        net.name: {
+            (node.component_ref, node.pin_name) for node in net.nodes if not node.component_ref.startswith("#PWR")
+        }
+        for net in result.design.nets.values()
+    }
+    assert named["GND"] == {
+        ("C1", "2"),
+        ("D1", "1"),
+        ("J1", "1"),
+        ("J3", "1"),
+        ("J5", "1"),
+        ("R1", "1"),
+        ("R2", "1"),
+        ("R3", "1"),
+        ("SW2", "2"),
+        ("U4", "8"),
+    }
+    assert named["3.3V"] == {
+        ("C1", "1"),
+        ("D2", "1"),
+        ("J1", "2"),
+        ("J3", "2"),
+        ("J5", "2"),
+        ("JP1", "2"),
+        ("JP2", "2"),
+        ("JP3", "2"),
+        ("JP4", "2"),
+        ("JP6", "2"),
+        ("R10", "2"),
+        ("R11", "2"),
+        ("R12", "2"),
+        ("R4", "2"),
+        ("R8", "2"),
+        ("R9", "2"),
+        ("U4", "16"),
+    }
+    assert len(named) == 26
+
+
+def test_real_mitayi_power_input_groups_not_silently_split() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    result = import_kicad_schematic(source)
+    named = {
+        net.name: {
+            (node.component_ref, node.pin_name) for node in net.nodes if not node.component_ref.startswith("#PWR")
+        }
+        for net in result.design.nets.values()
+    }
+    assert named["+1V1"] == {
+        ("C2", "1"),
+        ("C3", "1"),
+        ("C4", "1"),
+        ("U3", "23"),
+        ("U3", "45"),
+        ("U3", "50"),
+    }
+    assert named["+3V3"] == {
+        ("C1", "1"),
+        ("C10", "1"),
+        ("C11", "1"),
+        ("C12", "1"),
+        ("C14", "1"),
+        ("C15", "1"),
+        ("C5", "1"),
+        ("C6", "1"),
+        ("C7", "1"),
+        ("C8", "1"),
+        ("C9", "1"),
+        ("D3", "2"),
+        ("J1", "2"),
+        ("J4", "5"),
+        ("JP1", "2"),
+        ("R1", "1"),
+        ("R11", "2"),
+        ("R9", "1"),
+        ("U1", "8"),
+        ("U2", "5"),
+        ("U3", "1"),
+        ("U3", "10"),
+        ("U3", "22"),
+        ("U3", "33"),
+        ("U3", "42"),
+        ("U3", "44"),
+        ("U3", "48"),
+        ("U3", "49"),
+    }
+    assert len(named) == 62
+
+
 def test_real_sparkfun_native_kicad_pin_membership() -> None:
     """KiCad 10 reference XML netlist: unmirrored jumpers and mirrored resistors."""
     from pathlib import Path
