@@ -642,14 +642,27 @@ def _add_imported_components(design: Design, symbols: list[dict[str, Any]]) -> N
 
 
 def _add_imported_nets(design: Design, nets_raw: dict[str, list[tuple[str, str]]]) -> float:
+    """Preserve distinct KiCad net names even when their normalized IDs collide.
+
+    For example, USB_D+ and USB_D- both normalize to usb_d_.  Overwriting
+    one silently discards connectivity and may make net_score exceed 1.
+    """
     nets_with_pins = 0
     for net_name, pin_list in sorted(nets_raw.items()):
-        net_id = re.sub(r"(?a)\W", "_", net_name).lower()
+        base_id = re.sub(r"(?a)\W", "_", net_name).lower() or "net"
+        net_id = base_id
+        if net_id in design.nets:
+            suffix = hashlib.sha256(net_name.encode("utf-8")).hexdigest()[:12]
+            net_id = f"{base_id}_{suffix}"
+            counter = 1
+            while net_id in design.nets:
+                net_id = f"{base_id}_{suffix}_{counter}"
+                counter += 1
         nodes = [NetNode(component_ref=ref, pin_name=pin) for ref, pin in pin_list]
         design.nets[net_id] = Net(id=net_id, name=net_name, nodes=nodes)
         if nodes:
             nets_with_pins += 1
-    return nets_with_pins / len(design.nets) if design.nets else 1.0
+    return nets_with_pins / len(nets_raw) if nets_raw else 1.0
 
 
 def _record_schematic_import_losses(
