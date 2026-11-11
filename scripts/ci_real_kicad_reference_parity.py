@@ -11,7 +11,6 @@ import argparse
 import hashlib
 import json
 import shutil
-import subprocess
 import sys
 import tempfile
 import time
@@ -19,12 +18,12 @@ from pathlib import Path
 from typing import Any
 
 from defusedxml import ElementTree
-from defusedxml.common import DefusedXmlException
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.review_studio_schematic_eco import _run_native  # noqa: E402
 from zaptrace.kicad.oracle import get_kicad_version  # noqa: E402
 from zaptrace.kicad.project_importer import import_kicad_project  # noqa: E402
 
@@ -166,7 +165,8 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source / relative, target)
             native_xml = temp / "native-netlist.xml"
-            result = subprocess.run(
+            # Reuse the existing bounded native KiCad execution contract.
+            result = _run_native(
                 [
                     executable,
                     "sch",
@@ -178,13 +178,10 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
                     str(native_xml),
                     str(copied / schematic),
                 ],
-                check=False,
-                capture_output=True,
-                text=True,
                 timeout=90,
             )
             if result.returncode or not native_xml.is_file():
-                raise ValueError(f"native KiCad export failed (exit {result.returncode}): {result.stderr[-500:]}")
+                raise ValueError("native KiCad export produced no valid netlist")
             native = read_native_netlist(native_xml)
             imported, metadata = read_imported_netlist(copied)
             comparison = compare_graphs(native, imported)
@@ -204,9 +201,8 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
     except (
         OSError,
         ValueError,
-        subprocess.TimeoutExpired,
+        RuntimeError,
         ElementTree.ParseError,
-        DefusedXmlException,
         KeyError,
         TypeError,
     ) as exc:
@@ -219,13 +215,6 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
 
 def build_report(repo_root: Path = ROOT, manifest: Path = MANIFEST, tool: str = "kicad-cli") -> dict[str, Any]:
     records = json.loads(manifest.read_text(encoding="utf-8"))["references"]
-    revision = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--verify", "HEAD"],
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
-    )
     version = get_kicad_version() if tool == "kicad-cli" else None
     outcomes = [measure_reference(repo_root, record, tool=tool) for record in records]
     statuses = [item["status"] for item in outcomes]
@@ -234,7 +223,6 @@ def build_report(repo_root: Path = ROOT, manifest: Path = MANIFEST, tool: str = 
         "gate": "g0-native-schematic-import-parity",
         "scope": "read-only schematic connectivity; not round-trip, AI success, or fabrication sign-off",
         "manifest_sha256": sha256_file(manifest),
-        "zaptrace_commit": revision.stdout.strip() if revision.returncode == 0 else "not_available",
         "native_tool_version": version or "not_available",
         "status": "verified" if statuses and all(s == "verified" for s in statuses) else "blocked",
         "measured": sum(s in ("verified", "blocked") for s in statuses),
