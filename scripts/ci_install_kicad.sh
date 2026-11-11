@@ -99,11 +99,16 @@ if [[ -f "$ubuntu_mirror_file" ]] && grep -q "azure.archive.ubuntu.com/ubuntu" "
   sudo sed -i -E 's#https?://azure\.archive\.ubuntu\.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' "$ubuntu_mirror_file"
 fi
 
+if [[ "$needs_kicad_ppa" == false ]]; then
+  exec bash scripts/ci_install_ubuntu_packages.sh "$@"
+fi
+
+# Native-PPA KiCad mode requires that exact signed PPA; never fall back to
+# an unpinned Ubuntu KiCad package if its source is unavailable.
 apt_network_options=(
   -o Acquire::Retries=3
   -o Acquire::http::Timeout=30
   -o Acquire::https::Timeout=30
 )
-
 sudo timeout 300s apt-get "${apt_network_options[@]}" update
 sudo timeout 600s apt-get "${apt_network_options[@]}" install --no-install-recommends -y "$@"

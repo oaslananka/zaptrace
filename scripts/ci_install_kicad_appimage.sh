@@ -36,13 +36,9 @@ if [[ "$requested_kicad" != true ]]; then
   exit 2
 fi
 
-# Ordinary Ubuntu packages still use the system archive; no Launchpad source
-# or imprecise KiCad major-version downgrade is ever added.
-sudo timeout 300s apt-get \
-  -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
-sudo timeout 300s apt-get \
-  -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
-  install --no-install-recommends -y "${native_packages[@]}"
+# Keep exactly the same Ubuntu package requirements, but handle degraded
+# hosted Azure/Ubuntu mirrors without weakening APT's signed index policy.
+bash scripts/ci_install_ubuntu_packages.sh "${native_packages[@]}"
 
 work_dir="$(mktemp -d "${RUNNER_TEMP:-/tmp}/zaptrace-kicad-1008-XXXXXXXX")"
 trap 'rm -rf "$work_dir"' EXIT
