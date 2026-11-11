@@ -521,7 +521,19 @@ _KIND_PRIORITY = {"global_label": 0, "hierarchical_label": 1, "label": 2}
 
 
 def _quantise(xy: tuple[float, float]) -> tuple[int, int]:
-    return round(xy[0] / _COORD_EPSILON), round(xy[1] / _COORD_EPSILON)
+    """Stable millimetre-to-grid conversion across KiCad pin transforms.
+
+    A transformed coordinate such as 169.54500000000002 and a literal wire
+    endpoint 169.545 are electrically identical. Python's binary banker's
+    rounding can put them on opposite sides of a half-grid boundary.
+    """
+
+    def snap(value: float) -> int:
+        scaled = round(value / _COORD_EPSILON, 8)
+        nearest = math.floor(abs(scaled) + 0.5)
+        return -nearest if scaled < 0 else nearest
+
+    return snap(xy[0]), snap(xy[1])
 
 
 def _get_or_add_coord(
@@ -566,16 +578,63 @@ def _merge_junctions(
             _get_or_add_coord((jx, jy), coords, coord_idx)
 
 
+def _point_on_wire(
+    point: tuple[float, float],
+    start: tuple[float, float],
+    end: tuple[float, float],
+) -> bool:
+    """Check a label's *physical* position, not a fuzzy nearby-grid match."""
+    px, py = point
+    ax, ay = start
+    bx, by = end
+    dx, dy = bx - ax, by - ay
+    scale = max(abs(dx), abs(dy))
+    if scale == 0:
+        return abs(px - ax) <= 1e-6 and abs(py - ay) <= 1e-6
+    return (
+        abs((px - ax) * dy - (py - ay) * dx) <= 1e-6 * scale
+        and min(ax, bx) - 1e-6 <= px <= max(ax, bx) + 1e-6
+        and min(ay, by) - 1e-6 <= py <= max(ay, by) + 1e-6
+    )
+
+
 def _group_labels(
     labels: list[tuple[str, str, tuple[float, float]]],
     coords: list[tuple[float, float]],
     coord_idx: dict[tuple[int, int], int],
     uf: _UnionFind,
+    wires: list[tuple[tuple[float, float], tuple[float, float]]] | None = None,
+    unsupported: list[SchematicUnsupportedRecord] | None = None,
 ) -> dict[int, list[tuple[str, str]]]:
-    label_groups: dict[int, list[tuple[str, str]]] = {}  # root → [(name, kind)]
+    # KiCad allows a net label on a wire's interior, not just its endpoints.
+    # A geometric crossing without an explicit junction is NOT a connection.
+    # Do not merge two independent wire groups just because a label overlaps
+    # their crossing; preserve an unsupported warning instead.
+    if wires:
+        endpoints = {_quantise(point) for start, end in wires for point in (start, end)}
+        for name, _kind, point in labels:
+            q = _quantise(point)
+            if q in endpoints:
+                continue
+            candidates = {
+                uf.find(coord_idx[_quantise(start)]) for start, end in wires if _point_on_wire(point, start, end)
+            }
+            if len(candidates) == 1:
+                wire_root = next(iter(candidates))
+                label_index = _get_or_add_coord(point, coords, coord_idx)
+                uf.union(wire_root, label_index)
+            elif len(candidates) > 1 and unsupported is not None:
+                unsupported.append(
+                    SchematicUnsupportedRecord(
+                        kind="ambiguous_wire_label_crossing",
+                        message=f"Net label '{name}' overlaps independent crossing wires",
+                        severity="warning",
+                    )
+                )
+
+    label_groups: dict[int, list[tuple[str, str]]] = {}
     for lname, lkind, lcoord in labels:
-        lq = _quantise(lcoord)
-        li = coord_idx[lq] if lq in coord_idx else _get_or_add_coord(lcoord, coords, coord_idx)
+        li = _get_or_add_coord(lcoord, coords, coord_idx)
         r = uf.find(li)
         label_groups.setdefault(r, []).append((lname, lkind))
     return label_groups
@@ -628,6 +687,7 @@ def _resolve_connectivity(
     wires: list[tuple[tuple[float, float], tuple[float, float]]],
     junctions: list[tuple[float, float]],
     labels: list[tuple[str, str, tuple[float, float]]],
+    unsupported: list[SchematicUnsupportedRecord] | None = None,
 ) -> dict[str, list[tuple[str, str]]]:
     """Resolve wire connectivity into named nets.
 
@@ -639,7 +699,7 @@ def _resolve_connectivity(
 
     _union_wires(wires, coords, coord_idx, uf)
     _merge_junctions(junctions, coords, coord_idx, uf)
-    label_groups = _group_labels(labels, coords, coord_idx, uf)
+    label_groups = _group_labels(labels, coords, coord_idx, uf, wires, unsupported)
     group_pins = _group_pins(symbols, coord_idx, uf)
 
     all_roots = set(uf.groups())
@@ -769,7 +829,7 @@ def import_kicad_schematic_string(
     symbols, wires, junctions, labels, unsupported = _parse_schematic(sexp)
 
     # Resolve connectivity
-    nets_raw = _resolve_connectivity(symbols, wires, junctions, labels)
+    nets_raw = _resolve_connectivity(symbols, wires, junctions, labels, unsupported)
 
     # Build Design
     source_name = source_path.stem if source_path else "schematic"
