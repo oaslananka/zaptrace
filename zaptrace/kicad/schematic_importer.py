@@ -110,21 +110,27 @@ class KiCadSchematicSourceSnapshot:
         }
 
 
+def _source_title_fields(title: list[SexpNode] | None) -> dict[str, str]:
+    """Extract original title and indexed comments without dropping other nodes."""
+    if title is None:
+        return {}
+    fields: dict[str, str] = {}
+    for entry in title[1:]:
+        if not isinstance(entry, list) or not entry:
+            continue
+        if _atom(entry, 0) == "comment" and len(entry) > 2:
+            fields[f"comment_{_atom(entry, 1)}"] = _atom(entry, 2)
+        elif len(entry) > 1:
+            fields[_atom(entry, 0)] = _atom(entry, 1)
+    return fields
+
+
 def _source_snapshot(sexp: list[SexpNode], content: str) -> KiCadSchematicSourceSnapshot:
     """Capture exactly the input UTF-8 sequence plus readable native page data."""
     raw = content.encode("utf-8")
     paper = _find(sexp, "paper")
     fonts = _find(sexp, "embedded_fonts")
-    title = _find(sexp, "title_block")
-    fields: dict[str, str] = {}
-    if title is not None:
-        for entry in title[1:]:
-            if not isinstance(entry, list) or not entry:
-                continue
-            if _atom(entry, 0) == "comment" and len(entry) > 2:
-                fields[f"comment_{_atom(entry, 1)}"] = _atom(entry, 2)
-            elif len(entry) > 1:
-                fields[_atom(entry, 0)] = _atom(entry, 1)
+    fields = _source_title_fields(_find(sexp, "title_block"))
     counts: dict[str, int] = {}
     for entry in sexp[1:]:
         if isinstance(entry, list) and entry:
