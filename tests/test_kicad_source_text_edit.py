@@ -67,6 +67,12 @@ def test_edit_rejects_stale_source_missing_or_ambiguous_ids() -> None:
         replace_kicad_source_text(snapshot, FIRST, "bad\x00value", expected_sha256=snapshot.sha256)
 
 
+def test_annotation_edit_rejects_no_op_instead_of_claiming_a_change() -> None:
+    snapshot = _snapshot()
+    with pytest.raises(ValueError, match="unchanged"):
+        replace_kicad_source_text(snapshot, FIRST, "Original", expected_sha256=snapshot.sha256)
+
+
 def test_real_kicad_source_annotation_edit_preserves_full_imported_nets() -> None:
     root = Path(__file__).parents[1] / "benchmarks/external/sparkfun-qwiic-navigation/source"
     reference = next(root.glob("*.kicad_sch"))

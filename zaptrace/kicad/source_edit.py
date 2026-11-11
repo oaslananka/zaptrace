@@ -115,6 +115,8 @@ def replace_kicad_source_text(
     ]
     if len(targets) != 1 or targets[0][1] != token.value:
         raise ValueError("Source text UUID cannot be resolved consistently")
+    if targets[0][1] == new_text:
+        raise ValueError("Annotation text is unchanged; no source edit was made")
     targets[0][1] = new_text
     patched = source[:start] + json.dumps(new_text, ensure_ascii=False) + source[end:]
     if parse(patched) != expected_ast:
