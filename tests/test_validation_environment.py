@@ -225,6 +225,62 @@ def test_simulation_install_does_not_require_kicad_ppa(tmp_path: Path) -> None:
         assert packages[-1] in calls
 
 
+def test_kicad_ppa_pinned_public_signing_key() -> None:
+    import shutil
+
+    key = Path("security/kicad-10-ppa-signing-key.asc")
+    assert key.is_file()
+    if not shutil.which("gpg"):
+        pytest.skip("GPG is needed for verifying the pinned public signing key")
+    result = subprocess.run(
+        ["gpg", "--batch", "--show-keys", "--with-colons", str(key)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    fingerprints = [line.split(":")[9] for line in result.stdout.splitlines() if line.startswith("fpr:")]
+    assert fingerprints[0] == "FDA854F61C4D0D9572BB95E5245D5502FAD7A805"
+
+
+def test_kicad_ppa_api_failure_uses_verified_apt_signed_by_fallback(tmp_path: Path) -> None:
+    """No real root commands run; verify the fallback preserves APT signature checks."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    sudo = fake_bin / "sudo"
+    sudo.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$MOCK_SUDO_LOG"\n'
+        'if [[ "$*" == *"add-apt-repository"* ]]; then exit 1; fi\n'
+        'if [[ "$1" == "tee" ]]; then cat >/dev/null; fi\n',
+        encoding="utf-8",
+    )
+    sudo.chmod(0o755)
+    sleep = fake_bin / "sleep"
+    sleep.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    sleep.chmod(0o755)
+    log = tmp_path / "sudo.log"
+    env = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}", "MOCK_SUDO_LOG": str(log)}
+    result = subprocess.run(
+        ["bash", "scripts/ci_install_kicad.sh", "kicad", "ngspice"],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=25,
+    )
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text(encoding="utf-8")
+    assert calls.count("add-apt-repository") == 3
+    assert "install -D -m 0644 security/kicad-10-ppa-signing-key.asc" in calls
+    assert "kicad-ubuntu-kicad-10_0-releases-" in calls
+    assert "apt-get" in calls and "install" in calls
+    assert "Configuring KiCad 10 PPA using pre-verified fingerprint" in result.stdout
+    script = Path("scripts/ci_install_kicad.sh").read_text(encoding="utf-8")
+    assert "Signed-By: /usr/share/keyrings/zaptrace-kicad-10-ppa.asc" in script
+    assert "trusted=yes" not in script
+    assert "allow-insecure-repositories" not in script
+
+
 def test_get_tool_requirements_rejects_unknown_role() -> None:
     with pytest.raises(ValueError, match="unsupported environment role"):
         ci_validation_environment.get_tool_requirements("invalid-role")
