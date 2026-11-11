@@ -227,6 +227,25 @@ def _embedded_library_pins(sexp: list[SexpNode]) -> dict[str, dict[str, tuple[fl
     return libraries
 
 
+def _embedded_library_pin_names(sexp: list[SexpNode]) -> dict[str, dict[str, str]]:
+    """Read pin names from the immutable embedded KiCad symbol definitions."""
+    libraries = _find(sexp, "lib_symbols")
+    if libraries is None:
+        return {}
+    output: dict[str, dict[str, str]] = {}
+    for symbol in _find_all(libraries, "symbol"):
+        lib_id = _atom(symbol)
+        if not lib_id:
+            continue
+        pin_names: dict[str, str] = {}
+        for pin in _nested_pin_definitions(symbol):
+            number = _atom(_find(pin, "number") or [])
+            if number:
+                pin_names[number] = _atom(_find(pin, "name") or [])
+        output[lib_id] = pin_names
+    return output
+
+
 def _embedded_power_pin_labels(sexp: list[SexpNode]) -> dict[str, tuple[str, str, bool]]:
     """Resolve a KiCad power-input library pin and how it names its net.
 
@@ -385,6 +404,7 @@ def _parse_schematic(
 ]:
     """Parse a top-level kicad_sch S-expression into raw schematic objects."""
     library_pins = _embedded_library_pins(sexp)
+    library_pin_names = _embedded_library_pin_names(sexp)
     power_pin_labels = _embedded_power_pin_labels(sexp)
     symbols: list[dict[str, Any]] = []
     wires: list[tuple[tuple[float, float], tuple[float, float]]] = []
@@ -398,7 +418,7 @@ def _parse_schematic(
         tag = str(node[0])
 
         if tag == "symbol":
-            _parse_symbol(node, symbols, unsupported, library_pins)
+            _parse_symbol(node, symbols, unsupported, library_pins, library_pin_names)
             instance = symbols[-1]
             power_label = power_pin_labels.get(instance["lib_id"])
             if power_label is not None:
@@ -407,7 +427,7 @@ def _parse_schematic(
                 if power_name and power_name != "~":
                     for number, x, y in instance["pins"]:
                         if number == pin_number:
-                            labels.append((power_name, "global_label", (x, y)))
+                            labels.append((power_name, "power_symbol", (x, y)))
                             break
         elif tag == "wire":
             _handle_wire_tag(node, wires, unsupported)
@@ -465,6 +485,7 @@ def _parse_symbol(
     symbols: list[dict[str, Any]],
     unsupported: list[SchematicUnsupportedRecord],
     library_pins: dict[str, dict[str, tuple[float, float]]] | None = None,
+    library_pin_names: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """Extract component instance data from a ``(symbol ...)`` node."""
     lib_id_node = _find(node, "lib_id")
@@ -504,6 +525,7 @@ def _parse_symbol(
             "angle": at_angle,
             "unit": unit,
             "pins": pin_coords,
+            "pin_library_names": library_pin_names.get(lib_id) if library_pin_names else None,
         }
     )
 
@@ -523,7 +545,8 @@ def _parse_symbol(
 # ---------------------------------------------------------------------------
 
 
-_KIND_PRIORITY = {"global_label": 0, "hierarchical_label": 1, "label": 2}
+# KiCad 10 net-name precedence: global > power > local > hierarchical.
+_KIND_PRIORITY = {"global_label": 0, "power_symbol": 1, "label": 2, "hierarchical_label": 3}
 
 
 def _quantise(xy: tuple[float, float]) -> tuple[int, int]:
@@ -647,9 +670,18 @@ def _group_labels(
 
 
 def _best_name(group_labels: list[tuple[str, str]]) -> str:
+    """Choose KiCad's highest-priority, alphabetically first explicit name.
+
+    The schematic importer treats each file as one root sheet. KiCad's
+    exported XML includes that sheet's '/' path on local labels, but keeps
+    global/power names unqualified. The source format uses '{slash}' as an
+    escape for a literal slash in a label's visible text.
+    """
     if not group_labels:
         return ""
-    return min(group_labels, key=lambda x: _KIND_PRIORITY.get(x[1], 99))[0]
+    label, kind = min(group_labels, key=lambda entry: (_KIND_PRIORITY.get(entry[1], 99), entry[0]))
+    readable_name = label.replace("{slash}", "/")
+    return "/" + readable_name if kind == "label" else readable_name
 
 
 def _group_pins(
@@ -669,23 +701,71 @@ def _group_pins(
     return group_pins
 
 
+def _auto_generated_pin_net_name(
+    pins: list[tuple[str, str]],
+    ref_pin_names: dict[str, dict[str, str]],
+) -> str:
+    """Conservative KiCad 'Net-(ref-pin)' naming for fully identified pins.
+
+    A user-visible library pin name takes priority over a generic pad number.
+    If any physical pin lacks verified library metadata, has an unannotated
+    reference, or has a duplicated/unsafe name, retain the legacy stable
+    fallback rather than fabricating a KiCad-compatible name.
+    """
+    if not pins:
+        return ""
+    candidates: list[tuple[bool, str]] = []
+    for ref, number in set(pins):
+        names = ref_pin_names.get(ref)
+        if not ref or ref.endswith("?") or ref.startswith("#") or names is None or number not in names:
+            return ""
+        pin_name = names[number]
+        named = bool(pin_name and pin_name != "~" and pin_name != number)
+        if named and (list(names.values()).count(pin_name) != 1 or re.fullmatch(r"[A-Za-z0-9_.+-]+", pin_name) is None):
+            return ""
+        suffix = pin_name if named else f"Pad{number}"
+        if re.fullmatch(r"[A-Za-z0-9_.+-]+", ref) is None or re.fullmatch(r"[A-Za-z0-9_.+-]+", suffix) is None:
+            return ""
+        candidates.append((not named, f"Net-({ref}-{suffix})"))
+    return min(candidates)[1]
+
+
 def _name_nets(
     all_roots: set[int],
     label_groups: dict[int, list[tuple[str, str]]],
     group_pins: dict[int, list[tuple[str, str]]],
+    ref_pin_names: dict[str, dict[str, str]],
 ) -> dict[str, list[tuple[str, str]]]:
     nets: dict[str, list[tuple[str, str]]] = {}
     for root in all_roots:
+        pins = group_pins.get(root, [])
         net_name = _best_name(label_groups.get(root, []))
         if not net_name:
-            # Auto-name from hash of root integer
+            net_name = _auto_generated_pin_net_name(pins, ref_pin_names)
+        if not net_name:
+            # Existing deterministic fallback for incomplete library pin data.
             net_name = "net_" + hashlib.sha256(str(root).encode()).hexdigest()[:8]
-        pins = group_pins.get(root, [])
         if net_name in nets:
             nets[net_name].extend(pins)
         else:
             nets[net_name] = pins
     return nets
+
+
+def _merge_flat_label_aliases(
+    label_groups: dict[int, list[tuple[str, str]]],
+    uf: _UnionFind,
+) -> dict[int, list[tuple[str, str]]]:
+    """Join matching label text on one flat sheet before name precedence."""
+    roots_by_name: dict[str, int] = {}
+    for root, entries in label_groups.items():
+        for name, _kind in entries:
+            key = name.replace("{slash}", "/")
+            uf.union(root, roots_by_name.setdefault(key, root))
+    merged: dict[int, list[tuple[str, str]]] = {}
+    for root, entries in label_groups.items():
+        merged.setdefault(uf.find(root), []).extend(entries)
+    return merged
 
 
 def _resolve_connectivity(
@@ -706,13 +786,23 @@ def _resolve_connectivity(
     _union_wires(wires, coords, coord_idx, uf)
     _merge_junctions(junctions, wires, coords, coord_idx, uf)
     label_groups = _group_labels(labels, coords, coord_idx, uf, wires, unsupported)
+
+    # Alias connectivity is scoped to this one sheet. The project importer
+    # handles separate sheet namespaces; do not cross-connect local labels.
+    label_groups = _merge_flat_label_aliases(label_groups, uf)
+
     group_pins = _group_pins(symbols, coord_idx, uf)
 
     all_roots = set(uf.groups())
     all_roots.update(label_groups)
     all_roots.update(group_pins)
 
-    return _name_nets(all_roots, label_groups, group_pins)
+    ref_pin_names = {
+        symbol["ref"]: symbol["pin_library_names"]
+        for symbol in symbols
+        if symbol.get("ref") and symbol.get("pin_library_names") is not None
+    }
+    return _name_nets(all_roots, label_groups, group_pins, ref_pin_names)
 
 
 # ---------------------------------------------------------------------------
