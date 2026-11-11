@@ -93,7 +93,9 @@ def connected_pin_topology(
     native_nc = [nodes for name, nodes in native.items() if name.startswith("unconnected-")]
     non_physical_prefixes = ("#PWR", "#FLG")
     imported_physical = [
-        {(ref, pin) for ref, pin in nodes if not ref.startswith(non_physical_prefixes)} for nodes in imported.values()
+        {(ref, pin) for ref, pin in nodes if not ref.startswith(non_physical_prefixes)}
+        for name, nodes in imported.items()
+        if not name.startswith("unconnected-")
     ]
     imported_physical = [nodes for nodes in imported_physical if nodes]
 
@@ -127,6 +129,9 @@ def connected_pin_topology(
         "native_connected_group_count": len(native_connected),
         "imported_connected_group_count": len(imported_physical),
         "native_no_connect_pin_count": len(nc_pins),
+        "imported_no_connect_pin_count": sum(
+            len(nodes) for name, nodes in imported.items() if name.startswith("unconnected-")
+        ),
         "imported_power_annotation_pin_count": sum(
             1 for nodes in imported.values() for ref, _pin in nodes if ref.startswith("#PWR")
         ),
@@ -192,7 +197,11 @@ def name_difference_diagnostics(
     def physical(nodes: set[tuple[str, str]]) -> frozenset[tuple[str, str]]:
         return frozenset((ref, pin) for ref, pin in nodes if not ref.startswith(("#PWR", "#FLG")))
 
-    imported_by_group = {physical(nodes): name for name, nodes in imported.items() if physical(nodes)}
+    imported_by_group = {
+        physical(nodes): name
+        for name, nodes in imported.items()
+        if not name.startswith("unconnected-") and physical(nodes)
+    }
     mismatches: list[dict[str, Any]] = []
     for name, nodes in sorted(native.items()):
         if name.startswith("unconnected-"):

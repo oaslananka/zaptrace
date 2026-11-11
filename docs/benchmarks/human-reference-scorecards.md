@@ -55,6 +55,18 @@ Two additional diagnostics preserve the strict gate:
 
 Neither diagnostic can turn a different native/imported named graph into `verified`.
 
+The physical-source graph now handles the two true KiCad no-connect cases
+independently: a symbol-library pin of type `no_connect`, and an explicit
+`(no_connect (at ...))` marker on an otherwise normal, unconnected pin.
+Both produce native-style singleton `unconnected-(ref-name-Padnumber)`
+nets only with matching embedded library geometry and pin-name evidence.
+Unmatched/ambiguous marks and electrically connected pins are flagged as
+unsupported; they never become an invented NC net. `#PWR*` power symbols
+and `#FLG*` ERC power flags remain source components/annotations but are
+not physical pin nodes in the native KiCad XML netlist. This improves
+exact-source fidelity without suppressing the separate unsupported-construct
+and hardware engineering review gates.
+
 The flat-sheet importer follows KiCad's explicit net naming precedence (global,
 power, local, hierarchical), alphabetical tie-breaking for equal-priority
 labels, root-sheet `/` qualification for local names, and display unescaping

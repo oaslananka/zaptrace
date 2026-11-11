@@ -246,6 +246,23 @@ def _embedded_library_pin_names(sexp: list[SexpNode]) -> dict[str, dict[str, str
     return output
 
 
+def _embedded_library_pin_types(sexp: list[SexpNode]) -> dict[str, dict[str, str]]:
+    """Read KiCad electrical pin types, including library-defined no-connect pins."""
+    library = _find(sexp, "lib_symbols")
+    if library is None:
+        return {}
+    output: dict[str, dict[str, str]] = {}
+    for symbol in _find_all(library, "symbol"):
+        lib_id = _atom(symbol)
+        if lib_id:
+            output[lib_id] = {
+                number: _atom(pin, 1)
+                for pin in _nested_pin_definitions(symbol)
+                if (number := _atom(_find(pin, "number") or []))
+            }
+    return output
+
+
 def _embedded_power_pin_labels(sexp: list[SexpNode]) -> dict[str, tuple[str, str, bool]]:
     """Resolve a KiCad power-input library pin and how it names its net.
 
@@ -684,6 +701,9 @@ def _best_name(group_labels: list[tuple[str, str]]) -> str:
     return "/" + readable_name if kind == "label" else readable_name
 
 
+_NONPHYSICAL_KICAD_REFS = ("#PWR", "#FLG")
+
+
 def _group_pins(
     symbols: list[dict[str, Any]],
     coord_idx: dict[tuple[int, int], int],
@@ -692,6 +712,10 @@ def _group_pins(
     group_pins: dict[int, list[tuple[str, str]]] = {}  # root → [(ref, pin_name)]
     for sym in symbols:
         ref = sym["ref"]
+        # Power/flag symbols name or validate nets but are not physical pins
+        # in KiCad's XML netlist. Keep the original symbol in design.components.
+        if ref.startswith(_NONPHYSICAL_KICAD_REFS):
+            continue
         for pin_name, px, py in sym["pins"]:
             q = _quantise((px, py))
             if q in coord_idx:
@@ -904,6 +928,95 @@ def _record_schematic_import_losses(
         )
 
 
+def _source_nc_pin_inventory(
+    symbols: list[dict[str, Any]],
+    library_types: dict[str, dict[str, str]],
+) -> tuple[dict[tuple[str, str], tuple[str, str]], dict[tuple[int, int], list[tuple[str, str]]]]:
+    """Only library-identified original physical pins are eligible for NC."""
+    pins: dict[tuple[str, str], tuple[str, str]] = {}
+    locations: dict[tuple[int, int], list[tuple[str, str]]] = {}
+    for symbol in symbols:
+        ref, lib_id = symbol["ref"], symbol["lib_id"]
+        if not ref or ref.startswith(_NONPHYSICAL_KICAD_REFS):
+            continue
+        names = symbol.get("pin_library_names")
+        definitions = library_types.get(lib_id, {})
+        for number, x, y in symbol["pins"]:
+            if not isinstance(names, dict) or number not in names or number not in definitions:
+                continue
+            pin = ref, number
+            pins[pin] = names[number], definitions[number]
+            locations.setdefault(_quantise((x, y)), []).append(pin)
+    return pins, locations
+
+
+def _source_no_connect_markers(
+    sexp: list[SexpNode],
+    locations: dict[tuple[int, int], list[tuple[str, str]]],
+    unsupported: list[SchematicUnsupportedRecord],
+) -> set[tuple[str, str]]:
+    """Resolve exactly one physical library pin per explicit NC marker."""
+    marked: set[tuple[str, str]] = set()
+    for marker in _find_all(sexp, "no_connect"):
+        at = _find(marker, "at")
+        matches = locations.get(_quantise(_coord(at)), []) if at is not None else []
+        if len(matches) != 1:
+            unsupported.append(
+                SchematicUnsupportedRecord(
+                    kind="unresolved_no_connect_marker",
+                    message="No-connect marker has no unique embedded-library pin",
+                    severity="warning",
+                )
+            )
+            continue
+        marked.add(matches[0])
+    return marked
+
+
+def _append_source_no_connect_nets(
+    sexp: list[SexpNode],
+    symbols: list[dict[str, Any]],
+    nets_raw: dict[str, list[tuple[str, str]]],
+    unsupported: list[SchematicUnsupportedRecord],
+) -> None:
+    """Model only explicit KiCad NC markers or library no-connect pin types.
+
+    Native netlist exports include these as singleton `unconnected-*` nets.
+    Never synthesize a native name when a pin has no reliable embedded
+    library definition, an NC marker is ambiguous, or a pin is connected.
+    """
+    occupied = {pin for nodes in nets_raw.values() for pin in nodes}
+    pins, locations = _source_nc_pin_inventory(symbols, _embedded_library_pin_types(sexp))
+    no_connect = {pin for pin, (_name, kind) in pins.items() if kind == "no_connect"}
+    no_connect.update(_source_no_connect_markers(sexp, locations, unsupported))
+
+    for ref, number in sorted(no_connect):
+        pin = ref, number
+        if pin in occupied:
+            unsupported.append(
+                SchematicUnsupportedRecord(
+                    kind="no_connect_on_connected_pin",
+                    message=f"Pin {ref}:{number} is both electrically connected and marked no-connect",
+                    severity="warning",
+                )
+            )
+            continue
+        name, _kind = pins[pin]
+        visible_name = name if name not in {"", "~", number} else ""
+        suffix = f"{visible_name}-" if visible_name else ""
+        native_name = f"unconnected-({ref}-{suffix}Pad{number})"
+        if native_name in nets_raw:
+            unsupported.append(
+                SchematicUnsupportedRecord(
+                    kind="duplicate_no_connect_net",
+                    message=f"NC net {native_name} collides with another imported net",
+                    severity="warning",
+                )
+            )
+            continue
+        nets_raw[native_name] = [pin]
+
+
 def import_kicad_schematic_string(
     content: str,
     source_path: Path | None = None,
@@ -929,6 +1042,7 @@ def import_kicad_schematic_string(
 
     # Resolve connectivity
     nets_raw = _resolve_connectivity(symbols, wires, junctions, labels, unsupported)
+    _append_source_no_connect_nets(sexp, symbols, nets_raw, unsupported)
 
     # Build Design
     source_name = source_path.stem if source_path else "schematic"
