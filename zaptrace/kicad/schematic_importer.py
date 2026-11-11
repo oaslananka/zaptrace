@@ -928,6 +928,51 @@ def _record_schematic_import_losses(
         )
 
 
+def _source_nc_pin_inventory(
+    symbols: list[dict[str, Any]],
+    library_types: dict[str, dict[str, str]],
+) -> tuple[dict[tuple[str, str], tuple[str, str]], dict[tuple[int, int], list[tuple[str, str]]]]:
+    """Only library-identified original physical pins are eligible for NC."""
+    pins: dict[tuple[str, str], tuple[str, str]] = {}
+    locations: dict[tuple[int, int], list[tuple[str, str]]] = {}
+    for symbol in symbols:
+        ref, lib_id = symbol["ref"], symbol["lib_id"]
+        if not ref or ref.startswith(_NONPHYSICAL_KICAD_REFS):
+            continue
+        names = symbol.get("pin_library_names")
+        definitions = library_types.get(lib_id, {})
+        for number, x, y in symbol["pins"]:
+            if not isinstance(names, dict) or number not in names or number not in definitions:
+                continue
+            pin = ref, number
+            pins[pin] = names[number], definitions[number]
+            locations.setdefault(_quantise((x, y)), []).append(pin)
+    return pins, locations
+
+
+def _source_no_connect_markers(
+    sexp: list[SexpNode],
+    locations: dict[tuple[int, int], list[tuple[str, str]]],
+    unsupported: list[SchematicUnsupportedRecord],
+) -> set[tuple[str, str]]:
+    """Resolve exactly one physical library pin per explicit NC marker."""
+    marked: set[tuple[str, str]] = set()
+    for marker in _find_all(sexp, "no_connect"):
+        at = _find(marker, "at")
+        matches = locations.get(_quantise(_coord(at)), []) if at is not None else []
+        if len(matches) != 1:
+            unsupported.append(
+                SchematicUnsupportedRecord(
+                    kind="unresolved_no_connect_marker",
+                    message="No-connect marker has no unique embedded-library pin",
+                    severity="warning",
+                )
+            )
+            continue
+        marked.add(matches[0])
+    return marked
+
+
 def _append_source_no_connect_nets(
     sexp: list[SexpNode],
     symbols: list[dict[str, Any]],
@@ -940,37 +985,10 @@ def _append_source_no_connect_nets(
     Never synthesize a native name when a pin has no reliable embedded
     library definition, an NC marker is ambiguous, or a pin is connected.
     """
-    library_types = _embedded_library_pin_types(sexp)
     occupied = {pin for nodes in nets_raw.values() for pin in nodes}
-    pins_by_coord: dict[tuple[int, int], list[tuple[str, str]]] = {}
-    pins: dict[tuple[str, str], tuple[str, str]] = {}
-    for symbol in symbols:
-        ref, lib_id = symbol["ref"], symbol["lib_id"]
-        if not ref or ref.startswith(_NONPHYSICAL_KICAD_REFS):
-            continue
-        names = symbol.get("pin_library_names")
-        definitions = library_types.get(lib_id, {})
-        for number, x, y in symbol["pins"]:
-            if not isinstance(names, dict) or number not in names or number not in definitions:
-                continue
-            pin = ref, number
-            pins[pin] = names[number], definitions[number]
-            pins_by_coord.setdefault(_quantise((x, y)), []).append(pin)
-
-    no_connect: set[tuple[str, str]] = {pin for pin, (_name, pin_type) in pins.items() if pin_type == "no_connect"}
-    for marker in _find_all(sexp, "no_connect"):
-        at = _find(marker, "at")
-        matches = pins_by_coord.get(_quantise(_coord(at)), []) if at is not None else []
-        if len(matches) != 1:
-            unsupported.append(
-                SchematicUnsupportedRecord(
-                    kind="unresolved_no_connect_marker",
-                    message="No-connect marker has no unique embedded-library pin",
-                    severity="warning",
-                )
-            )
-            continue
-        no_connect.add(matches[0])
+    pins, locations = _source_nc_pin_inventory(symbols, _embedded_library_pin_types(sexp))
+    no_connect = {pin for pin, (_name, kind) in pins.items() if kind == "no_connect"}
+    no_connect.update(_source_no_connect_markers(sexp, locations, unsupported))
 
     for ref, number in sorted(no_connect):
         pin = ref, number
