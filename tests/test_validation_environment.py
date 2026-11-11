@@ -195,6 +195,63 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
     assert "sudo apt-get install --no-install-recommends -y ngspice" not in benchmark
 
 
+def test_signed_ubuntu_mirror_failover_is_ci_only(tmp_path: Path) -> None:
+    """Fail closed locally; in CI, apt uses the distro keyring on pinned mirrors."""
+    script = Path("scripts/ci_install_ubuntu_packages.sh").read_text(encoding="utf-8")
+    assert "ubuntu-archive-keyring.gpg" in script
+    assert "signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg" in script
+    assert "https://mirrors.mit.edu/ubuntu" in script
+    assert "https://mirrors.kernel.org/ubuntu" in script
+    assert "APT::Update::Error-Mode=any" in script
+    assert "trusted=yes" not in script and "allow-unauthenticated" not in script
+    assert "Dir::Etc::sourceparts=-" in script
+    assert "GITHUB_ACTIONS" in script
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    sudo = fake_bin / "sudo"
+    sudo.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$MOCK_SUDO_LOG"\n'
+        'if [[ "$*" == *"APT::Update::Error-Mode=any update"* && '
+        '"$*" != *"Dir::Etc::sourcelist="* ]]; then exit 1; fi\n',
+        encoding="utf-8",
+    )
+    sudo.chmod(0o755)
+
+    for github_ci, should_succeed in (("false", False), ("true", True)):
+        log = tmp_path / "sudo.log"
+        log.write_text("", encoding="utf-8")
+        completed = subprocess.run(
+            ["bash", "scripts/ci_install_ubuntu_packages.sh", "desktop-file-utils"],
+            env={
+                **os.environ,
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "MOCK_SUDO_LOG": str(log),
+                "GITHUB_ACTIONS": github_ci,
+            },
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert (completed.returncode == 0) is should_succeed, completed.stderr
+        calls = log.read_text(encoding="utf-8")
+        assert "APT::Update::Error-Mode=any update" in calls
+        assert ("Dir::Etc::sourcelist=" in calls) is should_succeed
+        if should_succeed:
+            assert "desktop-file-utils" in calls
+            assert "signed mirror" in completed.stdout
+
+
+def test_kicad_appimage_and_utility_jobs_share_signed_ubuntu_install_helper() -> None:
+    assert 'exec bash scripts/ci_install_ubuntu_packages.sh "$@"' in Path("scripts/ci_install_kicad.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'bash scripts/ci_install_ubuntu_packages.sh "${native_packages[@]}"' in Path(
+        "scripts/ci_install_kicad_appimage.sh"
+    ).read_text(encoding="utf-8")
+
+
 def test_simulation_install_does_not_require_kicad_ppa(tmp_path: Path) -> None:
     """Run the real installer with only sudo mocked; no host packages are changed."""
     fake_bin = tmp_path / "bin"
