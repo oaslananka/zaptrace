@@ -102,6 +102,23 @@ exec /opt/zaptrace-ci/kicad-10.0.8/AppRun kicad-cli "$@"
 WRAPPER
 sudo chmod 0755 /usr/local/bin/kicad-cli
 
+# Native PCB ECO/parity scripts use the matching upstream Python 3.11 + pcbnew
+# bindings bundled with KiCad 10.0.8.  Do not silently fall back to Ubuntu's
+# incompatible system Python on the external-tool lane.
+cat <<'WRAPPER' | sudo tee /usr/local/bin/kicad-python >/dev/null
+#!/bin/sh
+exec /opt/zaptrace-ci/kicad-10.0.8/AppRun python3.11 "$@"
+WRAPPER
+sudo chmod 0755 /usr/local/bin/kicad-python
+pcbnew_version="$(/usr/local/bin/kicad-python -c 'import pcbnew; print(pcbnew.Version())')"
+if [[ "$pcbnew_version" != "$version" ]]; then
+  echo "KiCad pcbnew bindings mismatch: expected $version, got $pcbnew_version" >&2
+  exit 1
+fi
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  printf 'ZAPTRACE_KICAD_PYTHON=appimage\n' >> "$GITHUB_ENV"
+fi
+
 installed_version="$(kicad-cli version)"
 if [[ "$installed_version" != "$version" ]]; then
   echo "KiCad version mismatch: expected $version, got $installed_version" >&2

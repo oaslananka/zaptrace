@@ -260,6 +260,7 @@ jobs:
             fi
             if [[ "$lane" == "external_tool" ]]; then
               bash scripts/ci_install_kicad.sh kicad ngspice
+              export ZAPTRACE_KICAD_PYTHON=appimage
             fi
             if [[ "$lane" == "native" ]]; then
               .venv/bin/maturin develop --release --manifest-path zaptrace_core/Cargo.toml

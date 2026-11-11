@@ -241,6 +241,18 @@ def test_kicad_official_appimage_ci_selection_is_pinned_and_scoped(tmp_path: Pat
     assert "sha256sum --check" in installer
     assert "--appimage-extract" in installer
     assert "kicad-cli version" in installer
+    assert "import pcbnew; print(pcbnew.Version())" in installer
+    assert "ZAPTRACE_KICAD_PYTHON=appimage" in installer
+    for path in (
+        "scripts/review_studio_local_server.py",
+        "scripts/review_studio_native_copper_bundle.py",
+        "tests/test_review_studio_pcb_eco.py",
+        "tests/test_review_studio_schematic_pcb_parity.py",
+    ):
+        source = Path(path).read_text(encoding="utf-8")
+        assert "ZAPTRACE_KICAD_PYTHON" in source
+        assert "/usr/local/bin/kicad-python" in source
+        assert "/usr/bin/python3" in source
     assert "trusted=yes" not in installer
     assert "allow-unauthenticated" not in installer
 
