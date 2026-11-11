@@ -244,15 +244,16 @@ def test_kicad_official_appimage_ci_selection_is_pinned_and_scoped(tmp_path: Pat
     assert "trusted=yes" not in installer
     assert "allow-unauthenticated" not in installer
 
-    for path, step_name in (
-        (".github/workflows/quality.yml", "Install KiCad 10 CLI"),
-        (".github/workflows/quality-test-lanes.yml", "Install external test tools"),
-        (".github/workflows/release.yml", "Run Python quality gates"),
+    for path, step_name, invocation in (
+        (".github/workflows/quality.yml", "Install KiCad 10 CLI", "kicad ngspice"),
+        (".github/workflows/quality-test-lanes.yml", "Install external test tools", "kicad ngspice"),
+        (".github/workflows/release.yml", "Run Python quality gates", "kicad ngspice"),
+        (".github/actions/kicad-oracle/action.yml", "Install KiCad 10 CLI", "kicad"),
     ):
         source = Path(path).read_text(encoding="utf-8")
         assert source.count("KICAD_CI_INSTALL_METHOD:") == 1
         assert source.index(step_name) < source.index('KICAD_CI_INSTALL_METHOD: "appimage"')
-        assert "bash scripts/ci_install_kicad.sh kicad ngspice" in source
+        assert f"bash scripts/ci_install_kicad.sh {invocation}" in source
 
     completed = subprocess.run(
         ["bash", "scripts/ci_install_kicad.sh", "ngspice"],

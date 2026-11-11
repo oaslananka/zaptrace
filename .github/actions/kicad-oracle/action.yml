@@ -16,6 +16,8 @@ runs:
   steps:
     - name: Install KiCad 10 CLI
       shell: bash
+      env:
+        KICAD_CI_INSTALL_METHOD: "appimage"
       run: bash scripts/ci_install_kicad.sh kicad
 
     - name: Record KiCad availability
