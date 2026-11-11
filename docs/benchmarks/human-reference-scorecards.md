@@ -135,6 +135,48 @@ Design round-tripping, semantic netclass rules, ERC/DRC or manufacturing.
 The strict G0 completeness gate remains blocked where required source
 constructs are not fully mapped.
 
+### Controlled passive-component value editing (local G0 task)
+
+The source editing API supports a narrowly scoped **resistor/capacitor Value
+property edit** using replace_kicad_source_passive_value(snapshot,
+symbol_uuid, expected_reference, expected_old_value, new_value,
+expected_sha256=snapshot.sha256). It requires the exact original SHA,
+unique top-level symbol UUID, a matching physical R/C reference and old
+value, and a generic KiCad Device:R, Device:R_Small, Device:C or
+Device:C_Small library symbol. It rejects no-op edits, mismatched library
+types, missing/duplicated lib_id and all vendor-specific symbols where
+the physical component value can be embedded in the library identity.
+No source input is overwritten; other source bytes and AST nodes remain
+unchanged. BOM, electrical suitability and PCB acceptance are **not**
+verified.
+
+A specific risk was discovered and blocked: the genuine licensed
+SparkFun Qwiic R14 uses library ID SparkFun-Resistor:2.2k_0603.
+Changing only its displayed Value from 2.2k to 4.7k would leave that
+fixed-value library identity inconsistent. An earlier standalone CLI
+probe proved that the Value field could change with unchanged netlist
+topology (32 nets/99 pins), **not** that this was a safe part
+substitution. The production helper now refuses that edit.
+
+Actual native KiCad 10.0.8 before/after XML netlist verification confirms
+the intended Value property update and exact graph invariance on:
+Mitayi C17 30pF to 33pF (64 nets, 231 netlist pin nodes);
+Nitu 555 Blinker R1 4.7k to 5.1k (7 nets, 24 nodes);
+Nitu NPN Transistor Switch R1 390 to 470; and
+Nitu Linear Regulator R1 330 to 470.
+Original boards remain untouched. Native KiCad 10 ERC is compared by
+finding type, severity, symbol UUID and location; baseline findings
+remain and are **never** presented as cleared. SparkFun pre-existing
+ERC findings (2 errors, 108 warnings) were unchanged in its earlier
+probe, Mitayi had 7 errors and 378 warnings unchanged, and 555 Blinker
+had no findings. The additional native tests explicitly skip if KiCad 10
+is unavailable rather than reporting an independent verification PASS.
+
+These are source-bound, human-selected draft component value edits, not
+autonomous, qualified engineering revisions. Circuit simulation,
+requirements verification, sourcing/BOM checks, PCB DRC, physical review
+and full G0 task acceptance remain outstanding.
+
 ## Review boundary
 
 The fields are deliberately independent:
