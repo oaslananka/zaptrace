@@ -115,6 +115,26 @@ strict complete-import gate is unchanged. This source-backed review path
 lets future user interfaces show original material without pretending it was
 interpreted or approved.
 
+### Controlled original-source annotation edit
+
+An AI workflow can now change **one original top-level KiCad text annotation**
+without rewriting the remainder of the original schematic. Given a source
+snapshot, use the function replace_kicad_source_text(snapshot, annotation_uuid,
+new_text, expected_sha256=snapshot.sha256) from zaptrace.kicad.source_edit.
+The helper requires an exact source SHA-256 match and a unique text UUID,
+validates the resulting complete KiCad syntax tree, and returns UTF-8 bytes
+**without writing the source file**. Save the result to a separate review copy.
+Unchanged source bytes (including graphical objects, netclass flags and CRLF)
+remain byte-exact.
+
+An independent KiCad CLI 10.0.8 export of the original and a source-only
+annotation edit on the pinned SparkFun schematic yielded the same **32 native
+named nets and 99 total netlist pin nodes**. This validates only the scope of
+that one text edit, not arbitrary component/net edits, editable canonical
+Design round-tripping, semantic netclass rules, ERC/DRC or manufacturing.
+The strict G0 completeness gate remains blocked where required source
+constructs are not fully mapped.
+
 ## Review boundary
 
 The fields are deliberately independent:
