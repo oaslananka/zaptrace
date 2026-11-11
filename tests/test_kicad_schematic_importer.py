@@ -566,3 +566,43 @@ def test_schematic_build_helpers_preserve_components_nets_and_losses() -> None:
     _record_schematic_import_losses(design, records)
     assert len(design.import_losses) == 1
     assert design.import_losses[0].field_path == "title_block"
+
+
+def test_distinct_usb_differential_pair_names_do_not_collide() -> None:
+    """A real KiCad reference contains USB_D+ and USB_D- as separate nets."""
+    raw = {
+        "USB_D+": [("U1", "1"), ("J1", "A6")],
+        "USB_D-": [("U1", "2"), ("J1", "A7")],
+        "floating": [],
+    }
+    first = Design(meta=DesignMeta(name="usb", author="test"))
+    second = Design(meta=DesignMeta(name="usb", author="test"))
+
+    score = _add_imported_nets(first, raw)
+    assert score == pytest.approx(2 / 3)
+    assert len(first.nets) == len(raw)
+    assert {net.name for net in first.nets.values()} == set(raw)
+    assert len({net.id for net in first.nets.values()}) == 3
+    assert {net.name: {(n.component_ref, n.pin_name) for n in net.nodes} for net in first.nets.values()} == {
+        name: set(pins) for name, pins in raw.items()
+    }
+
+    # Order-independent IDs allow stable diff/replay for the same names.
+    assert _add_imported_nets(second, dict(reversed(list(raw.items())))) == pytest.approx(score)
+    assert {net.name: net.id for net in first.nets.values()} == {net.name: net.id for net in second.nets.values()}
+
+
+def test_real_mitayi_pico_usb_net_names_remain_distinct() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    result = import_kicad_schematic(source)
+    by_name = {net.name: net for net in result.design.nets.values()}
+    assert len(by_name) == len(result.design.nets)
+    assert "USB_D+" in by_name
+    assert "USB_D-" in by_name
+    assert by_name["USB_D+"].id != by_name["USB_D-"].id
+    assert by_name["USB_D+"].nodes and by_name["USB_D-"].nodes
+    assert 0.0 <= result.net_score <= 1.0
