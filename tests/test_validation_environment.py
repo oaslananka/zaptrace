@@ -242,6 +242,7 @@ def test_kicad_official_appimage_ci_selection_is_pinned_and_scoped(tmp_path: Pat
     assert "--appimage-extract" in installer
     assert "kicad-cli version" in installer
     assert "import pcbnew; print(pcbnew.Version())" in installer
+    assert 'assert pcbnew.Version() == "10.0.8"' in installer
     assert "ZAPTRACE_KICAD_PYTHON=appimage" in installer
     for path in (
         "scripts/review_studio_local_server.py",

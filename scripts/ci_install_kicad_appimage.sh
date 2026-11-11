@@ -98,6 +98,11 @@ sudo chown -R root:root "$install_root"
 # lanes; this redirects *execution*, never skips any native validation.
 cat <<'WRAPPER' | sudo tee /usr/local/bin/kicad-cli >/dev/null
 #!/bin/sh
+# The version probe is a contract for both native CLI and Python pcbnew
+# availability. This is the same fixed, verified AppImage; no extra provider.
+if [ "$#" -eq 1 ] && [ "$1" = "version" ]; then
+  /opt/zaptrace-ci/kicad-10.0.8/AppRun python3.11 -c 'import pcbnew; assert pcbnew.Version() == "10.0.8"' || exit 1
+fi
 exec /opt/zaptrace-ci/kicad-10.0.8/AppRun kicad-cli "$@"
 WRAPPER
 sudo chmod 0755 /usr/local/bin/kicad-cli
