@@ -19,11 +19,15 @@ Connectivity resolution
 1. All wire endpoints are collected.
 2. Wire segments are merged into connected groups via union-find, expanded by
    junction points that lie on any wire.
-3. Each group that carries at least one label is named by its highest-priority
-   label (global > hierarchical > local). Groups without labels receive an
-   auto-generated net name ``net_<hex>``.
-4. Symbol pins are assigned to the wire group whose endpoint matches the pin
-   coordinate (with a 1-mil tolerance).
+3. Each named group follows KiCad's verified global > power > local >
+   hierarchical label priority, with root-sheet local name qualification.
+   Unnamed groups use embedded symbol pin metadata when unambiguous, or a
+   deterministic fallback when the original native name cannot be proven.
+4. Symbol pins are assigned to the matching wire group using source pin
+   geometry; library/explicit no-connect pins remain singleton native nets.
+5. The result retains the original UTF-8 source byte sequence and readable
+   page/presentation evidence for source-backed review. This is not a
+   lossless conversion of schematic graphics into the editable Design model.
 """
 
 from __future__ import annotations
@@ -69,6 +73,73 @@ class SchematicUnsupportedRecord:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class KiCadSchematicSourceSnapshot:
+    """Exact source bytes and independently accessible page/presentation evidence.
+
+    Retention is *not* conversion into ZapTrace's editable Design fields.
+    Unmapped constructs must remain visible in the unsupported ledger.
+    The original byte sequence permits later lossless inspection even if
+    a temporary project directory or the original source file disappears.
+    """
+
+    raw_bytes: bytes
+    sha256: str
+    paper: str | None
+    title_block: dict[str, str]
+    embedded_fonts: str | None
+    top_level_counts: dict[str, int]
+
+    def nodes(self, kind: str) -> list[list[SexpNode]]:
+        """Recover original parsed top-level KiCad constructs on demand."""
+        tree = _sexp_parse(self.raw_bytes.decode("utf-8"))
+        if not isinstance(tree, list):
+            raise ValueError("Invalid retained schematic source")
+        return _find_all(tree, kind)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Safe, small evidence summary: exclude full potentially private source."""
+        return {
+            "sha256": self.sha256,
+            "byte_size": len(self.raw_bytes),
+            "paper": self.paper,
+            "title_block": dict(self.title_block),
+            "embedded_fonts": self.embedded_fonts,
+            "top_level_counts": dict(self.top_level_counts),
+            "retention_scope": "original source bytes; canonical edit/export fidelity not verified",
+        }
+
+
+def _source_snapshot(sexp: list[SexpNode], content: str) -> KiCadSchematicSourceSnapshot:
+    """Capture exactly the input UTF-8 sequence plus readable native page data."""
+    raw = content.encode("utf-8")
+    paper = _find(sexp, "paper")
+    fonts = _find(sexp, "embedded_fonts")
+    title = _find(sexp, "title_block")
+    fields: dict[str, str] = {}
+    if title is not None:
+        for entry in title[1:]:
+            if not isinstance(entry, list) or not entry:
+                continue
+            if _atom(entry, 0) == "comment" and len(entry) > 2:
+                fields[f"comment_{_atom(entry, 1)}"] = _atom(entry, 2)
+            elif len(entry) > 1:
+                fields[_atom(entry, 0)] = _atom(entry, 1)
+    counts: dict[str, int] = {}
+    for entry in sexp[1:]:
+        if isinstance(entry, list) and entry:
+            kind = _atom(entry, 0)
+            counts[kind] = counts.get(kind, 0) + 1
+    return KiCadSchematicSourceSnapshot(
+        raw_bytes=raw,
+        sha256=hashlib.sha256(raw).hexdigest(),
+        paper=_atom(paper) if paper is not None else None,
+        title_block=fields,
+        embedded_fonts=_atom(fonts) if fonts is not None else None,
+        top_level_counts=dict(sorted(counts.items())),
+    )
+
+
 @dataclass
 class KiCadSchematicImportResult:
     """Result of importing a .kicad_sch file.
@@ -84,12 +155,16 @@ class KiCadSchematicImportResult:
     net_score:
         Fraction of design nets that have at least one component connection
         (1.0 means all nets are resolved). Ranges [0, 1].
+    source_snapshot:
+        Original bytes and page/presentation evidence retained independently
+        of the editable Design. Does not waive unsupported construct findings.
     """
 
     design: Design
     unsupported: list[SchematicUnsupportedRecord] = field(default_factory=list)
     source_path: Path | None = None
     net_score: float = 1.0
+    source_snapshot: KiCadSchematicSourceSnapshot | None = None
 
     @property
     def unsupported_count(self) -> int:
@@ -102,6 +177,9 @@ class KiCadSchematicImportResult:
             "net_count": len(self.design.nets),
             "unsupported_count": self.unsupported_count,
             "net_score": self.net_score,
+            "source_sha256": self.source_snapshot.sha256 if self.source_snapshot else None,
+            "source_byte_size": len(self.source_snapshot.raw_bytes) if self.source_snapshot else 0,
+            "source_evidence": self.source_snapshot.to_dict() if self.source_snapshot else None,
         }
 
 
@@ -866,7 +944,9 @@ def import_kicad_schematic(path: str | Path) -> KiCadSchematicImportResult:
         If the file cannot be read.
     """
     p = Path(path)
-    content = p.read_text(encoding="utf-8")
+    # read_bytes preserves LF/CRLF and all original UTF-8 bytes, not only
+    # parser-normalized data. Required for byte-verifiable review evidence.
+    content = p.read_bytes().decode("utf-8")
     return import_kicad_schematic_string(content, source_path=p)
 
 
@@ -1057,6 +1137,7 @@ def import_kicad_schematic_string(
         unsupported=unsupported,
         source_path=source_path,
         net_score=net_score,
+        source_snapshot=_source_snapshot(sexp, content),
     )
 
 

@@ -91,6 +91,30 @@ verified. They must not automatically be labeled copper shorts or electrical des
 The older `benchmarks/kicad_roundtrip` scorecard uses source-less contractual scores and
 cannot substitute for this diagnostic or a real design-edit benchmark.
 
+## Reversible source evidence for schematic review
+
+The KiCad schematic importer now returns an **in-memory source snapshot**
+(\`KiCadSchematicImportResult.source_snapshot\`) that retains the original
+UTF-8 byte sequence and SHA-256. Its \`paper\`, \`title_block\`,
+\`embedded_fonts\` and top-level construct counts are readable through the
+small \`source_evidence\` summary. \`snapshot.nodes("text")\`,
+\`snapshot.nodes("polyline")\`, \`snapshot.nodes("image")\` and
+\`snapshot.nodes("netclass_flag")\` recover parsed original items on demand.
+
+Hierarchical project imports retain these snapshots independently by sheet
+path in \`KiCadProjectImportResult.source_snapshots\`. This includes imports
+from temporary source directories after those directories are removed.
+The normal \`to_dict()\` summaries contain only counts, page/title fields
+and hashes, **not the complete source bytes**.
+
+Source retention is **not** lossless conversion into the editable \`Design\`,
+does not guarantee an edited KiCad export, and does not resolve electrical
+netclass attributes or drawing rendering. Unmapped source constructs remain
+visible as \`unsupported_construct\` findings and \`import_losses\`; the G0
+strict complete-import gate is unchanged. This source-backed review path
+lets future user interfaces show original material without pretending it was
+interpreted or approved.
+
 ## Review boundary
 
 The fields are deliberately independent:

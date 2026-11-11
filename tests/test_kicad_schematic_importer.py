@@ -12,6 +12,8 @@ Covers all acceptance criteria:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from zaptrace.core.models import Component, Design, DesignMeta, Net, NetNode
@@ -1228,3 +1230,84 @@ def test_real_mitayi_pico_usb_net_names_remain_distinct() -> None:
     assert by_name["/USB_D+"].nodes
     assert by_name["/USB_D-"].nodes
     assert 0.0 <= result.net_score <= 1.0
+
+
+def test_kicad_source_snapshot_keeps_exact_utf8_bytes_and_page_data(tmp_path: Path) -> None:
+    import hashlib
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = (
+        "(kicad_sch\r\n"
+        "  (version 20250101)\r\n"
+        '  (paper "A3")\r\n'
+        '  (title_block (title "Güç devresi") (rev "R2") (comment 1 "Prototip"))\r\n'
+        "  (embedded_fonts no)\r\n"
+        '  (text "Annotation only")\r\n'
+        ")\r\n"
+    ).encode()
+    path = tmp_path / "original.kicad_sch"
+    path.write_bytes(source)
+    result = import_kicad_schematic(path)
+    snapshot = result.source_snapshot
+    assert snapshot is not None
+    assert snapshot.raw_bytes == source
+    assert snapshot.sha256 == hashlib.sha256(source).hexdigest()
+    assert snapshot.paper == "A3"
+    assert snapshot.title_block == {
+        "title": "Güç devresi",
+        "rev": "R2",
+        "comment_1": "Prototip",
+    }
+    assert snapshot.embedded_fonts == "no"
+    assert snapshot.top_level_counts["text"] == 1
+    assert snapshot.nodes("text")[0][1] == "Annotation only"
+
+    # A returned source node may be mutated by a UI without changing evidence.
+    snapshot.nodes("text")[0][1] = "not the original"
+    assert snapshot.nodes("text")[0][1] == "Annotation only"
+    assert snapshot.sha256 == hashlib.sha256(snapshot.raw_bytes).hexdigest()
+
+    summary = snapshot.to_dict()
+    assert summary["sha256"] == snapshot.sha256
+    assert summary["byte_size"] == len(source)
+    assert "raw_bytes" not in summary
+    assert result.to_dict()["source_evidence"]["title_block"]["title"] == "Güç devresi"
+    assert "raw_bytes" not in str(result.to_dict())
+    assert result.to_dict()["source_sha256"] == snapshot.sha256
+
+    # Capture is in memory, never a dangling pointer to an external source.
+    path.unlink()
+    assert snapshot.raw_bytes == source
+
+
+def test_original_kicad_graphics_and_constraint_markers_are_retained_not_accepted() -> None:
+    import hashlib
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    root = Path(__file__).parents[1] / "benchmarks/external"
+    expected = [
+        ("sparkfun-qwiic-navigation", "USLetter", {"polyline": 20, "text": 43}),
+        ("mitayi-pico-d1", "A3", {"rectangle": 15, "text": 25, "image": 1, "netclass_flag": 5}),
+        ("nitu-555-blinker", "A5", {}),
+        ("nitu-npn-transistor-switch", "A5", {}),
+        ("nitu-linear-regulator", "A5", {}),
+    ]
+    for board, paper, kinds in expected:
+        original = next((root / board / "source").glob("*.kicad_sch"))
+        result = import_kicad_schematic(original)
+        archive = result.source_snapshot
+        assert archive is not None
+        assert archive.raw_bytes == original.read_bytes()
+        assert archive.sha256 == hashlib.sha256(original.read_bytes()).hexdigest()
+        assert archive.paper == paper
+        assert archive.title_block["title"]
+        for kind, count in kinds.items():
+            assert archive.top_level_counts[kind] == count, (board, kind)
+            assert len(archive.nodes(kind)) == count
+        if kinds:
+            # Original graphic/constraint constructs have not been fully
+            # mapped to the editable Design and must remain visible as losses.
+            assert result.unsupported_count > 0
+            assert any(record.kind in kinds for record in result.unsupported)
