@@ -94,17 +94,18 @@ def test_native_preview_fails_closed_before_starting_kicad(
     def disallow(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("should reject before native execution")
 
-    monkeypatch.setattr("zaptrace.kicad.netclass_edit.subprocess.run", disallow)
+    monkeypatch.setattr("zaptrace.kicad.netclass_edit._execute_step_command", disallow)
+    selected_uuid = uid if uuid == "current" else uuid
+    selected_source_sha = hashlib.sha256(before).hexdigest() if source_hash == "current" else source_hash
+    selected_project_sha = hashlib.sha256(project_raw).hexdigest() if project_hash == "current" else project_hash
     with pytest.raises(ValueError, match=error):
         preview_native_netclass_reassignment(
             source,
-            uid if uuid == "current" else uuid,
+            selected_uuid,
             old,
             new,
-            expected_source_sha256=hashlib.sha256(before).hexdigest() if source_hash == "current" else source_hash,
-            expected_project_sha256=hashlib.sha256(project_raw).hexdigest()
-            if project_hash == "current"
-            else project_hash,
+            expected_source_sha256=selected_source_sha,
+            expected_project_sha256=selected_project_sha,
         )
 
 
@@ -114,14 +115,16 @@ def test_rejects_missing_project_and_non_native_version(
     source, project, uid = mitayi_source
     path = tmp_path / source.name
     path.write_bytes(source.read_bytes())
+    original_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    project_sha = hashlib.sha256(project.read_bytes()).hexdigest()
     with pytest.raises(ValueError, match="project"):
         preview_native_netclass_reassignment(
             path,
             uid,
             "VBUS",
             "GND",
-            expected_source_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
-            expected_project_sha256=hashlib.sha256(project.read_bytes()).hexdigest(),
+            expected_source_sha256=original_sha,
+            expected_project_sha256=project_sha,
         )
 
     # Valid project but no real KiCad CLI: return no draft.
@@ -133,8 +136,8 @@ def test_rejects_missing_project_and_non_native_version(
             uid,
             "VBUS",
             "GND",
-            expected_source_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
-            expected_project_sha256=hashlib.sha256(project.read_bytes()).hexdigest(),
+            expected_source_sha256=original_sha,
+            expected_project_sha256=project_sha,
         )
 
 
@@ -146,14 +149,16 @@ def test_rejects_ambiguous_flag_uuid(tmp_path: Path, mitayi_source: tuple[Path, 
     folder_source = tmp_path / source.name
     folder_source.write_bytes(altered)
     (tmp_path / project.name).write_bytes(project.read_bytes())
+    project_sha = hashlib.sha256(project.read_bytes()).hexdigest()
+    source_sha = hashlib.sha256(altered).hexdigest()
     with pytest.raises(ValueError, match="unique"):
         preview_native_netclass_reassignment(
             folder_source,
             uid,
             "VBUS",
             "GND",
-            expected_source_sha256=hashlib.sha256(altered).hexdigest(),
-            expected_project_sha256=hashlib.sha256(project.read_bytes()).hexdigest(),
+            expected_source_sha256=source_sha,
+            expected_project_sha256=project_sha,
         )
 
 

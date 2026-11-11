@@ -12,7 +12,6 @@ import copy
 import hashlib
 import json
 import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -21,7 +20,9 @@ from uuid import UUID
 from defusedxml import ElementTree
 
 from zaptrace.io.sexp import SexpNode, Token, parse, tokenize
+from zaptrace.kicad.oracle import KiCadOracle
 from zaptrace.kicad.source_edit import _quoted_end
+from zaptrace.kicad.step_export import _execute_step_command
 
 
 @dataclass(frozen=True)
@@ -91,20 +92,39 @@ def _direct_flag_token(tokens: list[Token], index: int) -> tuple[str, Token] | N
     return None
 
 
+def _start_flag_fields(tokens: list[Token], index: int) -> dict[str, list[Token]] | None:
+    if index + 1 < len(tokens) and tokens[index + 1].value == "netclass_flag":
+        return {}
+    return None
+
+
+def _append_flag_field(tokens: list[Token], index: int, fields: dict[str, list[Token]]) -> None:
+    field = _direct_flag_token(tokens, index)
+    if field is not None:
+        fields.setdefault(field[0], []).append(field[1])
+
+
+def _opening_flag_context(
+    tokens: list[Token], index: int, depth: int, current: dict[str, list[Token]] | None
+) -> dict[str, list[Token]] | None:
+    if depth == 2:
+        return _start_flag_fields(tokens, index)
+    if depth == 3 and current is not None:
+        _append_flag_field(tokens, index, current)
+    return current
+
+
 def _top_level_flag_fields(tokens: list[Token]) -> list[dict[str, list[Token]]]:
     depth = 0
     current: dict[str, list[Token]] | None = None
     flags: list[dict[str, list[Token]]] = []
     for index, token in enumerate(tokens):
-        if token.value == "(" and not token.is_quoted:
+        if token.is_quoted:
+            continue
+        if token.value == "(":
             depth += 1
-            if depth == 2:
-                current = {} if index + 1 < len(tokens) and tokens[index + 1].value == "netclass_flag" else None
-            elif depth == 3 and current is not None:
-                field = _direct_flag_token(tokens, index)
-                if field is not None:
-                    current.setdefault(field[0], []).append(field[1])
-        elif token.value == ")" and not token.is_quoted:
+            current = _opening_flag_context(tokens, index, depth, current)
+        elif token.value == ")":
             if depth == 2 and current is not None:
                 flags.append(current)
                 current = None
@@ -188,11 +208,13 @@ def _native_erc_findings(path: Path) -> list[tuple[str, str, tuple[tuple[str, st
 
 
 def _export_native_evidence(
-    cli: str, working: Path, stem: str, schematic: bytes, project: bytes
+    cli: str, working: Path, schematic: bytes, project: bytes
 ) -> tuple[dict[str, tuple[str, tuple[tuple[str, str], ...]]], list[tuple[str, str, tuple[tuple[str, str], ...]]]]:
-    sch_path = working / f"{stem}.kicad_sch"
+    # All output paths are fixed within a fresh, owned temporary directory.
+    # Source/project basenames are untrusted and must not enter a write path.
+    sch_path = working / "review.kicad_sch"
     sch_path.write_bytes(schematic)
-    (working / f"{stem}.kicad_pro").write_bytes(project)
+    (working / "review.kicad_pro").write_bytes(project)
     xml_path = working / "native.xml"
     erc_path = working / "native-erc.json"
     commands = (
@@ -200,8 +222,8 @@ def _export_native_evidence(
         [cli, "sch", "erc", "--format", "json", "--severity-all", "-o", str(erc_path), str(sch_path)],
     )
     for args in commands:
-        execution = subprocess.run(args, capture_output=True, text=True, timeout=60, check=False)
-        if execution.returncode != 0:
+        execution = _execute_step_command(args, timeout=60)
+        if execution.exit_code != 0:
             raise ValueError("Native KiCad verification failed; no draft produced")
     root = ElementTree.parse(xml_path).getroot()
     if root is None:
@@ -274,8 +296,8 @@ def _native_kicad_cli() -> str:
     cli = shutil.which("kicad-cli")
     if cli is None:
         raise RuntimeError("KiCad 10 CLI is required for independent netclass proof")
-    installed = subprocess.run([cli, "version"], capture_output=True, text=True, timeout=15, check=False)
-    if installed.returncode or not installed.stdout.strip().startswith("10."):
+    oracle = KiCadOracle(cli)
+    if not oracle.available or not oracle.version.startswith("10."):
         raise RuntimeError("KiCad 10 CLI is required for independent netclass proof")
     return cli
 
@@ -307,8 +329,8 @@ def preview_native_netclass_reassignment(
         before_folder, after_folder = base / "before", base / "after"
         before_folder.mkdir()
         after_folder.mkdir()
-        before_graph, before_erc = _export_native_evidence(cli, before_folder, path.stem, original, project)
-        after_graph, after_erc = _export_native_evidence(cli, after_folder, path.stem, edited, project)
+        before_graph, before_erc = _export_native_evidence(cli, before_folder, original, project)
+        after_graph, after_erc = _export_native_evidence(cli, after_folder, edited, project)
 
     changed_net = _verify_native_delta(before_graph, after_graph, expected_class, new_class)
     if before_erc != after_erc:
