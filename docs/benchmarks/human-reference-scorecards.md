@@ -177,6 +177,39 @@ autonomous, qualified engineering revisions. Circuit simulation,
 requirements verification, sourcing/BOM checks, PCB DRC, physical review
 and full G0 task acceptance remain outstanding.
 
+### Native KiCad 10 netclass directive preview (bounded G0)
+
+AI-assisted project review must not silently equate KiCad custom netclasses
+with ZapTrace's narrower internal NetClass enum. In KiCad 10, a net may
+receive multiple classes through project patterns, directive labels or net
+labels, and project priority affects the effective result. A source-only
+text substitution does not establish a real class assignment.
+
+The preview_native_netclass_reassignment function provides a **separate
+draft source-byte result only after native verification**, with an exact
+SHA-256 for both source .kicad_sch and sibling .kicad_pro, one unique
+top-level directive UUID, a matching original class and a new class already
+defined in the native project. It rejects unsupported hierarchical
+projects, unchanged/malformed/ambiguous directives and missing KiCad 10 CLI.
+
+The proof copies original source and project into disposable directories
+and uses native KiCad 10 XML netlist plus ERC JSON **before and after**. It
+must prove identical names and all (reference, pin) connectivity, exactly
+one changed effective netclass equal to the requested new class, and exact
+ERC finding identities and severities. If pattern assignment, rule-area
+directives or priority prevent the intended result, produce an aggregate
+class, or change multiple nets, the preview is refused. The original files
+remain untouched and the returned summary omits raw source.
+
+Independent verification against licensed Mitayi Pico D1 original: the
+VBUS netclass flag was reassigned to GND, and separately to 3V3; both runs
+preserved 64 native nets and 231 connected pin nodes. Native XML reported
+one changed net (VBUS), with no other changed effective class. Existing
+native ERC findings remain (not an ERC cleanup). These are narrow source
+draft proofs, **not** full editable Design round-trip, PCB netclass
+propagation, DRC clearance review, routing approval or qualified hardware
+signoff. Strict G0 full acceptance remains unchanged.
+
 ## Review boundary
 
 The fields are deliberately independent:
