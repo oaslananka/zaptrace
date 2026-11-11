@@ -72,6 +72,73 @@ def read_imported_netlist(project: Path) -> tuple[dict[str, set[tuple[str, str]]
     return graph, {**result.to_dict(), "finding_kinds": dict(sorted(findings.items()))}
 
 
+def connected_pin_topology(
+    native: dict[str, set[tuple[str, str]]],
+    imported: dict[str, set[tuple[str, str]]],
+) -> dict[str, Any]:
+    """Additional physical pin partition evidence, NEVER full named-net parity.
+
+    KiCad's exported `unconnected-*` nets name single, intentionally NC pins.
+    A schematic power-symbol `#PWR*` is an annotation, not a physical
+    component netlist pin. Both differences are recorded explicitly; neither
+    can be used to waive mismatched connected pin membership.
+
+    This topology-only diagnostic cannot detect a relabelled single-pin net,
+    differential-net polarity swaps, unsupported fields, PCB fidelity or
+    safe autonomous modifications. The strict exact comparison remains the
+    sole full-import gate.
+    """
+    native_connected = [nodes for name, nodes in native.items() if not name.startswith("unconnected-")]
+    native_nc = [nodes for name, nodes in native.items() if name.startswith("unconnected-")]
+    imported_physical = [
+        {(ref, pin) for ref, pin in nodes if not ref.startswith("#PWR")} for nodes in imported.values()
+    ]
+    imported_physical = [nodes for nodes in imported_physical if nodes]
+
+    native_flat = [pin for nodes in native_connected for pin in nodes]
+    imported_flat = [pin for nodes in imported_physical for pin in nodes]
+    native_pins = set(native_flat)
+    imported_pins = set(imported_flat)
+    nc_pins = {pin for nodes in native_nc for pin in nodes}
+
+    def canonical(groups: list[set[tuple[str, str]]]) -> str:
+        normalized = sorted(tuple(sorted(group)) for group in groups)
+        return hashlib.sha256(
+            json.dumps(normalized, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+
+    native_digest = canonical(native_connected)
+    imported_digest = canonical(imported_physical)
+    nc_singletons = all(len(group) == 1 for group in native_nc)
+    no_duplicate_pins = len(native_flat) == len(native_pins) and len(imported_flat) == len(imported_pins)
+    physically_equal = (
+        bool(native_connected)
+        and nc_singletons
+        and not (nc_pins & native_pins)
+        and no_duplicate_pins
+        and native_pins == imported_pins
+        and native_digest == imported_digest
+    )
+    return {
+        "native_connected_pin_count": len(native_pins),
+        "imported_connected_pin_count": len(imported_pins),
+        "native_connected_group_count": len(native_connected),
+        "imported_connected_group_count": len(imported_physical),
+        "native_no_connect_pin_count": len(nc_pins),
+        "imported_power_annotation_pin_count": sum(
+            1 for nodes in imported.values() for ref, _pin in nodes if ref.startswith("#PWR")
+        ),
+        "missing_connected_pin_count": len(native_pins - imported_pins),
+        "extra_connected_pin_count": len(imported_pins - native_pins),
+        "native_connected_topology_sha256": native_digest,
+        "imported_connected_topology_sha256": imported_digest,
+        "connected_pin_topology_parity": physically_equal,
+        "limited_scope": (
+            "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing"
+        ),
+    }
+
+
 def compare_graphs(
     native: dict[str, set[tuple[str, str]]],
     imported: dict[str, set[tuple[str, str]]],
@@ -95,6 +162,7 @@ def compare_graphs(
         "native_graph_sha256": graph_hash(native),
         "imported_graph_sha256": graph_hash(imported),
         "exact_connectivity_parity": native == imported,
+        "connected_pin_topology": connected_pin_topology(native, imported),
     }
 
 

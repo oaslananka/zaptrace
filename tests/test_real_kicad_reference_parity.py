@@ -10,6 +10,7 @@ from defusedxml.common import EntitiesForbidden
 
 from scripts.ci_real_kicad_reference_parity import (
     compare_graphs,
+    connected_pin_topology,
     read_native_netlist,
     source_artifacts,
 )
@@ -42,6 +43,61 @@ def test_parity_does_not_accept_disjoint_names_with_equal_counts() -> None:
     assert report["common_net_count"] == 0
     assert report["native_missing_net_count"] == 1
     assert report["imported_extra_net_count"] == 1
+
+
+def test_connected_pin_topology_handles_nc_and_power_annotations_without_waiving_names() -> None:
+    native = {
+        "GND": {("R1", "1"), ("U1", "2")},
+        "unconnected-(J1-NC1)": {("J1", "NC1")},
+    }
+    imported = {
+        "ground": {("R1", "1"), ("U1", "2"), ("#PWR01", "1")},
+    }
+    report = compare_graphs(native, imported)
+    physical = report["connected_pin_topology"]
+    assert physical["connected_pin_topology_parity"] is True
+    assert physical["native_connected_pin_count"] == 2
+    assert physical["native_no_connect_pin_count"] == 1
+    assert physical["imported_power_annotation_pin_count"] == 1
+    assert physical["native_connected_topology_sha256"] == physical["imported_connected_topology_sha256"]
+    assert report["exact_connectivity_parity"] is False
+
+
+def test_connected_pin_topology_detects_both_open_and_short() -> None:
+    native = {
+        "/USB_D+": {("J1", "A6"), ("U1", "5")},
+        "/USB_D-": {("J1", "A7"), ("U1", "6")},
+    }
+    missing = {
+        "/USB_D+": {("J1", "A6")},
+        "/USB_D-": {("J1", "A7"), ("U1", "6")},
+    }
+    short = {"/USB": {("J1", "A6"), ("U1", "5"), ("J1", "A7"), ("U1", "6")}}
+    assert connected_pin_topology(native, missing)["missing_connected_pin_count"] == 1
+    assert connected_pin_topology(native, missing)["connected_pin_topology_parity"] is False
+    assert connected_pin_topology(native, short)["connected_pin_topology_parity"] is False
+
+
+def test_connected_pin_topology_rejects_duplicate_or_unexpected_physical_pins() -> None:
+    native = {"A": {("R1", "1")}, "B": {("R2", "1")}}
+    duplicated = {"A": {("R1", "1")}, "B": {("R1", "1"), ("R2", "1")}}
+    extra = {"A": {("R1", "1")}, "B": {("R2", "1"), ("R3", "1")}}
+    assert connected_pin_topology(native, duplicated)["connected_pin_topology_parity"] is False
+    assert connected_pin_topology(native, extra)["extra_connected_pin_count"] == 1
+    assert connected_pin_topology(native, extra)["connected_pin_topology_parity"] is False
+
+
+def test_physical_topology_is_not_named_signal_equivalence() -> None:
+    native = {"USB_D+": {("J1", "A6")}, "USB_D-": {("J1", "A7")}}
+    swapped = {"USB_D+": {("J1", "A7")}, "USB_D-": {("J1", "A6")}}
+    report = compare_graphs(native, swapped)
+    assert report["connected_pin_topology"]["connected_pin_topology_parity"] is True
+    assert report["exact_connectivity_parity"] is False
+
+
+def test_malformed_nc_group_cannot_be_ignored_as_parity() -> None:
+    native = {"unconnected-invalid": {("J1", "A8"), ("J1", "B8")}}
+    assert connected_pin_topology(native, {})["connected_pin_topology_parity"] is False
 
 
 def test_missing_native_nets_is_not_a_valid_oracle(tmp_path: Path) -> None:
