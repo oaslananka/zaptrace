@@ -45,6 +45,65 @@ def test_parity_does_not_accept_disjoint_names_with_equal_counts() -> None:
     assert report["imported_extra_net_count"] == 1
 
 
+def test_name_diagnostics_classify_only_identical_physical_pin_groups() -> None:
+    native = {
+        "/GPIO1": {("U1", "1"), ("J1", "1")},
+        "IO5/Blue": {("U1", "2")},
+        "Net-(D1-A)": {("D1", "1")},
+        "GND": {("J1", "2"), ("U1", "4")},
+        "unconnected-(U1-NC)": {("U1", "3")},
+    }
+    imported = {
+        "GPIO1": {("U1", "1"), ("J1", "1")},
+        "IO5{slash}Blue": {("U1", "2")},
+        "net_b1": {("D1", "1")},
+        "GND": {("J1", "2"), ("U1", "4"), ("#PWR01", "1")},
+    }
+    report = compare_graphs(native, imported)
+    diagnostic = report["name_difference_diagnostics"]
+    assert report["connected_pin_topology"]["connected_pin_topology_parity"] is True
+    assert report["exact_connectivity_parity"] is False
+    assert diagnostic["status"] == "classified_not_verified"
+    assert diagnostic["evaluated_group_count"] == 4
+    counts = diagnostic["category_counts"]
+    assert counts["exact"] == 1
+    assert counts["local_sheet_prefix_candidate"] == 1
+    assert counts["slash_escape_candidate"] == 1
+    assert counts["generated_name_mismatch"] == 1
+    assert counts["unexplained_name_mismatch"] == 0
+
+
+def test_name_diagnostics_classify_sheet_prefix_and_escaped_slash_without_acceptance() -> None:
+    native = {"/IO5/Blue": {("J1", "1")}}
+    imported = {"IO5{slash}Blue": {("J1", "1")}}
+    report = compare_graphs(native, imported)
+    assert report["name_difference_diagnostics"]["category_counts"]["local_sheet_and_escape_candidate"] == 1
+    assert report["exact_connectivity_parity"] is False
+
+
+def test_name_diagnostics_do_not_hide_signal_swap_or_open_net() -> None:
+    native = {"/USB_D+": {("J1", "1")}, "/USB_D-": {("J1", "2")}}
+    swapped = {"USB_D-": {("J1", "1")}, "USB_D+": {("J1", "2")}}
+    swapped_report = compare_graphs(native, swapped)
+    assert swapped_report["connected_pin_topology"]["connected_pin_topology_parity"] is True
+    diagnostic = swapped_report["name_difference_diagnostics"]
+    assert diagnostic["category_counts"]["unexplained_name_mismatch"] == 2
+    assert swapped_report["exact_connectivity_parity"] is False
+
+    disconnected = {"USB_D+": {("J1", "1")}}
+    bad = compare_graphs(native, disconnected)["name_difference_diagnostics"]
+    assert bad["status"] == "not_evaluated_physical_topology_mismatch"
+    assert bad["evaluated_group_count"] == 0
+
+
+def test_name_diagnostics_do_not_treat_arbitrary_rename_as_accepted() -> None:
+    native = {"GND": {("U1", "1")}}
+    imported = {"VCC": {("U1", "1")}}
+    report = compare_graphs(native, imported)
+    assert report["name_difference_diagnostics"]["category_counts"]["unexplained_name_mismatch"] == 1
+    assert report["exact_connectivity_parity"] is False
+
+
 def test_connected_pin_topology_handles_nc_and_power_annotations_without_waiving_names() -> None:
     native = {
         "GND": {("R1", "1"), ("U1", "2")},
