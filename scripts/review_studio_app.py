@@ -44,7 +44,12 @@ def dependencies() -> tuple[list[str], list[str]]:
         failed.append("Use Ubuntu's /usr/bin/python3 for the native KiCad pcbnew binding")
     else:
         passed.append("System Python /usr/bin/python3")
-    cli = shutil.which("kicad-cli")
+    appimage_ci = os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage"
+    cli = (
+        "/usr/local/bin/kicad-cli"
+        if appimage_ci and Path("/usr/local/bin/kicad-cli").is_file()
+        else shutil.which("kicad-cli")
+    )
     if not cli:
         failed.append("Missing kicad-cli; install KiCad 10")
     else:
@@ -59,7 +64,28 @@ def dependencies() -> tuple[list[str], list[str]]:
                 failed.append("This build requires KiCad 10.x; detected " + value[:70])
         except (OSError, subprocess.SubprocessError):
             failed.append("Native KiCad CLI could not start")
-    if importlib.util.find_spec("pcbnew") is None:
+    if appimage_ci:
+        # Only CI's known, version-pinned native wrapper is allowed here;
+        # never interpret an arbitrary path or user-provided command.
+        native_python = Path("/usr/local/bin/kicad-python")
+        if not native_python.is_file():
+            failed.append("Missing verified KiCad AppImage Python pcbnew binding")
+        else:
+            try:
+                native = subprocess.run(
+                    [str(native_python), "-c", "import pcbnew; print(pcbnew.Version())"],
+                    capture_output=True,
+                    text=True,
+                    timeout=12,
+                    check=True,
+                )
+                if native.stdout.strip() == "10.0.8":
+                    passed.append("Native pcbnew Python binding installed (KiCad AppImage 10.0.8)")
+                else:
+                    failed.append("KiCad AppImage pcbnew version mismatch")
+            except (OSError, subprocess.SubprocessError):
+                failed.append("Verified KiCad AppImage pcbnew could not start")
+    elif importlib.util.find_spec("pcbnew") is None:
         failed.append("Missing KiCad pcbnew Python binding in /usr/bin/python3")
     else:
         passed.append("Native pcbnew Python binding installed")

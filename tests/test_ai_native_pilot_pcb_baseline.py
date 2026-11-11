@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,11 @@ import pytest
 
 from scripts.ai_native_candidate_pilot import write_local_candidate
 from scripts.ai_native_pilot_pcb_baseline import create_baseline
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
+
 
 INTENT = "USB-C powered STM32 MCU board, 3.3V rail at 100 mA, I2C temperature sensor"
 
@@ -137,7 +143,7 @@ else:
 print("U3_STENCIL_AND_COPPER_MUTATION_REJECTED")
 """
     result = subprocess.run(
-        ["/usr/bin/python3", "-B", "-c", python_code, str(dest / "SynthesizedBoard.kicad_pcb")],
+        [NATIVE_KICAD_PYTHON, "-B", "-c", python_code, str(dest / "SynthesizedBoard.kicad_pcb")],
         capture_output=True,
         text=True,
         timeout=30,

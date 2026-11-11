@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 BOARD = ROOT / "build/source-reference-readonly/ESP32_actual_copper_review.kicad_pcb"
@@ -18,7 +23,7 @@ def test_013_native_models_fail_closed_with_source_sha_and_no_geometry_signoff()
         f"print(json.dumps(inspect(__import__('pathlib').Path({str(BOARD)!r}),"
         " __import__('pathlib').Path('/usr/share/kicad/3dmodels'))))"
     )
-    result = subprocess.run(["/usr/bin/python3", "-B", "-c", command], text=True, capture_output=True, timeout=25)
+    result = subprocess.run([NATIVE_KICAD_PYTHON, "-B", "-c", command], text=True, capture_output=True, timeout=25)
     assert result.returncode == 0, result.stderr
     report = json.loads(result.stdout)
     assert len(report["board_sha256"]) == 64
