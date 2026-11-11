@@ -9,7 +9,11 @@ An upstream design being human-engineered does not mean ZapTrace reviewed, appro
 
 ## Initial reference corpus
 
-The corpus pins one project, schematic, and PCB artifact for each design. Four projects are reference-only hash-pinned metadata; their source files are not duplicated in ZapTrace. Two projects reuse the byte-exact vendored files already maintained by the external benchmark corpus.
+The corpus pins one project, schematic, and PCB artifact for each design. Four older
+KiCad-format projects are reference-only hash-pinned metadata (not locally executable).
+Two original projects reuse byte-exact vendored external-benchmark files; three
+additional MIT-licensed KiCad 10 educational source projects are independently
+vendored with their original licenses. These references are not hardware approvals.
 
 | Reference ID | Domain | Upstream repository | Exact revision | Hardware license | Source verification |
 |---|---|---|---|---|---|
@@ -19,6 +23,9 @@ The corpus pins one project, schematic, and PCB artifact for each design. Four p
 | `olimex-esp32-devkit-lipo-revd` | Battery-powered MCU | `OLIMEX/ESP32-DevKit-LiPo` | `1ebbbb5ceaa84b1d67631d8d542d7f6128c19fc1` | `Apache-2.0` | `reference-only-hash-pinned` |
 | `olimex-bb-pwr-3608-reva` | Power converter | `OLIMEX/BB-PWR-3608` | `fbd5d7a62807edf2343c445dd1cd43e81bbbb84e` | `Apache-2.0` | `reference-only-hash-pinned` |
 | `olimex-tuxcon-kitty-reva` | LED interactive badge | `OLIMEX/TuxCon-Kitty` | `64cba773ca8a0d9f5a3612d73fa627ddeef0312d` | `Apache-2.0` | `reference-only-hash-pinned` |
+| `nitu-555-blinker` | 555 timer demonstrator | `nitu2126/kicad-learning-path` | `856b0daf1d358504cd035724f5ec9d1e6bfe3ad7` | `MIT` | `vendored-byte-exact` |
+| `nitu-npn-transistor-switch` | Transistor switching | `nitu2126/kicad-learning-path` | `856b0daf1d358504cd035724f5ec9d1e6bfe3ad7` | `MIT` | `vendored-byte-exact` |
+| `nitu-linear-regulator` | Linear regulation | `nitu2126/kicad-learning-path` | `856b0daf1d358504cd035724f5ec9d1e6bfe3ad7` | `MIT` | `vendored-byte-exact` |
 
 For every row, the manifest records the selected upstream paths, file formats, byte sizes, individual SHA-256 values, total bytes, and a path-sorted artifact-set SHA-256. The upstream repository remains authoritative for reference-only source content.
 
@@ -35,6 +42,18 @@ directory, exports a native `kicadxml` netlist with `kicad-cli`, and compares *e
 and reference/pin tuples against ZapTrace's imported graph. Original projects are not modified.
 The JSON records original-source and exported-oracle hashes, graph digests, unsupported constructs,
 mismatch counts, tool version, and `verified`, `blocked`, or `not_run` for each reference.
+Two additional diagnostics preserve the strict gate:
+
+- `connected_pin_topology` compares physical (reference, pin) partitions, excluding
+  KiCad's explicitly unconnected pins and nonphysical `#PWR`/`#FLG` annotations.
+- `name_difference_diagnostics` classifies corresponding physical groups as exact,
+  possible root-sheet `/` prefix, KiCad `{slash}` escape, generated name or unexplained.
+  It runs only when physical partitions actually match and produces at most 12
+  representative differences. **Classification is not net-name equivalence**;
+  auto-generated names and candidate mappings still require native semantic proof.
+  If physical partitions differ, this diagnostic returns `not_evaluated`.
+
+Neither diagnostic can turn a different native/imported named graph into `verified`.
 
 The four reference-only records remain `not_run` until their pinned bytes are available; a missing
 KiCad CLI or identity mismatch cannot become a successful check. The default command records

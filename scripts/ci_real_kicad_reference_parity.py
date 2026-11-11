@@ -144,6 +144,80 @@ def connected_pin_topology(
     }
 
 
+def _name_difference_category(native_name: str, imported_name: str) -> str:
+    """Produce one evidence category without interpreting it as acceptance."""
+    unescaped = imported_name.replace("{slash}", "/")
+    if native_name == imported_name:
+        return "exact"
+    if native_name == f"/{imported_name}":
+        return "local_sheet_prefix_candidate"
+    if native_name == unescaped and imported_name != unescaped:
+        return "slash_escape_candidate"
+    if native_name == f"/{unescaped}" and imported_name != unescaped:
+        return "local_sheet_and_escape_candidate"
+    if native_name.startswith("Net-(") and imported_name.startswith("net_"):
+        return "generated_name_mismatch"
+    return "unexplained_name_mismatch"
+
+
+def name_difference_diagnostics(
+    native: dict[str, set[tuple[str, str]]],
+    imported: dict[str, set[tuple[str, str]]],
+    *,
+    physical_parity: bool,
+) -> dict[str, Any]:
+    """Classify native/imported net names only on identical physical pin groups.
+
+    Matching topology does NOT make differently named nets semantically safe.
+    Prefixes and KiCad escapes are *observed candidates*, not an acceptance
+    waiver: the exact graph gate continues to require original names.
+    """
+    categories = {
+        "exact": 0,
+        "local_sheet_prefix_candidate": 0,
+        "slash_escape_candidate": 0,
+        "local_sheet_and_escape_candidate": 0,
+        "generated_name_mismatch": 0,
+        "unexplained_name_mismatch": 0,
+    }
+    if not physical_parity:
+        return {
+            "status": "not_evaluated_physical_topology_mismatch",
+            "evaluated_group_count": 0,
+            "category_counts": categories,
+            "mismatch_examples": [],
+            "limited_scope": "diagnostic only; exact named-net parity remains required",
+        }
+
+    def physical(nodes: set[tuple[str, str]]) -> frozenset[tuple[str, str]]:
+        return frozenset((ref, pin) for ref, pin in nodes if not ref.startswith(("#PWR", "#FLG")))
+
+    imported_by_group = {physical(nodes): name for name, nodes in imported.items() if physical(nodes)}
+    mismatches: list[dict[str, Any]] = []
+    for name, nodes in sorted(native.items()):
+        if name.startswith("unconnected-"):
+            continue
+        imported_name = imported_by_group[frozenset(nodes)]
+        category = _name_difference_category(name, imported_name)
+        categories[category] += 1
+        if category != "exact" and len(mismatches) < 12:
+            mismatches.append(
+                {
+                    "native_name": name,
+                    "imported_name": imported_name,
+                    "category": category,
+                    "connected_pin_count": len(nodes),
+                }
+            )
+    return {
+        "status": "classified_not_verified",
+        "evaluated_group_count": sum(categories.values()),
+        "category_counts": categories,
+        "mismatch_examples": mismatches,
+        "limited_scope": "diagnostic only; exact named-net parity remains required",
+    }
+
+
 def compare_graphs(
     native: dict[str, set[tuple[str, str]]],
     imported: dict[str, set[tuple[str, str]]],
@@ -152,6 +226,7 @@ def compare_graphs(
     native_names, imported_names = set(native), set(imported)
     shared = native_names & imported_names
     mismatched = sorted(name for name in shared if native[name] != imported[name])
+    physical = connected_pin_topology(native, imported)
     return {
         "native_net_count": len(native),
         "imported_net_count": len(imported),
@@ -167,7 +242,10 @@ def compare_graphs(
         "native_graph_sha256": graph_hash(native),
         "imported_graph_sha256": graph_hash(imported),
         "exact_connectivity_parity": native == imported,
-        "connected_pin_topology": connected_pin_topology(native, imported),
+        "connected_pin_topology": physical,
+        "name_difference_diagnostics": name_difference_diagnostics(
+            native, imported, physical_parity=physical["connected_pin_topology_parity"]
+        ),
     }
 
 
