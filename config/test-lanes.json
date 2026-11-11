@@ -97,6 +97,7 @@
         "tests/test_ci_benchmark_001.py",
         "tests/test_convergence_12_families.py",
         "tests/test_kicad_benchmark_task.py",
+        "tests/test_real_kicad_reference_parity.py",
         "tests/test_pcb_bench.py",
         "tests/test_routing_engine_benchmark.py",
         "tests/test_synthesis_benchmark.py"
