@@ -79,8 +79,9 @@ def connected_pin_topology(
     """Additional physical pin partition evidence, NEVER full named-net parity.
 
     KiCad's exported `unconnected-*` nets name single, intentionally NC pins.
-    A schematic power-symbol `#PWR*` is an annotation, not a physical
-    component netlist pin. Both differences are recorded explicitly; neither
+    Schematic `#PWR*` power symbols and `#FLG*` ERC power flags are
+    annotations, not physical component netlist pins. Differences are
+    recorded explicitly; neither
     can be used to waive mismatched connected pin membership.
 
     This topology-only diagnostic cannot detect a relabelled single-pin net,
@@ -90,8 +91,9 @@ def connected_pin_topology(
     """
     native_connected = [nodes for name, nodes in native.items() if not name.startswith("unconnected-")]
     native_nc = [nodes for name, nodes in native.items() if name.startswith("unconnected-")]
+    non_physical_prefixes = ("#PWR", "#FLG")
     imported_physical = [
-        {(ref, pin) for ref, pin in nodes if not ref.startswith("#PWR")} for nodes in imported.values()
+        {(ref, pin) for ref, pin in nodes if not ref.startswith(non_physical_prefixes)} for nodes in imported.values()
     ]
     imported_physical = [nodes for nodes in imported_physical if nodes]
 
@@ -127,6 +129,9 @@ def connected_pin_topology(
         "native_no_connect_pin_count": len(nc_pins),
         "imported_power_annotation_pin_count": sum(
             1 for nodes in imported.values() for ref, _pin in nodes if ref.startswith("#PWR")
+        ),
+        "imported_erc_power_flag_pin_count": sum(
+            1 for nodes in imported.values() for ref, _pin in nodes if ref.startswith("#FLG")
         ),
         "missing_connected_pin_count": len(native_pins - imported_pins),
         "extra_connected_pin_count": len(imported_pins - native_pins),

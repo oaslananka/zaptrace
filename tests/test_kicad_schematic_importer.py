@@ -174,6 +174,59 @@ def test_label_at_wire_interior_names_the_connected_pins() -> None:
     }
 
 
+def test_explicit_junction_joins_crossing_wire_segments_only_when_marked() -> None:
+    """A KiCad junction dot is electrical, a geometrical crossing is not."""
+    from zaptrace.kicad.schematic_importer import _resolve_connectivity
+
+    wires = [((0.0, 0.0), (10.0, 0.0)), ((5.0, -5.0), (5.0, 5.0))]
+    symbols = [
+        {"ref": ref, "pins": [("1", x, y)]}
+        for ref, x, y in (
+            ("R1", 0.0, 0.0),
+            ("R2", 10.0, 0.0),
+            ("C1", 5.0, -5.0),
+            ("C2", 5.0, 5.0),
+        )
+    ]
+    without = _resolve_connectivity(symbols, wires, [], [])
+    without_groups = [set(pins) for pins in without.values() if pins]
+    assert len(without_groups) == 2
+    assert {("R1", "1"), ("R2", "1")} in without_groups
+    assert {("C1", "1"), ("C2", "1")} in without_groups
+
+    with_junction = _resolve_connectivity(symbols, wires, [(5.0, 0.0)], [])
+    with_groups = [set(pins) for pins in with_junction.values() if pins]
+    assert with_groups == [{("R1", "1"), ("R2", "1"), ("C1", "1"), ("C2", "1")}]
+
+
+def test_real_linear_regulator_junctions_preserve_native_ground_group() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = (
+        Path(__file__).parents[1] / "benchmarks/external/nitu-linear-regulator/source/05_linear_regulator.kicad_sch"
+    )
+    result = import_kicad_schematic(source)
+    named = {
+        net.name: {
+            (pin.component_ref, pin.pin_name) for pin in net.nodes if not pin.component_ref.startswith(("#PWR", "#FLG"))
+        }
+        for net in result.design.nets.values()
+    }
+    assert named["GND"] == {
+        ("C1", "2"),
+        ("C2", "2"),
+        ("C3", "2"),
+        ("C4", "2"),
+        ("D2", "1"),
+        ("J1", "2"),
+        ("J2", "2"),
+        ("TP4", "1"),
+        ("U1", "2"),
+    }
+
+
 def test_label_on_unjoined_wire_crossing_does_not_short_nets() -> None:
     """A geometrical crossing without a junction is electrically distinct."""
     from zaptrace.kicad.schematic_importer import _resolve_connectivity
@@ -273,6 +326,61 @@ def test_power_input_symbols_merge_global_nets_but_not_power_output_flags() -> N
     assert not any(
         {("R3", "1"), ("R4", "1")}.issubset(pins) for pins in nets.values()
     )  # Two independent power-output flags must not merge.
+
+
+def test_modern_kicad_power_input_uses_library_value_when_pin_name_empty() -> None:
+    """KiCad 10 power net identity follows instance Value when pin name is blank."""
+    source = """
+    (kicad_sch (version 20260306)
+      (lib_symbols
+        (symbol "power:GND" (power global)
+          (property "Value" "GND")
+          (symbol "GND_0_1"
+            (pin power_in line (at 0 0 270) (name "") (number "1"))))
+        (symbol "power:PWR_FLAG" (power global)
+          (property "Value" "PWR_FLAG")
+          (symbol "PWR_FLAG_0_1"
+            (pin power_out line (at 0 0 90) (name "") (number "1")))))
+      (symbol (lib_id "power:GND") (at 10 20 0)
+        (property "Reference" "#PWR01") (property "Value" "GND")
+        (pin "1" (uuid "a")))
+      (symbol (lib_id "power:GND") (at 40 20 0)
+        (property "Reference" "#PWR02") (property "Value" "GND")
+        (pin "1" (uuid "b")))
+      (symbol (lib_id "power:PWR_FLAG") (at 10 60 0)
+        (property "Reference" "#FLG01") (property "Value" "PWR_FLAG")
+        (pin "1" (uuid "c")))
+      (symbol (lib_id "Device:R") (at 20 20 0)
+        (property "Reference" "R1") (property "Value" "10k")
+        (pin 1 20 20))
+      (symbol (lib_id "Device:R") (at 50 20 0)
+        (property "Reference" "R2") (property "Value" "10k")
+        (pin 1 50 20))
+      (wire (pts (xy 10 20) (xy 20 20)))
+      (wire (pts (xy 40 20) (xy 50 20)))
+    )
+    """
+    result = import_kicad_schematic_string(source)
+    nets = {net.name: {(pin.component_ref, pin.pin_name) for pin in net.nodes} for net in result.design.nets.values()}
+    assert nets["GND"] == {
+        ("#PWR01", "1"),
+        ("#PWR02", "1"),
+        ("R1", "1"),
+        ("R2", "1"),
+    }
+    assert "PWR_FLAG" not in nets
+
+    edited_source = source.replace(
+        '(property "Reference" "#PWR02") (property "Value" "GND")',
+        '(property "Reference" "#PWR02") (property "Value" "GND_CUSTOM")',
+    )
+    assert edited_source != source
+    edited = import_kicad_schematic_string(edited_source)
+    edited_nets = {
+        net.name: {(pin.component_ref, pin.pin_name) for pin in net.nodes} for net in edited.design.nets.values()
+    }
+    assert edited_nets["GND"] == {("#PWR01", "1"), ("R1", "1")}
+    assert edited_nets["GND_CUSTOM"] == {("#PWR02", "1"), ("R2", "1")}
 
 
 def test_real_sparkfun_power_symbols_preserve_native_kicad_pin_graph() -> None:
