@@ -9,17 +9,30 @@ if (( $# == 0 )); then
   exit 2
 fi
 
-for attempt in 1 2 3; do
-  echo "Adding KiCad 10 PPA (attempt ${attempt}/3)"
-  if sudo timeout 90s add-apt-repository --yes --no-update ppa:kicad/kicad-10.0-releases; then
-    break
-  fi
-  if (( attempt == 3 )); then
-    echo "Unable to add KiCad 10 PPA after 3 bounded attempts" >&2
-    exit 1
-  fi
-  sleep $((attempt * 5))
+# The simulation-only and utility jobs need Ubuntu packages, not KiCad.
+# Avoid making their mandatory evidence dependent on Launchpad PPA availability.
+needs_kicad_ppa=false
+for package in "$@"; do
+  case "$package" in
+    kicad|kicad-*) needs_kicad_ppa=true; break ;;
+  esac
 done
+
+if [[ "$needs_kicad_ppa" == true ]]; then
+  for attempt in 1 2 3; do
+    echo "Adding KiCad 10 PPA (attempt ${attempt}/3)"
+    if sudo timeout 90s add-apt-repository --yes --no-update ppa:kicad/kicad-10.0-releases; then
+      break
+    fi
+    if (( attempt == 3 )); then
+      echo "Unable to add KiCad 10 PPA after 3 bounded attempts" >&2
+      exit 1
+    fi
+    sleep $((attempt * 5))
+  done
+else
+  echo "No KiCad package requested: use the Ubuntu archive without adding a KiCad PPA"
+fi
 
 ubuntu_mirror_file="/etc/apt/apt-mirrors.txt"
 if [[ -f "$ubuntu_mirror_file" ]] && grep -q "azure.archive.ubuntu.com/ubuntu" "$ubuntu_mirror_file"; then
