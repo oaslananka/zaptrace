@@ -109,7 +109,7 @@ def test_committed_alpine_runtime_manifest_matches_pinned_base_repository() -> N
         "musl=1.2.6-r3",
         "musl-utils=1.2.6-r3",
         "ngspice=46-r0",
-        "zlib=1.3.2-r1",
+        "zlib=1.4-r0",
     ]
 
 
