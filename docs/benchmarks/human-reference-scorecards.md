@@ -22,6 +22,32 @@ The corpus pins one project, schematic, and PCB artifact for each design. Four p
 
 For every row, the manifest records the selected upstream paths, file formats, byte sizes, individual SHA-256 values, total bytes, and a path-sorted artifact-set SHA-256. The upstream repository remains authoritative for reference-only source content.
 
+## G0 native KiCad schematic-import parity diagnostic
+
+To check the actual electrical graph against an independent KiCad 10 netlist, run:
+
+```bash
+python scripts/ci_real_kicad_reference_parity.py --output /tmp/real-import-parity.json
+```
+
+The tool verifies byte-level manifest hashes, copies each available vendored project to a temporary
+directory, exports a native `kicadxml` netlist with `kicad-cli`, and compares *exact* net names
+and reference/pin tuples against ZapTrace's imported graph. Original projects are not modified.
+The JSON records original-source and exported-oracle hashes, graph digests, unsupported constructs,
+mismatch counts, tool version, and `verified`, `blocked`, or `not_run` for each reference.
+
+The four reference-only records remain `not_run` until their pinned bytes are available; a missing
+KiCad CLI or identity mismatch cannot become a successful check. The default command records
+baseline evidence even when its verdict is `blocked`; use `--strict` for a failing exit status
+until *all* references meet the declared evidence contract.
+
+**Interpretation:** this is a deliberately strict *schematic import* comparison, not a
+round-trip/fabrication or AI-autonomy score. Different names (e.g. KiCad hierarchical-path
+prefixes versus imported labels) are counted as mismatches until mapping is independently
+verified. They must not automatically be labeled copper shorts or electrical design errors.
+The older `benchmarks/kicad_roundtrip` scorecard uses source-less contractual scores and
+cannot substitute for this diagnostic or a real design-edit benchmark.
+
 ## Review boundary
 
 The fields are deliberately independent:

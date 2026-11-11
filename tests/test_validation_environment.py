@@ -195,6 +195,36 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
     assert "sudo apt-get install --no-install-recommends -y ngspice" not in benchmark
 
 
+def test_simulation_install_does_not_require_kicad_ppa(tmp_path: Path) -> None:
+    """Run the real installer with only sudo mocked; no host packages are changed."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    sudo = fake_bin / "sudo"
+    sudo.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$MOCK_SUDO_LOG"\n',
+        encoding="utf-8",
+    )
+    sudo.chmod(0o755)
+    env = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}", "MOCK_SUDO_LOG": str(tmp_path / "sudo.log")}
+    installer = "scripts/ci_install_kicad.sh"
+
+    for packages, expected_ppa in ((["ngspice"], False), (["desktop-file-utils"], False), (["kicad", "ngspice"], True)):
+        (tmp_path / "sudo.log").write_text("", encoding="utf-8")
+        completed = subprocess.run(
+            ["bash", installer, *packages],
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert completed.returncode == 0, completed.stderr
+        calls = (tmp_path / "sudo.log").read_text(encoding="utf-8")
+        assert ("add-apt-repository" in calls) is expected_ppa
+        assert "apt-get" in calls and "install" in calls
+        assert packages[-1] in calls
+
+
 def test_get_tool_requirements_rejects_unknown_role() -> None:
     with pytest.raises(ValueError, match="unsupported environment role"):
         ci_validation_environment.get_tool_requirements("invalid-role")
