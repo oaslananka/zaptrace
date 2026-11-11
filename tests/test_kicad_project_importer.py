@@ -580,3 +580,27 @@ class TestSheetPathStability:
         sheet_paths = [s.sheet_id for s in result.sheets]
         # Top-level should contain "top"
         assert any("top" in sp for sp in sheet_paths)
+
+
+def test_multisheet_sources_survive_temporary_project_cleanup() -> None:
+    import hashlib
+
+    result = import_kicad_project_from_string(
+        _TOP_WITH_CHILD,
+        child_sheets={"child.kicad_sch": _CHILD_SCH},
+        project_name="snapshot",
+    )
+    assert set(result.source_snapshots) == {"/top", "/top/child_sheet"}
+    assert result.source_snapshots["/top"].raw_bytes == _TOP_WITH_CHILD.encode("utf-8")
+    assert result.source_snapshots["/top/child_sheet"].raw_bytes == _CHILD_SCH.encode("utf-8")
+    child = result.source_snapshots["/top/child_sheet"]
+    assert child.sha256 == hashlib.sha256(_CHILD_SCH.encode("utf-8")).hexdigest()
+    assert child.top_level_counts["hierarchical_label"] == 1
+    safe_summary = result.to_dict()
+    assert safe_summary["source_sheet_count"] == 2
+    assert safe_summary["source_sha256_by_sheet"]["/top/child_sheet"] == child.sha256
+    assert safe_summary["source_evidence_by_sheet"]["/top/child_sheet"]["byte_size"] == len(_CHILD_SCH.encode())
+    assert "raw_bytes" not in str(safe_summary)
+
+    # The importer used a TemporaryDirectory; source bytes remain accessible.
+    assert child.nodes("hierarchical_label")[0][1] == "SIG"

@@ -53,6 +53,7 @@ from zaptrace.io.sexp import SexpNode
 from zaptrace.io.sexp import parse as _sexp_parse
 from zaptrace.kicad.schematic_importer import (
     KiCadSchematicImportResult,
+    KiCadSchematicSourceSnapshot,
     import_kicad_schematic,
 )
 
@@ -117,6 +118,9 @@ class KiCadProjectImportResult:
         Mean net-identity score across all imported sheets (0.0–1.0).
     source_dir:
         The project directory that was imported.
+    source_snapshots:
+        Exact original UTF-8 bytes and page/presentation evidence by sheet.
+        These are in-memory source records, not editable Design conversion.
     """
 
     design: Design
@@ -124,6 +128,7 @@ class KiCadProjectImportResult:
     findings: list[HierarchicalKiCadFinding] = field(default_factory=list)
     net_score: float = 1.0
     source_dir: Path | None = None
+    source_snapshots: dict[str, KiCadSchematicSourceSnapshot] = field(default_factory=dict)
 
     @property
     def error_count(self) -> int:
@@ -142,6 +147,13 @@ class KiCadProjectImportResult:
             "error_count": self.error_count,
             "warning_count": self.warning_count,
             "net_score": self.net_score,
+            "source_sheet_count": len(self.source_snapshots),
+            "source_sha256_by_sheet": {
+                path: snapshot.sha256 for path, snapshot in sorted(self.source_snapshots.items())
+            },
+            "source_evidence_by_sheet": {
+                path: snapshot.to_dict() for path, snapshot in sorted(self.source_snapshots.items())
+            },
         }
 
 
@@ -436,15 +448,16 @@ def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
 def _flatten_sheets(
     sheet_nodes: list[_SheetNode],
     findings: list[HierarchicalKiCadFinding],
-) -> tuple[dict, dict, list[HierarchySheet], list[float]]:
+) -> tuple[dict, dict, list[HierarchySheet], list[float], dict[str, KiCadSchematicSourceSnapshot]]:
     """Import all sheets and merge into flat component/net dicts.
 
-    Returns (components, nets, hierarchy_sheets, net_scores).
+    Returns (components, nets, hierarchy_sheets, net_scores, source_snapshots).
     """
     all_components: dict = {}
     all_nets: dict = {}
     hierarchy_sheets: list[HierarchySheet] = []
     net_scores: list[float] = []
+    source_snapshots: dict[str, KiCadSchematicSourceSnapshot] = {}
 
     # Track refs seen per sheet to detect duplicates within one sheet
     for node in sheet_nodes:
@@ -453,6 +466,8 @@ def _flatten_sheets(
             continue
 
         net_scores.append(result.net_score)
+        if result.source_snapshot is not None:
+            source_snapshots[node.sheet_path] = result.source_snapshot
         sheet_component_ids = _prefix_component_ids(node, result.design.components, all_components, findings)
         _merge_sheet_nets(node, result.design.nets, all_nets)
 
@@ -465,7 +480,7 @@ def _flatten_sheets(
             )
         )
 
-    return all_components, all_nets, hierarchy_sheets, net_scores
+    return all_components, all_nets, hierarchy_sheets, net_scores, source_snapshots
 
 
 # ---------------------------------------------------------------------------
@@ -642,7 +657,7 @@ def import_kicad_project(
         raise FileNotFoundError(f"Top-level schematic not found: {top_sch_path}")
 
     # Import and flatten all sheets
-    components, nets, hierarchy_sheets, net_scores = _flatten_sheets(sheet_nodes, findings)
+    components, nets, hierarchy_sheets, net_scores, source_snapshots = _flatten_sheets(sheet_nodes, findings)
 
     # PCB cross-validation
     schematic_refs = {getattr(c, "ref", cid) for cid, c in components.items()}
@@ -683,6 +698,7 @@ def import_kicad_project(
         findings=findings,
         net_score=round(mean_net_score, 4),
         source_dir=project_dir,
+        source_snapshots=source_snapshots,
     )
 
 
