@@ -207,16 +207,12 @@ def _native_erc_findings(path: Path) -> list[tuple[str, str, tuple[tuple[str, st
     return sorted(findings)
 
 
-def _export_native_evidence(
-    cli: str, working: Path, schematic: bytes, project: bytes
+def _native_evidence_in_directory(
+    cli: str, working: Path
 ) -> tuple[dict[str, tuple[str, tuple[tuple[str, str], ...]]], list[tuple[str, str, tuple[tuple[str, str], ...]]]]:
-    # All output paths are fixed within a fresh, owned temporary directory.
-    # Source/project basenames are untrusted and must not enter a write path.
-    sch_path = working / "review.kicad_sch"
-    sch_path.write_bytes(schematic)
-    (working / "review.kicad_pro").write_bytes(project)
     xml_path = working / "native.xml"
     erc_path = working / "native-erc.json"
+    sch_path = working / "review.kicad_sch"
     commands = (
         [cli, "sch", "export", "netlist", "--format", "kicadxml", "-o", str(xml_path), str(sch_path)],
         [cli, "sch", "erc", "--format", "json", "--severity-all", "-o", str(erc_path), str(sch_path)],
@@ -239,6 +235,20 @@ def _export_native_evidence(
     if len(graphs) != len(nodes) or any(not n.get("name") or not n.get("class") for n in nodes):
         raise ValueError("Native KiCad netclass graph is incomplete or ambiguous")
     return graphs, _native_erc_findings(erc_path)
+
+
+def _export_native_evidence(
+    cli: str, schematic: bytes, project: bytes
+) -> tuple[dict[str, tuple[str, tuple[tuple[str, str], ...]]], list[tuple[str, str, tuple[tuple[str, str], ...]]]]:
+    # The only write location is a fresh private directory created internally.
+    # Never derive destination paths from the source filename or source bytes.
+    with TemporaryDirectory(prefix="zaptrace-native-netclass-") as temp:
+        working = Path(temp)
+        with (working / "review.kicad_sch").open("xb") as source_file:
+            source_file.write(schematic)
+        with (working / "review.kicad_pro").open("xb") as project_file:
+            project_file.write(project)
+        return _native_evidence_in_directory(cli, working)
 
 
 def _verify_native_delta(
@@ -317,20 +327,15 @@ def preview_native_netclass_reassignment(
     draft (new source bytes) after exact SHA, UUID, native net topology, class
     delta and ERC invariant checks. Never claim PCB/DRC/fabrication approval.
     """
-    path, original, project, source_sha, project_sha = _load_checked_project(
+    _path, original, project, source_sha, project_sha = _load_checked_project(
         schematic_path, expected_source_sha256, expected_project_sha256
     )
     _validate_class_request(flag_uuid, expected_class, new_class, project)
     edited = _edit_one_class(original, flag_uuid, expected_class, new_class)
     cli = _native_kicad_cli()
 
-    with TemporaryDirectory(prefix="zaptrace-native-netclass-") as temp:
-        base = Path(temp)
-        before_folder, after_folder = base / "before", base / "after"
-        before_folder.mkdir()
-        after_folder.mkdir()
-        before_graph, before_erc = _export_native_evidence(cli, before_folder, original, project)
-        after_graph, after_erc = _export_native_evidence(cli, after_folder, edited, project)
+    before_graph, before_erc = _export_native_evidence(cli, original, project)
+    after_graph, after_erc = _export_native_evidence(cli, edited, project)
 
     changed_net = _verify_native_delta(before_graph, after_graph, expected_class, new_class)
     if before_erc != after_erc:
