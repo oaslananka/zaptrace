@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
+from defusedxml import ElementTree
+from defusedxml.common import EntitiesForbidden
 
 from scripts.ci_real_kicad_reference_parity import (
     compare_graphs,
@@ -60,7 +61,7 @@ def test_native_duplicate_names_fail_closed(tmp_path: Path) -> None:
 def test_invalid_native_xml_fails_closed(tmp_path: Path) -> None:
     path = tmp_path / "bad.xml"
     path.write_text("<export><nets>", encoding="utf-8")
-    with pytest.raises(ET.ParseError):
+    with pytest.raises(ElementTree.ParseError):
         read_native_netlist(path)
 
 
@@ -128,3 +129,14 @@ def test_strict_mode_rejects_blocked_evidence(tmp_path: Path, monkeypatch: pytes
     assert runner.main(["--output", str(output), "--strict"]) == 1
     assert output.is_file()
     assert runner.main(["--output", str(output)]) == 0
+
+
+def test_native_xml_entities_are_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "entity.xml"
+    path.write_text(
+        '<!DOCTYPE export [<!ENTITY injected SYSTEM "file:///etc/passwd">]>'
+        '<export><nets><net name="X"><node ref="U1" pin="&injected;"/></net></nets></export>',
+        encoding="utf-8",
+    )
+    with pytest.raises(EntitiesForbidden):
+        read_native_netlist(path)

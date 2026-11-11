@@ -15,14 +15,17 @@ import subprocess
 import sys
 import tempfile
 import time
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from zaptrace.kicad.oracle import get_kicad_version  # noqa: E402
 from zaptrace.kicad.project_importer import import_kicad_project  # noqa: E402
 
 MANIFEST = ROOT / "benchmarks/human-reference-corpus/manifest.json"
@@ -39,7 +42,9 @@ def graph_hash(graph: dict[str, set[tuple[str, str]]]) -> str:
 
 def read_native_netlist(path: Path) -> dict[str, set[tuple[str, str]]]:
     """Parse KiCad's actual exported XML netlist, not ZapTrace-generated evidence."""
-    root = ET.parse(path).getroot()
+    root = ElementTree.parse(path).getroot()
+    if root is None:
+        raise ValueError("Native KiCad netlist XML has no root")
     nets = root.findall("./nets/net")
     if not nets:
         raise ValueError("KiCad netlist has no nets; cannot establish parity")
@@ -94,6 +99,20 @@ def compare_graphs(
     }
 
 
+def _verified_artifact(source: Path, artifact: dict[str, Any]) -> tuple[Path, str]:
+    """Resolve only in-root files whose bytes and size match the committed manifest."""
+    relative = Path(artifact["path"])
+    if relative.is_absolute() or ".." in relative.parts or not relative.parts:
+        raise ValueError("Reference artifact escapes source directory")
+    target = (source / relative).resolve()
+    if not target.is_relative_to(source) or not target.is_file():
+        raise ValueError("Missing or unsafe source artifact")
+    actual = sha256_file(target)
+    if actual != artifact["sha256"] or target.stat().st_size != artifact["size_bytes"]:
+        raise ValueError(f"Source identity mismatch: {relative.name}")
+    return relative, actual
+
+
 def source_artifacts(repo_root: Path, record: dict[str, Any]) -> tuple[Path, Path, dict[str, str]]:
     """Verify manifest-pinned vendored bytes before invoking either design tool."""
     ref_id = record["reference_id"]
@@ -104,25 +123,15 @@ def source_artifacts(repo_root: Path, record: dict[str, Any]) -> tuple[Path, Pat
     if not source.is_relative_to(allowed_root) or not source.is_dir():
         raise ValueError("Reference source directory is unavailable")
     identity: dict[str, str] = {}
-    schematic: Path | None = None
+    schematics: list[Path] = []
     for artifact in record["artifacts"]:
-        relative = Path(artifact["path"])
-        if relative.is_absolute() or ".." in relative.parts:
-            raise ValueError("Reference artifact escapes source directory")
-        target = (source / relative).resolve()
-        if not target.is_relative_to(source) or not target.is_file():
-            raise ValueError("Missing or unsafe source artifact")
-        actual = sha256_file(target)
-        if actual != artifact["sha256"] or target.stat().st_size != artifact["size_bytes"]:
-            raise ValueError(f"Source identity mismatch: {relative.name}")
+        relative, actual = _verified_artifact(source, artifact)
         identity[relative.as_posix()] = actual
-        if target.suffix == ".kicad_sch":
-            if schematic:
-                raise ValueError("Ambiguous top-level schematic")
-            schematic = relative
-    if schematic is None:
-        raise ValueError("No KiCad schematic pinned in manifest")
-    return source, schematic, identity
+        if relative.suffix == ".kicad_sch":
+            schematics.append(relative)
+    if len(schematics) != 1:
+        raise ValueError("Expected one manifest-pinned top-level KiCad schematic")
+    return source, schematics[0], identity
 
 
 def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> dict[str, Any]:
@@ -140,9 +149,12 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
     try:
         source, schematic, identity = source_artifacts(repo_root, record)
         output["source_artifact_sha256"] = identity
-        if not shutil.which(tool):
+        executable = shutil.which("kicad-cli") if tool == "kicad-cli" else None
+        if executable is None:
             output["reason"] = "native KiCad CLI unavailable"
             return output
+        # Only the expected KiCad executable is eligible; no shell or custom command.
+        executable = str(Path(executable).resolve(strict=True))
         with tempfile.TemporaryDirectory(prefix="zaptrace-real-kicad-") as folder:
             temp = Path(folder)
             copied = temp / "source"
@@ -156,7 +168,7 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
             native_xml = temp / "native-netlist.xml"
             result = subprocess.run(
                 [
-                    tool,
+                    executable,
                     "sch",
                     "export",
                     "netlist",
@@ -189,7 +201,15 @@ def measure_reference(repo_root: Path, record: dict[str, Any], *, tool: str) -> 
             output["status"] = "verified" if clean else "blocked"
             if not clean:
                 output["reason"] = "native/imported electrical graph or import completeness differs"
-    except (OSError, ValueError, subprocess.TimeoutExpired, ET.ParseError, KeyError, TypeError) as exc:
+    except (
+        OSError,
+        ValueError,
+        subprocess.TimeoutExpired,
+        ElementTree.ParseError,
+        DefusedXmlException,
+        KeyError,
+        TypeError,
+    ) as exc:
         output["status"] = "blocked"
         output["reason"] = f"{type(exc).__name__}: {str(exc)[:500]}"
     finally:
@@ -206,11 +226,7 @@ def build_report(repo_root: Path = ROOT, manifest: Path = MANIFEST, tool: str = 
         timeout=15,
         check=False,
     )
-    version = (
-        subprocess.run([tool, "version"], capture_output=True, text=True, timeout=15, check=False)
-        if shutil.which(tool)
-        else None
-    )
+    version = get_kicad_version() if tool == "kicad-cli" else None
     outcomes = [measure_reference(repo_root, record, tool=tool) for record in records]
     statuses = [item["status"] for item in outcomes]
     return {
@@ -219,7 +235,7 @@ def build_report(repo_root: Path = ROOT, manifest: Path = MANIFEST, tool: str = 
         "scope": "read-only schematic connectivity; not round-trip, AI success, or fabrication sign-off",
         "manifest_sha256": sha256_file(manifest),
         "zaptrace_commit": revision.stdout.strip() if revision.returncode == 0 else "not_available",
-        "native_tool_version": version.stdout.strip() if version and version.returncode == 0 else "not_available",
+        "native_tool_version": version or "not_available",
         "status": "verified" if statuses and all(s == "verified" for s in statuses) else "blocked",
         "measured": sum(s in ("verified", "blocked") for s in statuses),
         "verified": statuses.count("verified"),
