@@ -9,6 +9,26 @@ if (( $# == 0 )); then
   exit 2
 fi
 
+# GitHub CI can explicitly select the verified upstream AppImage when
+# Launchpad's PPA is unavailable. Local/manual APT behavior is unchanged.
+install_method="${KICAD_CI_INSTALL_METHOD:-apt}"
+case "$install_method" in
+  apt) ;;
+  appimage)
+    for package in "$@"; do
+      case "$package" in
+        kicad|kicad-*)
+          exec bash scripts/ci_install_kicad_appimage.sh "$@"
+          ;;
+      esac
+    done
+    ;;
+  *)
+    echo "Unsupported KiCad CI install method: $install_method" >&2
+    exit 2
+    ;;
+esac
+
 # The simulation-only and utility jobs need Ubuntu packages, not KiCad.
 # Avoid making their mandatory evidence dependent on Launchpad PPA availability.
 needs_kicad_ppa=false

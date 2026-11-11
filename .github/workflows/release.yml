@@ -229,6 +229,8 @@ jobs:
 
       - name: Run Python quality gates
         shell: bash
+        env:
+          KICAD_CI_INSTALL_METHOD: "appimage"
         run: |
           set -euo pipefail
           .venv/bin/ruff check .

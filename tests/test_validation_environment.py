@@ -225,6 +225,57 @@ def test_simulation_install_does_not_require_kicad_ppa(tmp_path: Path) -> None:
         assert packages[-1] in calls
 
 
+def test_kicad_official_appimage_ci_selection_is_pinned_and_scoped(tmp_path: Path) -> None:
+    """Keep original PPA behavior unless a KiCad-requiring CI step opts in."""
+    installer = Path("scripts/ci_install_kicad_appimage.sh").read_text(encoding="utf-8")
+    router = Path("scripts/ci_install_kicad.sh").read_text(encoding="utf-8")
+    assert "KICAD_CI_INSTALL_METHOD:-apt" in router
+    assert 'exec bash scripts/ci_install_kicad_appimage.sh "$@"' in router
+    assert "10.0.8" in installer
+    assert "abb59cee9f9782736c1b9a92e3ab08b31320ee01d72a6f9442a07fdef71b87d0" in installer
+    assert "4dfc6a52f89aa072d206e466a2a1de4c5ef5975d7ef49da24e4d4db0bb40ba3b" in installer
+    assert "RWSyix0AVvjWQGZChX64ywBpE5XqV1Eg+ZXYHR3Y27md9EoZ0AtVr9i9" in installer
+    assert "mirrors.mit.edu/kicad/appimage/stable" in installer
+    assert "mirror.nju.edu.cn/kicad/appimage/stable" in installer
+    assert "minisign -Vm" in installer
+    assert "sha256sum --check" in installer
+    assert "--appimage-extract" in installer
+    assert "kicad-cli version" in installer
+    assert "trusted=yes" not in installer
+    assert "allow-unauthenticated" not in installer
+
+    for path, step_name in (
+        (".github/workflows/quality.yml", "Install KiCad 10 CLI"),
+        (".github/workflows/quality-test-lanes.yml", "Install external test tools"),
+        (".github/workflows/release.yml", "Run Python quality gates"),
+    ):
+        source = Path(path).read_text(encoding="utf-8")
+        assert source.count("KICAD_CI_INSTALL_METHOD:") == 1
+        assert source.index(step_name) < source.index('KICAD_CI_INSTALL_METHOD: "appimage"')
+        assert "bash scripts/ci_install_kicad.sh kicad ngspice" in source
+
+    completed = subprocess.run(
+        ["bash", "scripts/ci_install_kicad.sh", "ngspice"],
+        env={**os.environ, "KICAD_CI_INSTALL_METHOD": "invalid"},
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 2
+    assert "Unsupported KiCad CI install method" in completed.stderr
+
+    completed = subprocess.run(
+        ["bash", "scripts/ci_install_kicad_appimage.sh", "ngspice"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 2
+    assert "Missing requested KiCad package" in completed.stderr
+
+
 def test_kicad_ppa_pinned_public_signing_key() -> None:
     import shutil
 
