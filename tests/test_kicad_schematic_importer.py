@@ -119,6 +119,72 @@ class TestSymbolPinCoordinates:
 
 
 # ---------------------------------------------------------------------------
+# KiCad 10 actual pin transforms: rotation and instance mirroring
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("local", "angle", "mirror", "expected"),
+    [
+        ((-3.81, 0.0), 0.0, "", (-3.81, 0.0)),
+        ((-3.81, 0.0), 90.0, "", (0.0, 3.81)),
+        ((-3.81, 0.0), 90.0, "x", (0.0, -3.81)),
+        ((3.81, 0.0), 270.0, "", (0.0, 3.81)),
+        ((2.0, 3.0), 0.0, "y", (-2.0, -3.0)),
+        ((2.0, 3.0), 180.0, "", (-2.0, 3.0)),
+    ],
+)
+def test_embedded_pin_transform_matches_kicad_sheet_coordinates(
+    local: tuple[float, float],
+    angle: float,
+    mirror: str,
+    expected: tuple[float, float],
+) -> None:
+    from zaptrace.kicad.schematic_importer import _rotate_local_pin
+
+    x, y = _rotate_local_pin(local, (45.72, 116.84), angle, mirror)
+    assert x == pytest.approx(45.72 + expected[0])
+    assert y == pytest.approx(116.84 + expected[1])
+
+
+def test_real_sparkfun_native_kicad_pin_membership() -> None:
+    """KiCad 10 reference XML netlist: unmirrored jumpers and mirrored resistors."""
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = (
+        Path(__file__).parents[1]
+        / "benchmarks/external/sparkfun-qwiic-navigation/source/SparkFun_Qwiic_Navigation.kicad_sch"
+    )
+    result = import_kicad_schematic(source)
+    nets = {
+        net.name: {(node.component_ref, node.pin_name) for node in net.nodes} for net in result.design.nets.values()
+    }
+    assert nets["ADR0"] == {("JP1", "1"), ("R1", "2"), ("U4", "1")}
+    assert nets["ADR1"] == {("JP2", "1"), ("R2", "2"), ("U4", "2")}
+    assert nets["SCL"] == {("J1", "4"), ("J3", "4"), ("J5", "4"), ("R7", "2"), ("U4", "14")}
+    assert nets["SDA"] == {("J1", "3"), ("J3", "3"), ("J5", "3"), ("R13", "2"), ("U4", "15")}
+    assert nets["SW_Center"] == {("R12", "1"), ("SW2", "5"), ("U4", "9")}
+
+
+def test_real_mitayi_native_kicad_mirrored_header_pin_membership() -> None:
+    """KiCad 10 reference XML netlist names have root-sheet / prefixes."""
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    source = Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    result = import_kicad_schematic(source)
+    nets = {
+        net.name: {(node.component_ref, node.pin_name) for node in net.nodes} for net in result.design.nets.values()
+    }
+    assert nets["GPIO0"] == {("J3", "1"), ("U3", "2")}
+    assert nets["GPIO2"] == {("J3", "3"), ("JP6", "3"), ("R11", "1"), ("U3", "4")}
+    assert nets["AREF"] == {("J4", "6"), ("JP1", "1"), ("U3", "43")}
+
+
+# ---------------------------------------------------------------------------
 # UnionFind unit tests
 # ---------------------------------------------------------------------------
 

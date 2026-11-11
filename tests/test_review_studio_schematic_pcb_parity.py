@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
 
 SOURCE = Path(__file__).resolve().parents[1]
 SCRIPT = SOURCE / "scripts/review_studio_schematic_pcb_parity.py"
@@ -19,7 +24,7 @@ PCB = SOURCE / "build/source-reference-readonly/ESP32_actual_copper_review.kicad
 def invoke(schematic: Path, board: Path, output: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             str(SCRIPT),
             "--schematic",
@@ -81,7 +86,7 @@ def test_actual_esp32_modified_pcb_value_is_reported_and_originals_protected(tmp
     original = PCB.read_bytes()
     native = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             "import pcbnew as p,sys; b=p.LoadBoard(sys.argv[1]);"
@@ -139,7 +144,7 @@ def linked_native_copy(tmp_path: Path, mode: str) -> Path:
     target = tmp_path / "linked-board.kicad_pcb"
     created = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """
@@ -255,7 +260,7 @@ def test_kicad_uuid_path_parser_handles_hierarchical_multi_unit_and_fails_closed
     """A hierarchy is sheet-instance UUID(s) plus exactly one native symbol UUID."""
     native = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """

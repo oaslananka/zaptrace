@@ -120,6 +120,8 @@ jobs:
 
       - name: Install external test tools
         if: inputs.test_mode != 'docs' && matrix.install_external
+        env:
+          KICAD_CI_INSTALL_METHOD: "appimage"
         run: |
           bash scripts/ci_install_kicad.sh kicad ngspice desktop-file-utils
 

@@ -226,18 +226,30 @@ def _embedded_library_pins(sexp: list[SexpNode]) -> dict[str, dict[str, tuple[fl
     return libraries
 
 
-def _rotate_local_pin(local: tuple[float, float], origin: tuple[float, float], angle_deg: float) -> tuple[float, float]:
-    """Transform one embedded-library pin coordinate into sheet coordinates."""
+def _rotate_local_pin(
+    local: tuple[float, float],
+    origin: tuple[float, float],
+    angle_deg: float,
+    mirror: str = "",
+) -> tuple[float, float]:
+    """Map KiCad library pin coordinates to sheet-space with rotation/mirroring.
+
+    Library +Y points up; schematic sheet +Y points down. KiCad's symbol
+    rotation angle is mathematical (counter-clockwise) before sheet inversion.
+    The optional instance mirror is applied in sheet-space after rotation.
+    """
     radians = math.radians(angle_deg)
     cos_angle = math.cos(radians)
     sin_angle = math.sin(radians)
-    local_x, library_y = local
-    local_y = -library_y  # KiCad library +Y points up while sheet +Y points down.
+    local_x, local_y = local
+    dx = local_x * cos_angle - local_y * sin_angle
+    dy = -local_x * sin_angle - local_y * cos_angle
+    if mirror == "x":
+        dy = -dy
+    elif mirror == "y":
+        dx = -dx
     origin_x, origin_y = origin
-    return (
-        origin_x + local_x * cos_angle - local_y * sin_angle,
-        origin_y + local_x * sin_angle + local_y * cos_angle,
-    )
+    return origin_x + dx, origin_y + dy
 
 
 def _instance_pin_coordinates(
@@ -246,6 +258,7 @@ def _instance_pin_coordinates(
     origin: tuple[float, float],
     angle: float,
     library_pins: dict[str, dict[str, tuple[float, float]]],
+    mirror: str = "",
 ) -> list[tuple[str, float, float]]:
     """Resolve standard KiCad instance pin UUID records through embedded geometry."""
     definitions = library_pins.get(lib_id, {})
@@ -257,7 +270,7 @@ def _instance_pin_coordinates(
         local = definitions.get(pin_name)
         if local is None:
             continue
-        x, y = _rotate_local_pin(local, origin, angle)
+        x, y = _rotate_local_pin(local, origin, angle, mirror)
         coordinates.append((pin_name, x, y))
     return coordinates
 
@@ -424,7 +437,18 @@ def _parse_symbol(
 
     pin_coords = _symbol_pin_coordinates(node)
     if not pin_coords and library_pins:
-        pin_coords = _instance_pin_coordinates(node, lib_id, at_coord, at_angle, library_pins)
+        mirror_node = _find(node, "mirror")
+        mirror_axis = _atom(mirror_node) if mirror_node else ""
+        if mirror_axis not in {"", "x", "y"}:
+            unsupported.append(
+                SchematicUnsupportedRecord(
+                    kind="unsupported_symbol_mirror",
+                    message=f"Symbol '{ref}' has unsupported mirror axis",
+                    severity="warning",
+                )
+            )
+        else:
+            pin_coords = _instance_pin_coordinates(node, lib_id, at_coord, at_angle, library_pins, mirror_axis)
 
     symbols.append(
         {

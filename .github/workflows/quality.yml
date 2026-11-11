@@ -82,6 +82,8 @@ jobs:
 
       - name: Install KiCad 10 CLI
         if: needs.changes.outputs.heavy_ci == 'true'
+        env:
+          KICAD_CI_INSTALL_METHOD: "appimage"
         run: |
           bash scripts/ci_install_kicad.sh kicad ngspice
 

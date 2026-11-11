@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -19,6 +20,10 @@ from zaptrace.core.models import Design
 from zaptrace.export.kicad import export_kicad_pcb, export_kicad_schematic
 from zaptrace.kicad.verified_vendor import resolve_verified_footprint
 from zaptrace.synthesis.footprint_resolver import resolve_footprints
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
 
 
 def sha(file: Path) -> str:
@@ -87,7 +92,7 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
             json.dumps(design.model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
         )
         result = subprocess.run(
-            ["/usr/bin/python3", "-B", "-m", "scripts.ai_native_pilot_pcb_native", str(stage)],
+            [NATIVE_KICAD_PYTHON, "-B", "-m", "scripts.ai_native_pilot_pcb_native", str(stage)],
             capture_output=True,
             text=True,
             timeout=230,
