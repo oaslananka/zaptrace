@@ -258,10 +258,13 @@ def test_real_mitayi_connected_pins_and_qspi_label_match_native_reference() -> N
     by_name = {
         net.name: {(node.component_ref, node.pin_name) for node in net.nodes} for net in result.design.nets.values()
     }
-    assert len(by_name) == 61
+    assert len(by_name) == 64
     assert by_name["/QSPI_SS"] == {("U3", "56"), ("U1", "1"), ("R1", "2"), ("R2", "1")}
     # The independent KiCad XML omits synthetic #PWR* connection nodes.
-    all_pins = {pin for pins in by_name.values() for pin in pins if not pin[0].startswith("#PWR")}
+    all_pins = {pin for name, pins in by_name.items() if not name.startswith("unconnected-") for pin in pins}
+    assert by_name["unconnected-(J2-SBU1-PadA8)"] == {("J2", "A8")}
+    assert by_name["unconnected-(J2-SBU2-PadB8)"] == {("J2", "B8")}
+    assert by_name["unconnected-(J6-ID-Pad4)"] == {("J6", "4")}
     assert {("J3", str(n)) for n in range(1, 21)} <= all_pins
     assert {("J4", str(n)) for n in range(1, 21)} <= all_pins
     assert {("J6", str(n)) for n in (1, 2, 3, 5, 6)} <= all_pins
@@ -316,7 +319,7 @@ def test_power_input_symbols_merge_global_nets_but_not_power_output_flags() -> N
     nets = {
         net.name: {(node.component_ref, node.pin_name) for node in net.nodes} for net in result.design.nets.values()
     }
-    assert nets["GND"] == {("#PWR01", "1"), ("#PWR02", "1"), ("R1", "1"), ("R2", "1")}
+    assert nets["GND"] == {("R1", "1"), ("R2", "1")}
     assert "PWR_FLAG" not in nets
     assert "renamed" not in nets and "renamed again" not in nets
     assert len(result.design.nets) == 3
@@ -359,12 +362,10 @@ def test_modern_kicad_power_input_uses_library_value_when_pin_name_empty() -> No
     """
     result = import_kicad_schematic_string(source)
     nets = {net.name: {(pin.component_ref, pin.pin_name) for pin in net.nodes} for net in result.design.nets.values()}
-    assert nets["GND"] == {
-        ("#PWR01", "1"),
-        ("#PWR02", "1"),
-        ("R1", "1"),
-        ("R2", "1"),
-    }
+    assert nets["GND"] == {("R1", "1"), ("R2", "1")}
+    # Power symbols still define global net identity; they are not physical
+    # netlist nodes in KiCad's XML representation.
+    assert {"#PWR01", "#PWR02"} <= {c.ref for c in result.design.components.values()}
     assert "PWR_FLAG" not in nets
 
     edited_source = source.replace(
@@ -376,8 +377,105 @@ def test_modern_kicad_power_input_uses_library_value_when_pin_name_empty() -> No
     edited_nets = {
         net.name: {(pin.component_ref, pin.pin_name) for pin in net.nodes} for net in edited.design.nets.values()
     }
-    assert edited_nets["GND"] == {("#PWR01", "1"), ("R1", "1")}
-    assert edited_nets["GND_CUSTOM"] == {("#PWR02", "1"), ("R2", "1")}
+    assert edited_nets["GND"] == {("R1", "1")}
+    assert edited_nets["GND_CUSTOM"] == {("R2", "1")}
+
+
+def test_real_sparkfun_library_no_connect_pin_types_are_preserved() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic
+
+    schematic = (
+        Path(__file__).parents[1]
+        / "benchmarks/external/sparkfun-qwiic-navigation/source/SparkFun_Qwiic_Navigation.kicad_sch"
+    )
+    result = import_kicad_schematic(schematic)
+    nc = {
+        name: {(node.component_ref, node.pin_name) for node in net.nodes}
+        for net in result.design.nets.values()
+        if (name := net.name).startswith("unconnected-")
+    }
+    assert nc == {
+        "unconnected-(J1-NC-PadNC1)": {("J1", "NC1")},
+        "unconnected-(J1-NC-PadNC2)": {("J1", "NC2")},
+        "unconnected-(J3-NC-PadNC1)": {("J3", "NC1")},
+        "unconnected-(J3-NC-PadNC2)": {("J3", "NC2")},
+        "unconnected-(SW2-PadMP1)": {("SW2", "MP1")},
+        "unconnected-(SW2-PadMP2)": {("SW2", "MP2")},
+    }
+    assert not any(
+        node.component_ref.startswith(("#PWR", "#FLG")) for net in result.design.nets.values() for node in net.nodes
+    )
+
+
+def test_real_mitayi_marker_not_silently_guessed_if_deleted() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    schematic = (
+        Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    ).read_text(encoding="utf-8")
+    assert schematic.count("(no_connect") == 3
+    original = import_kicad_schematic_string(schematic)
+    edited = import_kicad_schematic_string(schematic.replace("(no_connect", "(not_a_nc_marker", 1))
+    original_nc = {net.name for net in original.design.nets.values() if net.name.startswith("unconnected-")}
+    edited_nc = {net.name for net in edited.design.nets.values() if net.name.startswith("unconnected-")}
+    assert len(original_nc) == 3
+    assert len(edited_nc) == 2
+    assert edited_nc < original_nc
+    assert any(record.kind == "unknown_not_a_nc_marker" for record in edited.unsupported)
+
+
+def test_real_mitayi_marker_on_connected_pin_is_not_accepted_as_no_connect() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    source = (
+        Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    ).read_text(encoding="utf-8")
+    # Pin J6.4 was intentionally NC; J6.2 is physically wired.
+    assert source.count("(at 291.465 191.77)") >= 1
+    edited = source.replace(
+        "(no_connect\n\t\t(at 291.465 191.77)",
+        "(no_connect\n\t\t(at 291.465 189.23)",
+        1,
+    )
+    assert edited != source
+    result = import_kicad_schematic_string(edited)
+    nc_names = {net.name for net in result.design.nets.values() if net.name.startswith("unconnected-")}
+    assert len(nc_names) == 2
+    assert "unconnected-(J6-ID-Pad4)" not in nc_names
+    assert any(f.kind == "no_connect_on_connected_pin" for f in result.unsupported)
+    assert ("J6", "2") in {
+        (node.component_ref, node.pin_name)
+        for net in result.design.nets.values()
+        if not net.name.startswith("unconnected-")
+        for node in net.nodes
+    }
+
+
+def test_real_mitayi_unknown_no_connect_marker_is_fail_closed() -> None:
+    from pathlib import Path
+
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    source = (
+        Path(__file__).parents[1] / "benchmarks/external/mitayi-pico-d1/source/Mitayi-Pico-D1.kicad_sch"
+    ).read_text(encoding="utf-8")
+    edited = source.replace(
+        "(no_connect\n\t\t(at 291.465 191.77)",
+        "(no_connect\n\t\t(at 9999 9999)",
+        1,
+    )
+    assert edited != source
+    result = import_kicad_schematic_string(edited)
+    nc_names = {net.name for net in result.design.nets.values() if net.name.startswith("unconnected-")}
+    assert len(nc_names) == 2
+    assert "unconnected-(J6-ID-Pad4)" not in nc_names
+    assert any(f.kind == "unresolved_no_connect_marker" for f in result.unsupported)
 
 
 def test_real_sparkfun_power_symbols_preserve_native_kicad_pin_graph() -> None:
@@ -428,7 +526,7 @@ def test_real_sparkfun_power_symbols_preserve_native_kicad_pin_graph() -> None:
         ("R9", "2"),
         ("U4", "16"),
     }
-    assert len(named) == 26
+    assert len(named) == 32
 
 
 def test_real_mitayi_power_input_groups_not_silently_split() -> None:
@@ -482,7 +580,7 @@ def test_real_mitayi_power_input_groups_not_silently_split() -> None:
         ("U3", "48"),
         ("U3", "49"),
     }
-    assert len(named) == 61  # Mid-wire QSPI_SS label merges its two physical groups.
+    assert len(named) == 64  # 61 connected nets + 3 KiCad singleton NC nets.
 
 
 def test_real_sparkfun_native_kicad_pin_membership() -> None:

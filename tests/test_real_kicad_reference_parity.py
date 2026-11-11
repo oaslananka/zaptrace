@@ -123,6 +123,31 @@ def test_connected_pin_topology_handles_nc_and_power_annotations_without_waiving
     assert report["exact_connectivity_parity"] is False
 
 
+def test_native_and_imported_explicit_nc_groups_do_not_count_as_connected() -> None:
+    native = {
+        "GND": {("J1", "1")},
+        "unconnected-(J1-NC-PadNC2)": {("J1", "NC2")},
+    }
+    imported = {
+        "GND": {("J1", "1")},
+        "unconnected-(J1-NC-PadNC2)": {("J1", "NC2")},
+    }
+    report = compare_graphs(native, imported)
+    topo = report["connected_pin_topology"]
+    assert topo["connected_pin_topology_parity"] is True
+    assert topo["native_connected_pin_count"] == 1
+    assert topo["imported_connected_pin_count"] == 1
+    assert topo["native_no_connect_pin_count"] == 1
+    assert topo["imported_no_connect_pin_count"] == 1
+    assert report["exact_connectivity_parity"] is True
+    assert report["name_difference_diagnostics"]["evaluated_group_count"] == 1
+
+    # The connected-only diagnostic is intentionally weaker than exact graph.
+    without_explicit_nc = compare_graphs(native, {"GND": {("J1", "1")}})
+    assert without_explicit_nc["connected_pin_topology"]["connected_pin_topology_parity"] is True
+    assert without_explicit_nc["exact_connectivity_parity"] is False
+
+
 def test_connected_pin_topology_detects_both_open_and_short() -> None:
     native = {
         "/USB_D+": {("J1", "A6"), ("U1", "5")},
