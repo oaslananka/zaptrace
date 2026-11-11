@@ -51,7 +51,7 @@ def test_connected_pin_topology_handles_nc_and_power_annotations_without_waiving
         "unconnected-(J1-NC1)": {("J1", "NC1")},
     }
     imported = {
-        "ground": {("R1", "1"), ("U1", "2"), ("#PWR01", "1")},
+        "ground": {("R1", "1"), ("U1", "2"), ("#PWR01", "1"), ("#FLG01", "1")},
     }
     report = compare_graphs(native, imported)
     physical = report["connected_pin_topology"]
@@ -59,6 +59,7 @@ def test_connected_pin_topology_handles_nc_and_power_annotations_without_waiving
     assert physical["native_connected_pin_count"] == 2
     assert physical["native_no_connect_pin_count"] == 1
     assert physical["imported_power_annotation_pin_count"] == 1
+    assert physical["imported_erc_power_flag_pin_count"] == 1
     assert physical["native_connected_topology_sha256"] == physical["imported_connected_topology_sha256"]
     assert report["exact_connectivity_parity"] is False
 

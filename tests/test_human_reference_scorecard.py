@@ -22,6 +22,9 @@ EXPECTED_REFERENCE_IDS = {
     "olimex-esp32-devkit-lipo-revd",
     "olimex-bb-pwr-3608-reva",
     "olimex-tuxcon-kitty-reva",
+    "nitu-555-blinker",
+    "nitu-npn-transistor-switch",
+    "nitu-linear-regulator",
 }
 
 EXPECTED_DIMENSION_IDS = {
@@ -42,18 +45,41 @@ def test_committed_human_reference_contracts_exist() -> None:
     assert ATTEMPT_EXAMPLE.is_file()
 
 
-def test_manifest_declares_exact_six_reference_ids() -> None:
+def test_manifest_declares_exact_nine_reference_ids() -> None:
     payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
     references = payload["references"]
 
     assert payload["schema_version"] == "1.0"
     assert payload["corpus_id"] == "zaptrace-human-reference-corpus-v1"
     assert {row["reference_id"] for row in references} == EXPECTED_REFERENCE_IDS
-    assert len(references) == 6
+    assert len(references) == 9
     assert all(row["engineering_origin"] == "human-engineered-upstream" for row in references)
     assert all(row["zaptrace_review_status"] == "pending-human-review" for row in references)
     assert all(row["review_record"] is None for row in references)
     assert all(set(row["expected_dimensions"]) == EXPECTED_DIMENSION_IDS for row in references)
+
+
+def test_new_mit_corpus_snapshots_preserve_upstream_license_and_exact_bytes() -> None:
+    import hashlib
+
+    payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    records = {row["reference_id"]: row for row in payload["references"]}
+    for ident in ("nitu-555-blinker", "nitu-npn-transistor-switch", "nitu-linear-regulator"):
+        record = records[ident]
+        assert record["license_expression"] == "MIT"
+        assert record["license_source_path"] == "LICENSE"
+        assert record["upstream_commit"] == "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7"
+        assert record["source_verification"] == "vendored-byte-exact"
+        root = Path("benchmarks/external") / ident / "source"
+        license_file = root / "LICENSE"
+        assert hashlib.sha256(license_file.read_bytes()).hexdigest() == (
+            "9092e24d697eebd19e3e3ac48286429bf01f3474b18b8235981960cc4e58ec35"
+        )
+        assert b"Copyright (c) 2026 Nitish Ghadage" in license_file.read_bytes()
+        for artifact in record["artifacts"]:
+            source = root / artifact["path"]
+            assert source.stat().st_size == artifact["size_bytes"]
+            assert hashlib.sha256(source.read_bytes()).hexdigest() == artifact["sha256"]
 
 
 def test_rubric_has_eight_dimensions_and_100_weight() -> None:
@@ -120,7 +146,7 @@ def test_committed_human_reference_models_load_strictly() -> None:
     rubric = api.load_human_reference_rubric(RUBRIC)
     attempt = api.load_human_reference_attempt(ATTEMPT_EXAMPLE)
 
-    assert len(corpus.references) == 6
+    assert len(corpus.references) == 9
     assert len(rubric.dimensions) == 8
     assert attempt.attempt_status == "template"
     assert corpus.references[0].review_record is None
@@ -480,7 +506,7 @@ def test_human_reference_cli_writes_identity_bound_blocked_example(tmp_path: Pat
     assert report["schema_version"] == "1.0"
     assert report["gate_id"] == "human-reference-scorecard-v1"
     assert report["passed"] is True
-    assert report["reference_count"] == 6
+    assert report["reference_count"] == 9
     assert report["rubric_dimension_count"] == 8
     assert report["example_scorecard_status"] == "blocked"
     assert report["example_total_score"] == 0

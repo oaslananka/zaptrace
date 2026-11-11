@@ -1,10 +1,11 @@
 {
   "corpus_id": "zaptrace-human-reference-corpus-v1",
-  "corpus_version": "2026.07",
+  "corpus_version": "2026.11",
   "non_claims": [
     "upstream projects are human-engineered references but are not ZapTrace-reviewed",
     "hash-pinned normalized summaries do not prove electrical correctness or fabrication readiness",
-    "the 12 ZapTrace starter fixtures remain synthetic regression evidence"
+    "the 12 ZapTrace starter fixtures remain synthetic regression evidence",
+    "additional modern KiCad educational references are not qualified hardware designs or human-reviewed fabrication approvals"
   ],
   "references": [
     {
@@ -329,6 +330,171 @@
       "upstream_commit": "64cba773ca8a0d9f5a3612d73fa627ddeef0312d",
       "upstream_repository": "https://github.com/OLIMEX/TuxCon-Kitty",
       "upstream_source_root": "HARDWARE/REV-A",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "4be0e0352fb4237d363dfc38b03c0a7395403cf86afc9ea1f6192b0aa51d9f62",
+      "artifacts": [
+        {
+          "format": "modern-kicad-project-json",
+          "kind": "project",
+          "path": "02_555_blinker.kicad_pro",
+          "sha256": "757a0fa131392ef5748e5266432ad57723cb2fb4f57649d08be9aaee9f6e01eb",
+          "size_bytes": 17166
+        },
+        {
+          "format": "modern-kicad-schematic-20260306",
+          "kind": "schematic",
+          "path": "02_555_blinker.kicad_sch",
+          "sha256": "e082a866b440437150740a766f4ae35b437e770147c09120c759f766bcf7ad1f",
+          "size_bytes": 51366
+        },
+        {
+          "format": "kicad-pcb-20260206",
+          "kind": "pcb",
+          "path": "02_555_blinker.kicad_pcb",
+          "sha256": "b5ceacde3247dd40a43ab13cb71157e9f03aa14c42806863ae8ee76f96c18763",
+          "size_bytes": 107274
+        }
+      ],
+      "domain": "timer-control",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "MIT",
+      "license_source_path": "LICENSE",
+      "limitations": [
+        "upstream is an educational reference project, not qualified fabrication evidence",
+        "original bytes are pinned, but independent human technical review is not yet recorded",
+        "KiCad native pin/net parity must be evaluated independently; do not infer design correctness"
+      ],
+      "reference_id": "nitu-555-blinker",
+      "review_record": null,
+      "source_verification": "vendored-byte-exact",
+      "title": "555 Timer LED Blinker",
+      "total_bytes": 175806,
+      "upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+      "upstream_repository": "https://github.com/nitu2126/kicad-learning-path",
+      "upstream_source_root": "02-555-blinker",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "d976ff641d3fa3948cb4eaf3618402537b3d18b17863aad6270e25ad2f2dbb94",
+      "artifacts": [
+        {
+          "format": "modern-kicad-project-json",
+          "kind": "project",
+          "path": "04_npn_transistor_switch.kicad_pro",
+          "sha256": "1105cf81251cf9cf8f08e58067cbfb88349eca6406f2c03840491ce7c3072230",
+          "size_bytes": 17187
+        },
+        {
+          "format": "modern-kicad-schematic-20260306",
+          "kind": "schematic",
+          "path": "04_npn_transistor_switch.kicad_sch",
+          "sha256": "ec751400fac33ec7303cac808b90320393f9260539ece9c2ce64097e9e96de7e",
+          "size_bytes": 58718
+        },
+        {
+          "format": "kicad-pcb-20260206",
+          "kind": "pcb",
+          "path": "04_npn_transistor_switch.kicad_pcb",
+          "sha256": "f3aeb2c90582dd3973b1dda17afd1f34055f52e29c45faa8fdc1947d16b8e0fe",
+          "size_bytes": 136294
+        }
+      ],
+      "domain": "transistor-switch",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "MIT",
+      "license_source_path": "LICENSE",
+      "limitations": [
+        "upstream is an educational reference project, not qualified fabrication evidence",
+        "original bytes are pinned, but independent human technical review is not yet recorded",
+        "KiCad native pin/net parity must be evaluated independently; do not infer design correctness"
+      ],
+      "reference_id": "nitu-npn-transistor-switch",
+      "review_record": null,
+      "source_verification": "vendored-byte-exact",
+      "title": "NPN Transistor Switch",
+      "total_bytes": 212199,
+      "upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+      "upstream_repository": "https://github.com/nitu2126/kicad-learning-path",
+      "upstream_source_root": "04-npn-transistor-switch",
+      "zaptrace_review_status": "pending-human-review"
+    },
+    {
+      "artifact_count": 3,
+      "artifact_set_sha256": "5f0f5f9def5edd77e1db7e4d50404689034954f3aa79912efd6755d1b6309b7f",
+      "artifacts": [
+        {
+          "format": "modern-kicad-project-json",
+          "kind": "project",
+          "path": "05_linear_regulator.kicad_pro",
+          "sha256": "fc36678baf97c7cb901bf91bbb6c307f9f382685cadac9abd272fd01bc54e050",
+          "size_bytes": 18125
+        },
+        {
+          "format": "modern-kicad-schematic-20260306",
+          "kind": "schematic",
+          "path": "05_linear_regulator.kicad_sch",
+          "sha256": "8cdda7e28129ca132c29868b94d7d3339ac4d6846d7c6d51278fc40c4ede44d9",
+          "size_bytes": 62715
+        },
+        {
+          "format": "kicad-pcb-20260206",
+          "kind": "pcb",
+          "path": "05_linear_regulator.kicad_pcb",
+          "sha256": "4f63a54b18a97e24fc4ccf122cae7c5c6c0eefac745a032a66a36c6b1d234e8b",
+          "size_bytes": 177647
+        }
+      ],
+      "domain": "linear-power-regulation",
+      "engineering_origin": "human-engineered-upstream",
+      "expected_dimensions": [
+        "requirements-coverage",
+        "erc-drc-oracle",
+        "schematic-parity",
+        "component-evidence",
+        "layout-quality",
+        "dfm-readiness",
+        "simulation-analysis",
+        "human-review"
+      ],
+      "license_expression": "MIT",
+      "license_source_path": "LICENSE",
+      "limitations": [
+        "upstream is an educational reference project, not qualified fabrication evidence",
+        "original bytes are pinned, but independent human technical review is not yet recorded",
+        "KiCad native pin/net parity must be evaluated independently; do not infer design correctness"
+      ],
+      "reference_id": "nitu-linear-regulator",
+      "review_record": null,
+      "source_verification": "vendored-byte-exact",
+      "title": "Linear Voltage Regulator",
+      "total_bytes": 258487,
+      "upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+      "upstream_repository": "https://github.com/nitu2126/kicad-learning-path",
+      "upstream_source_root": "05-linear-regulator",
       "zaptrace_review_status": "pending-human-review"
     }
   ],

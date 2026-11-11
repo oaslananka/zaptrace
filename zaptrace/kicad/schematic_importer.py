@@ -227,31 +227,35 @@ def _embedded_library_pins(sexp: list[SexpNode]) -> dict[str, dict[str, tuple[fl
     return libraries
 
 
-def _embedded_power_pin_labels(sexp: list[SexpNode]) -> dict[str, tuple[str, str]]:
-    """Resolve a true KiCad power symbol to (pin number, global net name).
+def _embedded_power_pin_labels(sexp: list[SexpNode]) -> dict[str, tuple[str, str, bool]]:
+    """Resolve a KiCad power-input library pin and how it names its net.
 
-    The symbol's embedded ``(power)`` marker and a single ``power_in``
-    library pin are required. The *library pin name* defines connectivity,
-    not an editable instance Value property. Power-output flags must never
-    inadvertently short together through an inferred label.
+    An embedded ``(power)`` marker and one ``power_in`` pin are
+    mandatory. Legacy symbols with named pins use the library pin name.
+    KiCad 10 power symbols with unnamed pins use the instance Value as
+    their global net name; changing that value can change connectivity.
+    Power-output flags are never converted to global labels.
     """
     libraries = _find(sexp, "lib_symbols")
     if libraries is None:
         return {}
-    labels: dict[str, tuple[str, str]] = {}
+    labels: dict[str, tuple[str, str, bool]] = {}
     for symbol in _find_all(libraries, "symbol"):
         if _find(symbol, "power") is None:
             continue
         pins = _nested_pin_definitions(symbol)
-        if len(pins) != 1:
-            continue
-        if _atom(pins[0]) != "power_in":
+        if len(pins) != 1 or _atom(pins[0]) != "power_in":
             continue
         number = _atom(_find(pins[0], "number") or [])
         name = _atom(_find(pins[0], "name") or [])
+        value_driven = not name or name == "~"
+        if value_driven:
+            # A modern library's Value supplies the default, but the
+            # instance Value is authoritative for the actual named net.
+            name = _prop(symbol, "Value")
         lib_id = _atom(symbol)
         if lib_id and number and name and name != "~":
-            labels[lib_id] = number, name
+            labels[lib_id] = number, name, value_driven
     return labels
 
 
@@ -398,11 +402,13 @@ def _parse_schematic(
             instance = symbols[-1]
             power_label = power_pin_labels.get(instance["lib_id"])
             if power_label is not None:
-                pin_number, power_name = power_label
-                for number, x, y in instance["pins"]:
-                    if number == pin_number:
-                        labels.append((power_name, "global_label", (x, y)))
-                        break
+                pin_number, library_name, value_driven = power_label
+                power_name = (instance["value"] or library_name) if value_driven else library_name
+                if power_name and power_name != "~":
+                    for number, x, y in instance["pins"]:
+                        if number == pin_number:
+                            labels.append((power_name, "global_label", (x, y)))
+                            break
         elif tag == "wire":
             _handle_wire_tag(node, wires, unsupported)
         elif tag == "junction":
@@ -562,20 +568,20 @@ def _union_wires(
 
 def _merge_junctions(
     junctions: list[tuple[float, float]],
+    wires: list[tuple[tuple[float, float], tuple[float, float]]],
     coords: list[tuple[float, float]],
     coord_idx: dict[tuple[int, int], int],
     uf: _UnionFind,
 ) -> None:
-    # Junctions expand connectivity — merge the junction point into any wire
-    # endpoint within epsilon; otherwise add it as its own group (may get
-    # merged later).
-    for jx, jy in junctions:
-        jq = _quantise((jx, jy))
-        if jq in coord_idx:
-            ji = coord_idx[jq]
-            uf.union(ji, ji)  # already in graph; no-op union ensures membership
-        else:
-            _get_or_add_coord((jx, jy), coords, coord_idx)
+    # Only an explicit junction joins intersecting wires. A wire crossing
+    # without this marker must remain two separate electrical nets.
+    # KiCad also places junctions where a wire endpoint touches the interior
+    # of another wire, even when that long segment is not split.
+    for junction in junctions:
+        ji = _get_or_add_coord(junction, coords, coord_idx)
+        for start, end in wires:
+            if _point_on_wire(junction, start, end):
+                uf.union(ji, coord_idx[_quantise(start)])
 
 
 def _point_on_wire(
@@ -698,7 +704,7 @@ def _resolve_connectivity(
     uf = _UnionFind()
 
     _union_wires(wires, coords, coord_idx, uf)
-    _merge_junctions(junctions, coords, coord_idx, uf)
+    _merge_junctions(junctions, wires, coords, coord_idx, uf)
     label_groups = _group_labels(labels, coords, coord_idx, uf, wires, unsupported)
     group_pins = _group_pins(symbols, coord_idx, uf)
 

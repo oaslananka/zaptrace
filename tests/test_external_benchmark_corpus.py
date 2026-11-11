@@ -34,17 +34,38 @@ def test_external_manifest_declares_two_exact_upstream_fixtures() -> None:
 
 
 def test_external_fixtures_vendor_only_declared_standard_artifacts() -> None:
+    """No untracked source is admitted by either independent corpus manifest."""
     payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    declared = sorted(file_row["local_path"] for fixture in payload["fixtures"] for file_row in fixture["files"])
+    declared = {file_row["local_path"] for fixture in payload["fixtures"] for file_row in fixture["files"]}
+    assert len(declared) == 6  # Existing two-fixture external benchmark remains unchanged.
+
+    human_manifest = ROOT / "benchmarks/human-reference-corpus/manifest.json"
+    references = json.loads(human_manifest.read_text(encoding="utf-8"))["references"]
+    for record in references:
+        if record["source_verification"] != "vendored-byte-exact":
+            continue
+        source_root = Path("benchmarks/external") / record["reference_id"] / "source"
+        for artifact in record["artifacts"]:
+            declared.add((source_root / artifact["path"]).as_posix())
+
+        # Some human references declare the upstream license in a separate
+        # README. Only allow a locally vendored LICENSE with explicit matching
+        # manifest metadata, never arbitrary extra files under source/.
+        if record["license_source_path"] == "LICENSE" and (ROOT / source_root / "LICENSE").is_file():
+            declared.add((source_root / "LICENSE").as_posix())
+
     actual = sorted(
         path.relative_to(ROOT).as_posix()
         for path in EXTERNAL_ROOT.rglob("*")
         if path.is_file() and "source" in path.parts
     )
 
-    assert len(actual) == 6
-    assert actual == declared
-    assert all(Path(path).suffix in {".kicad_pro", ".kicad_sch", ".kicad_pcb"} for path in actual)
+    assert len(actual) == len(declared)
+    assert actual == sorted(declared)
+    assert all(
+        Path(path).suffix in {".kicad_pro", ".kicad_sch", ".kicad_pcb"} or Path(path).name == "LICENSE"
+        for path in actual
+    )
 
 
 def _external_api() -> ModuleType:
