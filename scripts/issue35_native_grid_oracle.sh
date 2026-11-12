@@ -14,7 +14,14 @@ case "$cli_path" in
   *) echo "Trusted KiCad 10 CLI not found in approved system paths" >&2; exit 2 ;;
 esac
 readonly CLI="$cli_path"
-readonly PYTHON=/usr/bin/python3
+# Match the verified CLI with its actual native pcbnew runtime. The signed
+# AppImage uses bundled Python 3.11; Ubuntu's /usr/bin/python3 is unrelated
+# and cannot import pcbnew on current hosted runners.
+if [[ "$CLI" == /usr/local/bin/kicad-cli ]]; then
+  readonly PYTHON=/usr/local/bin/kicad-python
+else
+  readonly PYTHON=/usr/bin/python3
+fi
 readonly TIMEOUT=/usr/bin/timeout
 readonly ENV_BIN=/usr/bin/env
 for bin in "$CLI" "$PYTHON" "$TIMEOUT" "$ENV_BIN"; do
@@ -29,6 +36,14 @@ readonly DEST
 KICAD_VERSION="$("$CLI" version)"
 readonly KICAD_VERSION
 [[ "$KICAD_VERSION" == 10.* ]] || { echo "KiCad 10 required: $KICAD_VERSION" >&2; exit 2; }
+PYTHON_KICAD_VERSION="$("$PYTHON" -c 'import pcbnew; print(pcbnew.Version())')" || {
+  echo "Matching KiCad pcbnew runtime missing: $PYTHON" >&2
+  exit 2
+}
+[[ "$PYTHON_KICAD_VERSION" == "$KICAD_VERSION" ]] || {
+  echo "KiCad CLI and pcbnew version mismatch: $KICAD_VERSION / $PYTHON_KICAD_VERSION" >&2
+  exit 2
+}
 mkdir -p -- "$DEST"
 # Use a clean temporary output directory rather than trusting cached reports.
 TEMP="$(mktemp -d "$DEST/.native-XXXXXXXX")"

@@ -139,6 +139,11 @@ def test_native_grid_shell_accepts_verified_kicad_appimage_wrapper() -> None:
     assert "command -v kicad-cli" in script
     assert "/usr/local/bin/kicad-cli" in script
     assert "/usr/bin/kicad-cli" in script
+    # AppImage provides its own matching Python 3.11+pcbnew wrapper.
+    # /usr/bin/python3 on hosted runners has no pcbnew and fails the oracle.
+    assert 'if [[ "$CLI" == /usr/local/bin/kicad-cli ]]' in script
+    assert "readonly PYTHON=/usr/local/bin/kicad-python" in script
+    assert "readonly PYTHON=/usr/bin/python3" in script
     assert "readonly CLI=/usr/bin/kicad-cli" not in script
     assert '"$CLI" version' in script
     assert '"$CLI" pcb drc --exit-code-violations' in script
