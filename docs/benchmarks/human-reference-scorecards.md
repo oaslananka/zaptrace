@@ -670,13 +670,63 @@ and PCB DRC **0 → 0**. All originals remain byte-exact.
 F.SilkS reference text for testpoints changes from legible
 measurement net labels to TP numbers. Actual collector load
 current, transistor saturation, diode behavior, thermal performance,
-functional simulation, manufacturing and qualified human review
+qualified functional simulation, manufacturing and human review
 are still **NOT RUN**. Thus the independent model proposal's
 *nominal numerical criterion* passed but **G0 task success is
 BLOCKED**. This is a real separate-model attempt, not a
 fully autonomous or human-accepted design success. The strict
 historic original-source score remains **0 VERIFIED /
 16 BLOCKED / 4 NOT RUN**.
+
+#### G0 task 004 addendum — real ngspice DC load sensitivity, assumed models only
+
+The [source-pinned simulation evidence](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/npn-switch-assumed-load-ngspice.json)
+is a separate, supplementary bounded test of the independent-model
+**R1=820 Ω** proposal. A read-only KiCad **10.0.8** native XML netlist
+check first confirms exact original licensed PN2222A schematic values
+and all six pin-to-net groups, with original schematic/PCB/project
+SHA-256s unchanged. The [reproducible script](https://github.com/oaslananka/zaptrace/blob/main/scripts/g0_npn_dc_spice_probe.py)
+then calls the existing **ngspice 42 shared library**, without an
+installed simulator executable, a cloud API, or any library download.
+[ngspice documents this native shared-library interface](https://ngspice.sourceforge.io/shared.html).
+
+The **34 genuine ngspice DC operating-point solves** comprise
+28 CLOSED-button cases (390 Ω or 820 Ω base feed;
+hypothetical transistor BF=50 or BF=150; no external load,
+1 kΩ, 220 Ω, 100 Ω, 47 Ω, 22 Ω, 10 Ω J2 resistive loads) and
+six OPEN-button checks on the 820 Ω candidate. The modeled
+contact is 0.05 Ω closed or 1 GΩ open. The transistor, red LED
+and flyback diode SPICE models are **hypothetical educational
+approximations**, not verified PN2222A/LED supplier models,
+temperature corners, real parts or engineering safety bounds.
+No transient, flyback energy, inductive-load or thermal solver
+was executed.
+
+Under those particular assumptions, for 820 Ω the collector
+voltage at switch ON is about 0.047 V for LED-only,
+0.237 V (BF=50) / 0.219 V (BF=150) at 47 Ω,
+**1.567 V / 0.374 V at 22 Ω**, and
+**3.356 V / 1.651 V at 10 Ω**. A 0.3 V marker is an
+**illustrative warning threshold, not a part certification**.
+The 22 Ω low-gain model predicts roughly 252 mW
+transistor DC dissipation, *not* a validated thermal condition.
+The OPEN-button cases predict an off LED and near-5 V
+collector; contact bounce and dynamics remain untested.
+
+To rerun on a Linux machine with KiCad 10 CLI and an
+ngspice shared library already available:
+
+~~~sh
+python scripts/g0_npn_dc_spice_probe.py   --output-json /tmp/zaptrace-g0-npn-spice-review.json
+~~~
+
+The versioned evidence stores all computed voltages and currents,
+model parameters, circuit-deck SHA-256 for every case and an explicit
+NOT_RUN qualified-load status. This **upgrades evidence** from
+hand calculations to *real DC simulation under unqualified
+models*. It does **not** upgrade the previous G0 #004
+BLOCKED outcome or claim any real load capacity,
+qualified function, human approval or manufacturing readiness.
 
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
