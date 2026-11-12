@@ -585,10 +585,15 @@ class GridRouter:
             / 2
         )
         # Respect custom net-class widths and clearances when pre-expanding.
+        # A bounded GND net is routable when there is no copper pour; its
+        # pad keepout must then also honor the ground-specific width/rules.
         for net in design.nets.values():
-            if len(net.nodes) < 2 or get_net_class(design, net.id) == NetClass.GROUND:
+            if len(net.nodes) < 2:
                 continue
-            rule = kb.get_rule(get_net_class(design, net.id))
+            net_class = get_net_class(design, net.id)
+            if net_class == NetClass.GROUND and (board.copper_pour_gnd or len(net.nodes) > 4):
+                continue
+            rule = kb.get_rule(net_class)
             keepout = max(keepout, rule.clearance + rule.trace_width / 2)
         nets_by_pad: dict[tuple[str, str], str] = {}
         components = {comp.ref: comp for comp in design.components.values()}
@@ -1000,18 +1005,36 @@ class GridRouter:
         net_class = get_net_class(design, net.id)
         layer = self._layer_for_net_class(net_class, context.num_layers)
         if layer < 0:
-            if (
-                net_class == NetClass.GROUND
-                and len(net.nodes) >= 2
-                and not canonical_board_definition(design).copper_pour_gnd
-            ):
-                # Ground is deliberately delegated to a copper pour only
-                # when the canonical board model actually enables one.
-                # With pours disabled, keep the GND net in the unresolved
-                # denominator instead of silently reporting it as out of
-                # scope or fully routed.
+            if net_class != NetClass.GROUND or len(net.nodes) < 2 or canonical_board_definition(design).copper_pour_gnd:
+                # A declared copper pour owns the return-path strategy.
+                return _GridNetPlan(False, False, net.id)
+            # Without a pour, permit a bounded explicit top-copper route
+            # only where every logical endpoint maps to precisely ONE real
+            # pad that can carry the existing full-width ground trace.
+            # Multi-pad grounds (USB-C, ESP32 thermal matrix), missing pad
+            # geometry, and large return trees need independent engineering
+            # planning; never mark them as successfully routed by analogy.
+            if not self.pad_aware or len(net.nodes) > 4:
                 return _GridNetPlan(True, False, net.id)
-            return _GridNetPlan(False, False, net.id)
+            ground_width = kb.get_rule(net_class).trace_width
+            for node in net.nodes:
+                component = context.component_by_ref.get(node.component_ref)
+                if component is None or component.footprint_def is None:
+                    return _GridNetPlan(True, False, net.id)
+                aliases = self._pin_aliases(node.pin_name)
+                matched = [
+                    pad
+                    for pad in component.footprint_def.pads
+                    if str(
+                        component.package_pin_map.get(str(pad.id), str(pad.id)) if component.package_pin_map else pad.id
+                    )
+                    .strip()
+                    .lower()
+                    in aliases
+                ]
+                if len(matched) != 1 or min(matched[0].size) + 1e-6 < ground_width:
+                    return _GridNetPlan(True, False, net.id)
+            layer = 0
         route_points = self._collect_net_route_points(net, context)
         if len(route_points) < 2:
             # Missing physical geometry for a real multi-pad net is unrouted,

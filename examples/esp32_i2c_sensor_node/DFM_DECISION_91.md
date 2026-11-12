@@ -10,6 +10,38 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — native-checked explicit ground routing without a pour
+
+A missing GND copper pour is **not** proof that every ground net is
+unroutable. The pad-aware router now attempts bounded ground traces
+for small networks of **two to four logical terminals**, only when
+each terminal maps to precisely one physically present, unambiguous
+land whose minimum dimension supports the existing, unmodified GND
+trace width. It selects a real shared copper layer and keeps each
+candidate subject to the existing every-pad contact, single-island,
+full-board local DRC and independent KiCad checks. Ground keepout
+projection now accounts for any wider per-class rule when this
+explicit route can be considered. A declared copper pour still owns
+ground return-path strategy; the legacy nonphysical grid router does
+not silently add a synthetic GND track.
+
+Independent KiCad 10.0.8 PCB DRC verified test-only source models with
+two actual ground pads (**1 -> 0 unconnected**) and three pads
+(**2 -> 0 unconnected**) after trace export. The fixture's existing
+library-footprint warnings were unchanged, not waived. Adversarial
+regression tests reject too-narrow GND lands and repeated real pads
+behind one logical terminal, as well as missing physical routing
+credentials. These cases prove a **bounded functional improvement**,
+not a generic RF return-path or fabrication signoff.
+
+**The ESP32 example is unchanged**: its GND has 11 logical terminals,
+25 ESP32 ground lands plus other multiple-contact terminals and
+disabled pour; a two-to-four-terminal local ground routing path is
+not evidence that this USB/RF return tree is safely connected.
+Its native **29 open items and 16 DRC** must remain unresolved until
+the actual board's current/return geometry and manufacturer issues
+are independently qualified.
+
 ## 2026-11-13 — grounded power-net constraints and false-GND prevention
 
 The normal pipeline CLI and MCP tool now expose source-measured

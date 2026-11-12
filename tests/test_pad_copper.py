@@ -174,6 +174,153 @@ def test_actual_esp32_static_pad_halo_is_single_expanded_but_not_approved() -> N
     assert not verified_route_candidate_safe(d, route, d.placement)
 
 
+def test_ground_without_pour_routes_two_real_ground_lands() -> None:
+    """A real small GND net can use explicit pad-aware top copper, not a phantom pour."""
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+    )
+    _net(d, "GND", "a", "b")
+    d.board.copper_pour_gnd = False
+    assert not canonical_board_definition(d).copper_pour_gnd
+    router = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=20_000)
+    route = router.route(d, pos)
+    assert route.net_count == 1
+    assert route.routed_net_count == 1
+    assert route.traces
+    assert all(seg.net_id == "GND" and seg.layer == "layer_0" for seg in route.traces)
+    safe = retain_verified_partial_copper(d, route, pos)
+    assert safe.routed_net_count == 1
+    assert safe.traces
+
+
+def test_ground_without_pour_honors_custom_full_width_clearance() -> None:
+    """Explicit GND copper must reserve the real configured trace/clearance halo."""
+    from zaptrace.ee.constraints.net_classes import NetClass, NetClassRule
+
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+    )
+    _net(d, "GND", "a", "b")
+    d.board.copper_pour_gnd = False
+    router = GridRouter(resolution_mm=0.5, pad_aware=True)
+    standard = router._prepare_route_context(d, pos)
+    kb = KnowledgeBase()
+    kb.set_rule(
+        NetClass.GROUND,
+        NetClassRule(trace_width=1.2, clearance=0.55, max_vias=2, priority=0, description="wide ground"),
+    )
+    wider = router._prepare_route_context(d, pos, kb)
+    assert wider.obstacles.preexpanded_static_clearance
+    assert len(wider.obstacles._pad_clearance) > len(standard.obstacles._pad_clearance)
+
+
+def test_ground_without_pour_rejects_narrow_and_repeated_physical_lands() -> None:
+    """Never solve a small ground net by dropping real contacts or narrowing copper."""
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+    )
+    _net(d, "GND", "a", "b")
+    d.board.copper_pour_gnd = False
+    router = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=20_000)
+    assert router.route(d, pos).routed_net_count == 1
+
+    d.components["b"].footprint_def.pads[0].size = (0.5, 0.35)
+    narrow = router.route(d, pos)
+    assert narrow.net_count == 1
+    assert narrow.routed_net_count == 0 and not narrow.traces
+
+    d.components["b"].footprint_def.pads[0].size = (2.0, 1.5)
+    # Duplicate actual copper occurrence, despite a single logical GND pin.
+    d.components["b"].footprint_def.pads.append(Pad(id="1", position=(2.0, 0), size=(2.0, 1.5), layer=LayerSet.TOP))
+    repeated = router.route(d, pos)
+    assert repeated.net_count == 1
+    assert repeated.routed_net_count == 0 and not repeated.traces
+
+
+def test_ground_without_pour_does_not_use_nonphysical_legacy_router() -> None:
+    """An unverified graph route cannot be used as an ersatz ground return."""
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+    )
+    _net(d, "GND", "a", "b")
+    d.board.copper_pour_gnd = False
+    route = GridRouter(resolution_mm=0.25, pad_aware=False).route(d, pos)
+    assert route.net_count == 1
+    assert route.routed_net_count == 0 and not route.traces
+    d.board.copper_pour_gnd = True
+    pour = GridRouter(resolution_mm=0.25, pad_aware=True).route(d, pos)
+    assert pour.net_count == 0
+    assert pour.routed_net_count == 0 and not pour.traces
+
+
+@pytest.mark.parametrize("third_contact", [False, True])
+def test_ground_without_pour_native_kicad_continuity_without_new_drc(tmp_path, third_contact: bool) -> None:
+    """Confirm two- or three-pad grounded copper independently in native KiCad."""
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+
+    from zaptrace.core.models import RouteResult
+    from zaptrace.export.kicad import export_kicad
+
+    if shutil.which("kicad-cli") is None:
+        pytest.skip("Independent KiCad 10 DRC requires the native kicad-cli tool")
+    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, check=True, timeout=10)
+    if not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent KiCad 10 required for native GND routing evidence")
+    pads = [
+        ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+    ]
+    if third_contact:
+        pads.append(("c", (25, 20), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)))
+    d, pos = _board(*pads)
+    _net(d, "GND", *(["a", "b", "c"] if third_contact else ["a", "b"]))
+    d.board.copper_pour_gnd = False
+    route = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=20_000).route(d, pos)
+    assert route.routed_net_count == 1
+    reports = []
+    for label, traces in (("original", RouteResult(net_count=1)), ("routed", route)):
+        candidate = d.model_copy(deep=True)
+        candidate.placement = dict(pos)
+        candidate.routing = traces
+        pcb = export_kicad(candidate, tmp_path / label)["pcb"]
+        report = tmp_path / f"{label}.json"
+        completed = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(report),
+                str(pcb),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        assert completed.returncode in (0, 5), completed.stderr
+        reports.append(json.loads(report.read_text(encoding="utf-8")))
+    before, after = reports
+    assert len(before["unconnected_items"]) == (2 if third_contact else 1)
+    assert len(after["unconnected_items"]) == 0
+    # The test-only footprints are not in an installed KiCad library; any
+    # independently reported library issues must be unchanged, not hidden.
+    assert Counter(v["type"] for v in after["violations"]) == Counter(v["type"] for v in before["violations"])
+
+
 def test_ground_net_is_unresolved_when_copper_pour_is_disabled() -> None:
     from copy import deepcopy
     from pathlib import Path
