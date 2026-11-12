@@ -504,6 +504,45 @@ publication is in scope; multi-sheet reference edits still require
 a separate source-complete ECO producer, even though the native
 read-only multi-sheet reviewer supports checking candidates.
 
+#### G0 task 001 — AI-suggested NE555 nominal period ECO (not a G0 pass)
+
+The versioned first pilot task and observed native result are in
+\`benchmarks/g0-ai-engineering-tasks/ne555-period-plus-ten-percent.json\`.
+The prompt was chosen for this **agent-assisted test** (not requested
+individually by an end user and not independently scored by a second AI
+provider). The licensed original Nitu 555 blinker has a native net graph
+that matches TI's NE555 astable connections: R1 \`4.7k\` is RA, R2
+\`68k\` is RB, and C1 \`10uF\` is the timing capacitor. Using the
+[March 2026 TI NE555 datasheet](https://www.ti.com/lit/ds/symlink/ne555.pdf),
+the nominal period is \`0.693*(RA+2*RB)*C\`. The proposed R2
+\`68k → 75k\` gives \`0.975051s → 1.072071s\` (about **+9.95%**).
+
+Run the source-safe CLI on the pinned original to independently reproduce
+the draft, without mutating the source tree:
+
+\`\`\`bash
+zaptrace kicad passive-eco-preview \
+  benchmarks/external/nitu-555-blinker/source/02_555_blinker.kicad_pcb \
+  --reference R2 --from-value 68k --to-value 75k \
+  --output-dir /path/to/new-555-eco-draft --json
+\`\`\`
+
+Native KiCad **10.0.8** reported **0 ERC, 0 PCB DRC, 0 schematic–PCB
+parity** both before and after the synchronized source edit; original
+and proposed KiCad net graphs have the same 7 nets and identical pin
+connections. The separately generated draft has exact source and output
+SHA-256 values recorded in the task. The observed CLI wall time was
+27.893s, specific to that run. Model/API inference cost, operator
+interventions and independent AI repeatability were **not attested**.
+
+This is **an AI-assisted attempted engineering change with tool proof**,
+not an independently scored success. Real timing, component tolerance,
+BOM qualification, physical review and an independent qualified human
+review remain \`not_run\`. G0 is still **0 VERIFIED / 16 BLOCKED /
+4 NOT RUN** for historical source parity and is **not 1/20 accepted AI
+engineering tasks**. Do not infer fabrication approval from a clean
+native rule check.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses

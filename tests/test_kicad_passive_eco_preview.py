@@ -10,12 +10,14 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from defusedxml import ElementTree
 
 from zaptrace.cli.main import cli
 from zaptrace.io.sexp import parse
 from zaptrace.kicad.pcb_source_edit import replace_kicad_pcb_footprint_value
 
 SOURCE = Path(__file__).parents[1] / "benchmarks/external/nitu-555-blinker/source"
+TASK_SPEC = Path(__file__).parents[1] / "benchmarks/g0-ai-engineering-tasks/ne555-period-plus-ten-percent.json"
 
 
 def _project() -> tuple[Path, Path, Path]:
@@ -38,14 +40,66 @@ def native_kicad_10() -> str:
     probe = subprocess.run([binary, "version"], capture_output=True, text=True, timeout=15)
     if probe.returncode or not probe.stdout.startswith("10."):
         pytest.skip("native KiCad 10 CLI required")
+    assert binary is not None
     return binary
 
 
-def test_real_first_original_board_and_schematic_eco_runs_native_checks_and_writes_reviewable_drafts(
+def _native_netlist(
+    binary: str, schematic: Path, output: Path
+) -> tuple[dict[str, str | None], dict[str, tuple[tuple[str | None, str | None], ...]]]:
+    # Native KiCad can write .kicad_prl near a schematic even during export.
+    # Use disposable copies so neither upstream fixtures nor candidate files
+    # receive tool-generated sidecars.
+    sandbox = output.parent / (output.stem + "-source")
+    sandbox.mkdir()
+    copied = sandbox / schematic.name
+    shutil.copyfile(schematic, copied)
+    project = schematic.with_suffix(".kicad_pro")
+    if project.is_file():
+        shutil.copyfile(project, sandbox / project.name)
+    run = subprocess.run(
+        [binary, "sch", "export", "netlist", "--format", "kicadxml", "-o", str(output), str(copied)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    root = ElementTree.parse(output).getroot()
+    assert root is not None
+    values = {
+        (component.get("ref") or ""): component.findtext("value") for component in root.findall("./components/comp")
+    }
+    graph = {
+        (net.get("name") or ""): tuple(sorted((node.get("ref"), node.get("pin")) for node in net.findall("node")))
+        for net in root.findall("./nets/net")
+    }
+    return values, graph
+
+
+def test_real_ai_proposed_555_period_eco_runs_native_checks_and_writes_reviewable_drafts(
     tmp_path: Path, native_kicad_10: str
 ) -> None:
+    """An AI-proposed nominal timing ECO is NOT automatically a scored electronics success."""
+    task = json.loads(TASK_SPEC.read_text(encoding="utf-8"))
+    assert task["task_id"] == "g0-001-ne555-period-eco"
+    assert task["reference_id"] == "nitu-555-blinker"
+    assert task["license"] == "MIT"
+    manifest = json.loads(
+        (Path(__file__).parents[1] / "benchmarks/human-reference-corpus/manifest.json").read_text(encoding="utf-8")
+    )
+    original = next(
+        reference for reference in manifest["references"] if reference["reference_id"] == "nitu-555-blinker"
+    )
+    assert task["source_artifact_set_sha256"] == original["artifact_set_sha256"]
+    assert task["source_upstream_commit"] == original["upstream_commit"]
+    assert task["proposal_provenance"]["independent_agent_run_attested"] is False
     board, schematic, project = _project()
     original_hashes = {p: _hash(p.read_bytes()) for p in (board, schematic, project)}
+    assert original_hashes[board] == task["observed_execution"]["original_pcb_sha256"]
+    assert original_hashes[schematic] == task["observed_execution"]["original_schematic_sha256"]
+    assert original_hashes[project] == task["observed_execution"]["original_project_sha256"]
+
+    decision = task["candidate"]
     destination = tmp_path / "eco-draft"
     response = CliRunner().invoke(
         cli,
@@ -54,11 +108,11 @@ def test_real_first_original_board_and_schematic_eco_runs_native_checks_and_writ
             "passive-eco-preview",
             str(board),
             "--reference",
-            "R1",
+            decision["reference"],
             "--from-value",
-            "4.7k",
+            decision["original_value"],
             "--to-value",
-            "5.1k",
+            decision["proposed_value"],
             "--output-dir",
             str(destination),
             "--json",
@@ -70,12 +124,14 @@ def test_real_first_original_board_and_schematic_eco_runs_native_checks_and_writ
     assert report["attempt_status"] == "human-review-required"
     assert report["g0_verified"] is False
     assert report["manufacturing_approved"] is False
-    assert report["reference"] == "R1"
-    assert report["old_value"] == "4.7k"
-    assert report["new_value"] == "5.1k"
+    assert report["reference"] == "R2"
+    assert report["old_value"] == "68k"
+    assert report["new_value"] == "75k"
     assert report["canonical_nets_preserved"] is True
     assert report["native_kicad_version"].startswith("10.")
     assert report["elapsed_seconds"] > 0
+    assert report["independent_human_review"] == "not_run"
+    assert report["functional_timing_validation"] == "not_run"
     review = report["native_review"]
     assert review["no_review_regression"] is True
     assert review["baseline_violations"] == review["candidate_violations"] == 0
@@ -83,19 +139,57 @@ def test_real_first_original_board_and_schematic_eco_runs_native_checks_and_writ
     assert review["electrical_review"]["new_erc_violations"] == 0
     assert review["baseline_drc_clean"] is True
     assert review["candidate_drc_clean"] is True
+    assert review["electrical_review"]["candidate_electrical_clean"] is True
 
     candidate_board = destination / board.name
     candidate_schematic = destination / schematic.name
     candidate_project = destination / project.name
-    artifact = json.loads((destination / "eco-review.json").read_text())
+    artifact = json.loads((destination / "eco-review.json").read_text(encoding="utf-8"))
     assert artifact == report
-    assert candidate_board.is_file() and candidate_schematic.is_file() and candidate_project.is_file()
+    assert all(path.is_file() for path in (candidate_board, candidate_schematic, candidate_project))
     assert _hash(candidate_board.read_bytes()) == report["candidate_pcb_sha256"]
     assert _hash(candidate_schematic.read_bytes()) == report["candidate_schematic_sha256"]
     assert _hash(candidate_project.read_bytes()) == original_hashes[project]
-    assert b'(property "Value" "5.1k"' in candidate_board.read_bytes()
-    assert b'(property "Value" "5.1k"' in candidate_schematic.read_bytes()
+    assert report["candidate_pcb_sha256"] == task["observed_execution"]["candidate_pcb_sha256"]
+    assert report["candidate_schematic_sha256"] == task["observed_execution"]["candidate_schematic_sha256"]
+    assert b'(property "Value" "75k"' in candidate_board.read_bytes()
+    assert b'(property "Value" "75k"' in candidate_schematic.read_bytes()
     assert all(_hash(p.read_bytes()) == expected for p, expected in original_hashes.items())
+
+    original_values, original_graph = _native_netlist(native_kicad_10, schematic, tmp_path / "original.xml")
+    candidate_values, candidate_graph = _native_netlist(
+        native_kicad_10, candidate_schematic, tmp_path / "candidate.xml"
+    )
+    assert original_graph == candidate_graph
+    assert len(original_graph) == 7
+    assert original_values["R1"] == candidate_values["R1"] == task["timing_parts"]["ra_value"]
+    assert original_values["R2"] == task["timing_parts"]["rb_value"]
+    assert candidate_values["R2"] == decision["proposed_value"]
+    assert original_values["C1"] == candidate_values["C1"] == task["timing_parts"]["c_value"]
+    assert original_values["U1"] == candidate_values["U1"] == "NE555P"
+
+    # Validate the 555 astable topology from genuine native net nodes, not a guessed RC model.
+    def has_nodes(net: str, expected: set[tuple[str, str]]) -> bool:
+        return expected.issubset(set(original_graph[net]))
+
+    assert has_nodes("+5V", {("R1", "1"), ("U1", "8"), ("U1", "4")})
+    assert has_nodes("/DISCH", {("R1", "2"), ("R2", "1"), ("U1", "7")})
+    assert has_nodes("/TIMING", {("R2", "2"), ("C1", "1"), ("U1", "2"), ("U1", "6")})
+    assert has_nodes("GND", {("C1", "2"), ("U1", "1")})
+    ra_ohms, before_rb_ohms, after_rb_ohms, c_farads = 4_700, 68_000, 75_000, 10e-6
+    before_period = 0.693 * (ra_ohms + 2 * before_rb_ohms) * c_farads
+    after_period = 0.693 * (ra_ohms + 2 * after_rb_ohms) * c_farads
+    assert before_period == pytest.approx(task["nominal_analysis"]["period_before_seconds"], abs=1e-6)
+    assert after_period == pytest.approx(task["nominal_analysis"]["period_after_seconds"], abs=1e-6)
+    increase = 100 * (after_period / before_period - 1)
+    assert increase == pytest.approx(task["nominal_analysis"]["period_increase_percent"], abs=0.01)
+    assert 9.5 < increase < 10.5
+    assert task["outcome"]["g0_verified"] is False
+    assert task["outcome"]["human_review"] == "not_run"
+    assert task["outcome"]["functional_measurement"] == "not_run"
+    assert task["outcome"]["independently_scored"] is False
+    assert task["proposal_provenance"]["api_cost_usd"] is None
+    assert task["proposal_provenance"]["human_interventions"] is None
 
 
 def test_board_value_patch_changes_only_one_reference_value_and_not_pad_or_net_metadata() -> None:
