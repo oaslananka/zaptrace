@@ -204,7 +204,11 @@ def test_pipeline_explains_real_pad_constraints_without_claiming_fabrication(tmp
     source.write_text("meta:\n  name: demo\n", encoding="utf-8")
     result = _runner().invoke(cli, ["pipeline", "--source", str(source)])
     assert result.exit_code == 0
-    assert "D1.IO" in result.output
+    # Match a whole terminal label and measured dimension in CLI context,
+    # rather than a URL-like substring search with ambiguous boundaries.
+    import re
+
+    assert re.search(r"D1\.IO \(0\.45 mm\)", result.output) is not None
     assert "0.45" in result.output and "0.50" in result.output
     assert "J1.VBUS" in result.output and "4" in result.output
     assert "GND" in result.output and "pour disabled" in result.output
