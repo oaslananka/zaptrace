@@ -180,3 +180,82 @@ def test_multi_unit_eco_is_deliberately_blocked() -> None:
     source = FIXTURE.read_text()
     with pytest.raises(ValueError, match="Multi-unit"):
         ECO.propose(source.replace("(unit 1)", "(unit 2)", 1), "R1", "10k")
+
+
+@pytest.mark.parametrize("mode", ["linked-ancestor", "parent-traversal"])
+def test_eco_refuses_indirect_output_alias_before_native_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    source_dir = tmp_path / "native-sources"
+    source_dir.mkdir()
+    source = source_dir / FIXTURE.name
+    source.write_bytes(FIXTURE.read_bytes())
+    other_dir = tmp_path / "other-user-data"
+    other_dir.mkdir()
+    (other_dir / "private-note.txt").write_text("KEEP THIS")
+    if mode == "linked-ancestor":
+        alias = tmp_path / "indirect"
+        alias.symlink_to(other_dir, target_is_directory=True)
+        (other_dir / "nested").mkdir()
+        output = alias / "nested" / "ECO-review"
+    else:
+        (tmp_path / "safe").mkdir()
+        output = tmp_path / "safe" / ".." / "other-user-data" / "ECO-review"
+
+    def native_must_not_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Native KiCad cannot run for untrusted output path")
+
+    monkeypatch.setattr(ECO, "_netlist", native_must_not_run)
+    with pytest.raises(ValueError, match="Unsafe ECO output path"):
+        ECO.create(source, output, "R1", "10k")
+    assert not (other_dir / "ECO-review").exists()
+    assert (other_dir / "private-note.txt").read_text() == "KEEP THIS"
+    assert source.read_bytes() == FIXTURE.read_bytes()
+
+
+def test_eco_refuses_project_rules_changed_after_native_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Real native KiCad required for source-bound project setting validation")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source = source_dir / FIXTURE.name
+    source.write_bytes(FIXTURE.read_bytes())
+    settings = source.with_suffix(".kicad_pro")
+    settings.write_text('{"board":{}}')
+    initial_rules = settings.read_bytes()
+    output = tmp_path / "review-proposal"
+    real_svg = ECO._svg
+    count = 0
+
+    def change_rules_during_preview(cli: str, sch: Path, target: Path) -> str:
+        nonlocal count
+        result = real_svg(cli, sch, target)
+        count += 1
+        if count == 2:
+            settings.write_text('{"board":{"design_settings":{"rules":{"min_clearance":1.0}}}}')
+        return result
+
+    monkeypatch.setattr(ECO, "_svg", change_rules_during_preview)
+    with pytest.raises(ValueError, match="KiCad project rules changed"):
+        ECO.create(source, output, "R1", "10k")
+    assert count == 2
+    assert not output.exists()
+    assert settings.read_bytes() != initial_rules
+    assert source.read_bytes() == FIXTURE.read_bytes()
+
+
+def test_eco_rejects_symlinked_source_project_rules(tmp_path: Path) -> None:
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    source = source_dir / FIXTURE.name
+    source.write_bytes(FIXTURE.read_bytes())
+    private = tmp_path / "original-rule-context.json"
+    private.write_text('{"private":"unrelated"}')
+    source.with_suffix(".kicad_pro").symlink_to(private)
+    output = tmp_path / "proposal"
+    with pytest.raises(ValueError, match="symbolic link"):
+        ECO.create(source, output, "R1", "10k")
+    assert not output.exists()
+    assert private.read_text() == '{"private":"unrelated"}'
