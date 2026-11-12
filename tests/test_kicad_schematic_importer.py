@@ -1311,3 +1311,37 @@ def test_original_kicad_graphics_and_constraint_markers_are_retained_not_accepte
             # mapped to the editable Design and must remain visible as losses.
             assert result.unsupported_count > 0
             assert any(record.kind in kinds for record in result.unsupported)
+
+
+def test_direct_component_pin_contact_without_wire_creates_real_native_net() -> None:
+    """KiCad connects physically coincident component pins without drawn wire."""
+    symbols = [
+        {
+            "ref": "D1",
+            "pins": [("2", 124.46, 153.67)],
+            "pin_library_names": {"2": "A"},
+        },
+        {
+            "ref": "R4",
+            "pins": [("2", 124.46, 153.67000000000002)],
+            "pin_library_names": {"2": "~"},
+        },
+    ]
+    graph = _resolve_connectivity(symbols, [], [], [])
+    assert graph == {"Net-(D1-A)": [("D1", "2"), ("R4", "2")]}
+
+
+def test_direct_pin_contact_does_not_short_nearby_non_touching_pins() -> None:
+    """Nearby pins and isolated dangling pins must never be connected by rounding drift."""
+    symbols = [
+        {"ref": "D1", "pins": [("2", 10.0, 20.0)], "pin_library_names": {"2": "A"}},
+        {"ref": "R4", "pins": [("2", 10.02, 20.0)], "pin_library_names": {"2": "~"}},
+    ]
+    assert _resolve_connectivity(symbols, [], [], []) == {}
+
+
+def test_colocated_pins_on_same_component_are_not_invented_as_intercomponent_nets() -> None:
+    symbols = [
+        {"ref": "U1", "pins": [("1", 30.0, 40.0), ("2", 30.0, 40.0)], "pin_library_names": {"1": "NC1", "2": "NC2"}},
+    ]
+    assert _resolve_connectivity(symbols, [], [], []) == {}

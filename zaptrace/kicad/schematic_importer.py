@@ -788,6 +788,34 @@ def _best_name(group_labels: list[tuple[str, str]]) -> str:
 _NONPHYSICAL_KICAD_REFS = ("#PWR", "#FLG")
 
 
+def _register_direct_pin_contacts(
+    symbols: list[dict[str, Any]],
+    coords: list[tuple[float, float]],
+    coord_idx: dict[tuple[int, int], int],
+    uf: _UnionFind,
+) -> None:
+    """KiCad joins directly touching physical pins, even without any wire.
+
+    A single dangling pin is not evidence of an electrical net. Only create
+    a contact point for coincident pins of *distinct* components; stacked
+    pins on one instance alone do not establish a fabricated external net.
+    Exclude power/flag annotations, which are handled by their own labels.
+    """
+    contacts: dict[tuple[int, int], set[str]] = {}
+    positions: dict[tuple[int, int], tuple[float, float]] = {}
+    for symbol in symbols:
+        ref = symbol["ref"]
+        if not ref or ref.startswith(_NONPHYSICAL_KICAD_REFS):
+            continue
+        for _number, x, y in symbol["pins"]:
+            q = _quantise((x, y))
+            contacts.setdefault(q, set()).add(ref)
+            positions.setdefault(q, (x, y))
+    for q, refs in contacts.items():
+        if len(refs) >= 2:
+            uf.find(_get_or_add_coord(positions[q], coords, coord_idx))
+
+
 def _group_pins(
     symbols: list[dict[str, Any]],
     coord_idx: dict[tuple[int, int], int],
@@ -896,6 +924,7 @@ def _resolve_connectivity(
 
     _union_wires(wires, coords, coord_idx, uf)
     _merge_junctions(junctions, wires, coords, coord_idx, uf)
+    _register_direct_pin_contacts(symbols, coords, coord_idx, uf)
     label_groups = _group_labels(labels, coords, coord_idx, uf, wires, unsupported)
 
     # Alias connectivity is scoped to this one sheet. The project importer

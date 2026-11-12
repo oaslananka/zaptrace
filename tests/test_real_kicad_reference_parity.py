@@ -347,3 +347,53 @@ def test_new_original_licensed_corpus_native_kicad_netlist(
     for artifact in record["artifacts"]:
         source = origin / artifact["path"]
         assert hashlib.sha256(source.read_bytes()).hexdigest() == artifact["sha256"]
+
+
+def test_atomic14_esp32s3_direct_led_anodes_match_independent_native_kicad(
+    tmp_path: Path,
+) -> None:
+    """Real upstream project includes three zero-wire direct LED/resistor contacts."""
+    import shutil
+    import subprocess
+
+    from scripts.ci_real_kicad_reference_parity import (
+        compare_graphs,
+        read_imported_netlist,
+    )
+
+    cli = shutil.which("kicad-cli")
+    if cli is None:
+        pytest.skip("Native KiCad CLI required")
+    version = subprocess.run([cli, "version"], capture_output=True, text=True, timeout=15, check=False)
+    if version.returncode or not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent native KiCad 10 required")
+    source_dir = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    for suffix in ("pro", "sch", "pcb"):
+        source = next(source_dir.glob(f"*.kicad_{suffix}"))
+        (tmp_path / source.name).write_bytes(source.read_bytes())
+    schematic = next(tmp_path.glob("*.kicad_sch"))
+    project = next(tmp_path.glob("*.kicad_pro"))
+    xml = tmp_path / "native.xml"
+    completed = subprocess.run(
+        [cli, "sch", "export", "netlist", "--format", "kicadxml", "-o", str(xml), str(schematic)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr[-500:]
+    native = read_native_netlist(xml)
+    imported, metadata = read_imported_netlist(project)
+    expected = {
+        "Net-(D1-A)": {("D1", "2"), ("R4", "2")},
+        "Net-(D2-A)": {("D2", "2"), ("R5", "2")},
+        "Net-(D3-A)": {("D3", "2"), ("R6", "2")},
+    }
+    for name, connected_nodes in expected.items():
+        assert native[name] == connected_nodes
+        assert imported[name] == connected_nodes
+    assert len(native) == len(imported) == 47
+    assert sum(map(len, native.values())) == sum(map(len, imported.values())) == 132
+    assert compare_graphs(native, imported)["exact_connectivity_parity"] is True
+    # Full G0 acceptance remains blocked by unsupported constructs/PCB findings.
+    assert metadata["finding_kinds"]["unsupported_construct"] > 0

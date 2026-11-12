@@ -56,11 +56,20 @@ For all eleven new boards, native KiCad 10.0.8 produced **117 named
 nets and 323 pin nodes**. Ten simpler educational designs have exact
 named-net/ref-pin imported graph parity, but each still has unsupported
 source constructs and some PCB mismatches; therefore **none passes
-full G0 import**. The ESP32-S3 board independently reveals a concrete
-gap: **47 native nets versus 44 imported nets**, alongside other
-unsupported constructs. The educational repository reports its own
-hardware testing, which is not independent ZapTrace physical-review
-authority.
+full G0 import**. The historic pre-fix ESP32-S3 baseline below
+independently exposes **47 native nets versus 44 imported nets**
+(132 native versus 126 imported pin nodes). Source inspection showed
+that three LED anodes touch resistor pins **directly without wire
+segments**: D1 pin 2/R4 pin 2, D2 pin 2/R5 pin 2, and D3 pin 2/R6 pin 2.
+The importer now records direct contacts at the same physical coordinate
+only between distinct component references, without inventing lone-pin
+or nearby-pin nets. Re-running the full independent KiCad 10.0.8
+netlist comparison after this fix produces **47/47 identical named nets
+and 132/132 pin nodes** for the ESP32-S3 board. All 19 other reference
+graphs were unchanged. The ESP32-S3 board is **still G0 BLOCKED** because
+unsupported constructs and PCB/schematic findings remain.
+The educational repository reports its own hardware testing, which
+is not independent ZapTrace physical-review authority.
 
 **Recorded G0 baseline (2026-11-12):**
 benchmarks/human-reference-corpus/native-parity-baseline-20261112.json.
