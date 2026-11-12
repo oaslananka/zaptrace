@@ -135,6 +135,7 @@
         "tests/test_kicad_pcb_parity.py",
         "tests/test_kicad_project_importer.py",
         "tests/test_kicad_project_physical_pad_contacts.py",
+        "tests/test_kicad_native_pcb_drc_delta.py",
         "tests/test_kicad_roundtrip_scorecard.py",
         "tests/test_kicad_schematic_importer.py",
         "tests/test_kicad_source_pin_inventory.py",
@@ -149,7 +150,13 @@
         "tests/test_manufacturing.py",
         "tests/test_manufacturing_evidence.py",
         "tests/test_ses_import.py",
-        "tests/test_ses_roundtrip.py"
+        "tests/test_ses_roundtrip.py",
+        "tests/test_ads1115_candidate.py",
+        "tests/test_ai_native_candidate_oracles.py",
+        "tests/test_physical_candidate_readiness.py",
+        "tests/test_synthesis_candidate.py",
+        "tests/test_synthesis_fab.py",
+        "tests/test_synthesis_proof.py"
       ]
     },
     {
@@ -247,6 +254,7 @@
         "tests/test_kicad_pcb_parity.py",
         "tests/test_kicad_project_importer.py",
         "tests/test_kicad_project_physical_pad_contacts.py",
+        "tests/test_kicad_native_pcb_drc_delta.py",
         "tests/test_kicad_roundtrip_scorecard.py",
         "tests/test_kicad_schematic_importer.py",
         "tests/test_kicad_source_pin_inventory.py",
@@ -270,7 +278,13 @@
         "tests/test_ses_roundtrip.py",
         "tests/test_spice_orchestrator.py",
         "tests/test_spice_sim.py",
-        "tests/test_synthesis_benchmark.py"
+        "tests/test_synthesis_benchmark.py",
+        "tests/test_ads1115_candidate.py",
+        "tests/test_ai_native_candidate_oracles.py",
+        "tests/test_physical_candidate_readiness.py",
+        "tests/test_synthesis_candidate.py",
+        "tests/test_synthesis_fab.py",
+        "tests/test_synthesis_proof.py"
       ]
     },
     {

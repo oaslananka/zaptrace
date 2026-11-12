@@ -41,6 +41,7 @@ from zaptrace.cli.output import (
     print_summary,
     print_table,
 )
+from zaptrace.cli.pcb_drc_delta import pcb_drc_delta
 from zaptrace.cli.sheet_metadata_preview import sheet_metadata_preview
 
 _SESSION = "cli-default"
@@ -351,6 +352,7 @@ def kicad() -> None:
 
 kicad.add_command(netclass_preview)
 kicad.add_command(sheet_metadata_preview)
+kicad.add_command(pcb_drc_delta)
 
 
 @kicad.command()

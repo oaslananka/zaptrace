@@ -243,3 +243,20 @@ def test_absolute_report_path_does_not_change_lane_classification(tmp_path: Path
 def test_lane_config_is_valid_json_for_external_tooling() -> None:
     payload = json.loads((ROOT / "config/test-lanes.json").read_text(encoding="utf-8"))
     assert payload["schema_version"] == "1.0"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "tests/test_synthesis_fab.py",
+        "tests/test_synthesis_proof.py",
+        "tests/test_physical_candidate_readiness.py",
+        "tests/test_synthesis_candidate.py",
+        "tests/test_ai_native_candidate_oracles.py",
+        "tests/test_ads1115_candidate.py",
+    ],
+)
+def test_real_physical_and_manufacturing_proof_modules_run_in_hardware_lane(path: str) -> None:
+    """Heavy actual product proof must run in sharded hardware, not fast compatibility unit."""
+    policy = load_lane_policy(ROOT / "config/test-lanes.json")
+    assert classify_test_path(path, policy) == "hardware"
