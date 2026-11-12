@@ -281,3 +281,69 @@ def test_native_xml_entities_are_rejected(tmp_path: Path) -> None:
     )
     with pytest.raises(EntitiesForbidden):
         read_native_netlist(path)
+
+
+@pytest.mark.parametrize(
+    ("reference_id", "expected_nets", "expected_pins"),
+    [
+        ("jkc-9v-battery-indicator", 9, 24),
+        ("jkc-hidden-wire-detector", 7, 16),
+        ("jkc-light-activated-switch", 5, 13),
+        ("jkc-astable-multivibrator", 6, 24),
+        ("jkc-automatic-hand-sanitizer", 5, 12),
+        ("jkc-clap-switch", 7, 22),
+        ("jkc-obstacle-detector", 6, 18),
+        ("jkc-temperature-fan", 4, 11),
+        ("jkc-touch-sensor", 4, 10),
+        ("jkc-water-level-indicator", 17, 41),
+        ("atomic14-basic-esp32s3-dev-board", 47, 132),
+    ],
+)
+def test_new_original_licensed_corpus_native_kicad_netlist(
+    reference_id: str, expected_nets: int, expected_pins: int, tmp_path: Path
+) -> None:
+    """Independently prove KiCad 10 can open original reference bytes.
+
+    This is source/CLI interoperability ONLY; importer parity, electrical
+    correctness, DRC and independent human review are separate gates.
+    """
+    import hashlib
+    import json
+    import shutil
+    import subprocess
+
+    kicad = shutil.which("kicad-cli")
+    if kicad is None:
+        pytest.skip("KiCad 10 native CLI not installed; no independent netlist evidence")
+    version = subprocess.run([kicad, "version"], check=False, capture_output=True, text=True, timeout=15)
+    if version.returncode or not version.stdout.strip().startswith("10."):
+        pytest.skip("KiCad 10 required; other versions cannot attest the reference corpus")
+
+    manifest = json.loads((Path(__file__).parents[1] / "benchmarks/human-reference-corpus/manifest.json").read_text())
+    record = next(r for r in manifest["references"] if r["reference_id"] == reference_id)
+    origin = Path(__file__).parents[1] / "benchmarks" / "external" / reference_id / "source"
+    for artifact in record["artifacts"]:
+        source = origin / artifact["path"]
+        raw = source.read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == artifact["sha256"]
+        destination = tmp_path / source.name
+        destination.write_bytes(raw)
+
+    schematic = next(tmp_path.glob("*.kicad_sch"))
+    xml = tmp_path / "native.xml"
+    run = subprocess.run(
+        [kicad, "sch", "export", "netlist", "--format", "kicadxml", "-o", str(xml), str(schematic)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr[-500:]
+    actual = read_native_netlist(xml)
+    assert len(actual) == expected_nets
+    assert sum(len(nodes) for nodes in actual.values()) == expected_pins
+    assert all(nodes for nodes in actual.values())
+    # Verify that native KiCad never edits the source repository originals.
+    for artifact in record["artifacts"]:
+        source = origin / artifact["path"]
+        assert hashlib.sha256(source.read_bytes()).hexdigest() == artifact["sha256"]
