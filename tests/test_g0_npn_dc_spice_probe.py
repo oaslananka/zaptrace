@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -174,3 +175,103 @@ def test_historic_thermal_rating_screen_remains_warning_only() -> None:
     assert unflagged_22[0]["qualified_load_status"] == "NOT_RUN"
     assert not record["datasheet_condition_review"]["real_load_approved"]
     assert not record["g0_verified"]
+
+
+def test_q1_supplier_pinout_and_actual_pcb_nets_not_assembly_signoff() -> None:
+    record = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    q1 = record["source_q1_pinout"]
+    assert q1["status"] == "SOURCE_NUMBERED_PAD_AND_SYMBOL_PINS_CONSISTENT"
+    assert q1["footprint"] == "Package_TO_SOT_THT:TO-92_Inline"
+    assert q1["reference"] == "Q1"
+    assert q1["source_value"] == "PN2222A"
+    assert q1["published_PN2222A_TO92_EBC_mapping"] == {"1": "E", "2": "B", "3": "C"}
+    assert q1["source_symbol_pin_number_to_function"] == {"1": "E", "2": "B", "3": "C"}
+    assert q1["source_pcb_pad_net_names"] == {"1": "GND", "2": "Net-(Q1-B)", "3": "Net-(D1-K)"}
+    assert q1["physical_orientation_verified"] is False
+    assert q1["exact_supplier_sku_selected"] is False
+    assert q1["manufacturer_spice_model_verified"] is False
+    assert q1["source_j2_external_load_identified"] is False
+    assert q1["manufacturing_or_human_approval"] == "NOT_RUN"
+
+
+def test_verified_supplier_pdf_identity_does_not_select_part_or_spice() -> None:
+    record = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    supplier = record["supplier_pdf_byte_identity"]
+    assert supplier["status"] == "EXACT_PINNED_SUPPLIER_PDF_BYTES"
+    assert supplier["source_id"] == "onsemi-fairchild-pn2222a-2014"
+    assert supplier["sha256"] == "f1eda8482f5f227f5c80c8ba750ae28ff2159139e268158bd656bc8f0db0a6d2"
+    assert supplier["part_qualification"] is False
+    assert supplier["model_qualification"] is False
+    docs = record["reviewed_PN2222A_document_provenance"]
+    assert docs["onsemi-fairchild-pn2222a-2014"]["orderable_candidates"] == [
+        "PN2222ABU",
+        "PN2222ATA",
+        "PN2222ATF",
+        "PN2222ATFR",
+    ]
+    assert docs["onsemi-fairchild-pn2222a-2014"]["pinout"] == {"1": "E", "2": "B", "3": "C"}
+    assert docs["onsemi-pn2222-2000-archive"]["pinout"] == {"1": "E", "2": "B", "3": "C"}
+    assert docs["onsemi-pn2222-2000-archive"]["sha256"] == (
+        "9e61ab90e7ff3e204d6f09c09f00a7a6a0967f11070d6a7f89d7dd5fee16482e"
+    )
+    readiness = record["manufacturer_component_readiness"]
+    assert readiness["source_pinout_consistent_with_reviewed_documents"] is True
+    assert readiness["exact_orderable_part"] is None
+    assert readiness["exact_orderable_part_status"] == "NOT_SELECTED_OR_QUALIFIED"
+    assert readiness["supplier_model"] is None
+    assert readiness["supplier_model_status"] == "NOT_RETRIEVED_OR_VERIFIED"
+    assert readiness["external_j2_load"] is None
+    assert readiness["external_j2_load_status"] == "NOT_SPECIFIED"
+    assert readiness["physical_assembly_review"] == "NOT_RUN"
+    assert readiness["functional_hardware_review"] == "NOT_RUN"
+    assert readiness["qualified_load_status"] == "NOT_RUN"
+
+
+def test_supplier_document_identity_rejects_missing_or_wrong_pdf(tmp_path: Path) -> None:
+    no_supplier = probe.verify_supplier_pdf(None)
+    assert no_supplier["status"] == "NOT_SUPPLIED_THIS_RUN"
+    assert not no_supplier["part_qualification"]
+    with pytest.raises(ValueError, match="not a recognized complete PDF"):
+        probe.verify_supplier_pdf(b"")
+    with pytest.raises(ValueError, match="unexpectedly large"):
+        probe.verify_supplier_pdf(b"%PDF-1.4" + b" " * 5_000_001)
+    wrong_document = tmp_path / "other-mosfet.pdf"
+    wrong_document.write_bytes(b"%PDF-1.4\n" + b"This is NOT a PN2222A datasheet. " * 400)
+    with pytest.raises(ValueError, match="do not trust a URL"):
+        probe.verify_supplier_pdf(wrong_document.read_bytes())
+
+
+def test_q1_symbol_pin_drift_fails_closed_on_original_source_copy(tmp_path: Path) -> None:
+    original_board = next(SOURCE.glob("*.kicad_pcb"))
+    original_schematic = original_board.with_suffix(".kicad_sch")
+    board = tmp_path / original_board.name
+    schematic = tmp_path / original_schematic.name
+    board.write_bytes(original_board.read_bytes())
+    schematic.write_bytes(original_schematic.read_bytes())
+    assert probe.verify_q1_source_pinout(schematic, board)["source_pcb_pad_net_names"]["3"] == "Net-(D1-K)"
+    data = board.read_text(encoding="utf-8")
+    old = '(property "Sim.Pins" "1=E 2=B 3=C"'
+    assert old in data
+    board.write_text(data.replace(old, '(property "Sim.Pins" "1=C 2=B 3=E"', 1), encoding="utf-8")
+    with pytest.raises(ValueError, match="model/pin assignment"):
+        probe.verify_q1_source_pinout(schematic, board)
+
+
+def test_supplier_pdf_cli_reports_actionable_error_without_emitting_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def reject_supplier(_source: Path, *, supplier_pdf_bytes: bytes | None = None) -> dict:
+        raise ValueError("Supplier document not recognized; please use the reviewed PDF revision")
+
+    outfile = tmp_path / "untrusted.json"
+    monkeypatch.setattr(probe, "simulate_source_bound_npn", reject_supplier)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["g0_npn_dc_spice_probe.py", "--output-json", str(outfile)],
+    )
+    with pytest.raises(SystemExit) as raised:
+        probe.main()
+    assert raised.value.code == 2
+    assert "Supplier document not recognized" in capsys.readouterr().err
+    assert not outfile.exists()

@@ -15,12 +15,14 @@ import hashlib
 import json
 import re
 import shutil
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
 from defusedxml import ElementTree
 
+from zaptrace.io.sexp import parse as parse_kicad
 from zaptrace.kicad.oracle import KiCadOracle
 from zaptrace.kicad.step_export import _execute_step_command
 
@@ -30,6 +32,27 @@ PREVIOUS = ROOT / "benchmarks/g0-ai-engineering-tasks/npn-switch-base-drive-inde
 LOADS_OHMS: tuple[int | None, ...] = (None, 1000, 220, 100, 47, 22, 10)
 ASSUMED_BETA_F = (50, 150)
 RESISTORS_OHMS = (390, 820)
+# Verified 2026-11-12 by fetching actual manufacturer / archival PDF bytes.
+# No copyrighted PDF is vendored, and identifying a document is not part selection.
+TRUSTED_PN2222A_DOCUMENTS = {
+    "onsemi-fairchild-pn2222a-2014": {
+        "url": "https://www.onsemi.com/pdf/datasheet/pn2222a-d.pdf",
+        "sha256": "f1eda8482f5f227f5c80c8ba750ae28ff2159139e268158bd656bc8f0db0a6d2",
+        "revision": "Fairchild PN2222A Rev. 1.1.0, July 2014",
+        "orderable_candidates": ["PN2222ABU", "PN2222ATA", "PN2222ATF", "PN2222ATFR"],
+        "pinout": {"1": "E", "2": "B", "3": "C"},
+    },
+    "onsemi-pn2222-2000-archive": {
+        "url": "https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf",
+        "sha256": "9e61ab90e7ff3e204d6f09c09f00a7a6a0967f11070d6a7f89d7dd5fee16482e",
+        "revision": "onsemi PN2222/D Rev. 0, November 2000",
+        "orderable_candidates": ["PN2222A", "PN2222ARLRA", "PN2222ARLRM", "PN2222ARLRP"],
+        "pinout": {"1": "E", "2": "B", "3": "C"},
+    },
+}
+EXPECTED_Q1_PADS = {"1": "GND", "2": "Net-(Q1-B)", "3": "Net-(D1-K)"}
+EXPECTED_Q1_PIN_NAMES = {"1": "E", "2": "B", "3": "C"}
+EXPECTED_Q1_FOOTPRINT = "Package_TO_SOT_THT:TO-92_Inline"
 # Illustrative educational BJT *hypotheses* only; no qualified PN2222A model:
 BJT_PARAMETERS = "IS=14.34f VAF=74 IKF=.2847 RB=10 RC=1 RE=0.1"
 DRED_PARAMETERS = "IS=1e-17 N=2.2 RS=2"
@@ -51,6 +74,124 @@ def digest(contents: bytes) -> str:
 
 def shared_ngspice_available() -> bool:
     return ctypes.util.find_library("ngspice") is not None
+
+
+def verify_supplier_pdf(blob: bytes | None) -> dict[str, Any]:
+    """Only hash bounded, explicit binary input; never read an untrusted path."""
+    if blob is None:
+        return {
+            "status": "NOT_SUPPLIED_THIS_RUN",
+            "sha256": None,
+            "part_qualification": False,
+            "model_qualification": False,
+            "instruction": (
+                "Use --supplier-pdf-stdin and redirect a separately obtained "
+                "PDF to standard input, without granting file-path access."
+            ),
+        }
+    if len(blob) > 5_000_000:
+        raise ValueError("Supplier PDF unexpectedly large; document identity NOT verified")
+    if not blob.startswith(b"%PDF-") or len(blob) < 10_000:
+        raise ValueError("Supplier document is not a recognized complete PDF")
+    sha = digest(blob)
+    for identifier, meta in TRUSTED_PN2222A_DOCUMENTS.items():
+        if sha == meta["sha256"]:
+            return {
+                "status": "EXACT_PINNED_SUPPLIER_PDF_BYTES",
+                "source_id": identifier,
+                "sha256": sha,
+                "url_verified_on_2026_11_12": meta["url"],
+                "revision": meta["revision"],
+                "part_qualification": False,
+                "model_qualification": False,
+            }
+    raise ValueError(
+        "Supplier PDF bytes do not match the two reviewed PN2222A "
+        "document revisions; do not trust a URL or redirect as part identity"
+    )
+
+
+def _sexp_children(tree: Any, tag: str) -> list[list[Any]]:
+    """Select immediate S-expression lists while ignoring atom children."""
+    return [item for item in tree if isinstance(item, list) and item[:1] == [tag]]
+
+
+def _symbol_pin_name_map(schematic: Path) -> dict[str, str]:
+    """Read the immutable source KiCad library symbol, not guessed pin names."""
+    tree = parse_kicad(schematic.read_text(encoding="utf-8"))
+    symbols = [
+        symbol
+        for libraries in _sexp_children(tree, "lib_symbols")
+        for symbol in _sexp_children(libraries, "symbol")
+        if len(symbol) > 1 and symbol[1] == "Transistor_BJT:PN2222A"
+    ]
+    if len(symbols) != 1:
+        raise ValueError("Source PN2222A library symbol missing or ambiguous")
+    pins = [pin for unit in _sexp_children(symbols[0], "symbol") for pin in _sexp_children(unit, "pin")]
+    pin_names: dict[str, str] = {}
+    for pin in pins:
+        fields = {
+            sub[0]: sub[1] for sub in pin if isinstance(sub, list) and len(sub) > 1 and sub[0] in {"number", "name"}
+        }
+        number = fields.get("number")
+        pin_name = fields.get("name")
+        if isinstance(number, str) and isinstance(pin_name, str):
+            pin_names[number] = pin_name
+    return pin_names
+
+
+def _find_q1_footprint(board: Path) -> tuple[list[Any], dict[str, Any]]:
+    """Return the exact and unique source PCB footprint and its properties."""
+    tree = parse_kicad(board.read_text(encoding="utf-8"))
+    selected = []
+    for fp in _sexp_children(tree, "footprint"):
+        props = {field[1]: field[2] for field in _sexp_children(fp, "property") if len(field) > 2}
+        if props.get("Reference") == "Q1":
+            selected.append((fp, props))
+    if len(selected) != 1:
+        raise ValueError("Expected exactly one Q1 footprint; supplier pinout NOT verified")
+    return selected[0]
+
+
+def _q1_pcb_pad_nets(footprint: list[Any]) -> dict[str, str]:
+    """Collect the real PCB numbered pad connections, excluding unnamed pads."""
+    pad_nets: dict[str, str] = {}
+    for pad in _sexp_children(footprint, "pad"):
+        nets = _sexp_children(pad, "net")
+        number = pad[1] if len(pad) > 1 else None
+        net_name = nets[0][1] if nets and len(nets[0]) > 1 else None
+        if isinstance(number, str) and isinstance(net_name, str):
+            pad_nets[number] = net_name
+    return pad_nets
+
+
+def verify_q1_source_pinout(schematic: Path, board: Path) -> dict[str, Any]:
+    """Fail closed when original Q1 source pins and PCB pads differ."""
+    symbol_names = _symbol_pin_name_map(schematic)
+    if symbol_names != EXPECTED_Q1_PIN_NAMES:
+        raise ValueError("Original PN2222A symbol pin numbers do not match supplier E-B-C diagram")
+    footprint, props = _find_q1_footprint(board)
+    if footprint[1] != EXPECTED_Q1_FOOTPRINT:
+        raise ValueError("Q1 footprint is not the pinned TO-92 Inline part")
+    if props.get("Value") != "PN2222A" or props.get("Sim.Pins") != "1=E 2=B 3=C":
+        raise ValueError("Q1 source PN2222A footprint model/pin assignment is inconsistent")
+    pad_nets = _q1_pcb_pad_nets(footprint)
+    if pad_nets != EXPECTED_Q1_PADS:
+        raise ValueError("Q1 physical PCB pad net names differ from original circuit model")
+    return {
+        "status": "SOURCE_NUMBERED_PAD_AND_SYMBOL_PINS_CONSISTENT",
+        "reference": "Q1",
+        "source_value": "PN2222A",
+        "footprint": EXPECTED_Q1_FOOTPRINT,
+        "source_symbol_pin_number_to_function": symbol_names,
+        "source_pcb_pad_net_names": pad_nets,
+        "published_PN2222A_TO92_EBC_mapping": EXPECTED_Q1_PIN_NAMES,
+        "physical_orientation_verified": False,
+        "exact_supplier_sku_selected": False,
+        "source_j2_external_load_identified": False,
+        "manufacturer_spice_model_verified": False,
+        "manufacturing_or_human_approval": "NOT_RUN",
+    }
 
 
 def verify_native_source(source: Path) -> dict[str, Any]:
@@ -120,7 +261,12 @@ def verify_native_source(source: Path) -> dict[str, Any]:
 
     if any(digest(p.read_bytes()) != originals[p.name] for p in (board, schematic, project)):
         raise RuntimeError("Original KiCad files were altered during native source check")
-    return {"source_sha256": originals, "kicad_version": oracle.version, "net_count": len(GROUPS)}
+    return {
+        "source_sha256": originals,
+        "kicad_version": oracle.version,
+        "net_count": len(GROUPS),
+        "source_q1_pinout": verify_q1_source_pinout(schematic, board),
+    }
 
 
 def circuit_cards(*, r1: int, beta_f: int, external_load: int | None, switch_state: str = "CLOSED") -> list[str]:
@@ -311,8 +457,9 @@ class SharedNgspice:
             self.library.ngSpice_Command(b"destroy all")
 
 
-def simulate_source_bound_npn(source: Path) -> dict[str, Any]:
+def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None = None) -> dict[str, Any]:
     pinned = verify_native_source(source)
+    document_check = verify_supplier_pdf(supplier_pdf_bytes)
     simulator = SharedNgspice()
     cases: list[dict[str, Any]] = []
     scenarios = [
@@ -361,6 +508,21 @@ def simulate_source_bound_npn(source: Path) -> dict[str, Any]:
         "original_source_sha256": pinned["source_sha256"],
         "source_native_kicad_version": pinned["kicad_version"],
         "native_source_net_count": pinned["net_count"],
+        "source_q1_pinout": pinned["source_q1_pinout"],
+        "supplier_pdf_byte_identity": document_check,
+        "reviewed_PN2222A_document_provenance": TRUSTED_PN2222A_DOCUMENTS,
+        "manufacturer_component_readiness": {
+            "source_pinout_consistent_with_reviewed_documents": True,
+            "exact_orderable_part": None,
+            "exact_orderable_part_status": "NOT_SELECTED_OR_QUALIFIED",
+            "supplier_model": None,
+            "supplier_model_status": "NOT_RETRIEVED_OR_VERIFIED",
+            "external_j2_load": None,
+            "external_j2_load_status": "NOT_SPECIFIED",
+            "physical_assembly_review": "NOT_RUN",
+            "functional_hardware_review": "NOT_RUN",
+            "qualified_load_status": "NOT_RUN",
+        },
         "engine": "ngspice",
         "engine_version": simulator.version,
         "official_shared_api_reference": "https://ngspice.sourceforge.io/shared.html",
@@ -417,9 +579,18 @@ def simulate_source_bound_npn(source: Path) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dir", type=Path, default=SOURCE)
+    parser.add_argument(
+        "--supplier-pdf-stdin",
+        action="store_true",
+        help="Read at most 5 MB of explicit binary PDF standard input; never accept a filesystem path",
+    )
     parser.add_argument("--output-json", type=Path, required=True)
     args = parser.parse_args()
-    result = simulate_source_bound_npn(args.source_dir)
+    try:
+        supplier_bytes = sys.stdin.buffer.read(5_000_001) if args.supplier_pdf_stdin else None
+        result = simulate_source_bound_npn(args.source_dir, supplier_pdf_bytes=supplier_bytes)
+    except (ValueError, RuntimeError) as exc:
+        parser.error(str(exc))
     output: Path = args.output_json
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, sort_keys=True, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -450,7 +621,16 @@ def main() -> int:
         f"Thermal SCREEN (not prediction): {len(flagged)} of 34 hypothetical "
         "27C DC cases above 50C derated 500mW reference."
     )
-    print("Models are HYPOTHETICAL; load qualification and human approval NOT RUN; G0 BLOCKED.")
+    proof = result["source_q1_pinout"]
+    pdf_status = result["supplier_pdf_byte_identity"]["status"]
+    print(
+        f"Q1 original {proof['footprint']}: source pins 1=E 2=B 3=C, "
+        f"PCB pads 1=GND, 2=BASE, 3=COLLECTOR; PDF identity {pdf_status}."
+    )
+    print(
+        "PN2222A orderable SKU, verified supplier SPICE model, J2 load, "
+        "physical orientation and human approval NOT RUN; G0 BLOCKED."
+    )
     return 0
 
 
