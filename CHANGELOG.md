@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add an archival onsemi PN2222A datasheet condition check to the real 34-case ngspice G0 probe: explicitly show why 390/820-ohm base drive cannot reproduce the published 150mA/15mA saturation test condition and flag hypothetical 50C derated-power concerns without inventing component safety, real-load or manufacturing approval.
+
+
 - Add a source-pinned real ngspice 42 shared-library DC load sensitivity probe for the previously independent-model PN2222A base-drive proposal: 34 closed/open button cases across two hypothetical transistor models and seven resistive loads, with native KiCad topology checks, source SHA, reproducible circuit-deck evidence and explicitly unqualified load/human-approval status. No added dependency or paid service.
 
 

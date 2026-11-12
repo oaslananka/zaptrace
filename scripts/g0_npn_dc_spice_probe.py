@@ -150,6 +150,92 @@ def circuit_cards(*, r1: int, beta_f: int, external_load: int | None, switch_sta
     return cards
 
 
+def datasheet_conditional_review(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compare *published test conditions*, never extrapolate a VCE(sat) guarantee.
+
+    Manufacturer document PN2222/D (Nov 2000, Rev. 0, pages 1-2),
+    archival copy of the source schematic's onsemi datasheet reference.
+    A datasheet point is not a validated SPICE parameter curve.
+    """
+    tests = [
+        {"i_collector_ma": 150, "i_base_ma": 15, "vce_sat_max_v": 0.3},
+        {"i_collector_ma": 500, "i_base_ma": 50, "vce_sat_max_v": 1.0},
+    ]
+    resistor_checks = []
+    for r1 in RESISTORS_OHMS:
+        # VBE=0 is an idealized upper bound for *forward* base drive at
+        # VCC=5V; 10k pulldown and physical VBE only decrease the available
+        # transistor base current. It is NOT a predicted operating point.
+        max_possible_ma = 1000 * 5 / (r1 + 0.05)
+        resistor_checks.append(
+            {
+                "r1_ohms": r1,
+                "idealized_upper_bound_base_feed_ma": round(max_possible_ma, 6),
+                "upper_bound_assumption": "VBE=0V, VCC=5V, switch contact 0.05 ohm",
+                "can_supply_15ma_test_point": max_possible_ma >= 15,
+                "can_supply_50ma_test_point": max_possible_ma >= 50,
+                "published_150ma_saturation_guarantee_applicable": False,
+                "status": "CONDITIONS_NOT_REPRODUCED",
+            }
+        )
+    # TA=50C max rating from the *historical* datasheet derating line,
+    # NOT a steady-state thermal solve for the ngspice 27C model.
+    illustrative_max_pd_ma = 625 - (50 - 25) * 5
+    warnings = [
+        {
+            "r1_ohms": case["r1_ohms"],
+            "assumed_beta_f": case["assumed_beta_f"],
+            "external_load_ohms": case["external_load_ohms"],
+            "hypothetical_27c_dissipation_mw": case["transistor_dissipation_mw"],
+            "comparison_50c_rating_mw": illustrative_max_pd_ma,
+            "screening_margin_mw_if_27c_solution_persisted": round(
+                illustrative_max_pd_ma - case["transistor_dissipation_mw"], 6
+            ),
+            "status": "INVESTIGATE_NOT_A_THERMAL_PREDICTION",
+        }
+        for case in cases
+        if case["switch_state"] == "CLOSED" and case["transistor_dissipation_mw"] > illustrative_max_pd_ma
+    ]
+    return {
+        "document": "PN2222/D, November 2000, Rev. 0",
+        "component": "PN2222A",
+        "kicad_original_datasheet_url": "https://www.onsemi.com/pub/Collateral/PN2222-D.PDF",
+        "archival_mirror_url": (
+            "https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf"
+        ),
+        "reference_status": "HISTORIC_ARCHIVAL_DOCUMENT_NOT_LIVE_PART_QUALIFICATION",
+        "source_page_numbers": [1, 2],
+        "saturation_test_points": tests,
+        "conditional_base_drive_review": resistor_checks,
+        "thermal_reference": {
+            "max_p_dis_25c_mw": 625,
+            "derating_above_25c_mw_per_c": 5,
+            "max_junction_to_ambient_c_per_w": 200,
+            "reference_package": "TO-92",
+            "illustrative_50c_rating_mw": illustrative_max_pd_ma,
+            "comparison_status": "NOT_A_TEMPERATURE_DEPENDENT_SPICE_OR_THERMAL_MODEL",
+            "warning_cases": warnings,
+        },
+        "manufacturer_specific_bjt_spice_model": "NOT_RETRIEVED_OR_VERIFIED",
+        "exact_orderable_sku_and_board_ambient": "UNKNOWN",
+        "real_load_current": "UNKNOWN",
+        "real_load_approved": False,
+        "manufacturer_saturation_guarantee_established": False,
+        "qualified_human_approval": "NOT_RUN",
+        "next_user_action": (
+            "Specify J2 load type and current, exact orderable PN2222A SKU, "
+            "ambient/PCB package conditions, and request qualified functional review."
+        ),
+        "nonclaims": (
+            "The quoted VCEsat maxima apply only under the published Ic, Ib and "
+            "pulse test conditions. Available base current being below a published "
+            "test point does NOT prove that the transistor cannot switch a load. "
+            "Comparing a simulated 27C dissipation to a 50C derated limit "
+            "is a warning-only screen, not a self-consistent thermal prediction."
+        ),
+    }
+
+
 class SharedNgspice:
     """Tiny single-process DC interface with bounded outputs; no GUI or service."""
 
@@ -305,6 +391,7 @@ def simulate_source_bound_npn(source: Path) -> dict[str, Any]:
         "simulated_load_ohms": list(LOADS_OHMS),
         "exploratory_collector_voltage_threshold_v": 0.3,
         "cases": cases,
+        "datasheet_condition_review": datasheet_conditional_review(cases),
         "verified_real_load_limit_ma": None,
         "qualified_human_approval": "NOT_RUN",
         "physical_measurement": "NOT_RUN",
@@ -351,6 +438,18 @@ def main() -> int:
             f"47 ohm={values[47]:.3f}V, 22 ohm={values[22]:.3f}V, "
             f"10 ohm={values[10]:.3f}V"
         )
+    context = result["datasheet_condition_review"]
+    for item in context["conditional_base_drive_review"]:
+        print(
+            f"R1={item['r1_ohms']} ohm: idealized max base feed "
+            f"{item['idealized_upper_bound_base_feed_ma']:.2f} mA versus "
+            "PN2222/D 150mA collector test's 15mA base condition: NOT REPRODUCED."
+        )
+    flagged = context["thermal_reference"]["warning_cases"]
+    print(
+        f"Thermal SCREEN (not prediction): {len(flagged)} of 34 hypothetical "
+        "27C DC cases above 50C derated 500mW reference."
+    )
     print("Models are HYPOTHETICAL; load qualification and human approval NOT RUN; G0 BLOCKED.")
     return 0
 

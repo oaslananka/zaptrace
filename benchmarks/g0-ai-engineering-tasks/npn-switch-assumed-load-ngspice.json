@@ -707,6 +707,94 @@
     "topology": "Real KiCad pin-net graph verified first; behavioral approximations use assumed BJT/LED/flyback cards.",
     "vcc_volts": 5
   },
+  "datasheet_condition_review": {
+    "archival_mirror_url": "https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf",
+    "component": "PN2222A",
+    "conditional_base_drive_review": [
+      {
+        "can_supply_15ma_test_point": false,
+        "can_supply_50ma_test_point": false,
+        "idealized_upper_bound_base_feed_ma": 12.818869,
+        "published_150ma_saturation_guarantee_applicable": false,
+        "r1_ohms": 390,
+        "status": "CONDITIONS_NOT_REPRODUCED",
+        "upper_bound_assumption": "VBE=0V, VCC=5V, switch contact 0.05 ohm"
+      },
+      {
+        "can_supply_15ma_test_point": false,
+        "can_supply_50ma_test_point": false,
+        "idealized_upper_bound_base_feed_ma": 6.097189,
+        "published_150ma_saturation_guarantee_applicable": false,
+        "r1_ohms": 820,
+        "status": "CONDITIONS_NOT_REPRODUCED",
+        "upper_bound_assumption": "VBE=0V, VCC=5V, switch contact 0.05 ohm"
+      }
+    ],
+    "document": "PN2222/D, November 2000, Rev. 0",
+    "exact_orderable_sku_and_board_ambient": "UNKNOWN",
+    "kicad_original_datasheet_url": "https://www.onsemi.com/pub/Collateral/PN2222-D.PDF",
+    "manufacturer_saturation_guarantee_established": false,
+    "manufacturer_specific_bjt_spice_model": "NOT_RETRIEVED_OR_VERIFIED",
+    "next_user_action": "Specify J2 load type and current, exact orderable PN2222A SKU, ambient/PCB package conditions, and request qualified functional review.",
+    "nonclaims": "The quoted VCEsat maxima apply only under the published Ic, Ib and pulse test conditions. Available base current being below a published test point does NOT prove that the transistor cannot switch a load. Comparing a simulated 27C dissipation to a 50C derated limit is a warning-only screen, not a self-consistent thermal prediction.",
+    "qualified_human_approval": "NOT_RUN",
+    "real_load_approved": false,
+    "real_load_current": "UNKNOWN",
+    "reference_status": "HISTORIC_ARCHIVAL_DOCUMENT_NOT_LIVE_PART_QUALIFICATION",
+    "saturation_test_points": [
+      {
+        "i_base_ma": 15,
+        "i_collector_ma": 150,
+        "vce_sat_max_v": 0.3
+      },
+      {
+        "i_base_ma": 50,
+        "i_collector_ma": 500,
+        "vce_sat_max_v": 1.0
+      }
+    ],
+    "source_page_numbers": [
+      1,
+      2
+    ],
+    "thermal_reference": {
+      "comparison_status": "NOT_A_TEMPERATURE_DEPENDENT_SPICE_OR_THERMAL_MODEL",
+      "derating_above_25c_mw_per_c": 5,
+      "illustrative_50c_rating_mw": 500,
+      "max_junction_to_ambient_c_per_w": 200,
+      "max_p_dis_25c_mw": 625,
+      "reference_package": "TO-92",
+      "warning_cases": [
+        {
+          "assumed_beta_f": 50,
+          "comparison_50c_rating_mw": 500,
+          "external_load_ohms": 10,
+          "hypothetical_27c_dissipation_mw": 627.182201,
+          "r1_ohms": 390,
+          "screening_margin_mw_if_27c_solution_persisted": -127.182201,
+          "status": "INVESTIGATE_NOT_A_THERMAL_PREDICTION"
+        },
+        {
+          "assumed_beta_f": 50,
+          "comparison_50c_rating_mw": 500,
+          "external_load_ohms": 10,
+          "hypothetical_27c_dissipation_mw": 551.849522,
+          "r1_ohms": 820,
+          "screening_margin_mw_if_27c_solution_persisted": -51.849522,
+          "status": "INVESTIGATE_NOT_A_THERMAL_PREDICTION"
+        },
+        {
+          "assumed_beta_f": 150,
+          "comparison_50c_rating_mw": 500,
+          "external_load_ohms": 10,
+          "hypothetical_27c_dissipation_mw": 559.965941,
+          "r1_ohms": 820,
+          "screening_margin_mw_if_27c_solution_persisted": -59.965941,
+          "status": "INVESTIGATE_NOT_A_THERMAL_PREDICTION"
+        }
+      ]
+    }
+  },
   "engine": "ngspice",
   "engine_version": "42",
   "exploratory_collector_voltage_threshold_v": 0.3,

@@ -113,3 +113,64 @@ def test_stale_or_edited_original_source_fails_closed(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="source|R1|hash|modified"):
         probe.verify_native_source(tmp_path)
+
+
+def test_archived_onsemi_saturation_conditions_are_not_silently_approved() -> None:
+    record = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    review = record["datasheet_condition_review"]
+    assert review["document"] == "PN2222/D, November 2000, Rev. 0"
+    assert review["component"] == "PN2222A"
+    assert review["kicad_original_datasheet_url"] == "https://www.onsemi.com/pub/Collateral/PN2222-D.PDF"
+    assert review["archival_mirror_url"].startswith("https://media.digikey.com/")
+    assert review["reference_status"] == "HISTORIC_ARCHIVAL_DOCUMENT_NOT_LIVE_PART_QUALIFICATION"
+    assert review["saturation_test_points"] == [
+        {"i_base_ma": 15, "i_collector_ma": 150, "vce_sat_max_v": 0.3},
+        {"i_base_ma": 50, "i_collector_ma": 500, "vce_sat_max_v": 1.0},
+    ]
+    assert review["manufacturer_specific_bjt_spice_model"] == "NOT_RETRIEVED_OR_VERIFIED"
+    assert review["real_load_approved"] is False
+    assert review["manufacturer_saturation_guarantee_established"] is False
+    assert review["exact_orderable_sku_and_board_ambient"] == "UNKNOWN"
+    points = {x["r1_ohms"]: x for x in review["conditional_base_drive_review"]}
+    assert set(points) == {390, 820}
+    assert points[390]["idealized_upper_bound_base_feed_ma"] == pytest.approx(12.818869, abs=0.000001)
+    assert points[820]["idealized_upper_bound_base_feed_ma"] == pytest.approx(6.097189, abs=0.000001)
+    assert all(x["status"] == "CONDITIONS_NOT_REPRODUCED" for x in points.values())
+    assert all(not x["can_supply_15ma_test_point"] for x in points.values())
+    assert all(not x["can_supply_50ma_test_point"] for x in points.values())
+    assert all(not x["published_150ma_saturation_guarantee_applicable"] for x in points.values())
+    assert review["qualified_human_approval"] == "NOT_RUN"
+
+
+def test_historic_thermal_rating_screen_remains_warning_only() -> None:
+    record = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    limits = record["datasheet_condition_review"]["thermal_reference"]
+    assert limits["max_p_dis_25c_mw"] == 625
+    assert limits["derating_above_25c_mw_per_c"] == 5
+    assert limits["max_junction_to_ambient_c_per_w"] == 200
+    assert limits["reference_package"] == "TO-92"
+    assert limits["illustrative_50c_rating_mw"] == 500
+    assert limits["comparison_status"] == "NOT_A_TEMPERATURE_DEPENDENT_SPICE_OR_THERMAL_MODEL"
+    warn = limits["warning_cases"]
+    assert len(warn) == 3
+    assert {(r["r1_ohms"], r["assumed_beta_f"], r["external_load_ohms"]) for r in warn} == {
+        (390, 50, 10),
+        (820, 50, 10),
+        (820, 150, 10),
+    }
+    assert all(r["screening_margin_mw_if_27c_solution_persisted"] < 0 for r in warn)
+    assert all(r["status"] == "INVESTIGATE_NOT_A_THERMAL_PREDICTION" for r in warn)
+    # Safety contract: even an unflagged condition is NOT evidence of approved hardware.
+    unflagged_22 = [
+        r
+        for r in record["cases"]
+        if r["r1_ohms"] == 820
+        and r["assumed_beta_f"] == 50
+        and r["external_load_ohms"] == 22
+        and r["switch_state"] == "CLOSED"
+    ]
+    assert len(unflagged_22) == 1
+    assert unflagged_22[0]["v_collector_v"] > 1.0
+    assert unflagged_22[0]["qualified_load_status"] == "NOT_RUN"
+    assert not record["datasheet_condition_review"]["real_load_approved"]
+    assert not record["g0_verified"]
