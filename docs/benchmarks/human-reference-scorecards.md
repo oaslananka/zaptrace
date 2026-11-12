@@ -210,6 +210,23 @@ draft proofs, **not** full editable Design round-trip, PCB netclass
 propagation, DRC clearance review, routing approval or qualified hardware
 signoff. Strict G0 full acceptance remains unchanged.
 
+### Terminal review workflow
+
+Users and automation can run the same native proof without writing Python,
+supplying source SHA values, or looking up a UUID when the old class is
+unambiguous:
+
+    zaptrace kicad netclass-preview path/to/board.kicad_sch --from-class VBUS --to-class GND
+
+This defaults to **read-only**. Add --json for a machine-readable summary
+or --output-dir path/to/new-review-folder to create a separate schematic
+and matching project named review.kicad_sch and review.kicad_pro.
+The destination directory **must not already exist**. If several directives
+use the same old class, choose exactly one with --flag-uuid; otherwise the
+command stops rather than guessing. Originals and PCB files remain untouched.
+Output is an unapproved design-review draft, not an edited/validated PCB.
+No network access or paid provider is required for the local KiCad proof.
+
 ## Review boundary
 
 The fields are deliberately independent:
