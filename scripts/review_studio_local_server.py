@@ -54,6 +54,11 @@ MAX_ECO_REQUEST = 6 * 1024 * 1024
 MAX_PCB_ECO_REQUEST = 22 * 1024 * 1024
 MAX_PROJECT = 3 * 1024 * 1024
 MAX_CUSTOM_RULES = 512 * 1024
+# A document loaded directly from a registered review must not inherit the
+# privileged localhost application's origin or execute native SVG scripts.
+INERT_DOCUMENT_CSP = "sandbox; default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+SVG_DOCUMENT_CSP = INERT_DOCUMENT_CSP + "; img-src data:; style-src 'unsafe-inline'"
+
 MIMES = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -280,9 +285,19 @@ class ReviewHandler(BaseHTTPRequestHandler):
         pass
 
     def _json(self, status: int, item: dict) -> None:
-        raw = json.dumps(item, ensure_ascii=True).encode("utf-8")
+        # Escape HTML-significant bytes without changing JSON-decoded values.
+        # Prevent a reflected user project name/error from becoming executable
+        # markup if a browser misclassifies or embeds the JSON document.
+        raw = (
+            json.dumps(item, ensure_ascii=True)
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            .replace("&", "\\u0026")
+            .encode("utf-8")
+        )
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Security-Policy", INERT_DOCUMENT_CSP)
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Length", str(len(raw)))
@@ -476,7 +491,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(raw)
             else:
-                self._serve_bytes(item.read_bytes(), item.suffix)
+                self._serve_bytes(item.read_bytes(), item.suffix, sandboxed=True)
             return
         if url.path.startswith("/api/eco/result/"):
             if not self._authorize():
@@ -509,7 +524,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(data)
             else:
-                self._serve_bytes(file.read_bytes(), file.suffix)
+                self._serve_bytes(file.read_bytes(), file.suffix, sandboxed=True)
             return
         if url.path.startswith("/api/jobs/"):
             if not self._authorize():
@@ -601,7 +616,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
         if not self._is_known_file(candidate):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        self._serve_bytes(candidate.read_bytes(), candidate.suffix.lower())
+        self._serve_bytes(candidate.read_bytes(), candidate.suffix.lower(), sandboxed=True)
 
     def _serve_bytes(self, body: bytes, ext: str, *, sandboxed: bool = False) -> None:
         self.send_response(HTTPStatus.OK)
@@ -620,6 +635,13 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 + f"script-src 'unsafe-inline' {host}; style-src 'unsafe-inline' {host}; "
                 + "connect-src 'none'; form-action 'none'; base-uri 'none'",
             )
+        elif sandboxed and ext == ".svg":
+            # A source-bound native SVG can be opened directly as a document,
+            # not merely embedded as an inert image. Prevent its scripts and
+            # other active content from accessing the localhost capability.
+            self.send_header("Content-Security-Policy", SVG_DOCUMENT_CSP)
+        elif sandboxed and ext in {".json", ".rpt", ".md"}:
+            self.send_header("Content-Security-Policy", INERT_DOCUMENT_CSP)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")

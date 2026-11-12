@@ -43,6 +43,8 @@
 
 ### Fixed
 
+- Prevent user-supplied Review Studio HTML, SVG and ECO previews from inheriting the privileged localhost origin through legacy or registered asset URLs; serve sandboxed document policies and escape HTML-significant JSON bytes while preserving the parsed JSON data and existing offline/native review flows.
+
 - Show inherited schematic–PCB parity types and remaining native ERC/DRC issues in passive ECO previews; keep zero new defects distinct from electrically clean. Record a source-pinned L7805 LED-current pilot with 10 preexisting KiCad parity issues explicitly not accepted.
 
 - Fail closed when PCB-bench submissions omit grader evidence, skip mandatory checks, supply invalid ERC error counts or mismatch their evidence hash; rank partial oracle results behind complete passes instead of allowing false benchmark success.
