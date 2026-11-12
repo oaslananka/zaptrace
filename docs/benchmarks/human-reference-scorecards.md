@@ -622,7 +622,7 @@ separate unapproved candidate. G0 remains **0 VERIFIED /
 #### G0 task 004 — independent NVIDIA model suggests NPN switch base-drive ECO
 
 For the first **separately executed model-origin proposal**, a
-[fixed prompt](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/npn-switch-base-drive-independent-brief.txt)
+[fixed prompt, preserved verbatim](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/npn-switch-base-drive-independent-model.json)
 was prepared from an exact MIT-licensed original NPN transistor
 switch schematic/PCB and its genuine KiCad 10.0.8 native netlist.
 The task was fixed *before* seeing the model output: reduce the

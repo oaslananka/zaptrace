@@ -42,7 +42,7 @@ def test_independent_model_fixed_prompt_and_nominal_numbers_are_evidence_not_app
     assert task["source_artifact_set_sha256"] == ref["artifact_set_sha256"]
     assert task["source_upstream_commit"] == ref["upstream_commit"]
 
-    prompt = (ROOT / task["fixed_prompt_path"]).read_bytes()
+    prompt = task["fixed_prompt_text"].encode("utf-8")
     assert hashlib.sha256(prompt).hexdigest() == task["fixed_prompt_sha256"]
     assert b"820" in prompt and b"390" in prompt  # value 820 is in the option set, not preselected
     assert b" or NO_CHANGE" in prompt
