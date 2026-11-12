@@ -35,6 +35,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from review_studio_library import delete_review, export_review, validate_restore_backup
 from review_studio_workspace import (
     _read_projects,
+    _safe_workspace_root,
     _slug,
     render_workspace,
     safe_sheet_path,
@@ -192,7 +193,7 @@ class ReviewLocalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, address: tuple[str, int], workspace: Path) -> None:
-        self.workspace = workspace.resolve()
+        self.workspace = _safe_workspace_root(workspace)
         self.secret = secrets.token_urlsafe(32)
         self.jobs: dict[str, dict] = {}
         self.job_outputs: dict[str, Path] = {}

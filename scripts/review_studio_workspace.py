@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
@@ -100,6 +101,41 @@ def _slug(value: str) -> str:
     return result
 
 
+def _safe_workspace_root(workspace: Path) -> Path:
+    """Keep a locally generated workspace inside the exact user-selected folder."""
+    if ".." in workspace.parts:
+        raise ValueError("Unsafe Review Studio workspace: parent traversal is unsupported")
+    root = workspace.absolute()
+    if any(part.is_symlink() for part in (root, *root.parents)):
+        raise ValueError("Unsafe Review Studio workspace: symbolic links are unsupported")
+    if root.exists() and not root.is_dir():
+        raise ValueError("Unsafe Review Studio workspace: the selected location is not a directory")
+    return root
+
+
+def _check_workspace_file(path: Path) -> None:
+    _safe_workspace_root(path.parent)
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        raise ValueError("Unsafe Review Studio workspace: linked or non-regular catalog file")
+
+
+def _atomic_workspace_write(target: Path, content: str) -> None:
+    """Replace one controlled file without truncating existing hard-linked data."""
+    _check_workspace_file(target)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent, prefix=".zaptrace-workspace-", delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+        _check_workspace_file(target)
+        temporary.replace(target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 def _evidence(review: Path) -> dict:
     page, source = review / "index.html", review / "evidence.json"
     if not page.is_file() or not source.is_file():
@@ -119,7 +155,9 @@ def _evidence(review: Path) -> dict:
 
 
 def _read_projects(workspace: Path) -> list[dict]:
+    workspace = _safe_workspace_root(workspace)
     manifest = workspace / "projects.json"
+    _check_workspace_file(manifest)
     if not manifest.exists():
         return []
     data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -152,6 +190,7 @@ def _append_projects(workspace: Path, entries: list[tuple[str, Path]]) -> None:
     """
     if not entries:
         raise ValueError("No verified projects provided")
+    workspace = _safe_workspace_root(workspace)
     checked = []
     keys: set[str] = set()
     for name, review in entries:
@@ -167,7 +206,10 @@ def _append_projects(workspace: Path, entries: list[tuple[str, Path]]) -> None:
             entry["context"] = context_sha
         checked.append(entry)
     workspace.mkdir(parents=True, exist_ok=True)
+    workspace = _safe_workspace_root(workspace)
     manifest = workspace / "projects.json"
+    _check_workspace_file(manifest)
+    _check_workspace_file(manifest.with_suffix(".json.tmp"))
     if manifest.is_file():
         previous = json.loads(manifest.read_text(encoding="utf-8"))
         if previous.get("version") != 1 or not isinstance(previous.get("projects"), list):
@@ -178,11 +220,9 @@ def _append_projects(workspace: Path, entries: list[tuple[str, Path]]) -> None:
     else:
         projects = []
     projects = [p for p in projects if p["id"] not in keys] + checked
-    tmp = manifest.with_suffix(".json.tmp")
-    tmp.write_text(
-        json.dumps({"version": 1, "projects": projects}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    _atomic_workspace_write(
+        manifest, json.dumps({"version": 1, "projects": projects}, indent=2, ensure_ascii=False) + "\n"
     )
-    tmp.replace(manifest)
 
 
 def _append_project(workspace: Path, name: str, review: Path) -> None:
@@ -342,11 +382,24 @@ def workspace_html(workspace: Path, items: list[dict]) -> str:
 
 
 def render_workspace(workspace: Path) -> Path:
-    workspace = workspace.resolve()
+    workspace = _safe_workspace_root(workspace)
     projects = _read_projects(workspace)
     workspace.mkdir(parents=True, exist_ok=True)
+    workspace = _safe_workspace_root(workspace)
     target = workspace / "index.html"
-    target.write_text(workspace_html(workspace, projects), encoding="utf-8")
+    _check_workspace_file(target)
+    previous: str | None = None
+    if target.exists():
+        # A custom --workspace is permitted, but never overwrite a user's
+        # unrelated homepage or a non-native document.
+        if target.stat().st_size > 2_000_000:
+            raise ValueError("Unrecognized Review Studio workspace index; refusing overwrite")
+        previous = target.read_text(encoding="utf-8")
+        if 'id="workspaceMain"' not in previous or "ZapTrace Review Studio" not in previous:
+            raise ValueError("Unrecognized Review Studio workspace index; refusing overwrite")
+    rendered = workspace_html(workspace, projects)
+    if rendered != previous:
+        _atomic_workspace_write(target, rendered)
     return target
 
 
@@ -371,7 +424,7 @@ def main() -> int:
     add.add_argument("--run-id", help="Internal local import isolation ID (UUID hex); creates a fresh output snapshot")
     sub.add_parser("render", help="Rebuild catalog against previously registered native evidence hashes")
     args = parser.parse_args()
-    workspace = args.workspace.resolve()
+    workspace = _safe_workspace_root(args.workspace)
     if args.action == "register":
         _append_project(workspace, args.name, args.review)
     if args.action == "register-many":

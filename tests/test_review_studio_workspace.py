@@ -351,3 +351,103 @@ def test_local_workspace_accessibility_search_and_truthful_version(tmp_path: Pat
     assert "prefers-reduced-motion:reduce" in html
     assert "native snapshots available" in html
     assert "ZapTrace Review Studio 0.1.7" not in html
+
+
+@pytest.mark.parametrize("kind", ["workspace", "ancestor"])
+def test_workspace_refuses_linked_working_folder(tmp_path: Path, kind: str) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "private.txt").write_text("PRIVATE USER FILE")
+    alias = tmp_path / "alias"
+    alias.symlink_to(outside, target_is_directory=True)
+    target = alias if kind == "workspace" else alias / "nested"
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace.render_workspace(target)
+    assert not (outside / "index.html").exists()
+    assert not (outside / "nested").exists()
+    assert (outside / "private.txt").read_text() == "PRIVATE USER FILE"
+
+
+def test_workspace_rejects_parent_traversal_before_normalizing(tmp_path: Path) -> None:
+    (tmp_path / "nested").mkdir()
+    target = tmp_path / "nested" / ".." / "unrelated"
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace.render_workspace(target)
+    assert not (tmp_path / "unrelated").exists()
+
+
+def test_render_refuses_unrelated_or_linked_index_without_clobbering_user_file(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    library.mkdir()
+    user_file = tmp_path / "user-index.html"
+    user_file.write_text("<!doctype html><title>Private note</title>")
+    index = library / "index.html"
+    index.symlink_to(user_file)
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace.render_workspace(library)
+    assert user_file.read_text() == "<!doctype html><title>Private note</title>"
+    index.unlink()
+    index.write_text("Original user homepage")
+    with pytest.raises(ValueError, match="Unrecognized Review Studio workspace"):
+        workspace.render_workspace(library)
+    assert index.read_text() == "Original user homepage"
+
+
+def test_render_generated_index_replaces_link_not_other_hardlinked_file(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    generated = workspace.render_workspace(library).read_text()
+    before = generated.replace("No native KiCad boards yet.", "OLDER NATIVE REVIEW CONTENT")
+    outside = tmp_path / "saved-review.html"
+    outside.write_text(before)
+    index = library / "index.html"
+    index.unlink()
+    index.hardlink_to(outside)
+    assert workspace.render_workspace(library).read_text() == generated
+    assert outside.read_text() == before
+
+
+@pytest.mark.parametrize("name", ["projects.json", "projects.json.tmp"])
+def test_registration_rejects_linked_catalog_files(tmp_path: Path, name: str) -> None:
+    review = _review(tmp_path / "real-review")
+    library = tmp_path / "library"
+    library.mkdir()
+    private_file = tmp_path / "private.json"
+    private_file.write_text('{"version":1,"projects":[]}')
+    (library / name).symlink_to(private_file)
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace._append_project(library, "Test", review)
+    assert private_file.read_text() == '{"version":1,"projects":[]}'
+
+
+def test_existing_legitimate_workspace_rerenders_idempotently(tmp_path: Path) -> None:
+    review = _review(tmp_path / "review")
+    library = tmp_path / "my review with spaces"
+    workspace._append_project(library, "Real native review", review)
+    first = workspace.render_workspace(library).read_bytes()
+    assert workspace.render_workspace(library).read_bytes() == first
+    saved = json.loads((library / "projects.json").read_text())
+    assert saved["projects"][0]["name"] == "Real native review"
+
+
+def test_identical_workspace_reopen_does_not_rewrite_html(tmp_path: Path) -> None:
+    library = tmp_path / "custom collection"
+    page = workspace.render_workspace(library)
+    original_inode = page.stat().st_ino
+    original_bytes = page.read_bytes()
+    reopened = workspace.render_workspace(library)
+    assert reopened == page
+    assert reopened.read_bytes() == original_bytes
+    assert reopened.stat().st_ino == original_inode
+
+
+def test_register_keeps_other_hardlinked_json_data_intact(tmp_path: Path) -> None:
+    review = _review(tmp_path / "verified-review")
+    library = tmp_path / "catalog"
+    library.mkdir()
+    original = tmp_path / "backup-projects.json"
+    original.write_text('{"version":1,"projects":[]}')
+    manifest = library / "projects.json"
+    manifest.hardlink_to(original)
+    workspace._append_project(library, "Evidence", review)
+    assert json.loads(original.read_text()) == {"version": 1, "projects": []}
+    assert json.loads(manifest.read_text())["projects"][0]["name"] == "Evidence"
