@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 from pathlib import Path
 
 import pytest
@@ -94,6 +95,8 @@ def test_missing_title_must_not_be_inserted_by_guesswork() -> None:
 
 
 def test_native_kicad_original_sparkfun_page_change_has_identical_graph_and_erc() -> None:
+    if shutil.which("kicad-cli") is None:
+        pytest.skip("requires native KiCad 10 CLI for independent source/erc proof")
     source_dir = Path(__file__).parents[1] / "benchmarks/external/sparkfun-qwiic-navigation/source"
     schematic = next(source_dir.glob("*.kicad_sch"))
     project = next(source_dir.glob("*.kicad_pro"))

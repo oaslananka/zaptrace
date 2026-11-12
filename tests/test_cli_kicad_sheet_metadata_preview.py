@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from zaptrace.cli.main import cli
@@ -29,6 +31,8 @@ def test_command_has_unambiguous_user_help() -> None:
 
 
 def test_real_native_read_only_paper_review_preserves_original_bytes() -> None:
+    if shutil.which("kicad-cli") is None:
+        pytest.skip("requires native KiCad 10 CLI; no independent evidence on this runner")
     schematic, original_sch, original_pro = _source()
     result = _run(
         str(schematic),
@@ -53,6 +57,8 @@ def test_real_native_read_only_paper_review_preserves_original_bytes() -> None:
 
 
 def test_real_native_title_review_writes_only_new_isolated_source_copy(tmp_path: Path) -> None:
+    if shutil.which("kicad-cli") is None:
+        pytest.skip("requires native KiCad 10 CLI; no independent evidence on this runner")
     schematic, original_sch, original_pro = _source()
     output = tmp_path / "review"
     result = _run(
