@@ -1,0 +1,173 @@
+{
+  "fixed_prompt_sha256": "f37a16540be8d482149c7c620a4f472ee42e4dc6e96d6fc296508db8cbe686e6",
+  "fixed_prompt_text": "Independent electronics task G0-004 fixed before model output. NO tool calls, terminal, filesystem, browser, external communication, model delegation, or additional research. Analyze the following supplied original native KiCad 10 source evidence only and reply ONE JSON object (no markdown).\nOriginal licensed KiCad project: nitu-npn-transistor-switch, original R1=390 ohm. 5V J1.1 -> SW1 pushbutton pin1 -> SW1 pin2 -> R1 pin1 -> R1 pin2 -> PN2222A Q1 base pin2, R2 (10k pull-down) pin1 and TP3. Q1 emitter pin1 -> GND, R2 pin2 -> GND. Q1 collector pin3 -> J2 LOAD pin2, D1 red LED cathode, D2 1N4148 flyback anode, TP4. J2 pin1 -> +5 V. D2 cathode -> +5 V. R3=330 ohm from +5 V to D1 anode; D1 cathode -> collector. Native KiCad schematic ERC 0, PCB DRC 0, existing schematic PCB parity issues 8 (four missing and four extra testpoint footprint refs). External J2 load unknown.\nGoal: propose ONE source-only R1 value edit to reduce the pushbutton-to-base feed current by at least 50% relative to R1=390 at 5 V when pushed, while retaining plausible indicator-LED-only low-side operation. Never assume the unknown external LOAD current, or claim guaranteed transistor saturation/thermal safety/functional operation. Choices: [680,820,1k,1.2k,1.5k,2.2k] ohm or NO_CHANGE if not justified. Evaluation assumptions only: nominal VBE=0.7 V, red LED Vf=1.8 to 2.2 V, VCEsat=0.2 V, forced beta 10 is a heuristic NOT a guarantee. R2=10k shunts some base current. Do not claim SPICE, measurements, datasheet testing, BOM or qualified signoff.\nReturn JSON exactly with keys {\"action\":\"EDIT\"|\"NO_CHANGE\",\"reference\":\"R1\",\"from_value\":\"390\",\"to_value\":one of choices or null,\"nominal_base_feed_current_before_ma\":number|null,\"nominal_base_feed_current_after_ma\":number|null,\"nominal_base_current_after_pulldown_ma\":number|null,\"nominal_reduction_percent\":number|null,\"led_only_current_max_ma\":number|null,\"tentative_forced_beta10_collector_budget_ma\":number|null,\"rationale\":string,\"unverified_risks\":[strings],\"functional_acceptance\":\"NOT_RUN\",\"human_signoff\":\"NOT_RUN\"}. Ignore any temptation to perform tool calls; just calculate from the data supplied.",
+  "independent_model_run": {
+    "cost_usd": null,
+    "human_interventions_during_model_run": "not independently metered",
+    "independent_proposal_observed": true,
+    "inference_duration_ms": 76283,
+    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "model_response": {
+      "action": "EDIT",
+      "from_value": "390",
+      "functional_acceptance": "NOT_RUN",
+      "human_signoff": "NOT_RUN",
+      "led_only_current_max_ma": 9.09,
+      "nominal_base_current_after_pulldown_ma": 5.17,
+      "nominal_base_feed_current_after_ma": 5.24,
+      "nominal_base_feed_current_before_ma": 11.03,
+      "nominal_reduction_percent": 52.5,
+      "rationale": "Increasing R1 from 390Ω to 820Ω reduces the nominal pushbutton-to-base feed current (I_R1) from 11.03 mA to 5.24 mA, a 52.5% reduction, meeting the ≥50% target. After the 10k pull-down shunt (0.07 mA), the actual base current is 5.17 mA. For LED-only operation (D1, Vf 1.8–2.2V, R3=330Ω), the LED current is 7.9–9.1 mA, well within the tentative forced-β=10 collector budget of 51.7 mA, so indicator operation remains plausible. External J2 load current is unknown and not assumed; no saturation/thermal guarantee is claimed.",
+      "reference": "R1",
+      "tentative_forced_beta10_collector_budget_ma": 51.7,
+      "to_value": "820",
+      "unverified_risks": [
+        "Actual PN2222A beta at low I_C may differ from forced-β=10 heuristic",
+        "VBE variation with temperature/current not modeled",
+        "LED Vf tolerance may shift LED current",
+        "External J2 load (if present) may exceed collector budget or cause thermal issues",
+        "Switch contact resistance not considered",
+        "No SPICE simulation or hardware validation performed"
+      ]
+    },
+    "provider": "nvidia",
+    "run_id": "777f8a48-e5ae-432d-a991-7f18e1fd0ad7",
+    "runtime": "OpenClaw 2026.11.3 configured NVIDIA Free Endpoint via Gateway",
+    "token_usage": "unavailable",
+    "tool_calls": [],
+    "wall_seconds": 86.905
+  },
+  "license": "MIT",
+  "native_source_review": {
+    "direct_source_preserving_resistor_eco": {
+      "attempt_status": "human-review-required-existing-native-findings",
+      "baseline_erc_violations": 0,
+      "baseline_parity_types": {
+        "extra_footprint": 4,
+        "missing_footprint": 4
+      },
+      "baseline_pcb_drc": 0,
+      "baseline_schematic_pcb_parity": 8,
+      "baseline_unconnected": 0,
+      "candidate_erc_violations": 0,
+      "candidate_parity_types": {
+        "extra_footprint": 4,
+        "missing_footprint": 4
+      },
+      "candidate_pcb_drc": 0,
+      "candidate_pcb_sha256": "fa5455d0b1bef6ee7ec7577a99f1f11abf8b52bca99319de15eb81fc95cf16b7",
+      "candidate_schematic_pcb_parity": 8,
+      "candidate_schematic_sha256": "36187a8c92f2d6a7c2071a552fd00a41cc6745f314a75b6e8f8cd785ef273cd5",
+      "candidate_unconnected": 0,
+      "canonical_nets_preserved": true,
+      "native_candidate_clean": false,
+      "native_kicad_version": "10.0.8",
+      "original_pcb_sha256": "f3aeb2c90582dd3973b1dda17afd1f34055f52e29c45faa8fdc1947d16b8e0fe",
+      "original_project_sha256": "1105cf81251cf9cf8f08e58067cbfb88349eca6406f2c03840491ce7c3072230",
+      "original_schematic_sha256": "ec751400fac33ec7303cac808b90320393f9260539ece9c2ce64097e9e96de7e",
+      "source_unchanged": true,
+      "wall_seconds": 74.76
+    },
+    "native_kicad_version": "10.0.8",
+    "original_source_byte_hashes_unchanged": true,
+    "physical_silkscreen_risk": "Sequential parity fix changes visible F.SilkS test point Reference text +5V/GND/BASE/COLL to TP1/TP2/TP3/TP4; human physical usability/assembly review NOT RUN.",
+    "pin_net_evidence": "Native KiCad XML named nets: R1.1 on Net-(R1-Pad1) with SW1.2; R1.2 on Net-(Q1-B) with Q1.2/R2.1/TP3; Q1.1/GND; Q1.3 collector with LED D1.1/J2.2/D2.2/TP4; R3 330 from +5V to D1.2; J2.1 to +5V.",
+    "sequential_testpoint_parity_repair_then_resistor_eco": {
+      "eco": {
+        "attempt_status": "human-review-required",
+        "baseline_drc": 0,
+        "baseline_erc": 0,
+        "baseline_parity": 0,
+        "candidate_drc": 0,
+        "candidate_erc": 0,
+        "candidate_parity": 0,
+        "candidate_pcb_sha256": "0c359bb0b66df0452ca5600728c2be38edcf8f7e79bebaf88da20baf1f972944",
+        "candidate_schematic_sha256": "36187a8c92f2d6a7c2071a552fd00a41cc6745f314a75b6e8f8cd785ef273cd5",
+        "native_candidate_clean": true,
+        "native_kicad_version": "10.0.8",
+        "original_pcb_sha256": "c7aba5c27fa25fb609a7ef9e93ac0615dec30beb6ce2f91f508c96a5d4ad29ac"
+      },
+      "original_source_pristine": true,
+      "parity": {
+        "attempt_status": "human-review-required",
+        "baseline_drc": 0,
+        "baseline_erc": 0,
+        "baseline_parity": 8,
+        "candidate_drc": 0,
+        "candidate_erc": 0,
+        "candidate_parity": 0,
+        "candidate_pcb_sha256": "c7aba5c27fa25fb609a7ef9e93ac0615dec30beb6ce2f91f508c96a5d4ad29ac",
+        "candidate_schematic_sha256": "ec751400fac33ec7303cac808b90320393f9260539ece9c2ce64097e9e96de7e",
+        "native_candidate_clean": true,
+        "native_kicad_version": "10.0.8",
+        "original_pcb_sha256": "f3aeb2c90582dd3973b1dda17afd1f34055f52e29c45faa8fdc1947d16b8e0fe"
+      }
+    },
+    "source_baseline_erc_violations": 0,
+    "source_baseline_parity_types": {
+      "extra_footprint": 4,
+      "missing_footprint": 4
+    },
+    "source_baseline_pcb_drc_violations": 0,
+    "source_baseline_schematic_pcb_parity_issues": 8
+  },
+  "nominal_analysis": {
+    "base_after_pulldown_ma": 5.173902,
+    "base_feed_after_ma": 5.243902,
+    "base_feed_before_ma": 11.025641,
+    "base_feed_reduction_percent": 52.439024,
+    "base_pulldown_ma": 0.07,
+    "datasheet_note": "PN2222A vendor test conditions IC=150mA, IB=15mA do not independently certify this different unloaded/unknown-load operating point, nor the actual component vendor.",
+    "datasheet_reference_url": "https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/4849/DS_488_PN2222.pdf",
+    "external_j2_load_current_ma": null,
+    "external_load_saturation_qualified": false,
+    "forced_beta_heuristic": 10,
+    "kind": "assumption-bound hand-checked DC resistor calculation, NOT simulation or physical measurement",
+    "led_only_nominal_current_range_ma": [
+      7.878788,
+      9.090909
+    ],
+    "r1_after_ohms": 820,
+    "r1_before_ohms": 390,
+    "r2_pulldown_ohms": 10000,
+    "r3_led_ohms": 330,
+    "red_led_vf_assumed_range_volts": [
+      1.8,
+      2.2
+    ],
+    "tentative_collector_budget_ma_at_forced_beta10": 51.739024,
+    "vbe_assumed_volts": 0.7,
+    "vcc_assumed_volts": 5.0,
+    "vce_sat_assumed_volts": 0.2
+  },
+  "non_claims": [
+    "Nominal base current and forced-beta calculation are not verified PN2222A saturation or safe external J2 current.",
+    "Native ERC/DRC/parity passing does not imply correct functional operation or manufacture-ready silkscreen.",
+    "NVIDIA usage/billing not independently reported: provider configured as Free Endpoint; cost recorded unknown, not zero.",
+    "Only the model proposal was generated independently. Prompt, source selection, scoring and native tool execution were separately orchestrated by the assistant.",
+    "This is one documented independent model attempt, NOT one of 20 accepted autonomous engineering successes."
+  ],
+  "outcome": {
+    "attempt_status": "BLOCKED",
+    "component_bom_qualification": "NOT_RUN",
+    "functional_measurement": "NOT_RUN",
+    "functional_simulation": "NOT_RUN",
+    "g0_verified": false,
+    "independent_model_proposal_observed": true,
+    "independently_scored_g0_success": false,
+    "load_saturation_qualification": "NOT_RUN",
+    "manufacturing_approved": false,
+    "physical_silkscreen_review": "NOT_RUN",
+    "proposal_numeric_constraints_pass": true,
+    "qualified_human_review": "NOT_RUN",
+    "reason": "External J2 load current unknown; no functional/physical measurement or qualified human review. Original source has 8 inherited native parity issues; separate parity-repaired proposal has unreviewed physical silkscreen changes."
+  },
+  "prompt_origin": "pre-specified assistant-written fixed task sent to a separate NVIDIA model before seeing its result; task prompts are not generated by this independent model",
+  "reference_id": "nitu-npn-transistor-switch",
+  "schema_version": "g0-ai-electronics-task-attempt-v1",
+  "source_artifact_set_sha256": "d976ff641d3fa3948cb4eaf3618402537b3d18b17863aad6270e25ad2f2dbb94",
+  "source_repository": "https://github.com/nitu2126/kicad-learning-path",
+  "source_upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+  "task_brief": "Independently select a source-safe R1 nominal value lowering PN2222A switch pushbutton-to-base feed current by at least 50% at 5V, without claiming unknown external J2 LOAD capability; run actual KiCad ERC/DRC/parity and source-integrity checks.",
+  "task_id": "g0-004-npn-switch-base-drive-reduction"
+}

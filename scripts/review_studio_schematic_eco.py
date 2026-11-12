@@ -284,18 +284,28 @@ for(const [one,two] of [[left,right],[right,left]])one.addEventListener('scroll'
 </script></body></html>'''
 
 
+def _checked_eco_output(source: Path, selected: Path) -> Path:
+    """Require one new, unaliased draft folder outside the source project."""
+    if ".." in selected.parts:
+        raise ValueError("Unsafe ECO output path: parent traversal is not supported")
+    output = selected.absolute()
+    if any(part.is_symlink() for part in (output, *output.parents)):
+        raise ValueError("Unsafe ECO output path: symbolic-link directory is not supported")
+    if output.exists() or output.resolve().is_relative_to(source.parent):
+        raise ValueError("Select a new, empty ECO directory outside the original source folder")
+    if not output.parent.is_dir():
+        raise ValueError("ECO output parent must already exist and not be a symlink")
+    return output
+
+
 def create(source: Path, output: Path, reference: str, value: str) -> dict:
     cli = shutil.which("kicad-cli")
     if not cli:
         raise RuntimeError("KiCad native CLI is required before authoring ECO")
     source = source.resolve(strict=True)
-    output = output.absolute()
     if source.suffix != ".kicad_sch" or not source.is_file() or source.stat().st_size > 4_000_000:
         raise ValueError("Provide an existing KiCad schematic source under 4MB")
-    if output.exists() or output.is_symlink() or output.resolve().is_relative_to(source.parent):
-        raise ValueError("Select a new, empty ECO directory outside the original source folder")
-    if not output.parent.is_dir() or output.parent.is_symlink():
-        raise ValueError("ECO output parent must already exist and not be a symlink")
+    output = _checked_eco_output(source, output)
     original_bytes = source.read_bytes()
     original_text = original_bytes.decode("utf-8")
     revision, old_value = propose(original_text, reference, value)
@@ -312,11 +322,15 @@ def create(source: Path, output: Path, reference: str, value: str) -> dict:
         after.write_text(revision, encoding="utf-8", newline="")
         # Preserve only the source's corresponding read-only project rule context.
         settings = source.with_suffix(".kicad_pro")
-        if settings.is_file() and not settings.is_symlink():
+        if settings.is_symlink():
+            raise ValueError("KiCad project rules must not be a symbolic link")
+        settings_bytes: bytes | None = None
+        if settings.is_file():
             if settings.stat().st_size > 3_000_000:
                 raise ValueError("KiCad project rule context is oversized")
+            settings_bytes = settings.read_bytes()
             for folder in (initial, changed):
-                shutil.copyfile(settings, folder / settings.name)
+                (folder / settings.name).write_bytes(settings_bytes)
         net_before = _netlist(cli, before, root / "before-netlist.xml")
         net_after = _netlist(cli, after, root / "after-netlist.xml")
         comps_a, nets_a = _snapshot(net_before)
@@ -337,13 +351,20 @@ def create(source: Path, output: Path, reference: str, value: str) -> dict:
         new_plot = _svg(cli, after, root / "after-svg")
         if hashlib.sha256(source.read_bytes()).hexdigest() != old_hash:
             raise RuntimeError("Original schematic changed concurrently; refuse to publish an ECO")
+        if (
+            settings.is_symlink()
+            or (settings_bytes is None and settings.exists())
+            or (settings_bytes is not None and (not settings.is_file() or settings.read_bytes() != settings_bytes))
+        ):
+            raise ValueError("KiCad project rules changed during native validation; refuse stale ECO")
+        _checked_eco_output(source, output)
         output.mkdir(mode=0o700)
         try:
             (output / source.name).write_text(revision, encoding="utf-8", newline="")
             for name in ("before-erc.rpt", "after-erc.rpt", "before-netlist.xml", "after-netlist.xml"):
                 shutil.copyfile(root / name, output / name)
-            if settings.is_file() and not settings.is_symlink():
-                shutil.copyfile(settings, output / settings.name)
+            if settings_bytes is not None:
+                (output / settings.name).write_bytes(settings_bytes)
             result = {
                 "type": "SCHEMATIC_VALUE_ONLY_ECO",
                 "status": "native_verified_copy_not_original",

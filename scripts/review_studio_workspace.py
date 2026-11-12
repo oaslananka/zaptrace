@@ -15,10 +15,12 @@ import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
 from review_studio_local_csp import apply_offline_csp
+from review_studio_local_file_guard import read_regular_bytes
 
 # KiCad hierarchical references are part of a sheet's S-expression, not the
 # currently open board. Reject incomplete/insecure graphs before invoking ERC.
@@ -93,11 +95,58 @@ def _display(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _inline_js_string(value: str) -> str:
+    """Encode JavaScript data without allowing HTML to terminate its script tag."""
+    return (
+        json.dumps(value, ensure_ascii=True)
+        .replace("<", r"\u003c")
+        .replace(">", r"\u003e")
+        .replace("&", r"\u0026")
+        .replace("\u2028", r"\u2028")
+        .replace("\u2029", r"\u2029")
+    )
+
+
 def _slug(value: str) -> str:
     result = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:55]
     if not result:
         raise ValueError("Project name must contain letters or numbers")
     return result
+
+
+def _safe_workspace_root(workspace: Path) -> Path:
+    """Keep a locally generated workspace inside the exact user-selected folder."""
+    if ".." in workspace.parts:
+        raise ValueError("Unsafe Review Studio workspace: parent traversal is unsupported")
+    root = workspace.absolute()
+    if any(part.is_symlink() for part in (root, *root.parents)):
+        raise ValueError("Unsafe Review Studio workspace: symbolic links are unsupported")
+    if root.exists() and not root.is_dir():
+        raise ValueError("Unsafe Review Studio workspace: the selected location is not a directory")
+    return root
+
+
+def _check_workspace_file(path: Path) -> None:
+    _safe_workspace_root(path.parent)
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        raise ValueError("Unsafe Review Studio workspace: linked or non-regular catalog file")
+
+
+def _atomic_workspace_write(target: Path, content: str) -> None:
+    """Replace one controlled file without truncating existing hard-linked data."""
+    _check_workspace_file(target)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent, prefix=".zaptrace-workspace-", delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+        _check_workspace_file(target)
+        temporary.replace(target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def _evidence(review: Path) -> dict:
@@ -119,7 +168,9 @@ def _evidence(review: Path) -> dict:
 
 
 def _read_projects(workspace: Path) -> list[dict]:
+    workspace = _safe_workspace_root(workspace)
     manifest = workspace / "projects.json"
+    _check_workspace_file(manifest)
     if not manifest.exists():
         return []
     data = json.loads(manifest.read_text(encoding="utf-8"))
@@ -152,6 +203,7 @@ def _append_projects(workspace: Path, entries: list[tuple[str, Path]]) -> None:
     """
     if not entries:
         raise ValueError("No verified projects provided")
+    workspace = _safe_workspace_root(workspace)
     checked = []
     keys: set[str] = set()
     for name, review in entries:
@@ -167,7 +219,10 @@ def _append_projects(workspace: Path, entries: list[tuple[str, Path]]) -> None:
             entry["context"] = context_sha
         checked.append(entry)
     workspace.mkdir(parents=True, exist_ok=True)
+    workspace = _safe_workspace_root(workspace)
     manifest = workspace / "projects.json"
+    _check_workspace_file(manifest)
+    _check_workspace_file(manifest.with_suffix(".json.tmp"))
     if manifest.is_file():
         previous = json.loads(manifest.read_text(encoding="utf-8"))
         if previous.get("version") != 1 or not isinstance(previous.get("projects"), list):
@@ -178,11 +233,9 @@ def _append_projects(workspace: Path, entries: list[tuple[str, Path]]) -> None:
     else:
         projects = []
     projects = [p for p in projects if p["id"] not in keys] + checked
-    tmp = manifest.with_suffix(".json.tmp")
-    tmp.write_text(
-        json.dumps({"version": 1, "projects": projects}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    _atomic_workspace_write(
+        manifest, json.dumps({"version": 1, "projects": projects}, indent=2, ensure_ascii=False) + "\n"
     )
-    tmp.replace(manifest)
 
 
 def _append_project(workspace: Path, name: str, review: Path) -> None:
@@ -334,7 +387,7 @@ def workspace_html(workspace: Path, items: list[dict]) -> str:
                 "Select two snapshots" if len(cards) >= 2 else "Add another native KiCad board to unlock comparison",
             )
             .replace("__WORKSPACE_SHELL__", _display(shell_workspace))
-            .replace("__WORKSPACE_JS__", json.dumps(command_workspace, ensure_ascii=True))
+            .replace("__WORKSPACE_JS__", _inline_js_string(command_workspace))
         ),
         image_sources="'self' data:",
         connect_sources="'self'",
@@ -342,12 +395,35 @@ def workspace_html(workspace: Path, items: list[dict]) -> str:
 
 
 def render_workspace(workspace: Path) -> Path:
-    workspace = workspace.resolve()
+    workspace = _safe_workspace_root(workspace)
     projects = _read_projects(workspace)
     workspace.mkdir(parents=True, exist_ok=True)
+    workspace = _safe_workspace_root(workspace)
     target = workspace / "index.html"
-    target.write_text(workspace_html(workspace, projects), encoding="utf-8")
+    _check_workspace_file(target)
+    previous: str | None = None
+    if target.exists():
+        # A custom --workspace is permitted, but never overwrite a user's
+        # unrelated homepage or a non-native document.
+        if target.stat().st_size > 2_000_000:
+            raise ValueError("Unrecognized Review Studio workspace index; refusing overwrite")
+        previous = target.read_text(encoding="utf-8")
+        if 'id="workspaceMain"' not in previous or "ZapTrace Review Studio" not in previous:
+            raise ValueError("Unrecognized Review Studio workspace index; refusing overwrite")
+    rendered = workspace_html(workspace, projects)
+    if rendered != previous:
+        _atomic_workspace_write(target, rendered)
     return target
+
+
+def _source_board_sha256(board: Path) -> str:
+    """Bound the original PCB read before an agent-selected path reaches native review."""
+    if board.suffix != ".kicad_pcb" or board.is_symlink():
+        raise ValueError("Select an existing native .kicad_pcb source file (not a symlink)")
+    raw = read_regular_bytes(board, max_size=10 * 1024 * 1024)
+    if not raw.lstrip().startswith(b"(kicad_pcb"):
+        raise ValueError("Selected PCB is not a native KiCad board")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def main() -> int:
@@ -371,7 +447,7 @@ def main() -> int:
     add.add_argument("--run-id", help="Internal local import isolation ID (UUID hex); creates a fresh output snapshot")
     sub.add_parser("render", help="Rebuild catalog against previously registered native evidence hashes")
     args = parser.parse_args()
-    workspace = args.workspace.resolve()
+    workspace = _safe_workspace_root(args.workspace)
     if args.action == "register":
         _append_project(workspace, args.name, args.review)
     if args.action == "register-many":
@@ -383,7 +459,7 @@ def main() -> int:
 
         if args.schematic is not None:
             validate_schematic_hierarchy(args.schematic)
-        source_sha = hashlib.sha256(args.board.read_bytes()).hexdigest()
+        source_sha = _source_board_sha256(args.board)
         if args.run_id is not None and not re.fullmatch(r"[0-9a-f]{32}", args.run_id):
             raise ValueError("Invalid local import run ID")
         base_name = _slug(args.name) + "-" + source_sha[:12]
@@ -397,6 +473,7 @@ def main() -> int:
             with_drc=not args.no_drc,
             with_3d=not args.no_3d,
             workspace_home=workspace / "index.html",
+            expected_source_sha256=source_sha,
         )
         _append_project(workspace, args.name, review_output)
     target = render_workspace(workspace)

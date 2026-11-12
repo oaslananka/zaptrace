@@ -351,3 +351,247 @@ def test_local_workspace_accessibility_search_and_truthful_version(tmp_path: Pat
     assert "prefers-reduced-motion:reduce" in html
     assert "native snapshots available" in html
     assert "ZapTrace Review Studio 0.1.7" not in html
+
+
+@pytest.mark.parametrize("kind", ["workspace", "ancestor"])
+def test_workspace_refuses_linked_working_folder(tmp_path: Path, kind: str) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "private.txt").write_text("PRIVATE USER FILE")
+    alias = tmp_path / "alias"
+    alias.symlink_to(outside, target_is_directory=True)
+    target = alias if kind == "workspace" else alias / "nested"
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace.render_workspace(target)
+    assert not (outside / "index.html").exists()
+    assert not (outside / "nested").exists()
+    assert (outside / "private.txt").read_text() == "PRIVATE USER FILE"
+
+
+def test_workspace_rejects_parent_traversal_before_normalizing(tmp_path: Path) -> None:
+    (tmp_path / "nested").mkdir()
+    target = tmp_path / "nested" / ".." / "unrelated"
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace.render_workspace(target)
+    assert not (tmp_path / "unrelated").exists()
+
+
+def test_render_refuses_unrelated_or_linked_index_without_clobbering_user_file(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    library.mkdir()
+    user_file = tmp_path / "user-index.html"
+    user_file.write_text("<!doctype html><title>Private note</title>")
+    index = library / "index.html"
+    index.symlink_to(user_file)
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace.render_workspace(library)
+    assert user_file.read_text() == "<!doctype html><title>Private note</title>"
+    index.unlink()
+    index.write_text("Original user homepage")
+    with pytest.raises(ValueError, match="Unrecognized Review Studio workspace"):
+        workspace.render_workspace(library)
+    assert index.read_text() == "Original user homepage"
+
+
+def test_render_generated_index_replaces_link_not_other_hardlinked_file(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    generated = workspace.render_workspace(library).read_text()
+    before = generated.replace("No native KiCad boards yet.", "OLDER NATIVE REVIEW CONTENT")
+    outside = tmp_path / "saved-review.html"
+    outside.write_text(before)
+    index = library / "index.html"
+    index.unlink()
+    index.hardlink_to(outside)
+    assert workspace.render_workspace(library).read_text() == generated
+    assert outside.read_text() == before
+
+
+@pytest.mark.parametrize("name", ["projects.json", "projects.json.tmp"])
+def test_registration_rejects_linked_catalog_files(tmp_path: Path, name: str) -> None:
+    review = _review(tmp_path / "real-review")
+    library = tmp_path / "library"
+    library.mkdir()
+    private_file = tmp_path / "private.json"
+    private_file.write_text('{"version":1,"projects":[]}')
+    (library / name).symlink_to(private_file)
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        workspace._append_project(library, "Test", review)
+    assert private_file.read_text() == '{"version":1,"projects":[]}'
+
+
+def test_existing_legitimate_workspace_rerenders_idempotently(tmp_path: Path) -> None:
+    review = _review(tmp_path / "review")
+    library = tmp_path / "my review with spaces"
+    workspace._append_project(library, "Real native review", review)
+    first = workspace.render_workspace(library).read_bytes()
+    assert workspace.render_workspace(library).read_bytes() == first
+    saved = json.loads((library / "projects.json").read_text())
+    assert saved["projects"][0]["name"] == "Real native review"
+
+
+def test_identical_workspace_reopen_does_not_rewrite_html(tmp_path: Path) -> None:
+    library = tmp_path / "custom collection"
+    page = workspace.render_workspace(library)
+    original_inode = page.stat().st_ino
+    original_bytes = page.read_bytes()
+    reopened = workspace.render_workspace(library)
+    assert reopened == page
+    assert reopened.read_bytes() == original_bytes
+    assert reopened.stat().st_ino == original_inode
+
+
+def test_register_keeps_other_hardlinked_json_data_intact(tmp_path: Path) -> None:
+    review = _review(tmp_path / "verified-review")
+    library = tmp_path / "catalog"
+    library.mkdir()
+    original = tmp_path / "backup-projects.json"
+    original.write_text('{"version":1,"projects":[]}')
+    manifest = library / "projects.json"
+    manifest.hardlink_to(original)
+    workspace._append_project(library, "Evidence", review)
+    assert json.loads(original.read_text()) == {"version": 1, "projects": []}
+    assert json.loads(manifest.read_text())["projects"][0]["name"] == "Evidence"
+
+
+def test_workspace_js_path_cannot_break_out_of_inline_script(tmp_path: Path) -> None:
+    """A local folder name can contain HTML delimiters, not just shell metacharacters."""
+    from html.parser import HTMLParser
+
+    class ScriptCounter(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scripts = 0
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag == "script":
+                self.scripts += 1
+
+    dangerous = tmp_path / "<" / "script><script>alert(19)<"
+    baseline = workspace.workspace_html(tmp_path / "safe", [])
+    rendered = workspace.workspace_html(dangerous, [])
+    original = ScriptCounter()
+    original.feed(baseline)
+    parsed = ScriptCounter()
+    parsed.feed(rendered)
+    assert parsed.scripts == original.scripts
+    assert "</script><script>alert(19)<" not in rendered
+    assert "\\u003c" in rendered
+    assert "\\u003e" in rendered
+
+
+def test_workspace_js_path_round_trips_special_characters_without_html_parsing(
+    tmp_path: Path,
+) -> None:
+    """An escaped path must remain the exact selected workspace in the generated JS."""
+    name = "KiCad & <review> \\u2028"
+    destination = tmp_path / name
+    rendered = workspace.workspace_html(destination, [])
+    assert "\\u003c" in rendered
+    assert "\\u0026" in rendered
+    assert "\\u2028" in rendered
+    assert str(destination) not in rendered
+    assert "FABRICATION" in rendered
+
+
+@pytest.mark.parametrize("case", ["wrong-suffix", "linked-file", "oversized", "wrong-format"])
+def test_workspace_add_rejects_untrusted_pcb_before_any_unbounded_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    """Agent-provided --board must not read an unrelated file before native checks."""
+    private = tmp_path / "private-user-notes.txt"
+    private.write_text("NOT A KICAD PCB: do not read or publish")
+    chosen = tmp_path / "board.kicad_pcb"
+    if case == "wrong-suffix":
+        chosen = private
+    elif case == "linked-file":
+        chosen.symlink_to(private)
+    elif case == "oversized":
+        with chosen.open("wb") as f:
+            f.write(b"(kicad_pcb (version 20241030)")
+            f.truncate(10 * 1024 * 1024 + 1)
+    else:
+        chosen.write_text("NOT A KICAD PCB: do not pass this through")
+
+    actual_read_bytes = Path.read_bytes
+
+    def no_premature_read(source: Path) -> bytes:
+        if source == chosen:
+            raise AssertionError("unsafe/unbounded board source read before native validation")
+        return actual_read_bytes(source)
+
+    monkeypatch.setattr(Path, "read_bytes", no_premature_read)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "review_studio_workspace.py",
+            "--workspace",
+            str(tmp_path / "workspace"),
+            "add",
+            "--name",
+            "My actual KiCad PCB",
+            "--board",
+            str(chosen),
+            "--no-drc",
+            "--no-3d",
+        ],
+    )
+    with pytest.raises(ValueError, match="KiCad|PCB|native|oversized|unsafe"):
+        workspace.main()
+    assert private.read_text() == "NOT A KICAD PCB: do not read or publish"
+    assert not (tmp_path / "workspace").exists()
+    assert not (tmp_path / "workspace" / "projects.json").exists()
+
+
+def test_workspace_pcb_preflight_accepts_real_source_exact_sha() -> None:
+    import hashlib
+
+    source = Path(__file__).parents[1] / "benchmarks/external/nitu-555-blinker/source"
+    board = next(source.glob("*.kicad_pcb"))
+    assert workspace._source_board_sha256(board) == hashlib.sha256(board.read_bytes()).hexdigest()
+
+
+def test_workspace_add_rejects_source_changed_before_native_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Do not publish an apparently verified review for a different PCB revision."""
+    import importlib
+
+    source = Path(__file__).parents[1] / "benchmarks/external/nitu-555-blinker/source"
+    board = tmp_path / "source.kicad_pcb"
+    board.write_bytes(next(source.glob("*.kicad_pcb")).read_bytes())
+    import_native = importlib.import_module("review_studio_native_kicad")
+    actual_build = import_native.build
+    observed: list[str] = []
+
+    def changed_source_build(board_path: Path, output: Path, template: Path, **kwargs: object) -> Path:
+        expected = kwargs["expected_source_sha256"]
+        assert isinstance(expected, str)
+        observed.append(expected)
+        # Simulate a separate editor saving the PCB after the selection hash.
+        board_path.write_bytes(board_path.read_bytes() + b"\n")
+        return actual_build(board_path, output, template, **kwargs)
+
+    monkeypatch.setattr(import_native, "build", changed_source_build)
+    workspace_path = tmp_path / "workspace"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "review_studio_workspace.py",
+            "--workspace",
+            str(workspace_path),
+            "add",
+            "--name",
+            "Edited board",
+            "--board",
+            str(board),
+            "--no-drc",
+            "--no-3d",
+        ],
+    )
+    with pytest.raises(ValueError, match="changed since selection"):
+        workspace.main()
+    assert len(observed) == 1
+    assert not (workspace_path / "projects").exists()
+    assert not (workspace_path / "projects.json").exists()

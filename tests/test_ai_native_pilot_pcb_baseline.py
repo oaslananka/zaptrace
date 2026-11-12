@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,11 @@ import pytest
 
 from scripts.ai_native_candidate_pilot import write_local_candidate
 from scripts.ai_native_pilot_pcb_baseline import create_baseline
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
+
 
 INTENT = "USB-C powered STM32 MCU board, 3.3V rail at 100 mA, I2C temperature sensor"
 
@@ -137,7 +143,7 @@ else:
 print("U3_STENCIL_AND_COPPER_MUTATION_REJECTED")
 """
     result = subprocess.run(
-        ["/usr/bin/python3", "-B", "-c", python_code, str(dest / "SynthesizedBoard.kicad_pcb")],
+        [NATIVE_KICAD_PYTHON, "-B", "-c", python_code, str(dest / "SynthesizedBoard.kicad_pcb")],
         capture_output=True,
         text=True,
         timeout=30,
@@ -213,3 +219,106 @@ def test_placement_rejects_forged_gct_geometry_even_with_new_manifest_sha(tmp_pa
     with pytest.raises(ValueError, match="USB-C geometry does not match"):
         create_baseline(candidate, tmp_path / "refused")
     assert not (tmp_path / "refused").exists()
+
+
+@pytest.mark.parametrize("side", ["candidate_ancestor", "output_ancestor", "output_parent_reference"])
+def test_baseline_refuses_indirect_symlink_paths(tmp_path: Path, side: str) -> None:
+    """Never read a different source or write to an aliased output location."""
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    candidate = safe / "candidate"
+    candidate.mkdir()
+    protected = tmp_path / "outside"
+    protected.mkdir()
+    (protected / "user-data.txt").write_text("do not touch")
+    output = safe / "result"
+    if side == "candidate_ancestor":
+        alias = tmp_path / "candidate-alias"
+        alias.symlink_to(safe, target_is_directory=True)
+        candidate = alias / "candidate"
+        expected = "Unsafe candidate path"
+    elif side == "output_ancestor":
+        alias = tmp_path / "output-alias"
+        alias.symlink_to(protected, target_is_directory=True)
+        output = alias / "result"
+        expected = "Unsafe output path"
+    else:
+        output = safe / "temp" / ".." / "result"
+        (safe / "temp").mkdir()
+        expected = "Unsafe output path"
+
+    with pytest.raises(ValueError, match=expected):
+        create_baseline(candidate, output)
+    assert (protected / "user-data.txt").read_text() == "do not touch"
+    assert not (safe / "result").exists()
+
+
+def test_baseline_rejects_indirect_manifest_file(tmp_path: Path) -> None:
+    """Do not follow a manifest symlink before checking source integrity."""
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    external_manifest = tmp_path / "other-users-manifest.json"
+    external_manifest.write_text('{"fabrication_approved":false}')
+    (candidate / "manifest.json").symlink_to(external_manifest)
+    with pytest.raises(ValueError, match="Unsafe candidate manifest"):
+        create_baseline(candidate, tmp_path / "result")
+    assert external_manifest.read_text() == '{"fabrication_approved":false}'
+    assert not (tmp_path / "result").exists()
+
+
+@pytest.mark.parametrize("changed_name", ["design.json", "candidate-report.json", "manifest.json"])
+def test_pilot_fails_closed_if_candidate_changes_during_native_oracle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed_name: str
+) -> None:
+    """Never publish 'source-bound' evidence for a different candidate revision."""
+    from scripts import ai_native_pilot_pcb_baseline as baseline
+
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    original = {p.name: p.read_bytes() for p in candidate.iterdir()}
+    dest = tmp_path / "native-placement"
+    selected = candidate / changed_name
+
+    def mutation_after_native_staging(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert command[-1].startswith(str(tmp_path))
+        stage = Path(command[-1])
+        assert (stage / "placed-design.json").is_file()
+        selected.write_bytes(original[changed_name] + b"\n")
+        (stage / "native-placement-audit.json").write_text('{"summary":{"drc_findings":4}}')
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(baseline.subprocess, "run", mutation_after_native_staging)
+    with pytest.raises(ValueError, match="Candidate source changed during native verification"):
+        create_baseline(candidate, dest)
+    assert not dest.exists()
+    assert selected.read_bytes() == original[changed_name] + b"\n"
+    for name, original_bytes in original.items():
+        if name != changed_name:
+            assert (candidate / name).read_bytes() == original_bytes
+
+
+def test_pilot_rechecks_output_ancestor_before_publish(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Do not publish into a parent directory redirected by another local process."""
+    from scripts import ai_native_pilot_pcb_baseline as baseline
+
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    parent = tmp_path / "requested"
+    parent.mkdir()
+    user_folder = tmp_path / "different-user-folder"
+    user_folder.mkdir()
+    (user_folder / "personal-notes.txt").write_text("DO NOT ALTER")
+    destination = parent / "result"
+
+    def redirect_parent_during_native_stage(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        stage = Path(command[-1])
+        (stage / "native-placement-audit.json").write_text('{"summary":{}}')
+        parent.rename(tmp_path / "original-parent-moved")
+        parent.symlink_to(user_folder, target_is_directory=True)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(baseline.subprocess, "run", redirect_parent_during_native_stage)
+    with pytest.raises((ValueError, OSError), match="Unsafe output path|symbolic link|Refusing|No such file"):
+        create_baseline(candidate, destination)
+    assert not (user_folder / "result").exists()
+    assert (user_folder / "personal-notes.txt").read_text() == "DO NOT ALTER"

@@ -195,6 +195,214 @@ def test_kicad_install_workflows_use_bounded_retry_helper() -> None:
     assert "sudo apt-get install --no-install-recommends -y ngspice" not in benchmark
 
 
+def test_signed_ubuntu_mirror_failover_is_ci_only(tmp_path: Path) -> None:
+    """Fail closed locally; in CI, apt uses the distro keyring on pinned mirrors."""
+    script = Path("scripts/ci_install_ubuntu_packages.sh").read_text(encoding="utf-8")
+    assert "ubuntu-archive-keyring.gpg" in script
+    assert "signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg" in script
+    assert "https://mirrors.mit.edu/ubuntu" in script
+    assert "https://mirrors.kernel.org/ubuntu" in script
+    assert "APT::Update::Error-Mode=any" in script
+    assert "trusted=yes" not in script and "allow-unauthenticated" not in script
+    assert "Dir::Etc::sourceparts=-" in script
+    assert "GITHUB_ACTIONS" in script
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    sudo = fake_bin / "sudo"
+    sudo.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$MOCK_SUDO_LOG"\n'
+        'if [[ "$*" == *"APT::Update::Error-Mode=any update"* && '
+        '"$*" != *"Dir::Etc::sourcelist="* ]]; then exit 1; fi\n',
+        encoding="utf-8",
+    )
+    sudo.chmod(0o755)
+
+    for github_ci, should_succeed in (("false", False), ("true", True)):
+        log = tmp_path / "sudo.log"
+        log.write_text("", encoding="utf-8")
+        completed = subprocess.run(
+            ["bash", "scripts/ci_install_ubuntu_packages.sh", "desktop-file-utils"],
+            env={
+                **os.environ,
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "MOCK_SUDO_LOG": str(log),
+                "GITHUB_ACTIONS": github_ci,
+            },
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert (completed.returncode == 0) is should_succeed, completed.stderr
+        calls = log.read_text(encoding="utf-8")
+        assert "APT::Update::Error-Mode=any update" in calls
+        assert ("Dir::Etc::sourcelist=" in calls) is should_succeed
+        if should_succeed:
+            assert "desktop-file-utils" in calls
+            assert "signed mirror" in completed.stdout
+
+
+def test_kicad_appimage_and_utility_jobs_share_signed_ubuntu_install_helper() -> None:
+    assert 'exec bash scripts/ci_install_ubuntu_packages.sh "$@"' in Path("scripts/ci_install_kicad.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'bash scripts/ci_install_ubuntu_packages.sh "${native_packages[@]}"' in Path(
+        "scripts/ci_install_kicad_appimage.sh"
+    ).read_text(encoding="utf-8")
+
+
+def test_simulation_install_does_not_require_kicad_ppa(tmp_path: Path) -> None:
+    """Run the real installer with only sudo mocked; no host packages are changed."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    sudo = fake_bin / "sudo"
+    sudo.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$MOCK_SUDO_LOG"\n',
+        encoding="utf-8",
+    )
+    sudo.chmod(0o755)
+    env = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}", "MOCK_SUDO_LOG": str(tmp_path / "sudo.log")}
+    installer = "scripts/ci_install_kicad.sh"
+
+    for packages, expected_ppa in ((["ngspice"], False), (["desktop-file-utils"], False), (["kicad", "ngspice"], True)):
+        (tmp_path / "sudo.log").write_text("", encoding="utf-8")
+        completed = subprocess.run(
+            ["bash", installer, *packages],
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert completed.returncode == 0, completed.stderr
+        calls = (tmp_path / "sudo.log").read_text(encoding="utf-8")
+        assert ("add-apt-repository" in calls) is expected_ppa
+        assert "apt-get" in calls and "install" in calls
+        assert packages[-1] in calls
+
+
+def test_kicad_official_appimage_ci_selection_is_pinned_and_scoped(tmp_path: Path) -> None:
+    """Keep original PPA behavior unless a KiCad-requiring CI step opts in."""
+    installer = Path("scripts/ci_install_kicad_appimage.sh").read_text(encoding="utf-8")
+    router = Path("scripts/ci_install_kicad.sh").read_text(encoding="utf-8")
+    assert "KICAD_CI_INSTALL_METHOD:-apt" in router
+    assert 'exec bash scripts/ci_install_kicad_appimage.sh "$@"' in router
+    assert "10.0.8" in installer
+    assert "abb59cee9f9782736c1b9a92e3ab08b31320ee01d72a6f9442a07fdef71b87d0" in installer
+    assert "4dfc6a52f89aa072d206e466a2a1de4c5ef5975d7ef49da24e4d4db0bb40ba3b" in installer
+    assert "RWSyix0AVvjWQGZChX64ywBpE5XqV1Eg+ZXYHR3Y27md9EoZ0AtVr9i9" in installer
+    assert "mirrors.mit.edu/kicad/appimage/stable" in installer
+    assert "mirror.nju.edu.cn/kicad/appimage/stable" in installer
+    assert "minisign -Vm" in installer
+    assert "sha256sum --check" in installer
+    assert "--appimage-extract" in installer
+    assert "kicad-cli version" in installer
+    assert "import pcbnew; print(pcbnew.Version())" in installer
+    assert 'assert pcbnew.Version() == "10.0.8"' in installer
+    assert "ZAPTRACE_KICAD_PYTHON=appimage" in installer
+    for path in (
+        "scripts/review_studio_local_server.py",
+        "scripts/review_studio_native_copper_bundle.py",
+        "tests/test_review_studio_pcb_eco.py",
+        "tests/test_review_studio_schematic_pcb_parity.py",
+    ):
+        source = Path(path).read_text(encoding="utf-8")
+        assert "ZAPTRACE_KICAD_PYTHON" in source
+        assert "/usr/local/bin/kicad-python" in source
+        assert "/usr/bin/python3" in source
+    assert "trusted=yes" not in installer
+    assert "allow-unauthenticated" not in installer
+
+    for path, step_name, invocation in (
+        (".github/workflows/quality.yml", "Install KiCad 10 CLI", "kicad ngspice"),
+        (".github/workflows/quality-test-lanes.yml", "Install external test tools", "kicad ngspice"),
+        (".github/workflows/release.yml", "Run Python quality gates", "kicad ngspice"),
+        (".github/actions/kicad-oracle/action.yml", "Install KiCad 10 CLI", "kicad"),
+    ):
+        source = Path(path).read_text(encoding="utf-8")
+        assert source.count("KICAD_CI_INSTALL_METHOD:") == 1
+        assert source.index(step_name) < source.index('KICAD_CI_INSTALL_METHOD: "appimage"')
+        assert f"bash scripts/ci_install_kicad.sh {invocation}" in source
+
+    completed = subprocess.run(
+        ["bash", "scripts/ci_install_kicad.sh", "ngspice"],
+        env={**os.environ, "KICAD_CI_INSTALL_METHOD": "invalid"},
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 2
+    assert "Unsupported KiCad CI install method" in completed.stderr
+
+    completed = subprocess.run(
+        ["bash", "scripts/ci_install_kicad_appimage.sh", "ngspice"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 2
+    assert "Missing requested KiCad package" in completed.stderr
+
+
+def test_kicad_ppa_pinned_public_signing_key() -> None:
+    import shutil
+
+    key = Path("security/kicad-10-ppa-signing-key.asc")
+    assert key.is_file()
+    if not shutil.which("gpg"):
+        pytest.skip("GPG is needed for verifying the pinned public signing key")
+    result = subprocess.run(
+        ["gpg", "--batch", "--show-keys", "--with-colons", str(key)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    fingerprints = [line.split(":")[9] for line in result.stdout.splitlines() if line.startswith("fpr:")]
+    assert fingerprints[0] == "FDA854F61C4D0D9572BB95E5245D5502FAD7A805"
+
+
+def test_kicad_ppa_api_failure_uses_verified_apt_signed_by_fallback(tmp_path: Path) -> None:
+    """No real root commands run; verify the fallback preserves APT signature checks."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    sudo = fake_bin / "sudo"
+    sudo.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$MOCK_SUDO_LOG"\n'
+        'if [[ "$*" == *"add-apt-repository"* ]]; then exit 1; fi\n'
+        'if [[ "$1" == "tee" ]]; then cat >/dev/null; fi\n',
+        encoding="utf-8",
+    )
+    sudo.chmod(0o755)
+    sleep = fake_bin / "sleep"
+    sleep.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    sleep.chmod(0o755)
+    log = tmp_path / "sudo.log"
+    env = {**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}", "MOCK_SUDO_LOG": str(log)}
+    result = subprocess.run(
+        ["bash", "scripts/ci_install_kicad.sh", "kicad", "ngspice"],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=25,
+    )
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text(encoding="utf-8")
+    assert calls.count("add-apt-repository") == 3
+    assert "install -D -m 0644 security/kicad-10-ppa-signing-key.asc" in calls
+    assert "kicad-ubuntu-kicad-10_0-releases-" in calls
+    assert "apt-get" in calls and "install" in calls
+    assert "Configuring KiCad 10 PPA using pre-verified fingerprint" in result.stdout
+    script = Path("scripts/ci_install_kicad.sh").read_text(encoding="utf-8")
+    assert "Signed-By: /usr/share/keyrings/zaptrace-kicad-10-ppa.asc" in script
+    assert "trusted=yes" not in script
+    assert "allow-insecure-repositories" not in script
+
+
 def test_get_tool_requirements_rejects_unknown_role() -> None:
     with pytest.raises(ValueError, match="unsupported environment role"):
         ci_validation_environment.get_tool_requirements("invalid-role")

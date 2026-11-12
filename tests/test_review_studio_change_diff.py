@@ -709,3 +709,46 @@ def test_native_svg_target_symlink_is_rejected_without_touching_owner_data(
     with pytest.raises(ValueError, match="Unsafe native schematic SVG target"):
         change.native_schematic_svg("kicad-cli", tmp_path / "source.kicad_sch", target)
     assert user_data.read_text() == "unchanged"
+
+
+def test_native_schematic_svg_rejects_symlinked_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A redirected output folder must not receive native generated artifacts."""
+    private = tmp_path / "unrelated-user-files"
+    private.mkdir()
+    alias = tmp_path / "review-output-alias"
+    alias.symlink_to(private, target_is_directory=True)
+
+    def unexpected_export(*args: object, **kwargs: object) -> None:
+        raise AssertionError("KiCad export must not run for unsafe output folders")
+
+    monkeypatch.setattr(change.subprocess, "run", unexpected_export)
+    with pytest.raises(ValueError, match="Unsafe native schematic SVG target"):
+        change.native_schematic_svg("kicad-cli", tmp_path / "source.kicad_sch", alias / "review.svg")
+    assert list(private.iterdir()) == []
+
+
+def test_native_schematic_svg_hardlink_cannot_overwrite_owner_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Replacing a review artifact must not truncate a hard-linked user file."""
+    import hashlib
+    import subprocess
+
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm" viewBox="0 0 10 10"/>'
+
+    def generate(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        directory = Path(argv[argv.index("--output") + 1])
+        (directory / "native.svg").write_bytes(svg)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(change.subprocess, "run", generate)
+    user_data = tmp_path / "unrelated.txt"
+    user_data.write_text("precious user data")
+    target = tmp_path / "review.svg"
+    target.hardlink_to(user_data)
+
+    result = change.native_schematic_svg("kicad-cli", tmp_path / "input.kicad_sch", target)
+
+    assert result["sha256"] == hashlib.sha256(svg).hexdigest()
+    assert target.read_bytes() == svg
+    assert user_data.read_text() == "precious user data"

@@ -1,0 +1,708 @@
+"""Source-pinned illustrative ngspice DC sweep for the PN2222A G0-004 proposal.
+
+Only generic *assumed* BJT/diode model parameters are supplied here.
+Successful convergence never authorizes J2 load, a real part, or fabrication.
+Run in an isolated process: ngspice is accessed through its optional shared
+library, not an installed ngspice binary or a network service.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ctypes
+import ctypes.util
+import hashlib
+import json
+import re
+import shutil
+import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
+
+from defusedxml import ElementTree
+
+from zaptrace.io.sexp import parse as parse_kicad
+from zaptrace.kicad.oracle import KiCadOracle
+from zaptrace.kicad.step_export import _execute_step_command
+
+ROOT = Path(__file__).parents[1]
+SOURCE = ROOT / "benchmarks/external/nitu-npn-transistor-switch/source"
+PREVIOUS = ROOT / "benchmarks/g0-ai-engineering-tasks/npn-switch-base-drive-independent-model.json"
+LOADS_OHMS: tuple[int | None, ...] = (None, 1000, 220, 100, 47, 22, 10)
+ASSUMED_BETA_F = (50, 150)
+RESISTORS_OHMS = (390, 820)
+# Verified 2026-11-12 by fetching actual manufacturer / archival PDF bytes.
+# No copyrighted PDF is vendored, and identifying a document is not part selection.
+TRUSTED_PN2222A_DOCUMENTS = {
+    "onsemi-fairchild-pn2222a-2014": {
+        "url": "https://www.onsemi.com/pdf/datasheet/pn2222a-d.pdf",
+        "sha256": "f1eda8482f5f227f5c80c8ba750ae28ff2159139e268158bd656bc8f0db0a6d2",
+        "revision": "Fairchild PN2222A Rev. 1.1.0, July 2014",
+        "orderable_candidates": ["PN2222ABU", "PN2222ATA", "PN2222ATF", "PN2222ATFR"],
+        "pinout": {"1": "E", "2": "B", "3": "C"},
+    },
+    "onsemi-pn2222-2000-archive": {
+        "url": "https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf",
+        "sha256": "9e61ab90e7ff3e204d6f09c09f00a7a6a0967f11070d6a7f89d7dd5fee16482e",
+        "revision": "onsemi PN2222/D Rev. 0, November 2000",
+        "orderable_candidates": ["PN2222A", "PN2222ARLRA", "PN2222ARLRM", "PN2222ARLRP"],
+        "pinout": {"1": "E", "2": "B", "3": "C"},
+    },
+}
+EXPECTED_Q1_PADS = {"1": "GND", "2": "Net-(Q1-B)", "3": "Net-(D1-K)"}
+EXPECTED_Q1_PIN_NAMES = {"1": "E", "2": "B", "3": "C"}
+EXPECTED_Q1_FOOTPRINT = "Package_TO_SOT_THT:TO-92_Inline"
+# Illustrative educational BJT *hypotheses* only; no qualified PN2222A model:
+BJT_PARAMETERS = "IS=14.34f VAF=74 IKF=.2847 RB=10 RC=1 RE=0.1"
+DRED_PARAMETERS = "IS=1e-17 N=2.2 RS=2"
+DFLY_PARAMETERS = "IS=2.52e-9 N=1.752 RS=.568"
+PRINT_VALUES = ("v(col)", "v(base)", "v(led)", "v(sw)", "@q1[ic]")
+GROUPS = (
+    frozenset({("D2", "1"), ("J1", "1"), ("J2", "1"), ("R3", "1"), ("SW1", "1"), ("TP1", "1")}),
+    frozenset({("J1", "2"), ("Q1", "1"), ("R2", "2"), ("TP2", "1")}),
+    frozenset({("D1", "2"), ("R3", "2")}),
+    frozenset({("D1", "1"), ("D2", "2"), ("J2", "2"), ("Q1", "3"), ("TP4", "1")}),
+    frozenset({("Q1", "2"), ("R1", "2"), ("R2", "1"), ("TP3", "1")}),
+    frozenset({("R1", "1"), ("SW1", "2")}),
+)
+
+
+def digest(contents: bytes) -> str:
+    return hashlib.sha256(contents).hexdigest()
+
+
+def shared_ngspice_available() -> bool:
+    return ctypes.util.find_library("ngspice") is not None
+
+
+def validate_custom_j2_resistance(value: object) -> int:
+    """Accept a bounded ideal DC resistor, never a fabricated load profile."""
+    if type(value) is not int or not 10 <= value <= 1_000_000:
+        raise ValueError("J2 resistive load must be a whole number from 10 to 1000000 ohms")
+    return value
+
+
+def verify_supplier_pdf(blob: bytes | None) -> dict[str, Any]:
+    """Only hash bounded, explicit binary input; never read an untrusted path."""
+    if blob is None:
+        return {
+            "status": "NOT_SUPPLIED_THIS_RUN",
+            "sha256": None,
+            "part_qualification": False,
+            "model_qualification": False,
+            "instruction": (
+                "Use --supplier-pdf-stdin and redirect a separately obtained "
+                "PDF to standard input, without granting file-path access."
+            ),
+        }
+    if len(blob) > 5_000_000:
+        raise ValueError("Supplier PDF unexpectedly large; document identity NOT verified")
+    if not blob.startswith(b"%PDF-") or len(blob) < 10_000:
+        raise ValueError("Supplier document is not a recognized complete PDF")
+    sha = digest(blob)
+    for identifier, meta in TRUSTED_PN2222A_DOCUMENTS.items():
+        if sha == meta["sha256"]:
+            return {
+                "status": "EXACT_PINNED_SUPPLIER_PDF_BYTES",
+                "source_id": identifier,
+                "sha256": sha,
+                "url_verified_on_2026_11_12": meta["url"],
+                "revision": meta["revision"],
+                "part_qualification": False,
+                "model_qualification": False,
+            }
+    raise ValueError(
+        "Supplier PDF bytes do not match the two reviewed PN2222A "
+        "document revisions; do not trust a URL or redirect as part identity"
+    )
+
+
+def _sexp_children(tree: Any, tag: str) -> list[list[Any]]:
+    """Select immediate S-expression lists while ignoring atom children."""
+    return [item for item in tree if isinstance(item, list) and item[:1] == [tag]]
+
+
+def _symbol_pin_name_map(schematic: Path) -> dict[str, str]:
+    """Read the immutable source KiCad library symbol, not guessed pin names."""
+    tree = parse_kicad(schematic.read_text(encoding="utf-8"))
+    symbols = [
+        symbol
+        for libraries in _sexp_children(tree, "lib_symbols")
+        for symbol in _sexp_children(libraries, "symbol")
+        if len(symbol) > 1 and symbol[1] == "Transistor_BJT:PN2222A"
+    ]
+    if len(symbols) != 1:
+        raise ValueError("Source PN2222A library symbol missing or ambiguous")
+    pins = [pin for unit in _sexp_children(symbols[0], "symbol") for pin in _sexp_children(unit, "pin")]
+    pin_names: dict[str, str] = {}
+    for pin in pins:
+        fields = {
+            sub[0]: sub[1] for sub in pin if isinstance(sub, list) and len(sub) > 1 and sub[0] in {"number", "name"}
+        }
+        number = fields.get("number")
+        pin_name = fields.get("name")
+        if isinstance(number, str) and isinstance(pin_name, str):
+            pin_names[number] = pin_name
+    return pin_names
+
+
+def _find_q1_footprint(board: Path) -> tuple[list[Any], dict[str, Any]]:
+    """Return the exact and unique source PCB footprint and its properties."""
+    tree = parse_kicad(board.read_text(encoding="utf-8"))
+    selected = []
+    for fp in _sexp_children(tree, "footprint"):
+        props = {field[1]: field[2] for field in _sexp_children(fp, "property") if len(field) > 2}
+        if props.get("Reference") == "Q1":
+            selected.append((fp, props))
+    if len(selected) != 1:
+        raise ValueError("Expected exactly one Q1 footprint; supplier pinout NOT verified")
+    return selected[0]
+
+
+def _q1_pcb_pad_nets(footprint: list[Any]) -> dict[str, str]:
+    """Collect the real PCB numbered pad connections, excluding unnamed pads."""
+    pad_nets: dict[str, str] = {}
+    for pad in _sexp_children(footprint, "pad"):
+        nets = _sexp_children(pad, "net")
+        number = pad[1] if len(pad) > 1 else None
+        net_name = nets[0][1] if nets and len(nets[0]) > 1 else None
+        if isinstance(number, str) and isinstance(net_name, str):
+            pad_nets[number] = net_name
+    return pad_nets
+
+
+def verify_q1_source_pinout(schematic: Path, board: Path) -> dict[str, Any]:
+    """Fail closed when original Q1 source pins and PCB pads differ."""
+    symbol_names = _symbol_pin_name_map(schematic)
+    if symbol_names != EXPECTED_Q1_PIN_NAMES:
+        raise ValueError("Original PN2222A symbol pin numbers do not match supplier E-B-C diagram")
+    footprint, props = _find_q1_footprint(board)
+    if footprint[1] != EXPECTED_Q1_FOOTPRINT:
+        raise ValueError("Q1 footprint is not the pinned TO-92 Inline part")
+    if props.get("Value") != "PN2222A" or props.get("Sim.Pins") != "1=E 2=B 3=C":
+        raise ValueError("Q1 source PN2222A footprint model/pin assignment is inconsistent")
+    pad_nets = _q1_pcb_pad_nets(footprint)
+    if pad_nets != EXPECTED_Q1_PADS:
+        raise ValueError("Q1 physical PCB pad net names differ from original circuit model")
+    return {
+        "status": "SOURCE_NUMBERED_PAD_AND_SYMBOL_PINS_CONSISTENT",
+        "reference": "Q1",
+        "source_value": "PN2222A",
+        "footprint": EXPECTED_Q1_FOOTPRINT,
+        "source_symbol_pin_number_to_function": symbol_names,
+        "source_pcb_pad_net_names": pad_nets,
+        "published_PN2222A_TO92_EBC_mapping": EXPECTED_Q1_PIN_NAMES,
+        "physical_orientation_verified": False,
+        "exact_supplier_sku_selected": False,
+        "source_j2_external_load_identified": False,
+        "manufacturer_spice_model_verified": False,
+        "manufacturing_or_human_approval": "NOT_RUN",
+    }
+
+
+def verify_native_source(source: Path) -> dict[str, Any]:
+    """Reject edited source and unexpected KiCad component/pin topology."""
+    prior = json.loads(PREVIOUS.read_text(encoding="utf-8"))
+    check = prior["native_source_review"]["direct_source_preserving_resistor_eco"]
+    board = next(source.glob("*.kicad_pcb"))
+    schematic, project = board.with_suffix(".kicad_sch"), board.with_suffix(".kicad_pro")
+    originals = {p.name: digest(p.read_bytes()) for p in (board, schematic, project)}
+    for name, field in (
+        (board.name, "original_pcb_sha256"),
+        (schematic.name, "original_schematic_sha256"),
+        (project.name, "original_project_sha256"),
+    ):
+        if originals[name] != check[field]:
+            raise ValueError(f"Original source hash mismatch: {name}; stop before simulation")
+
+    tool = shutil.which("kicad-cli")
+    if tool is None:
+        raise RuntimeError("Real KiCad CLI unavailable; source topology is NOT verified")
+    oracle = KiCadOracle(tool)
+    if not oracle.available or not oracle.version.startswith("10."):
+        raise RuntimeError("Real KiCad 10 required for source-bound G0 SPICE evidence")
+
+    with TemporaryDirectory(prefix="zaptrace-g0-npn-source-netlist-") as scratch:
+        folder = Path(scratch)
+        for path in (board, schematic, project):
+            shutil.copyfile(path, folder / path.name)
+        native_xml = folder / "native.xml"
+        cmd = [
+            tool,
+            "sch",
+            "export",
+            "netlist",
+            "--format",
+            "kicadxml",
+            "--output",
+            str(native_xml),
+            str(folder / schematic.name),
+        ]
+        run = _execute_step_command(cmd, timeout=85)
+        if run.exit_code != 0:
+            raise RuntimeError(f"Native KiCad netlist export failed: {run.stderr_snippet[:350]}")
+        tree = ElementTree.parse(native_xml).getroot()
+        if tree is None:
+            raise ValueError("Native KiCad netlist XML was empty; no simulation evidence")
+        components = {element.get("ref"): element.findtext("value") for element in tree.findall("./components/comp")}
+        required = {
+            "Q1": "PN2222A",
+            "R1": "390",
+            "R2": "10k",
+            "R3": "330",
+            "D1": "RED",
+            "D2": "1N4148",
+            "SW1": "SW_Push",
+            "J1": "POWER",
+            "J2": "LOAD",
+        }
+        if any(components.get(reference) != value for reference, value in required.items()):
+            raise ValueError("Original source components changed; SPICE model mapping is stale")
+        nets = [
+            frozenset((node.get("ref"), node.get("pin")) for node in item.findall("node"))
+            for item in tree.findall("./nets/net")
+        ]
+        if set(nets) != set(GROUPS) or len(nets) != len(GROUPS):
+            raise ValueError("Native original source pin-to-net graph changed; refusing simulation")
+
+    if any(digest(p.read_bytes()) != originals[p.name] for p in (board, schematic, project)):
+        raise RuntimeError("Original KiCad files were altered during native source check")
+    return {
+        "source_sha256": originals,
+        "kicad_version": oracle.version,
+        "net_count": len(GROUPS),
+        "source_q1_pinout": verify_q1_source_pinout(schematic, board),
+    }
+
+
+def circuit_cards(*, r1: int, beta_f: int, external_load: int | None, switch_state: str = "CLOSED") -> list[str]:
+    if r1 not in RESISTORS_OHMS or beta_f not in ASSUMED_BETA_F:
+        raise ValueError("Only source-bound R1 values and bounded assumed gains are supported")
+    if external_load is not None:
+        validate_custom_j2_resistance(external_load)
+    if switch_state not in {"CLOSED", "OPEN"}:
+        raise ValueError("Only bounded closed/open DC pushbutton states are supported")
+    contact_ohms = 0.05 if switch_state == "CLOSED" else 1_000_000_000
+    cards = [
+        "NPN switch G0-004: original KiCad mapped, UNQUALIFIED hypothetical device models",
+        "VCC vcc 0 DC 5",
+        f"RCONTACT vcc sw {contact_ohms}",
+        f"R1 sw base {r1}",
+        "RPD base 0 10k",
+        "Q1 col base 0 QBJT_ASSUMED",
+        "RLED vcc led 330",
+        "DLED led col DRED_ASSUMED",
+        "DFLY col vcc DFLY_ASSUMED",
+        "RLEAK vcc col 1g",
+        f".model QBJT_ASSUMED NPN(BF={beta_f} {BJT_PARAMETERS})",
+        f".model DRED_ASSUMED D({DRED_PARAMETERS})",
+        f".model DFLY_ASSUMED D({DFLY_PARAMETERS})",
+        ".end",
+    ]
+    if external_load is not None:
+        cards.insert(9, f"RLOAD vcc col {external_load}")
+    return cards
+
+
+def datasheet_conditional_review(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compare *published test conditions*, never extrapolate a VCE(sat) guarantee.
+
+    Manufacturer document PN2222/D (Nov 2000, Rev. 0, pages 1-2),
+    archival copy of the source schematic's onsemi datasheet reference.
+    A datasheet point is not a validated SPICE parameter curve.
+    """
+    tests = [
+        {"i_collector_ma": 150, "i_base_ma": 15, "vce_sat_max_v": 0.3},
+        {"i_collector_ma": 500, "i_base_ma": 50, "vce_sat_max_v": 1.0},
+    ]
+    resistor_checks = []
+    for r1 in RESISTORS_OHMS:
+        # VBE=0 is an idealized upper bound for *forward* base drive at
+        # VCC=5V; 10k pulldown and physical VBE only decrease the available
+        # transistor base current. It is NOT a predicted operating point.
+        max_possible_ma = 1000 * 5 / (r1 + 0.05)
+        resistor_checks.append(
+            {
+                "r1_ohms": r1,
+                "idealized_upper_bound_base_feed_ma": round(max_possible_ma, 6),
+                "upper_bound_assumption": "VBE=0V, VCC=5V, switch contact 0.05 ohm",
+                "can_supply_15ma_test_point": max_possible_ma >= 15,
+                "can_supply_50ma_test_point": max_possible_ma >= 50,
+                "published_150ma_saturation_guarantee_applicable": False,
+                "status": "CONDITIONS_NOT_REPRODUCED",
+            }
+        )
+    # TA=50C max rating from the *historical* datasheet derating line,
+    # NOT a steady-state thermal solve for the ngspice 27C model.
+    illustrative_max_pd_ma = 625 - (50 - 25) * 5
+    warnings = [
+        {
+            "r1_ohms": case["r1_ohms"],
+            "assumed_beta_f": case["assumed_beta_f"],
+            "external_load_ohms": case["external_load_ohms"],
+            "hypothetical_27c_dissipation_mw": case["transistor_dissipation_mw"],
+            "comparison_50c_rating_mw": illustrative_max_pd_ma,
+            "screening_margin_mw_if_27c_solution_persisted": round(
+                illustrative_max_pd_ma - case["transistor_dissipation_mw"], 6
+            ),
+            "status": "INVESTIGATE_NOT_A_THERMAL_PREDICTION",
+        }
+        for case in cases
+        if case["switch_state"] == "CLOSED" and case["transistor_dissipation_mw"] > illustrative_max_pd_ma
+    ]
+    return {
+        "document": "PN2222/D, November 2000, Rev. 0",
+        "component": "PN2222A",
+        "kicad_original_datasheet_url": "https://www.onsemi.com/pub/Collateral/PN2222-D.PDF",
+        "archival_mirror_url": (
+            "https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf"
+        ),
+        "reference_status": "HISTORIC_ARCHIVAL_DOCUMENT_NOT_LIVE_PART_QUALIFICATION",
+        "source_page_numbers": [1, 2],
+        "saturation_test_points": tests,
+        "conditional_base_drive_review": resistor_checks,
+        "thermal_reference": {
+            "max_p_dis_25c_mw": 625,
+            "derating_above_25c_mw_per_c": 5,
+            "max_junction_to_ambient_c_per_w": 200,
+            "reference_package": "TO-92",
+            "illustrative_50c_rating_mw": illustrative_max_pd_ma,
+            "comparison_status": "NOT_A_TEMPERATURE_DEPENDENT_SPICE_OR_THERMAL_MODEL",
+            "warning_cases": warnings,
+        },
+        "manufacturer_specific_bjt_spice_model": "NOT_RETRIEVED_OR_VERIFIED",
+        "exact_orderable_sku_and_board_ambient": "UNKNOWN",
+        "real_load_current": "UNKNOWN",
+        "real_load_approved": False,
+        "manufacturer_saturation_guarantee_established": False,
+        "qualified_human_approval": "NOT_RUN",
+        "next_user_action": (
+            "Specify J2 load type and current, exact orderable PN2222A SKU, "
+            "ambient/PCB package conditions, and request qualified functional review."
+        ),
+        "nonclaims": (
+            "The quoted VCEsat maxima apply only under the published Ic, Ib and "
+            "pulse test conditions. Available base current being below a published "
+            "test point does NOT prove that the transistor cannot switch a load. "
+            "Comparing a simulated 27C dissipation to a 50C derated limit "
+            "is a warning-only screen, not a self-consistent thermal prediction."
+        ),
+    }
+
+
+class SharedNgspice:
+    """Tiny single-process DC interface with bounded outputs; no GUI or service."""
+
+    def __init__(self) -> None:
+        name = ctypes.util.find_library("ngspice")
+        if not name:
+            raise RuntimeError("ngspice shared library unavailable: simulation NOT RUN")
+        self.library = ctypes.CDLL(name)
+        self.lines: list[str] = []
+        on_message = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_void_p)
+        on_exit = ctypes.CFUNCTYPE(
+            ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool, ctypes.c_int, ctypes.c_void_p
+        )
+
+        @on_message
+        def message(text: bytes | None, _ident: int, _user: object) -> int:
+            if text and len(self.lines) < 200:
+                self.lines.append(text.decode("utf-8", errors="replace"))
+            return 0
+
+        @on_exit
+        def exited(_status: int, _immediate: bool, _quitting: bool, _ident: int, _user: object) -> int:
+            return 0
+
+        self._message = message  # keep native callback references alive
+        self._exited = exited
+        self.library.ngSpice_Init.argtypes = [ctypes.c_void_p] * 7
+        self.library.ngSpice_Init.restype = ctypes.c_int
+        self.library.ngSpice_Circ.argtypes = [ctypes.POINTER(ctypes.c_char_p)]
+        self.library.ngSpice_Circ.restype = ctypes.c_int
+        self.library.ngSpice_Command.argtypes = [ctypes.c_char_p]
+        self.library.ngSpice_Command.restype = ctypes.c_int
+        result = self.library.ngSpice_Init(
+            ctypes.cast(self._message, ctypes.c_void_p),
+            None,
+            ctypes.cast(self._exited, ctypes.c_void_p),
+            None,
+            None,
+            None,
+            None,
+        )
+        if result:
+            raise RuntimeError(f"ngspice initialization error: {result}")
+        banner = "\n".join(self.lines)
+        version = re.search(r"ngspice-([0-9]+(?:\.[0-9]+)*) shared library", banner)
+        if not version:
+            raise RuntimeError("ngspice engine version not reported; cannot pin results")
+        self.version = version.group(1)
+
+    def operating_point(self, cards: list[str]) -> dict[str, float]:
+        self.lines.clear()
+        source = (ctypes.c_char_p * (len(cards) + 1))(*[line.encode() for line in cards], None)
+        if self.library.ngSpice_Circ(source) != 0:
+            raise RuntimeError("ngspice rejected the source circuit")
+        try:
+            if self.library.ngSpice_Command(b"op") != 0:
+                raise RuntimeError("ngspice DC operating point failed")
+            command = ("print " + " ".join(PRINT_VALUES)).encode()
+            if self.library.ngSpice_Command(command) != 0:
+                raise RuntimeError("ngspice could not print its operating point")
+            log = "\n".join(self.lines)
+            if re.search(r"(?:error:|error on line|simulation failed)", log, re.IGNORECASE):
+                raise RuntimeError("ngspice reported an error; no functional evidence")
+            measured: dict[str, float] = {}
+            for line in self.lines:
+                item = re.fullmatch(r"stdout\s+(\S+)\s+=\s+([+-]?\d+(?:\.\d+)?[eE][+-]?\d+)", line.strip())
+                if item and item.group(1) in PRINT_VALUES:
+                    measured[item.group(1)] = float(item.group(2))
+            if set(measured) != set(PRINT_VALUES):
+                raise RuntimeError(f"Missing native ngspice vectors: {set(PRINT_VALUES) - set(measured)}")
+            return measured
+        finally:
+            self.library.ngSpice_Command(b"destroy all")
+
+
+def simulate_source_bound_npn(
+    source: Path, *, supplier_pdf_bytes: bytes | None = None, j2_resistive_ohms: int | None = None
+) -> dict[str, Any]:
+    custom_load = None if j2_resistive_ohms is None else validate_custom_j2_resistance(j2_resistive_ohms)
+    pinned = verify_native_source(source)
+    document_check = verify_supplier_pdf(supplier_pdf_bytes)
+    simulator = SharedNgspice()
+    cases: list[dict[str, Any]] = []
+    scenarios = [
+        (resistance, beta, load, "CLOSED")
+        for resistance in RESISTORS_OHMS
+        for beta in ASSUMED_BETA_F
+        for load in LOADS_OHMS
+    ]
+    # The normally-open pushbutton's DC rest state matters to the end user;
+    # model OPEN with a 1 gigaohm contact (not a transient bounce model).
+    scenarios += [(820, beta, load, "OPEN") for beta in ASSUMED_BETA_F for load in (None, 220, 22)]
+    reference_count = len(scenarios)
+    if custom_load is not None:
+        scenarios += [
+            (resistance, beta, custom_load, "CLOSED") for beta in ASSUMED_BETA_F for resistance in RESISTORS_OHMS
+        ]
+        scenarios += [(820, beta, custom_load, "OPEN") for beta in ASSUMED_BETA_F]
+    for resistance, beta, load, switch_state in scenarios:
+        cards = circuit_cards(r1=resistance, beta_f=beta, external_load=load, switch_state=switch_state)
+        node = simulator.operating_point(cards)
+        collector = node["v(col)"]
+        base = node["v(base)"]
+        led = node["v(led)"]
+        switch = node["v(sw)"]
+        collector_current_ma = node["@q1[ic]"] * 1000
+        cases.append(
+            {
+                "engine": "ngspice",
+                "converged": True,
+                "switch_state": switch_state,
+                "r1_ohms": resistance,
+                "assumed_beta_f": beta,
+                "external_load_ohms": load,
+                "spice_deck_sha256": digest(("\n".join(cards) + "\n").encode()),
+                "v_collector_v": round(collector, 6),
+                "v_base_v": round(base, 6),
+                "v_led_anode_v": round(led, 6),
+                "i_r1_feed_ma": round(1000 * (switch - base) / resistance, 6),
+                "i_base_after_pulldown_ma": round(1000 * (switch - base) / resistance - base / 10, 6),
+                "i_led_ma": round((5 - led) / 330 * 1000, 6),
+                "i_external_load_ma": None if load is None else round((5 - collector) / load * 1000, 6),
+                "i_collector_ma": round(collector_current_ma, 6),
+                "transistor_dissipation_mw": round(collector * collector_current_ma, 6),
+                "exploratory_vce_above_0_3v": collector > 0.3,
+                "qualified_load_status": "NOT_RUN",
+            }
+        )
+    reference_cases = cases[:reference_count]
+    result: dict[str, Any] = {
+        "schema_version": "g0-npn-illustrative-ngspice-dc-v1",
+        "source_reference_id": "nitu-npn-transistor-switch",
+        "source_parent_task_id": "g0-004-npn-switch-base-drive-reduction",
+        "original_source_sha256": pinned["source_sha256"],
+        "source_native_kicad_version": pinned["kicad_version"],
+        "native_source_net_count": pinned["net_count"],
+        "source_q1_pinout": pinned["source_q1_pinout"],
+        "supplier_pdf_byte_identity": document_check,
+        "reviewed_PN2222A_document_provenance": TRUSTED_PN2222A_DOCUMENTS,
+        "manufacturer_component_readiness": {
+            "source_pinout_consistent_with_reviewed_documents": True,
+            "exact_orderable_part": None,
+            "exact_orderable_part_status": "NOT_SELECTED_OR_QUALIFIED",
+            "supplier_model": None,
+            "supplier_model_status": "NOT_RETRIEVED_OR_VERIFIED",
+            "external_j2_load": None,
+            "external_j2_load_status": "NOT_SPECIFIED",
+            "physical_assembly_review": "NOT_RUN",
+            "functional_hardware_review": "NOT_RUN",
+            "qualified_load_status": "NOT_RUN",
+        },
+        "engine": "ngspice",
+        "engine_version": simulator.version,
+        "official_shared_api_reference": "https://ngspice.sourceforge.io/shared.html",
+        "bjt_model_status": "ASSUMED_UNQUALIFIED",
+        "red_led_model_status": "ASSUMED_UNQUALIFIED",
+        "external_load_status": "UNSPECIFIED_IN_ORIGINAL_SOURCE",
+        "circuit_model": {
+            "topology": (
+                "Real KiCad pin-net graph verified first; behavioral approximations use assumed BJT/LED/flyback cards."
+            ),
+            "bjt": BJT_PARAMETERS,
+            "bjt_beta_values": list(ASSUMED_BETA_F),
+            "red_led": DRED_PARAMETERS,
+            "flyback_diode": DFLY_PARAMETERS,
+            "vcc_volts": 5,
+            "switch_closed_contact_ohms": 0.05,
+            "switch_open_contact_ohms": 1_000_000_000,
+            "collector_leak_anchor_ohms": 1_000_000_000,
+            "r2_ohms": 10000,
+            "r3_ohms": 330,
+            "temperature_c": 27,
+            "dc_only": True,
+            "no_real_part_model_or_validated_datasheet_curve": True,
+            "no_inductive_load_or_flyback_transient_model": True,
+        },
+        "r1_ohms": list(RESISTORS_OHMS),
+        "assumed_transistor_beta_f": list(ASSUMED_BETA_F),
+        "simulated_load_ohms": list(LOADS_OHMS),
+        "exploratory_collector_voltage_threshold_v": 0.3,
+        "cases": reference_cases,
+        "datasheet_condition_review": datasheet_conditional_review(reference_cases),
+        "verified_real_load_limit_ma": None,
+        "qualified_human_approval": "NOT_RUN",
+        "physical_measurement": "NOT_RUN",
+        "transient_flyback_simulation": "NOT_RUN",
+        "actual_PN2222A_parameter_corners": "NOT_RUN",
+        "manufacturing_approved": False,
+        "g0_verified": False,
+        "independent_ai_task_accepted": False,
+        "non_claims": [
+            "This is a REAL ngspice DC solve with HYPOTHETICAL BJT/LED models, "
+            "not a manufacturer-qualified PN2222A operating area.",
+            "The 0.3 V collector threshold is an illustrative flag, not a component/board acceptance criterion.",
+            "J2 LOAD was unspecified; this resistive DC sweep does not qualify "
+            "unknown inductive/capacitive loads or transient/thermal behavior.",
+            "No package pinout, real component variation, switch bounce, "
+            "thermal or physical measurements are approved.",
+            "Four AI-related proposals exist; this extra analog simulation "
+            "does NOT make G0 #004 an accepted autonomous design.",
+        ],
+    }
+    if custom_load is not None:
+        result["user_supplied_j2_scenario"] = {
+            "j2_resistive_ohms": custom_load,
+            "load_type": "IDEAL_RESISTOR_DC_ONLY",
+            "input_status": "USER_ENTERED_RESISTIVE_VALUE_NOT_VERIFIED_FROM_SOURCE",
+            "source_j2_load_specified": False,
+            "actual_part_model_verified": False,
+            "verified_load_current_ma": None,
+            "qualified_load_status": "NOT_RUN",
+            "human_signoff": "NOT_RUN",
+            "manufacturing_approved": False,
+            "nonclaims": (
+                "User-entered resistance is an ideal DC resistor, NOT a sourced or "
+                "measured real J2 load, inductive or capacitive load, startup behavior "
+                "or verified physical electronics capability. BJT and LED models "
+                "are unqualified approximations."
+            ),
+            "cases": cases[reference_count:],
+        }
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-dir", type=Path, default=SOURCE)
+    parser.add_argument(
+        "--supplier-pdf-stdin",
+        action="store_true",
+        help="Read at most 5 MB of explicit binary PDF standard input; never accept a filesystem path",
+    )
+    parser.add_argument(
+        "--j2-resistive-ohms",
+        type=int,
+        help="Optional whole-number 10..1000000 ohm ideal DC J2 resistor, never hardware approval",
+    )
+    parser.add_argument("--output-json", type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        supplier_bytes = sys.stdin.buffer.read(5_000_001) if args.supplier_pdf_stdin else None
+        result = simulate_source_bound_npn(
+            args.source_dir,
+            supplier_pdf_bytes=supplier_bytes,
+            j2_resistive_ohms=args.j2_resistive_ohms,
+        )
+    except (ValueError, RuntimeError) as exc:
+        parser.error(str(exc))
+    output: Path = args.output_json
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, sort_keys=True, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(
+        f"Real ngspice {result['engine_version']}: {len(result['cases'])} hypothetical DC cases "
+        "from byte-pinned KiCad sources."
+    )
+    for beta in ASSUMED_BETA_F:
+        values = {
+            case["external_load_ohms"]: case["v_collector_v"]
+            for case in result["cases"]
+            if case["switch_state"] == "CLOSED" and case["r1_ohms"] == 820 and case["assumed_beta_f"] == beta
+        }
+        print(
+            f"Assumed BF={beta}, R1=820: LED-only VCE={values[None]:.3f}V, "
+            f"47 ohm={values[47]:.3f}V, 22 ohm={values[22]:.3f}V, "
+            f"10 ohm={values[10]:.3f}V"
+        )
+    context = result["datasheet_condition_review"]
+    for item in context["conditional_base_drive_review"]:
+        print(
+            f"R1={item['r1_ohms']} ohm: idealized max base feed "
+            f"{item['idealized_upper_bound_base_feed_ma']:.2f} mA versus "
+            "PN2222/D 150mA collector test's 15mA base condition: NOT REPRODUCED."
+        )
+    flagged = context["thermal_reference"]["warning_cases"]
+    print(
+        f"Thermal SCREEN (not prediction): {len(flagged)} of 34 hypothetical "
+        "27C DC cases above 50C derated 500mW reference."
+    )
+    proof = result["source_q1_pinout"]
+    pdf_status = result["supplier_pdf_byte_identity"]["status"]
+    print(
+        f"Q1 original {proof['footprint']}: source pins 1=E 2=B 3=C, "
+        f"PCB pads 1=GND, 2=BASE, 3=COLLECTOR; PDF identity {pdf_status}."
+    )
+    if "user_supplied_j2_scenario" in result:
+        custom = result["user_supplied_j2_scenario"]
+        print(
+            f"USER-SUPPLIED hypothetical {custom['j2_resistive_ohms']} ohm J2 resistor, "
+            "not independently confirmed from the PCB or physical load."
+        )
+        for beta in ASSUMED_BETA_F:
+            original = next(
+                row
+                for row in custom["cases"]
+                if row["assumed_beta_f"] == beta and row["r1_ohms"] == 390 and row["switch_state"] == "CLOSED"
+            )
+            candidate = next(
+                row
+                for row in custom["cases"]
+                if row["assumed_beta_f"] == beta and row["r1_ohms"] == 820 and row["switch_state"] == "CLOSED"
+            )
+            print(
+                f"Assumed BF={beta}: original R1=390 VCE={original['v_collector_v']:.3f} V, "
+                f"candidate R1=820 VCE={candidate['v_collector_v']:.3f} V, "
+                f"candidate transistor DC power={candidate['transistor_dissipation_mw']:.1f} mW."
+            )
+    print(
+        "PN2222A orderable SKU, verified supplier SPICE model, J2 load, "
+        "physical orientation and human approval NOT RUN; G0 BLOCKED."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -12,12 +13,17 @@ import pytest
 
 from scripts.ai_native_candidate_pilot import write_local_candidate
 
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
+
+
 INTENT = "USB-C powered STM32 MCU board, 3.3V rail at 100 mA, I2C temperature sensor"
 NATIVE_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "ai_native_pilot_shield_pcb_oracle.py"
 
 
 @pytest.mark.skipif(
-    not (Path("/usr/bin/python3").exists() and shutil.which("kicad-cli")),
+    not (Path(NATIVE_KICAD_PYTHON).exists() and shutil.which("kicad-cli")),
     reason="Native KiCad 10 Python and CLI are required",
 )
 def test_native_s1_same_net_is_unrouted_and_explicit_test_copper_is_not_fab_approved(tmp_path: Path) -> None:
@@ -25,7 +31,7 @@ def test_native_s1_same_net_is_unrouted_and_explicit_test_copper_is_not_fab_appr
     write_local_candidate(INTENT, source)
     target = tmp_path / "native-test"
     result = subprocess.run(
-        ["/usr/bin/python3", "-B", str(NATIVE_SCRIPT), "--candidate-dir", str(source), "--output-dir", str(target)],
+        [NATIVE_KICAD_PYTHON, "-B", str(NATIVE_SCRIPT), "--candidate-dir", str(source), "--output-dir", str(target)],
         capture_output=True,
         text=True,
         timeout=150,
@@ -55,7 +61,7 @@ def test_native_s1_same_net_is_unrouted_and_explicit_test_copper_is_not_fab_appr
     assert (target / "unrouted/J1-unrouted.kicad_pcb").is_file()
 
 
-@pytest.mark.skipif(not Path("/usr/bin/python3").exists(), reason="Native Python unavailable")
+@pytest.mark.skipif(not Path(NATIVE_KICAD_PYTHON).exists(), reason="Native Python unavailable")
 def test_native_shield_oracle_never_overwrites_existing_output_or_uses_modified_source(tmp_path: Path) -> None:
     source = tmp_path / "candidate"
     write_local_candidate(INTENT, source)
@@ -63,7 +69,7 @@ def test_native_shield_oracle_never_overwrites_existing_output_or_uses_modified_
     target.mkdir()
     (target / "important").write_text("KEEP")
     command = [
-        "/usr/bin/python3",
+        NATIVE_KICAD_PYTHON,
         "-B",
         str(NATIVE_SCRIPT),
         "--candidate-dir",
@@ -82,7 +88,7 @@ def test_native_shield_oracle_never_overwrites_existing_output_or_uses_modified_
     assert not (tmp_path / "never-created").exists()
 
 
-@pytest.mark.skipif(not Path("/usr/bin/python3").exists(), reason="Native Python unavailable")
+@pytest.mark.skipif(not Path(NATIVE_KICAD_PYTHON).exists(), reason="Native Python unavailable")
 def test_native_fixture_rejects_reshaped_source_even_if_attacker_rewrites_manifest(tmp_path: Path) -> None:
     source = tmp_path / "candidate"
     write_local_candidate(INTENT, source)
@@ -97,7 +103,7 @@ def test_native_fixture_rejects_reshaped_source_even_if_attacker_rewrites_manife
     destination = tmp_path / "not-created"
     result = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             str(NATIVE_SCRIPT),
             "--candidate-dir",

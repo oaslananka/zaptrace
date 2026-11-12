@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -14,41 +15,67 @@ from scripts.ai_native_pilot_placement_geometry import (
     place_gct_receptacle_at_provisional_board_edge,
     require_pinned_physical_packages,
 )
+from scripts.review_studio_local_file_guard import read_regular_bytes
 from zaptrace.algo.placer import place_components
 from zaptrace.core.models import Design
 from zaptrace.export.kicad import export_kicad_pcb, export_kicad_schematic
 from zaptrace.kicad.verified_vendor import resolve_verified_footprint
 from zaptrace.synthesis.footprint_resolver import resolve_footprints
 
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
+
 
 def sha(file: Path) -> str:
     return hashlib.sha256(file.read_bytes()).hexdigest()
 
 
+def _unaliased_path(path: Path, *, role: str) -> Path:
+    """Keep native source and newly produced evidence inside caller-selected paths."""
+    if ".." in path.parts:
+        raise ValueError(f"Unsafe {role} path: parent traversal is unsupported")
+    absolute = path.absolute()
+    if any(part.is_symlink() for part in (absolute, *absolute.parents)):
+        raise ValueError(f"Unsafe {role} path: symbolic links are unsupported")
+    return absolute
+
+
 def create_baseline(candidate: Path, dest: Path) -> dict:
-    candidate = candidate.absolute()
-    dest = dest.absolute()
-    if candidate.is_symlink() or not candidate.is_dir() or dest.exists() or dest.is_symlink():
+    candidate = _unaliased_path(candidate, role="candidate")
+    dest = _unaliased_path(dest, role="output")
+    if not candidate.is_dir() or dest.exists():
         raise ValueError("Source must be real and output directory new")
-    if not dest.parent.is_dir() or dest.parent.is_symlink():
+    if not dest.parent.is_dir():
         raise ValueError("Output parent must exist and not be a symlink")
-    manifest = json.loads((candidate / "manifest.json").read_text())
+    manifest_file = candidate / "manifest.json"
+    if manifest_file.is_symlink() or not manifest_file.is_file():
+        raise ValueError("Unsafe candidate manifest: a real local file is required")
+    manifest_bytes = read_regular_bytes(manifest_file, max_size=256_000)
+    manifest = json.loads(manifest_bytes)
     if manifest.get("fabrication_approved") is not False:
         raise ValueError("Untrusted source fabrication authority")
     hashes = manifest["files_sha256"]
     if set(hashes) != {"design.json", "candidate-report.json"}:
         raise ValueError("Unexpected candidate source inventory")
+    source_bytes: dict[str, bytes] = {}
     for name, digest in hashes.items():
         source = candidate / name
-        if source.is_symlink() or sha(source) != digest:
+        if source.is_symlink():
             raise ValueError("Tampered candidate source artifact")
-    source_report = json.loads((candidate / "candidate-report.json").read_text())
+        data = read_regular_bytes(source, max_size=4_000_000)
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError("Tampered candidate source artifact")
+        source_bytes[name] = data
+    source_report = json.loads(source_bytes["candidate-report.json"])
     if (
         source_report.get("candidate_id") != manifest["candidate_id"]
         or source_report.get("status") != "review_required"
     ):
         raise ValueError("Expected exact review-required candidate")
-    design = Design.model_validate_json((candidate / "design.json").read_bytes())
+    # Parse precisely the source bytes that matched the manifest digest.
+    # Never authorize a later read of a different source revision.
+    design = Design.model_validate_json(source_bytes["design.json"])
     references = {"C1", "C2", "C3", "J1", "R1", "R2", "R3", "R4", "R5", "U1", "U2", "U3"}
     if set(design.components) != references or len(design.nets) != 8 or design.meta.name != "SynthesizedBoard":
         raise ValueError("Unexpected source board family")
@@ -87,7 +114,7 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
             json.dumps(design.model_dump(mode="json"), sort_keys=True, indent=2) + "\n"
         )
         result = subprocess.run(
-            ["/usr/bin/python3", "-B", "-m", "scripts.ai_native_pilot_pcb_native", str(stage)],
+            [NATIVE_KICAD_PYTHON, "-B", "-m", "scripts.ai_native_pilot_pcb_native", str(stage)],
             capture_output=True,
             text=True,
             timeout=230,
@@ -117,6 +144,17 @@ def create_baseline(candidate: Path, dest: Path) -> dict:
             "fabrication_approved": False,
         }
         (stage / "placement-evidence.json").write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
+        # Native KiCad may take seconds to complete. A concurrently edited
+        # candidate invalidates the entire source-bound evidence even when its
+        # initial manifest and a staged copy were both individually valid.
+        _unaliased_path(candidate, role="candidate")
+        _unaliased_path(dest, role="output")
+        if manifest_file.is_symlink() or read_regular_bytes(manifest_file, max_size=256_000) != manifest_bytes:
+            raise ValueError("Candidate source changed during native verification")
+        for name, original in source_bytes.items():
+            path = candidate / name
+            if path.is_symlink() or read_regular_bytes(path, max_size=4_000_000) != original:
+                raise ValueError("Candidate source changed during native verification")
         if dest.exists() or dest.is_symlink():
             raise ValueError("Refusing output overwrite")
         stage.rename(dest)

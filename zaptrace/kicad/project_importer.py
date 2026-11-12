@@ -39,20 +39,25 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from zaptrace.core.models import (
+    BoardPadContact,
+    Component,
     Design,
     DesignMeta,
     HierarchySheet,
+    Net,
 )
 from zaptrace.io.sexp import SexpNode
 from zaptrace.io.sexp import parse as _sexp_parse
 from zaptrace.kicad.schematic_importer import (
     KiCadSchematicImportResult,
+    KiCadSchematicSourceSnapshot,
     import_kicad_schematic,
 )
 
@@ -117,6 +122,9 @@ class KiCadProjectImportResult:
         Mean net-identity score across all imported sheets (0.0–1.0).
     source_dir:
         The project directory that was imported.
+    source_snapshots:
+        Exact original UTF-8 bytes and page/presentation evidence by sheet.
+        These are in-memory source records, not editable Design conversion.
     """
 
     design: Design
@@ -124,6 +132,7 @@ class KiCadProjectImportResult:
     findings: list[HierarchicalKiCadFinding] = field(default_factory=list)
     net_score: float = 1.0
     source_dir: Path | None = None
+    source_snapshots: dict[str, KiCadSchematicSourceSnapshot] = field(default_factory=dict)
 
     @property
     def error_count(self) -> int:
@@ -142,6 +151,13 @@ class KiCadProjectImportResult:
             "error_count": self.error_count,
             "warning_count": self.warning_count,
             "net_score": self.net_score,
+            "source_sheet_count": len(self.source_snapshots),
+            "source_sha256_by_sheet": {
+                path: snapshot.sha256 for path, snapshot in sorted(self.source_snapshots.items())
+            },
+            "source_evidence_by_sheet": {
+                path: snapshot.to_dict() for path, snapshot in sorted(self.source_snapshots.items())
+            },
         }
 
 
@@ -372,9 +388,17 @@ def _prefix_id(sheet_path: str, original_id: str) -> str:
     return f"{sheet_path}/{original_id}"
 
 
+def _project_net_id(node: _SheetNode, original_net_id: str, net_name: str) -> str:
+    """Use one key for net objects and pin links; retain global-name merging."""
+    if original_net_id.startswith("global_"):
+        return f"global_{net_name}"
+    return _prefix_id(node.sheet_path, original_net_id)
+
+
 def _prefix_component_ids(
     node: _SheetNode,
     components: dict,
+    source_nets: dict,
     all_components: dict,
     findings: list[HierarchicalKiCadFinding],
 ) -> list[str]:
@@ -385,12 +409,29 @@ def _prefix_component_ids(
     # Preserve original ref; multi-instance disambiguation uses sheet path.
     from zaptrace.core.models import Component  # local import to avoid cycle
 
+    net_ids = {net_id: _project_net_id(node, net_id, net.name) for net_id, net in source_nets.items()}
     sheet_component_ids: list[str] = []
     for orig_id, comp in components.items():
         new_id = _prefix_id(node.sheet_path, orig_id)
         # Keep a copy with updated id (models use frozen approach, work with dict)
         comp_dict = comp.model_dump()
         comp_dict["id"] = new_id
+        for pin_number, pin in comp_dict.get("pins", {}).items():
+            local_net = pin.get("net")
+            if local_net is None:
+                continue
+            if local_net not in net_ids:
+                pin["net"] = None
+                findings.append(
+                    HierarchicalKiCadFinding(
+                        severity="warning",
+                        kind="unresolved_pin_net_identity",
+                        message=f"Component '{comp.ref}' pin '{pin_number}' references unknown source net",
+                        sheet_path=node.sheet_path,
+                    )
+                )
+                continue
+            pin["net"] = net_ids[local_net]
         try:
             new_comp = Component(**comp_dict)
         except Exception:
@@ -416,10 +457,10 @@ def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
 
     for orig_id, net in nets.items():
         net_name = net.name
-        canonical_id = f"global_{net_name}" if orig_id.startswith("global_") else _prefix_id(node.sheet_path, orig_id)
+        canonical_id = _project_net_id(node, orig_id, net_name)
 
         if canonical_id not in all_nets:
-            all_nets[canonical_id] = net
+            all_nets[canonical_id] = net.model_copy(update={"id": canonical_id})
             continue
 
         # Merge nodes from same-named global nets
@@ -436,15 +477,16 @@ def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
 def _flatten_sheets(
     sheet_nodes: list[_SheetNode],
     findings: list[HierarchicalKiCadFinding],
-) -> tuple[dict, dict, list[HierarchySheet], list[float]]:
+) -> tuple[dict, dict, list[HierarchySheet], list[float], dict[str, KiCadSchematicSourceSnapshot]]:
     """Import all sheets and merge into flat component/net dicts.
 
-    Returns (components, nets, hierarchy_sheets, net_scores).
+    Returns (components, nets, hierarchy_sheets, net_scores, source_snapshots).
     """
     all_components: dict = {}
     all_nets: dict = {}
     hierarchy_sheets: list[HierarchySheet] = []
     net_scores: list[float] = []
+    source_snapshots: dict[str, KiCadSchematicSourceSnapshot] = {}
 
     # Track refs seen per sheet to detect duplicates within one sheet
     for node in sheet_nodes:
@@ -453,7 +495,11 @@ def _flatten_sheets(
             continue
 
         net_scores.append(result.net_score)
-        sheet_component_ids = _prefix_component_ids(node, result.design.components, all_components, findings)
+        if result.source_snapshot is not None:
+            source_snapshots[node.sheet_path] = result.source_snapshot
+        sheet_component_ids = _prefix_component_ids(
+            node, result.design.components, result.design.nets, all_components, findings
+        )
         _merge_sheet_nets(node, result.design.nets, all_nets)
 
         hierarchy_sheets.append(
@@ -465,7 +511,7 @@ def _flatten_sheets(
             )
         )
 
-    return all_components, all_nets, hierarchy_sheets, net_scores
+    return all_components, all_nets, hierarchy_sheets, net_scores, source_snapshots
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +526,36 @@ def _find_pcb_path(project_dir: Path, project_name: str) -> Path | None:
         return explicit
     pcb_files = sorted(project_dir.glob("*.kicad_pcb"))
     return pcb_files[0] if pcb_files else None
+
+
+def _native_nonphysical_power_refs(
+    snapshots: dict[str, KiCadSchematicSourceSnapshot],
+) -> set[str]:
+    """Prove power-only, footprint-less schematic refs from embedded KiCad symbols.
+
+    A reference prefix or on_board flag is not a physical-footprint
+    eligibility check. Retain uncertain references as physical candidates;
+    repeated refs stay physical if any source instance is.
+    """
+    instances: dict[str, list[bool]] = {}
+    for snapshot in snapshots.values():
+        tree = _sexp_parse(snapshot.raw_bytes.decode("utf-8"))
+        if not isinstance(tree, list):
+            continue
+        libraries = _find(tree, "lib_symbols")
+        if libraries is None:
+            continue
+        native_power_ids = {
+            _atom(symbol) for symbol in _find_all(libraries, "symbol") if _find(symbol, "power") is not None
+        }
+        for symbol in _find_all(tree, "symbol"):
+            ref = _prop(symbol, "Reference")
+            if not ref:
+                continue
+            lib_id = _atom(_find(symbol, "lib_id") or [])
+            is_annotation = bool(lib_id in native_power_ids and not _prop(symbol, "Footprint"))
+            instances.setdefault(ref, []).append(is_annotation)
+    return {ref for ref, verdicts in instances.items() if verdicts and all(verdicts)}
 
 
 def _crossvalidate_pcb(
@@ -544,6 +620,136 @@ def _crossvalidate_pcb(
                 detail=f"sch_only={ref}",
             )
         )
+
+
+def _native_pad_contact(
+    node: list[SexpNode],
+    component: Component,
+    net_by_name: dict[str, set[str]],
+) -> tuple[BoardPadContact, str | None]:
+    """Resolve source-only footprint-local pad evidence without guessing IDs."""
+    at = _find(node, "at")
+    size = _find(node, "size")
+    if at is None or size is None or len(at) < 3 or len(size) < 3 or len(node) < 4:
+        raise ValueError("Missing original KiCad pad size, local coordinate, type or shape")
+    x, y, w, h = (
+        float(_atom(at, 1)),
+        float(_atom(at, 2)),
+        float(_atom(size, 1)),
+        float(_atom(size, 2)),
+    )
+    if not all(math.isfinite(value) for value in (x, y, w, h)) or w <= 0 or h <= 0:
+        raise ValueError("Nonfinite or invalid native KiCad physical pad coordinates/size")
+    number = _atom(node)
+    net_node = _find(node, "net")
+    net_name = _atom(net_node, 2) if net_node else ""
+    ids = net_by_name.get(net_name, set()) if net_name else set()
+    canonical_id = next(iter(ids)) if len(ids) == 1 else None
+    note = None
+    if net_name and not ids:
+        note = "pcb_pad_unknown_net"
+    elif net_name and len(ids) > 1:
+        note = "pcb_pad_ambiguous_net"
+    elif number in component.pins and canonical_id is not None:
+        old_pin_net = component.pins[number].net
+        if old_pin_net is not None and old_pin_net != canonical_id:
+            note = "pcb_pad_net_mismatch"
+    uuid_node = _find(node, "uuid")
+    return BoardPadContact(
+        number=number,
+        board_net_name=net_name,
+        schematic_net_id=canonical_id,
+        matched_pin_number=number if number and number in component.pins else None,
+        position_in_footprint_mm=(x, y),
+        size_mm=(w, h),
+        kind=_atom(node, 2),
+        shape=_atom(node, 3),
+        source_uuid=_atom(uuid_node) if uuid_node else "",
+    ), note
+
+
+def _append_component_pcb_contacts(
+    component: Component,
+    footprint: list[SexpNode],
+    ids_by_name: dict[str, set[str]],
+    findings: list[HierarchicalKiCadFinding],
+) -> None:
+    for pad in _find_all(footprint, "pad"):
+        try:
+            contact, issue = _native_pad_contact(pad, component, ids_by_name)
+        except (ValueError, TypeError, OverflowError) as exc:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind="pcb_pad_unmapped_geometry",
+                    message=f"PCB pad for '{component.ref}' has unverified original geometry: {exc}",
+                )
+            )
+            continue
+        component.pcb_pad_contacts.append(contact)
+        if issue:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind=issue,
+                    message=(
+                        f"PCB pad '{component.ref}:{contact.number}' on native net "
+                        f"'{contact.board_net_name}' cannot be trusted as the corresponding schematic pin net"
+                    ),
+                    detail=f"ref={component.ref};pad={contact.number};native_net={contact.board_net_name}",
+                )
+            )
+
+
+def _original_pcb_footprint_nodes(pcb_path: Path | None) -> list[list[SexpNode]]:
+    if pcb_path is None:
+        return []
+    try:
+        tree = _sexp_parse(pcb_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return []  # Existing PCB cross-validation owns parse-error findings.
+    return _find_all(tree, "footprint") if isinstance(tree, list) else []
+
+
+def _populate_pcb_pad_contacts(
+    pcb_path: Path | None,
+    components: dict[str, Component],
+    nets: dict[str, Net],
+    findings: list[HierarchicalKiCadFinding],
+) -> None:
+    """Add exact original physical pad instances without projecting unverified PCB geometry.
+
+    Never treat this source evidence as fabricated/certified footprint_def.
+    """
+    footprints = _original_pcb_footprint_nodes(pcb_path)
+    ids_by_name: dict[str, set[str]] = {}
+    for net_id, net in nets.items():
+        ids_by_name.setdefault(net.name, set()).add(net_id)
+
+    by_ref: dict[str, list[Component]] = {}
+    for component in components.values():
+        by_ref.setdefault(component.ref, []).append(component)
+
+    footprint_ref_counts = {ref: 0 for ref in by_ref}
+    for fp in footprints:
+        ref = _prop(fp, "Reference")
+        if ref in footprint_ref_counts:
+            footprint_ref_counts[ref] += 1
+    for fp in footprints:
+        ref = _prop(fp, "Reference")
+        matches = by_ref.get(ref, [])
+        if not matches:
+            continue  # Existing PCB vs schematic reference checker owns this mismatch.
+        if len(matches) != 1 or footprint_ref_counts[ref] != 1:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind="pcb_pad_ambiguous_reference",
+                    message=f"PCB footprint reference '{ref}' is not uniquely tied to one schematic component",
+                )
+            )
+            continue
+        _append_component_pcb_contacts(matches[0], fp, ids_by_name, findings)
 
 
 # ---------------------------------------------------------------------------
@@ -642,12 +848,17 @@ def import_kicad_project(
         raise FileNotFoundError(f"Top-level schematic not found: {top_sch_path}")
 
     # Import and flatten all sheets
-    components, nets, hierarchy_sheets, net_scores = _flatten_sheets(sheet_nodes, findings)
+    components, nets, hierarchy_sheets, net_scores, source_snapshots = _flatten_sheets(sheet_nodes, findings)
 
     # PCB cross-validation
     schematic_refs = {getattr(c, "ref", cid) for cid, c in components.items()}
+    # Native KiCad's embedded (power) symbols have no real PCB part. Keep
+    # their source components and nets, but exclude proven annotations from
+    # the PCB-only physical footprint correspondence check.
+    schematic_refs -= _native_nonphysical_power_refs(source_snapshots)
     pcb_path = _find_pcb_path(project_dir, project_name)
     _crossvalidate_pcb(pcb_path, schematic_refs, findings)
+    _populate_pcb_pad_contacts(pcb_path, components, nets, findings)
 
     # Build canonical Design
     from zaptrace.core.models import ImportLossRecord
@@ -683,6 +894,7 @@ def import_kicad_project(
         findings=findings,
         net_score=round(mean_net_score, 4),
         source_dir=project_dir,
+        source_snapshots=source_snapshots,
     )
 
 

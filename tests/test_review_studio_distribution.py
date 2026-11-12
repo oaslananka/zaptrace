@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -137,6 +138,7 @@ def test_package_doctor_from_extracted_location_does_not_create_user_data(
         "HOME": str(user),
         "XDG_DATA_HOME": str(user / "data"),
         "XDG_CACHE_HOME": str(user / "cache"),
+        "ZAPTRACE_KICAD_PYTHON": os.environ.get("ZAPTRACE_KICAD_PYTHON", ""),
     }
     result = subprocess.run(
         [str(executable), "--doctor"], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15
@@ -163,6 +165,7 @@ def test_fresh_package_single_instance_shutdown_and_private_workspace(release_pk
         "HOME": str(home),
         "XDG_DATA_HOME": str(home / "data"),
         "XDG_CACHE_HOME": str(home / "cache"),
+        "ZAPTRACE_KICAD_PYTHON": os.environ.get("ZAPTRACE_KICAD_PYTHON", ""),
     }
     log = tmp_path / "server.log"
     with log.open("w+") as handle:

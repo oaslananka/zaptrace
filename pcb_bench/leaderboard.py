@@ -8,6 +8,7 @@ grader — all tools are scored on equal footing.
 from __future__ import annotations
 
 import json
+import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -98,20 +99,34 @@ def _load_report_file(path: Path) -> ScoreReport | None:
             data = json.load(fh)
         if data.get("schema") != "score-report-v1":
             return None
+        skipped = int(data.get("skipped_count", 0))
+        failed = int(data.get("failed_count", 0))
+        passed = int(data.get("passed_count", 0))
+        score = float(data.get("mean_score", 0.0))
+        if min(skipped, failed, passed) < 0 or not math.isfinite(score):
+            return None
+        # Reject inconsistent self-reported PASS metadata even in uploaded reports.
+        status = data.get("overall_status", "failed")
+        if failed:
+            status = "failed"
+        elif skipped:
+            status = "partial"
+        elif status not in {"passed", "partial", "failed"}:
+            status = "failed"
         return ScoreReport(
             task_id=data.get("task_id", ""),
             tool_name=data.get("tool_name", ""),
             tool_version=data.get("tool_version", ""),
-            overall_status=data.get("overall_status", "failed"),
+            overall_status=status,
             grader_results=data.get("grader_results", []),
-            mean_score=float(data.get("mean_score", 0.0)),
-            skipped_count=int(data.get("skipped_count", 0)),
-            failed_count=int(data.get("failed_count", 0)),
-            passed_count=int(data.get("passed_count", 0)),
+            mean_score=score,
+            skipped_count=skipped,
+            failed_count=failed,
+            passed_count=passed,
             canonical_hash=data.get("canonical_hash", ""),
             generated_at=data.get("generated_at", ""),
         )
-    except (OSError, KeyError, ValueError):
+    except (OSError, KeyError, TypeError, ValueError):
         return None
 
 
@@ -133,8 +148,8 @@ def generate_leaderboard(
     Returns
     -------
     Leaderboard
-        Ranked by (failed_count ASC, mean_score DESC, tool_name ASC) for
-        full determinism.
+        Ranked by evidence status (passed, partial, failed), then failures,
+        skips, score and tool name. Missing evidence never improves rank.
     """
     reports_path = Path(reports_dir)
     generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -148,18 +163,27 @@ def generate_leaderboard(
             continue
         reports.append(report)
 
-    # Deduplicate by (task_id, tool_name, tool_version) — keep highest mean_score
-    best: dict[tuple[str, str, str], ScoreReport] = {}
-    for r in reports:
-        key = (r.task_id, r.tool_name, r.tool_version)
-        if key not in best or r.mean_score > best[key].mean_score:
-            best[key] = r
+    # A partial result with missing oracle evidence cannot outrank a completed pass,
+    # even when its unverified numeric score is higher.
+    status_rank = {"passed": 0, "partial": 1, "failed": 2}
 
-    # Sort: fewer failures first, then higher mean_score, then alphabetical
-    sorted_reports = sorted(
-        best.values(),
-        key=lambda r: (r.failed_count, -r.mean_score, r.tool_name),
-    )
+    def ranking(report: ScoreReport) -> tuple[int, int, int, float, str]:
+        return (
+            status_rank.get(report.overall_status, 3),
+            report.failed_count,
+            report.skipped_count,
+            -report.mean_score,
+            report.tool_name,
+        )
+
+    # Deduplicate by participant identity; prefer complete evidence over score.
+    best: dict[tuple[str, str, str], ScoreReport] = {}
+    for report in reports:
+        key = (report.task_id, report.tool_name, report.tool_version)
+        if key not in best or ranking(report) < ranking(best[key]):
+            best[key] = report
+
+    sorted_reports = sorted(best.values(), key=ranking)
 
     board_task_id = task_id or (sorted_reports[0].task_id if sorted_reports else "unknown")
     entries = [

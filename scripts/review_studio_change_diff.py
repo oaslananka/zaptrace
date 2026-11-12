@@ -288,8 +288,19 @@ def erc_findings(report: str, references: set[str], expected: int) -> list[dict]
     return parsed
 
 
+def _check_native_svg_target(target: Path) -> None:
+    """Refuse indirect output aliases and unsafe existing review artifacts."""
+    if (
+        ".." in target.parts
+        or any(part.is_symlink() for part in (target, *target.parents))
+        or (target.exists() and not target.is_file())
+    ):
+        raise ValueError("Unsafe native schematic SVG target")
+
+
 def native_schematic_svg(cli: str, source: Path, target: Path) -> dict:
     """One actual sheet only; reject unsafe embedded SVG content and external links."""
+    _check_native_svg_target(target)
     with tempfile.TemporaryDirectory(prefix=".review-sch-svg-", dir=target.parent) as scratch:
         command = [cli, "sch", "export", "svg", "--output", scratch + "/", str(source)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=85, check=False)
@@ -333,9 +344,19 @@ def native_schematic_svg(cli: str, source: Path, target: Path) -> dict:
         raise ValueError("Invalid KiCad SVG coordinate viewport") from exc
     if not all(math.isfinite(x) for x in (x0, y0, width, height)) or width <= 0 or height <= 0:
         raise ValueError("Unbounded native schematic SVG viewport")
-    if target.is_symlink() or (target.exists() and not target.is_file()):
-        raise ValueError("Unsafe native schematic SVG target")
-    target.write_bytes(payload)
+    _check_native_svg_target(target)
+    # Atomically replace the output inode rather than truncating an existing
+    # hard-linked file or following a swapped leaf symlink.
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix=".review-sch-safe-", dir=target.parent, delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(payload)
+        _check_native_svg_target(target)
+        temporary.replace(target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return {
         "sha256": hashlib.sha256(payload).hexdigest(),
         "viewbox": root.get("viewBox"),

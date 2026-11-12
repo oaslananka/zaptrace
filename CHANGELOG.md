@@ -21,13 +21,27 @@
 - Run opt-in physical PCB review through a fail-closed native KiCad 10 shell driver with separate pre-/post-route DRC and SHA-256-bound staged artifact, rather than dynamically spawning KiCad from Python. This prevents unaudited subprocess argument construction and leaves the default board exporter unchanged.
 - Add an opt-in, fail-closed KiCad 10 native *partial* physical PCB routing review for ESP32 Issue #91 with 41 F.Cu segments connecting nineteen real pad pairs. Native DRC validates before/after without creating new violations, reducing unconnected copper 37→18 while 16 real manufacturer DRC blockers remain. Document JLCPCB, PCBWay and GCT published hole/slot capability and clearances separately from any order/DFM qualification; no DRC bypass or fabrication claim.
 
-### Fixed
+- Add a separate source-verified, bounded hypothetical NPN inductive J2 turn-off review: native KiCad 10 flyback 1N4148 D2 cathode/anode proof and four real ngspice transient cases for user-entered series R/L; publish exact model/evidence hashes without treating unknown real parts, diode pulse ratings or physical behavior as qualified.
 
-- Make opt-in KiCad partial routing review reject replaced or relocated DRC violations even when total counts per rule remain unchanged; check stable physical blocker identities across native before/after reports without treating fewer unconnected pads as defects.
-- Preserve KiCad's unquoted thermal-pad enum `(property pad_prop_heatsink)` when embedding SHA-256-verified supplier footprints. KiCad 10 otherwise silently dropped all 13 ESP32 heatsink-pad properties upon loading the PCB. Exact commit `29847de` now reports **zero footprint-library mismatches**, **16 physical PCB DRC violations** (12 actual 0.20 mm ESP32 holes and four USB-C NPTH-to-contact clearances), **37 unconnected items** and **zero schematic ERC** on independent KiCad 10.0.6. Manufacturing acceptance remains blocked.
-- Embed SHA-256 verified KiCad footprint graphics, supplier antenna/keepout rule areas, models, and real pad attributes into each PCB instance instead of reconstructing pads alone, preserving unique per-instance UUIDs, physical net identity, and correctly translated absolute board coordinates for the ESP32 antenna keepout rule area. On independent KiCad 10.0.6 exact branch evidence this reduces library mismatches 14→1 and total PCB DRC 30→17, with **37 unconnected items** unchanged; the former ESP32 artwork warning is resolved by the thermal-pad syntax correction above; real 0.20 mm drills and USB-C NPTH peg clearances remain unwaived, not approved for fabrication.
-- Reject candidate GridRouter copper for verified-footprint designs when the routed net graph lacks physical pad-terminal contact or fails in-process DRC. Seed the ESP32 reference with conservative 100 × 75 mm positions (former 50 × 40 mm outline cannot contain the 48 × 41.25 mm ESP32 RF courtyard), and remove unverified GND copper pour overlapping antenna keepout. Independent KiCad 10.0.6 on exact PR head b1eb3c4 reduced PCB DRC 82→30, with zero schematic ERC warnings but 37 genuinely unconnected items remaining; real drill, connector hole-clearance and footprint artwork rules still block fabrication.
-- Preserve real GCT USB4105 J1 S1 plated oval slots and anonymous NPTH locating pegs across KiCad import/export and Excellon G85 drilling (SHA-256-pinned source geometry); map J1 physical A/B VBUS/GND and CC1/CC2 contacts with separate sink Rd resistors. Source physical-pad coverage reaches 37/37 and strict Proof remains blocked on DRC/clearance. Independent KiCad 10.0.6 now reports 0 schematic ERC, but 82 PCB DRC violations and 37 unconnected items. No routed PCB/fabrication approval is claimed; shell grounding and TVS/LDO electrical evidence remain outstanding.
+
+- Let G0-004 users compare an explicitly entered, bounded ideal resistive J2 load for original and proposed PN2222A base-drive values using six additional real ngspice DC runs; preserve all 34 pinned baseline cases and fail closed on unsupported load inputs while keeping supplier model and hardware approval unverified.
+
+
+- Verify source Q1 PN2222A E-B-C symbol pin numbers against real TO-92 PCB pad nets and the reviewed onsemi/Fairchild documents; check exact original supplier PDF bytes from bounded offline standard input, rejecting unknown documents without file-path access while preserving unselected SKU, unverified SPICE model and no hardware signoff.
+
+
+- Add an archival onsemi PN2222A datasheet condition check to the real 34-case ngspice G0 probe: explicitly show why 390/820-ohm base drive cannot reproduce the published 150mA/15mA saturation test condition and flag hypothetical 50C derated-power concerns without inventing component safety, real-load or manufacturing approval.
+
+
+- Add a source-pinned real ngspice 42 shared-library DC load sensitivity probe for the previously independent-model PN2222A base-drive proposal: 34 closed/open button cases across two hypothetical transistor models and seven resistive loads, with native KiCad topology checks, source SHA, reproducible circuit-deck evidence and explicitly unqualified load/human-approval status. No added dependency or paid service.
+
+
+- Record a separately executed, fixed-prompt NVIDIA model suggestion on a real MIT-licensed NPN switch (R1 390 Ω → 820 Ω), independently check its nominal current estimate and source-preserving KiCad DRC/ERC/parity through both direct ECO and staged parity-repair/ECO candidates; keep unknown external load, silkscreen, token usage/cost and human acceptance explicitly blocked or unmeasured.
+
+- Add a source-UUID-guarded KiCad PCB parity-repair preview for explicitly mapped testpoint references and net aliases. Validate improvements with independent native ERC/DRC/parity and preserve original sources; keep physical silkscreen and human review unapproved. Record the licensed L7805 10-to-0 native parity pilot, not an independently scored G0 success.
+
+- Add a byte-guarded, one-command KiCad resistor/capacitor ECO preview that synchronizes schematic and PCB Value fields and checks native KiCad ERC, DRC and parity before producing separate human-review-only drafts; record an AI-assisted NE555 timing pilot with clear unverified outcomes.
+
 - Show source-bound native DRC findings, ERC and scoped pin/net evidence gaps in offline Review Studio alternative comparisons; reject incompatible original DRC baselines without automatically ranking or approving a board.
 
 - Bind offline Review Studio assistant handoffs to native schematic source/target hashes, selected ERC details and scoped pin/net findings, with explicit missing-evidence status and no added AI/network authority.
@@ -45,6 +59,23 @@
 - Add a fail-closed, inspection-only Review Studio readiness summary to the offline interactive PCB viewer: embedded DRC findings, distinct proof-manifest-vs-executed-proof status, fabrication human-review requirement and accessible navigation to recorded findings. Missing evidence is never interpreted as a pass; no actual PCB approval is implied.
 
 ### Fixed
+
+- Preserve four physically pad-connected ESP32 signal net routes while leaving three power/ground nets incomplete; reject disconnected GND copper instead of counting it as routed. Native KiCad 10 still finds 29 open items and 16 physical DRC errors, so fabrication remains blocked.
+
+
+- Make opt-in KiCad partial routing review reject replaced or relocated DRC violations even when total counts per rule remain unchanged; check stable physical blocker identities across native before/after reports without treating fewer unconnected pads as defects.
+- Preserve KiCad's unquoted thermal-pad enum `(property pad_prop_heatsink)` when embedding SHA-256-verified supplier footprints. KiCad 10 otherwise silently dropped all 13 ESP32 heatsink-pad properties upon loading the PCB. Exact commit `29847de` now reports **zero footprint-library mismatches**, **16 physical PCB DRC violations** (12 actual 0.20 mm ESP32 holes and four USB-C NPTH-to-contact clearances), **37 unconnected items** and **zero schematic ERC** on independent KiCad 10.0.6. Manufacturing acceptance remains blocked.
+- Embed SHA-256 verified KiCad footprint graphics, supplier antenna/keepout rule areas, models, and real pad attributes into each PCB instance instead of reconstructing pads alone, preserving unique per-instance UUIDs, physical net identity, and correctly translated absolute board coordinates for the ESP32 antenna keepout rule area. On independent KiCad 10.0.6 exact branch evidence this reduces library mismatches 14→1 and total PCB DRC 30→17, with **37 unconnected items** unchanged; the former ESP32 artwork warning is resolved by the thermal-pad syntax correction above; real 0.20 mm drills and USB-C NPTH peg clearances remain unwaived, not approved for fabrication.
+- Reject candidate GridRouter copper for verified-footprint designs when the routed net graph lacks physical pad-terminal contact or fails in-process DRC. Seed the ESP32 reference with conservative 100 × 75 mm positions (former 50 × 40 mm outline cannot contain the 48 × 41.25 mm ESP32 RF courtyard), and remove unverified GND copper pour overlapping antenna keepout. Independent KiCad 10.0.6 on exact PR head b1eb3c4 reduced PCB DRC 82→30, with zero schematic ERC warnings but 37 genuinely unconnected items remaining; real drill, connector hole-clearance and footprint artwork rules still block fabrication.
+- Preserve real GCT USB4105 J1 S1 plated oval slots and anonymous NPTH locating pegs across KiCad import/export and Excellon G85 drilling (SHA-256-pinned source geometry); map J1 physical A/B VBUS/GND and CC1/CC2 contacts with separate sink Rd resistors. Source physical-pad coverage reaches 37/37 and strict Proof remains blocked on DRC/clearance. Independent KiCad 10.0.6 now reports 0 schematic ERC, but 82 PCB DRC violations and 37 unconnected items. No routed PCB/fabrication approval is claimed; shell grounding and TVS/LDO electrical evidence remain outstanding.
+
+- Confine component qualification footprint proof reads to the exact repository evidence directory even when a helper is called directly or an ancestor is a symbolic link; reject unsafe identifiers and preserve existing signed proof hashes and human-review boundaries.
+
+- Prevent user-supplied Review Studio HTML, SVG and ECO previews from inheriting the privileged localhost origin through legacy or registered asset URLs; serve sandboxed document policies and escape HTML-significant JSON bytes while preserving the parsed JSON data and existing offline/native review flows.
+
+- Show inherited schematic–PCB parity types and remaining native ERC/DRC issues in passive ECO previews; keep zero new defects distinct from electrically clean. Record a source-pinned L7805 LED-current pilot with 10 preexisting KiCad parity issues explicitly not accepted.
+
+- Fail closed when PCB-bench submissions omit grader evidence, skip mandatory checks, supply invalid ERC error counts or mismatch their evidence hash; rank partial oracle results behind complete passes instead of allowing false benchmark success.
 
 - Surface unresolved physical routing nets and an explicit non-fabrication warning in the pipeline CLI and tool response. Successful generation alone is not PCB continuity evidence.
 - Correct Renovate package-rule precedence so the Ruff Python package and ruff-pre-commit hook share one update group, preserving their exact lockfile/pre-commit version-parity test rather than creating independently failing PRs.

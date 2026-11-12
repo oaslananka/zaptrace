@@ -11,6 +11,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/review_studio_local_server.py"
 sys.path.insert(0, str(SCRIPT.parent))
 spec = importlib.util.spec_from_file_location("review_local_test", SCRIPT)
@@ -420,6 +422,12 @@ def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_
     )
     preview = b"\x89PNG\r\n\x1a\n" + b"known-native-evidence-only"
     (external / "professional-desktop-final.png").write_bytes(preview)
+    # A registered native SVG may include untrusted content and must not
+    # execute in the privileged localhost origin when viewed as a document.
+    (external / "native-false-preview.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>',
+        encoding="utf-8",
+    )
     (external / "source.kicad_pcb").write_bytes(b"private PCB source must not be served")
     (tmp_path / "private.md").write_bytes(b"sibling private notes must not be served")
     (external / "stealth.md").symlink_to(tmp_path / "private.md")
@@ -452,6 +460,24 @@ def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_
             assert "allow-same-origin" not in csp
             assert "connect-src 'none'" in csp
             assert "form-action 'none'" in csp
+        for asset_path in (route + "native-false-preview.svg", "/independent-native-review/native-false-preview.svg"):
+            with urlopen(Request(base + asset_path), timeout=7) as asset:
+                assert asset.status == 200
+                assert b"<script>" in asset.read()
+                policy = asset.headers["Content-Security-Policy"]
+                assert "sandbox" in policy
+                assert "default-src 'none'" in policy
+                assert "allow-same-origin" not in policy
+                assert "allow-scripts" not in policy
+        # Legacy relative links must not bypass the sandbox used by opaque
+        # registered review links, even when HTML includes active JavaScript.
+        with urlopen(Request(base + "/independent-native-review/index.html"), timeout=7) as legacy:
+            assert legacy.status == 200
+            assert b"Real review evidence" in legacy.read()
+            legacy_policy = legacy.headers["Content-Security-Policy"]
+            assert "sandbox allow-scripts allow-popups" in legacy_policy
+            assert "allow-same-origin" not in legacy_policy
+            assert "connect-src 'none'" in legacy_policy
         for blocked in (
             route + "source.kicad_pcb",
             route + "%2e%2e/private.md",
@@ -463,3 +489,261 @@ def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_
             status, body = request(base, blocked)
             assert status in {403, 404}, (blocked, status)
             assert b"private" not in body.lower()
+
+
+def test_local_api_json_is_html_inert_while_preserving_exact_user_strings(tmp_path: Path) -> None:
+    malicious = '</script><svg onload="alert(document.domain)">&notAnEntity;</svg>'
+    with running(tmp_path / "review") as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        srv.jobs["untrusted-job"] = {"state": "complete", "message": malicious}
+        req = Request(base + "/api/jobs/untrusted-job", headers={"X-Review-Token": srv.secret})
+        with urlopen(req, timeout=7) as resp:
+            body = resp.read()
+            assert resp.status == 200
+            assert resp.headers["Content-Type"].startswith("application/json")
+            assert resp.headers["X-Content-Type-Options"] == "nosniff"
+            assert "sandbox" in resp.headers["Content-Security-Policy"]
+            assert "default-src 'none'" in resp.headers["Content-Security-Policy"]
+            assert b"<" not in body
+            assert b">" not in body
+            assert b"&" not in body
+            assert json.loads(body)["message"] == malicious
+
+
+def test_generated_local_eco_html_is_sandboxed_not_privileged_same_origin(tmp_path: Path) -> None:
+    with running(tmp_path / "review") as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        for prefix, job_id, registry in (
+            ("eco", "a" * 32, srv.eco_outputs),
+            ("pcb-eco", "b" * 32, srv.pcb_eco_outputs),
+        ):
+            output = tmp_path / ("test-" + prefix)
+            output.mkdir()
+            (output / "PREVIEW.html").write_text(
+                "<!doctype html><script>fetch('/api/health')</script>", encoding="utf-8"
+            )
+            registry[job_id] = output
+            srv.jobs[job_id] = {"state": "complete"}
+            req = Request(
+                base + f"/api/{prefix}/result/{job_id}/PREVIEW.html",
+                headers={"X-Review-Token": srv.secret},
+            )
+            with urlopen(req, timeout=7) as resp:
+                assert resp.status == 200
+                assert b"fetch('/api/health')" in resp.read()
+                policy = resp.headers["Content-Security-Policy"]
+                assert "sandbox allow-scripts allow-popups" in policy
+                assert "allow-same-origin" not in policy
+                assert "connect-src 'none'" in policy
+
+
+def test_http_server_rejects_linked_workspace_root(tmp_path: Path) -> None:
+    target = tmp_path / "outside"
+    target.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(target, target_is_directory=True)
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        server_code.ReviewLocalServer(("127.0.0.1", 0), alias)
+    assert not (target / "index.html").exists()
+
+
+def test_http_get_does_not_overwrite_unrelated_workspace_homepage(tmp_path: Path) -> None:
+    home = tmp_path / "review"
+    home.mkdir()
+    user_file = tmp_path / "private-homepage.html"
+    user_file.write_text("<!doctype html><title>Personal page</title>")
+    (home / "index.html").symlink_to(user_file)
+    with running(home) as srv:
+        url = f"http://127.0.0.1:{srv.server_port}"
+        status, body = request(url, "/")
+        assert status == 500
+        assert b"Failed to render verified project library" in body
+    assert user_file.read_text() == "<!doctype html><title>Personal page</title>"
+
+
+def test_http_workspace_path_cannot_inject_trusted_script(tmp_path: Path) -> None:
+    """A selected folder name must never create extra JS on the authenticated home page."""
+    from html.parser import HTMLParser
+
+    class ScriptCounter(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scripts = 0
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag == "script":
+                self.scripts += 1
+
+    safe = tmp_path / "ordinary-review"
+    dangerous = tmp_path / "<" / "script><script>alert(19)<"
+    with running(safe) as srv:
+        code, clean = request(f"http://127.0.0.1:{srv.server_port}", "/")
+        assert code == 200
+    with running(dangerous) as srv:
+        code, html = request(f"http://127.0.0.1:{srv.server_port}", "/")
+        assert code == 200
+        assert b"window.__REVIEW_LOCAL__" in html
+
+    clean_parser = ScriptCounter()
+    clean_parser.feed(clean.decode("utf-8"))
+    dirty_parser = ScriptCounter()
+    dirty_parser.feed(html.decode("utf-8"))
+    assert clean_parser.scripts == dirty_parser.scripts
+    assert b"</script><script>alert(19)<" not in html
+
+
+def _registered_asset_workspace(tmp_path: Path) -> tuple[Path, Path]:
+    """Minimum independently valid native review manifest for HTTP boundary tests."""
+    from review_studio_workspace import _append_project
+
+    review = tmp_path / "native-evidence"
+    review.mkdir()
+    (review / "index.html").write_text("<!doctype html><title>Native board proof</title>")
+    (review / "REVIEW_REPORT.html").write_text("Independent native KiCad: NOT FABRICATION APPROVED")
+    (review / "evidence.json").write_text(
+        json.dumps(
+            {
+                "board_name": "real-source-board",
+                "source_sha256": "a" * 64,
+                "drc_state": "not_run",
+                "board": {"pads": [], "copper": [], "size": [20, 10]},
+                "erc": {"state": "not_run", "count": None},
+                "findings": [],
+            }
+        )
+    )
+    workspace = tmp_path / "workspace"
+    _append_project(workspace, "Source board", review)
+    return workspace, review
+
+
+def test_registered_evidence_rejects_oversized_file_before_full_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace, review = _registered_asset_workspace(tmp_path)
+    large = review / "native-plot.png"
+    with large.open("wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.truncate(513)
+    monkeypatch.setattr(server_code, "MAX_REVIEW_ASSET", 512, raising=False)
+    original_read_bytes = Path.read_bytes
+
+    def fail_on_unbounded_read(path: Path) -> bytes:
+        if path == large:
+            raise AssertionError("Cannot read an unbounded registered source-backed asset")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", fail_on_unbounded_read)
+    with running(workspace) as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        opaque = "/review-assets/" + server_code.registered_review_asset_id(review) + "/native-plot.png"
+        for route in (opaque, "/native-evidence/native-plot.png"):
+            status, result = request(base, route)
+            assert status in (403, 404, 413), (status, route)
+            assert b"\x89PNG" not in result
+    assert large.stat().st_size == 513
+
+
+def test_registered_evidence_refuses_symlink_swapped_after_allowlist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace, review = _registered_asset_workspace(tmp_path)
+    asset = review / "native-copper.svg"
+    asset.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg"><title>safe</title></svg>')
+    private = tmp_path / "private-source.md"
+    private.write_text("PRIVATE PCB NOTE")
+    original = server_code.ReviewHandler._is_known_file
+
+    def swap_after_allowlist(handler: server_code.ReviewHandler, path: Path) -> bool:
+        allowed = original(handler, path)
+        if allowed and path == asset:
+            asset.unlink()
+            asset.symlink_to(private)
+        return allowed
+
+    monkeypatch.setattr(server_code.ReviewHandler, "_is_known_file", swap_after_allowlist)
+    with running(workspace) as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        opaque = "/review-assets/" + server_code.registered_review_asset_id(review) + "/native-copper.svg"
+        status, content = request(base, opaque)
+        assert status in (403, 404), status
+        assert b"PRIVATE PCB NOTE" not in content
+    assert private.read_text() == "PRIVATE PCB NOTE"
+
+
+def test_eco_download_refuses_symlink_swapped_after_file_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with running(tmp_path / "workspace") as srv:
+        output = tmp_path / "eco-draft"
+        output.mkdir()
+        asset = output / "ECO_EVIDENCE.json"
+        asset.write_bytes(b'{"source":"verified"}')
+        private = tmp_path / "private-eda-notes.json"
+        private.write_text('{"secret":"DO NOT EXPORT"}')
+        job = "d" * 32
+        srv.eco_outputs[job] = output
+        srv.jobs[job] = {"state": "complete"}
+        original = Path.is_symlink
+        was_swapped = False
+
+        def swap_after_validation(path: Path) -> bool:
+            nonlocal was_swapped
+            if path == asset and not was_swapped:
+                was_swapped = True
+                asset.unlink()
+                asset.symlink_to(private)
+                return False
+            return original(path)
+
+        monkeypatch.setattr(Path, "is_symlink", swap_after_validation)
+        base = f"http://127.0.0.1:{srv.server_port}"
+        status, content = request(base, f"/api/eco/result/{job}/ECO_EVIDENCE.json", token=srv.secret)
+        assert was_swapped
+        assert status in (403, 404), status
+        assert b"DO NOT EXPORT" not in content
+        assert private.read_text() == '{"secret":"DO NOT EXPORT"}'
+
+
+def test_html_evidence_downloads_keep_original_bytes_but_cannot_execute_inline(
+    tmp_path: Path,
+) -> None:
+    """Downloaded native review HTML is always inert as an HTTP document."""
+    import hashlib
+
+    unsafe_preview = b"<!doctype html><script>fetch('/api/jobs/private')</script>"
+    with running(tmp_path / "workspace") as server:
+        base = f"http://127.0.0.1:{server.server_port}"
+        copper = tmp_path / "copper"
+        copper.mkdir()
+        (copper / "PREVIEW.html").write_bytes(unsafe_preview)
+        copper_job = "a" * 32
+        server.native_copper_outputs[copper_job] = copper
+        server.jobs[copper_job] = {
+            "state": "complete",
+            "native_copper": {"download_sha256": {"PREVIEW.html": hashlib.sha256(unsafe_preview).hexdigest()}},
+        }
+
+        pcb = tmp_path / "pcb-eco"
+        pcb.mkdir()
+        (pcb / "CHANGE_REVIEW.html").write_bytes(unsafe_preview)
+        pcb_job = "b" * 32
+        server.pcb_eco_outputs[pcb_job] = pcb
+        server.jobs[pcb_job] = {
+            "state": "complete",
+            "pcb_eco": {"change_review_sha256": hashlib.sha256(unsafe_preview).hexdigest()},
+        }
+
+        for route in (
+            f"/api/native-copper/result/{copper_job}/PREVIEW.html",
+            f"/api/pcb-eco/result/{pcb_job}/CHANGE_REVIEW.html",
+        ):
+            with urlopen(Request(base + route, headers={"X-Review-Token": server.secret}), timeout=7) as resp:
+                assert resp.status == 200
+                assert resp.read() == unsafe_preview
+                assert resp.headers["Content-Disposition"].startswith("attachment;")
+                csp = resp.headers["Content-Security-Policy"]
+                assert "sandbox" in csp
+                assert "default-src 'none'" in csp
+                assert "allow-scripts" not in csp
+                assert resp.headers["X-Content-Type-Options"] == "nosniff"

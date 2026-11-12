@@ -489,10 +489,9 @@ def _export_schematic(cli: str, schematic: Path, output: Path, *, root_only: boo
         preview = directory / "display-only-A2.kicad_sch"
         preview.write_text(text[: header.end()] + '\n  (paper "A2")' + text[header.end() :], encoding="utf-8")
         export_source = preview
-    elif paper is not None and (largest_x > 280 or largest_y > 193):
-        # Existing explicit paper sizes cannot be silently assumed to fit.
-        if paper.group(1) == "A4":
-            raise RuntimeError("Schematic symbols exceed explicit A4 page; manual page review required")
+    elif paper is not None and (largest_x > 280 or largest_y > 193) and paper.group(1) == "A4":
+        # Existing explicit A4 paper cannot be silently assumed to fit.
+        raise RuntimeError("Schematic symbols exceed explicit A4 page; manual page review required")
     # This output directory can be rebuilt with a different preview page.
     # Remove only previously-generated SVG plots to avoid stale multi-page data.
     for stale in directory.glob("*.svg"):
@@ -1230,10 +1229,13 @@ def build(
     schematic: Path | None = None,
     design_source: Path | None = None,
     workspace_home: Path | None = None,
+    expected_source_sha256: str | None = None,
 ) -> Path:
     if board.suffix != ".kicad_pcb" or board.is_symlink():
         raise ValueError("Provide an existing nonsymlink native .kicad_pcb input")
-    read_regular_bytes(board, max_size=10 * 1024 * 1024)
+    raw_board = read_regular_bytes(board, max_size=10 * 1024 * 1024)
+    if expected_source_sha256 is not None and hashlib.sha256(raw_board).hexdigest() != expected_source_sha256:
+        raise ValueError("Source KiCad PCB changed since selection; native review refused")
     if output.is_symlink():
         raise ValueError("Refusing a symlinked native review output directory")
     cli = shutil.which("kicad-cli")

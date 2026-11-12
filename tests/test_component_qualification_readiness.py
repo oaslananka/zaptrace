@@ -107,3 +107,38 @@ def test_mutable_web_capture_can_satisfy_machine_identity_without_raw_page_hash(
     machine = [blocker for blocker in row.blockers if blocker.blocker_class is QualificationBlockerClass.MACHINE]
 
     assert {(blocker.code, blocker.field) for blocker in machine} == {("field-source-hash-missing", "sourcing")}
+
+
+@pytest.mark.parametrize(
+    "unsafe_id",
+    ["../escape", "../../private", "/etc/passwd", "nested/proof", r"..\secrets", ".hidden", ""],
+)
+def test_private_footprint_lookup_rejects_unsafe_component_identifier(unsafe_id: str) -> None:
+    """Direct library call must not bypass the cohort's public ID validation."""
+    from zaptrace.library.qualification import _proof_machine_blockers
+
+    component = LibraryLoader().load_all()["bme280"]
+    with pytest.raises(ValueError, match="unsafe component id"):
+        _proof_machine_blockers(component, component_id=unsafe_id, repository_root=REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize("outside_repo", [False, True])
+def test_private_footprint_lookup_rejects_indirect_symlink_escape(tmp_path: Path, outside_repo: bool) -> None:
+    """The proof parent may be a symlink even when the JSON leaf is regular."""
+    from zaptrace.library.qualification import _proof_machine_blockers
+
+    root = tmp_path / "trusted-repository"
+    parent = root / "data" / "library" / "evidence"
+    parent.mkdir(parents=True)
+    destination = tmp_path / "external-proofs" if outside_repo else root / "other-content"
+    destination.mkdir()
+    source = REPOSITORY_ROOT / "data/library/evidence/footprints/bme280.json"
+    assert source.is_file(), "Read from the pinned governed library, not synthetic data"
+    (destination / "bme280.json").write_bytes(source.read_bytes())
+    (parent / "footprints").symlink_to(destination, target_is_directory=True)
+    spec = LibraryLoader().load_all()["bme280"]
+
+    blockers, label, proof_sha = _proof_machine_blockers(spec, component_id="bme280", repository_root=root)
+    assert label == "data/library/evidence/footprints/bme280.json"
+    assert proof_sha == "", "A substituted proof must never be SHA-bound as accepted evidence"
+    assert {blocker.code for blocker in blockers} == {"footprint-proof-unsafe"}

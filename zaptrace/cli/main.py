@@ -1,4 +1,4 @@
-"""ZapTrace CLI — 23 commands for electronics design."""
+"""ZapTrace CLI for electronics design and source-backed review."""
 
 from __future__ import annotations
 
@@ -33,6 +33,7 @@ from zaptrace.agent._tool_impls import (
     tool_route_nets,
     tool_synthesize_design,
 )
+from zaptrace.cli.netclass_preview import netclass_preview
 from zaptrace.cli.output import (
     console,
     print_json,
@@ -40,6 +41,10 @@ from zaptrace.cli.output import (
     print_summary,
     print_table,
 )
+from zaptrace.cli.parity_repair_preview import parity_repair_preview
+from zaptrace.cli.passive_eco_preview import passive_eco_preview
+from zaptrace.cli.pcb_drc_delta import pcb_drc_delta
+from zaptrace.cli.sheet_metadata_preview import sheet_metadata_preview
 
 _SESSION = "cli-default"
 
@@ -345,6 +350,13 @@ def svg(name: str, output: str | None) -> None:
 @cli.group()
 def kicad() -> None:
     """Export designs to KiCad format and run KiCad verification via kicad-cli."""
+
+
+kicad.add_command(netclass_preview)
+kicad.add_command(sheet_metadata_preview)
+kicad.add_command(pcb_drc_delta)
+kicad.add_command(passive_eco_preview)
+kicad.add_command(parity_repair_preview)
 
 
 @kicad.command()

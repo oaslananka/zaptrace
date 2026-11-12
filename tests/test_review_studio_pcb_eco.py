@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+
+NATIVE_KICAD_PYTHON = (
+    "/usr/local/bin/kicad-python" if os.environ.get("ZAPTRACE_KICAD_PYTHON") == "appimage" else "/usr/bin/python3"
+)
 
 SOURCE = Path(__file__).resolve().parents[1]
 SCRIPT = SOURCE / "scripts/review_studio_pcb_eco.py"
@@ -21,7 +26,7 @@ def run_eco(
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             str(SCRIPT),
             "--board",
@@ -118,7 +123,7 @@ def test_introduced_real_clearance_drc_error_never_writes_output(tmp_path: Path)
     board.parent.mkdir()
     make = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """
@@ -191,7 +196,7 @@ board.Add(item)
 p.SaveBoard(sys.argv[2], board)
 """
     native = subprocess.run(
-        ["/usr/bin/python3", "-B", "-c", script, str(CLEAN), str(board), copper_kind, x_mm],
+        [NATIVE_KICAD_PYTHON, "-B", "-c", script, str(CLEAN), str(board), copper_kind, x_mm],
         capture_output=True,
         text=True,
         timeout=25,
@@ -276,7 +281,7 @@ def test_unrelated_copper_arc_outside_footprint_still_allows_evidence(tmp_path: 
     pcb = original / "unrelated-arc.kicad_pcb"
     make = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """
@@ -370,7 +375,7 @@ def test_actual_native_footprint_rotation_updates_real_pad_centers_without_sourc
     assert not evidence["fabApproved"]
     native = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """
@@ -423,7 +428,7 @@ def test_rotated_native_pad_cannot_land_on_existing_track_without_drag_routing(t
     board.parent.mkdir()
     native = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """
@@ -475,7 +480,7 @@ def test_native_rotation_accumulates_existing_footprint_angle_safely(tmp_path: P
     board.parent.mkdir()
     native = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """
@@ -510,7 +515,7 @@ def test_locked_real_footprint_cannot_be_rotated(tmp_path: Path) -> None:
     board.parent.mkdir()
     native = subprocess.run(
         [
-            "/usr/bin/python3",
+            NATIVE_KICAD_PYTHON,
             "-B",
             "-c",
             """

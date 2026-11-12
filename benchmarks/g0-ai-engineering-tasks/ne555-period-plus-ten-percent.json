@@ -1,0 +1,85 @@
+{
+  "candidate": {
+    "original_value": "68k",
+    "proposed_value": "75k",
+    "rationale": "75k is a standard nominal preferred resistor value; increasing R_B raises nominal 555 astable period by approximately 10% without moving pads or changing nets",
+    "reference": "R2"
+  },
+  "license": "MIT",
+  "nominal_analysis": {
+    "datasheet_revision": "SLFS022K, revised March 2026, section 6.3.2",
+    "datasheet_url": "https://www.ti.com/lit/ds/symlink/ne555.pdf",
+    "equation": "T ~= 0.693 * (RA + 2*RB) * C",
+    "evidence_kind": "nominal analytical prediction, not simulation or oscilloscope measurement",
+    "frequency_after_hz": 0.932774,
+    "frequency_before_hz": 1.025587,
+    "period_after_seconds": 1.072071,
+    "period_before_seconds": 0.975051,
+    "period_increase_percent": 9.95
+  },
+  "non_claims": [
+    "Not an independently qualified electronics design",
+    "Not an autonomous 20-task benchmark pass",
+    "Nominal timing ignores capacitor/resistor tolerance and NE555 nonideal behavior",
+    "No SPICE/hardware timing result or physical manufacturing review",
+    "No human engineering signoff or approved BOM"
+  ],
+  "observed_execution": {
+    "after_native_drc": 0,
+    "after_native_erc": 0,
+    "after_native_schematic_pcb_parity": 0,
+    "before_native_drc": 0,
+    "before_native_erc": 0,
+    "before_native_schematic_pcb_parity": 0,
+    "candidate_pcb_sha256": "2de6e9913f7a95547cb474b8d8124c8e18eb6a02bbb756a47af8d0dafb1382bb",
+    "candidate_schematic_sha256": "8515d064203310e68b3e76b14b6b81abb631648bc6717ee80c4780125748d568",
+    "command_runtime_seconds": 27.893,
+    "native_kicad_version": "10.0.8",
+    "native_net_count": 7,
+    "native_net_pin_topology_equal": true,
+    "native_run_date": "2026-11-12",
+    "original_pcb_sha256": "b5ceacde3247dd40a43ab13cb71157e9f03aa14c42806863ae8ee76f96c18763",
+    "original_project_sha256": "757a0fa131392ef5748e5266432ad57723cb2fb4f57649d08be9aaee9f6e01eb",
+    "original_schematic_sha256": "e082a866b440437150740a766f4ae35b437e770147c09120c759f766bcf7ad1f",
+    "source_files_modified": false,
+    "tool": "zaptrace kicad passive-eco-preview",
+    "verification_method": "independent native KiCad 10.0.8 ERC/DRC/parity, native XML graph and byte-guarded source previews"
+  },
+  "outcome": {
+    "functional_measurement": "not_run",
+    "functional_simulation": "not_run",
+    "g0_verified": false,
+    "human_review": "not_run",
+    "independently_scored": false,
+    "manufacturing_approved": false,
+    "physical_fabrication_review": "not_run",
+    "qualified_component_sourcing": "not_run",
+    "status": "human-review-required",
+    "tolerance_analysis": "not_run"
+  },
+  "prompt_origin": "agent-selected reproducible G0 pilot, not a separate end-user timing request",
+  "proposal_provenance": {
+    "api_cost_usd": null,
+    "assistant_model_family": "GPT-6",
+    "human_interventions": null,
+    "independent_agent_run_attested": false,
+    "inference_settings": "not captured",
+    "proposal_type": "AI-assisted, source-inspected engineering suggestion"
+  },
+  "reference_id": "nitu-555-blinker",
+  "schema_version": "g0-ai-electronics-task-attempt-v1",
+  "source_artifact_set_sha256": "4be0e0352fb4237d363dfc38b03c0a7395403cf86afc9ea1f6192b0aa51d9f62",
+  "source_upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+  "task_brief": "On the exact original NE555 astable LED blinker, increase the nominal blink period by about 10% with a single standard resistor value change, preserving all connections and PCB geometry. Produce independently checked, separate KiCad drafts; do not imply hardware acceptance.",
+  "task_id": "g0-001-ne555-period-eco",
+  "timing_parts": {
+    "c_reference": "C1",
+    "c_value": "10uF",
+    "device": "NE555P",
+    "native_connectivity": "R1 between +5V and /DISCH (U1.7); R2 between /DISCH and /TIMING (U1.2/6); C1 between /TIMING and GND",
+    "ra_reference": "R1",
+    "ra_value": "4.7k",
+    "rb_reference": "R2",
+    "rb_value": "68k"
+  }
+}

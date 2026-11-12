@@ -1,0 +1,1144 @@
+{
+  "blocked": 16,
+  "gate": "g0-native-schematic-import-parity",
+  "manifest_sha256": "2c7b413cffa198b0d1130e098281d3a806f17cc047c8ae7cab1679ce699c18ad",
+  "measured": 16,
+  "native_tool_version": "10.0.8",
+  "not_run": 4,
+  "references": [
+    {
+      "comparison": {
+        "common_net_count": 32,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 26,
+          "imported_connected_pin_count": 93,
+          "imported_connected_topology_sha256": "cd9eb4c5f497809f9dc29b46d2131edcc3f4dbc57d7327ac39979da514e4c1da",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 6,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 26,
+          "native_connected_pin_count": 93,
+          "native_connected_topology_sha256": "cd9eb4c5f497809f9dc29b46d2131edcc3f4dbc57d7327ac39979da514e4c1da",
+          "native_no_connect_pin_count": 6
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "93d16cacc13c4f791ab519451a89bf2d9e3eb4c5bf8bcb84f82c50982ba4b3ed",
+        "imported_net_count": 32,
+        "imported_pin_node_count": 99,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 26,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 26,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "93d16cacc13c4f791ab519451a89bf2d9e3eb4c5bf8bcb84f82c50982ba4b3ed",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 32,
+        "native_pin_node_count": 99,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 1.018,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 49,
+          "unsupported_construct": 71
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 1
+      },
+      "native_netlist_sha256": "aa407ff61dbb3a2ba4c7c786cc7ae0e1634897c1b2bb4fbf5ee0ef646b272582",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "sparkfun-qwiic-navigation",
+      "source_artifact_sha256": {
+        "SparkFun_Qwiic_Navigation.kicad_pcb": "0e27f8eb07741a84f98a3d7cabccfc4153c3070ad8e04dce31ca57c9d27016bb",
+        "SparkFun_Qwiic_Navigation.kicad_pro": "c0cd12cdf421aefc9fd8884e94316c97bcc10d80d9a1b399bdd6712bea097a19",
+        "SparkFun_Qwiic_Navigation.kicad_sch": "e70e7157c51686cf97304aa6520cab91bb875f37073a195076203deb7897012e"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "b64c0dac2134d69963bf28120305bd79aad3c8ac"
+    },
+    {
+      "comparison": {
+        "common_net_count": 64,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 61,
+          "imported_connected_pin_count": 228,
+          "imported_connected_topology_sha256": "f7644bcc68778c1fe3e248ab46e2f5c211f5ec3ecf8ab88362561846be4ba59b",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 3,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 61,
+          "native_connected_pin_count": 228,
+          "native_connected_topology_sha256": "f7644bcc68778c1fe3e248ab46e2f5c211f5ec3ecf8ab88362561846be4ba59b",
+          "native_no_connect_pin_count": 3
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "378dac85dc3c453fe52b1384cb1fd554fa6f689a0a2377ed7265056b752e713e",
+        "imported_net_count": 64,
+        "imported_pin_node_count": 231,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 61,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 61,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "378dac85dc3c453fe52b1384cb1fd554fa6f689a0a2377ed7265056b752e713e",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 64,
+        "native_pin_node_count": 231,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 2.001,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 58,
+          "unsupported_construct": 56
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 7
+      },
+      "native_netlist_sha256": "35e39461ab6ede50809c4d2c7669ad88282d96e871c9b08f2246ee85ae5c2e72",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "mitayi-pico-d1",
+      "source_artifact_sha256": {
+        "Mitayi-Pico-D1.kicad_pcb": "52dc529d6caf77d947c25f8b7f68d2c8a43f0ee5f05bff3ceaec1c7d0698aa5c",
+        "Mitayi-Pico-D1.kicad_pro": "c8bd3909f11916aad6b412a94fa4a0ac9223b5cc251b5ee2d64ffd8778430c99",
+        "Mitayi-Pico-D1.kicad_sch": "5b1fa60d4533faeab9e57619577a4fa6d3f2dc7ae45bac338610bd9e82635808"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "8411224b5795dd74843ff87e8ead096f1e13e11d"
+    },
+    {
+      "reason": "reference-only; byte-pinned source not vendored",
+      "reference_id": "olimex-ice40hx1k-evb-revb",
+      "source_verification": "reference-only-hash-pinned",
+      "status": "not_run",
+      "upstream_commit": "91f3b5aff50258ddb40c021a21d4fd871633fc80"
+    },
+    {
+      "reason": "reference-only; byte-pinned source not vendored",
+      "reference_id": "olimex-esp32-devkit-lipo-revd",
+      "source_verification": "reference-only-hash-pinned",
+      "status": "not_run",
+      "upstream_commit": "1ebbbb5ceaa84b1d67631d8d542d7f6128c19fc1"
+    },
+    {
+      "reason": "reference-only; byte-pinned source not vendored",
+      "reference_id": "olimex-bb-pwr-3608-reva",
+      "source_verification": "reference-only-hash-pinned",
+      "status": "not_run",
+      "upstream_commit": "fbd5d7a62807edf2343c445dd1cd43e81bbbb84e"
+    },
+    {
+      "reason": "reference-only; byte-pinned source not vendored",
+      "reference_id": "olimex-tuxcon-kitty-reva",
+      "source_verification": "reference-only-hash-pinned",
+      "status": "not_run",
+      "upstream_commit": "64cba773ca8a0d9f5a3612d73fa627ddeef0312d"
+    },
+    {
+      "comparison": {
+        "common_net_count": 7,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 7,
+          "imported_connected_pin_count": 24,
+          "imported_connected_topology_sha256": "82da933d6a4a7b8ae3a155c995f1b6523f407b028a0ce7a88501743da7789773",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 7,
+          "native_connected_pin_count": 24,
+          "native_connected_topology_sha256": "82da933d6a4a7b8ae3a155c995f1b6523f407b028a0ce7a88501743da7789773",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "56abac0ac18a7dabd11ef901ba28cd49ed4357a65d60983020f36bc21c345800",
+        "imported_net_count": 7,
+        "imported_pin_node_count": 24,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 7,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 7,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "56abac0ac18a7dabd11ef901ba28cd49ed4357a65d60983020f36bc21c345800",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 7,
+        "native_pin_node_count": 24,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.417,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 5,
+          "unsupported_construct": 9
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "4f17c9f88796aad438652659db4f44212a03191019b8038bac18d3f6bbb27749",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "nitu-555-blinker",
+      "source_artifact_sha256": {
+        "02_555_blinker.kicad_pcb": "b5ceacde3247dd40a43ab13cb71157e9f03aa14c42806863ae8ee76f96c18763",
+        "02_555_blinker.kicad_pro": "757a0fa131392ef5748e5266432ad57723cb2fb4f57649d08be9aaee9f6e01eb",
+        "02_555_blinker.kicad_sch": "e082a866b440437150740a766f4ae35b437e770147c09120c759f766bcf7ad1f"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7"
+    },
+    {
+      "comparison": {
+        "common_net_count": 6,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 6,
+          "imported_connected_pin_count": 23,
+          "imported_connected_topology_sha256": "bf5b43001ec6bde8b3d57b18bd4e9250d39ca623643cfae667dfd38a74615c2b",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 6,
+          "native_connected_pin_count": 23,
+          "native_connected_topology_sha256": "bf5b43001ec6bde8b3d57b18bd4e9250d39ca623643cfae667dfd38a74615c2b",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "e2a94af5efd82f37ff202d07769e3d552ea7f61ab45545cd90df0ff884c875e6",
+        "imported_net_count": 6,
+        "imported_pin_node_count": 23,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 6,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 6,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "e2a94af5efd82f37ff202d07769e3d552ea7f61ab45545cd90df0ff884c875e6",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 6,
+        "native_pin_node_count": 23,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.431,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 13,
+          "unsupported_construct": 9
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "bc0b4e54db209fb4490dd78596c7d93217d7175e347bd4e16b5f8ef98d3f9891",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "nitu-npn-transistor-switch",
+      "source_artifact_sha256": {
+        "04_npn_transistor_switch.kicad_pcb": "f3aeb2c90582dd3973b1dda17afd1f34055f52e29c45faa8fdc1947d16b8e0fe",
+        "04_npn_transistor_switch.kicad_pro": "1105cf81251cf9cf8f08e58067cbfb88349eca6406f2c03840491ce7c3072230",
+        "04_npn_transistor_switch.kicad_sch": "ec751400fac33ec7303cac808b90320393f9260539ece9c2ce64097e9e96de7e"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7"
+    },
+    {
+      "comparison": {
+        "common_net_count": 5,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 5,
+          "imported_connected_pin_count": 25,
+          "imported_connected_topology_sha256": "790d946391931079dcf40669039656cc15ca33788ae8aad8578466d2501997f6",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 5,
+          "native_connected_pin_count": 25,
+          "native_connected_topology_sha256": "790d946391931079dcf40669039656cc15ca33788ae8aad8578466d2501997f6",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "93c710de734e322e1a67abf7e1509222e5483e7fda612d1823eb53fe9afbb0e0",
+        "imported_net_count": 5,
+        "imported_pin_node_count": 25,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 5,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 5,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "93c710de734e322e1a67abf7e1509222e5483e7fda612d1823eb53fe9afbb0e0",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 5,
+        "native_pin_node_count": 25,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.465,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 12,
+          "unsupported_construct": 9
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "5c70cf887312fa154f0533d118fdd2c834e2a2a11403c46002ef064eb2fe3799",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "nitu-linear-regulator",
+      "source_artifact_sha256": {
+        "05_linear_regulator.kicad_pcb": "4f63a54b18a97e24fc4ccf122cae7c5c6c0eefac745a032a66a36c6b1d234e8b",
+        "05_linear_regulator.kicad_pro": "fc36678baf97c7cb901bf91bbb6c307f9f382685cadac9abd272fd01bc54e050",
+        "05_linear_regulator.kicad_sch": "8cdda7e28129ca132c29868b94d7d3339ac4d6846d7c6d51278fc40c4ede44d9"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7"
+    },
+    {
+      "comparison": {
+        "common_net_count": 9,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 9,
+          "imported_connected_pin_count": 24,
+          "imported_connected_topology_sha256": "e76acd116ec354683d7ea17a2ef6961b62c835e407216413bed3611c6521c26b",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 9,
+          "native_connected_pin_count": 24,
+          "native_connected_topology_sha256": "e76acd116ec354683d7ea17a2ef6961b62c835e407216413bed3611c6521c26b",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "767239f3b7d44e203de0619685c99fbbbc3c71175ad08d72c10ad5d714900f80",
+        "imported_net_count": 9,
+        "imported_pin_node_count": 24,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 9,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 9,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "767239f3b7d44e203de0619685c99fbbbc3c71175ad08d72c10ad5d714900f80",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 9,
+        "native_pin_node_count": 24,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.384,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 2,
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "3e5328d1cbb9aa47f2bebb60fdd93760d91fd2b50c68db45ea652e7f0ffa47f9",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-9v-battery-indicator",
+      "source_artifact_sha256": {
+        "9V Battery Status Indicator Circuit.kicad_pcb": "44504e453fddda3998521f89b5a3db069a6d2e098a901088a8a3f5c244bb9e7c",
+        "9V Battery Status Indicator Circuit.kicad_pro": "8829606a0e42b48c2c95cd2cc526a6d2f72de86fe153fbaa87fcee06eb854692",
+        "9V Battery Status Indicator Circuit.kicad_sch": "50ba51710ec7392148cd0a41c7724d47160426ee44e13bf1d8f3c1177bcc2cbf"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 7,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 7,
+          "imported_connected_pin_count": 16,
+          "imported_connected_topology_sha256": "dea18d0a269fa09b3035fdb2816133fba766e311e165ebd5a850963510c0f2b7",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 7,
+          "native_connected_pin_count": 16,
+          "native_connected_topology_sha256": "dea18d0a269fa09b3035fdb2816133fba766e311e165ebd5a850963510c0f2b7",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "74e9d6a5f66154c8b35e43151bb67c0bd65e0b074556b2b67de4006945f40eb4",
+        "imported_net_count": 7,
+        "imported_pin_node_count": 16,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 7,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 7,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "74e9d6a5f66154c8b35e43151bb67c0bd65e0b074556b2b67de4006945f40eb4",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 7,
+        "native_pin_node_count": 16,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.362,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "8af534f4327245f4a3fea713008d1b66012e66cfb442bc251abcf84412cf1ebd",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-hidden-wire-detector",
+      "source_artifact_sha256": {
+        "Hidden Wire Detector.kicad_pcb": "2059d9ca877bb27b9fa15a373ff98e68583f8a3b1def4309d964ce914b054b1b",
+        "Hidden Wire Detector.kicad_pro": "72471f83e96c0b02cea67a0d9e014b2c65c0510495077f42b1265c4a24a3defc",
+        "Hidden Wire Detector.kicad_sch": "ca12f4070d2d37183d0596b9e7dc10b36790503b6c3ae2fe8e2e9502c452813e"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 5,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 5,
+          "imported_connected_pin_count": 13,
+          "imported_connected_topology_sha256": "3e5fd354b1d4623da2d25f3a24b2bbe9f837d2ca504a951e06d1b4f72ebb94f2",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 5,
+          "native_connected_pin_count": 13,
+          "native_connected_topology_sha256": "3e5fd354b1d4623da2d25f3a24b2bbe9f837d2ca504a951e06d1b4f72ebb94f2",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "4b3a9c4e75576825b5c160f251aef4aa6c589a9d0772a48c431eb9809cc1ac2e",
+        "imported_net_count": 5,
+        "imported_pin_node_count": 13,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 5,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 5,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "4b3a9c4e75576825b5c160f251aef4aa6c589a9d0772a48c431eb9809cc1ac2e",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 5,
+        "native_pin_node_count": 13,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.336,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "184de109143775ac3a9011595c3c844b57603e2d7580d23ee5f17d8935b2d9d9",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-light-activated-switch",
+      "source_artifact_sha256": {
+        "Light-Activated Switch.kicad_pcb": "d9a97e53f7c2a99eb8cb54f49af9ec7f8f868ac940c914aa4d763e5b75f10178",
+        "Light-Activated Switch.kicad_pro": "5efb72f4f98be8bc21930528f2bf28ca659eafab1ff2e7b0751ee287ca95ee3c",
+        "Light-Activated Switch.kicad_sch": "7da20be44e084f5622803b2e84b9d01a6635582eb3d34f880c99a81304c4ae4a"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 6,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 6,
+          "imported_connected_pin_count": 24,
+          "imported_connected_topology_sha256": "a16af37ed1e8b99d362ffce4eb8027fc0dc1f27ada1b73b83483c4fd1abc36bd",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 6,
+          "native_connected_pin_count": 24,
+          "native_connected_topology_sha256": "a16af37ed1e8b99d362ffce4eb8027fc0dc1f27ada1b73b83483c4fd1abc36bd",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "5ad2220653dedbad51ff2816d753f344655f18628e7f9b034d49d2a632f90785",
+        "imported_net_count": 6,
+        "imported_pin_node_count": 24,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 6,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 6,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "5ad2220653dedbad51ff2816d753f344655f18628e7f9b034d49d2a632f90785",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 6,
+        "native_pin_node_count": 24,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.416,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 2,
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "cdb128447b3b53efc3970de4933d2e7321ab07184d200833c654155cd2433395",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-astable-multivibrator",
+      "source_artifact_sha256": {
+        "astable miltivibrator.kicad_pcb": "539b1e6a1e5c3c8ecb3df6728e0c9807f05e71f1cdd003cd0f08f86dd6f6b61e",
+        "astable miltivibrator.kicad_pro": "5e0de826448088e76f0838852edb7d454dfb57fd075f037e0b9abc4c80e744e0",
+        "astable miltivibrator.kicad_sch": "132f7b8b02c3ab0973bb0150b340e088d60ff87aae8953d6b16fe413c2f90153"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 5,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 5,
+          "imported_connected_pin_count": 12,
+          "imported_connected_topology_sha256": "b99d88112b5ba14a850b5fa44f11ac6132469cf9f895acdb99f7574741730f1d",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 5,
+          "native_connected_pin_count": 12,
+          "native_connected_topology_sha256": "b99d88112b5ba14a850b5fa44f11ac6132469cf9f895acdb99f7574741730f1d",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "bbdcbed2c5d4bf845821dd8379cfaca0a1dd1ee990cbf1a355a14ee319b1a18f",
+        "imported_net_count": 5,
+        "imported_pin_node_count": 12,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 5,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 5,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "bbdcbed2c5d4bf845821dd8379cfaca0a1dd1ee990cbf1a355a14ee319b1a18f",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 5,
+        "native_pin_node_count": 12,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.346,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "188ce53971402e72b96a4886e08cd7313610ed55233cafeebd5cc8545489a807",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-automatic-hand-sanitizer",
+      "source_artifact_sha256": {
+        "automatic hand sanitizer.kicad_pcb": "fce6cc9755e687594e3b78b4ff68eb856792ff047ca3c623cfcacf3cca87fdad",
+        "automatic hand sanitizer.kicad_pro": "a10a7c6f4af3915d12f3a17fdf6ecc22ef62a955f49c62ae281ce33662bfa5bb",
+        "automatic hand sanitizer.kicad_sch": "9b5074e92bf52756d2e6d103bae2a2b6b8952f64d933b6b28a08df287b8c4a14"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 7,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 7,
+          "imported_connected_pin_count": 22,
+          "imported_connected_topology_sha256": "fe77578af2d2a03bfc53ba5e355f99062e6da20a1d3540c94c4e429e96ccfde8",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 7,
+          "native_connected_pin_count": 22,
+          "native_connected_topology_sha256": "fe77578af2d2a03bfc53ba5e355f99062e6da20a1d3540c94c4e429e96ccfde8",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "6f1e2381c4d34871c4a895ff5302f95aa9de37446864049bc498d2550897592e",
+        "imported_net_count": 7,
+        "imported_pin_node_count": 22,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 7,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 7,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "6f1e2381c4d34871c4a895ff5302f95aa9de37446864049bc498d2550897592e",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 7,
+        "native_pin_node_count": 22,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.388,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "92a40959db4375efa2359d833aefe7de1a3878b90f284cd1f1dd03a7d71b121b",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-clap-switch",
+      "source_artifact_sha256": {
+        "clap switch circuit.kicad_pcb": "573dfaeb7f3e64ce82acdf2e167024f18ecc67d7be5564d17d58d6ec187f1010",
+        "clap switch circuit.kicad_pro": "81d72bcab0ea56bccf1f5db62b6515e88b2cf662c2283654d5c632c60940ad59",
+        "clap switch circuit.kicad_sch": "c247066fb7d4497a0f102712bbf895ee26969ed7d86441f87d12955a98e57a90"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 6,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 6,
+          "imported_connected_pin_count": 18,
+          "imported_connected_topology_sha256": "c3e8aed9d4cf52f2d76c600f5ddecdddb3c28af58b10f2a86edb6554295279ba",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 6,
+          "native_connected_pin_count": 18,
+          "native_connected_topology_sha256": "c3e8aed9d4cf52f2d76c600f5ddecdddb3c28af58b10f2a86edb6554295279ba",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "7bfe0da40570b6866a777f82d4d79ad3880cef810960c8fcb72d056d0e038ea5",
+        "imported_net_count": 6,
+        "imported_pin_node_count": 18,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 6,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 6,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "7bfe0da40570b6866a777f82d4d79ad3880cef810960c8fcb72d056d0e038ea5",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 6,
+        "native_pin_node_count": 18,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.361,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 2,
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "1b1096f44e60a3d5089a11e3de97ced3f4d28698b509ebec0d3f1766478d5ebd",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-obstacle-detector",
+      "source_artifact_sha256": {
+        "obstacle detector.kicad_pcb": "b7d3baaca855579f1375429fc642f71fed23c036591903fe8ef617fa64d1c84a",
+        "obstacle detector.kicad_pro": "a962f55a474ff1ffeeaca52b84ba4bb03f5a4f989c5727d6729c779bee3856fe",
+        "obstacle detector.kicad_sch": "df10129c3c7c6f2baa1acdcc1dbcc5d188805e79207f6d9c8c8b7e80174aef64"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 4,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 4,
+          "imported_connected_pin_count": 11,
+          "imported_connected_topology_sha256": "9b58705186f677291d939888c56e0c0854f567e5ab29f8dc0ecc800ac64fadbf",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 4,
+          "native_connected_pin_count": 11,
+          "native_connected_topology_sha256": "9b58705186f677291d939888c56e0c0854f567e5ab29f8dc0ecc800ac64fadbf",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "a27840fe3f23fa947110edd12796e2eaf84582d426c989789d25669d4ee55dfa",
+        "imported_net_count": 4,
+        "imported_pin_node_count": 11,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 4,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 4,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "a27840fe3f23fa947110edd12796e2eaf84582d426c989789d25669d4ee55dfa",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 4,
+        "native_pin_node_count": 11,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.342,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "fd7b2faa8dca08a1ca5c11dd953d9aa07f7a7d20e8bd8957321b20db4639dafa",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-temperature-fan",
+      "source_artifact_sha256": {
+        "temperature controlled dc fan.kicad_pcb": "c951dff9f9b4db63649569848ccb209776ce7d6c1e9f3251fe3891823196f11b",
+        "temperature controlled dc fan.kicad_pro": "a4cecd63c4179239fd5875955dae34c4756ddc028663904e12e39f46cb685897",
+        "temperature controlled dc fan.kicad_sch": "75ab71d670cf70dc6905fcca3a8172215a9a96aa51bccf918ced60002dedb241"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 4,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 4,
+          "imported_connected_pin_count": 10,
+          "imported_connected_topology_sha256": "518f4947eaa526f8b05a6be9b5591d20a39ab8834f0bd0d3d22797bc6261a1cc",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 4,
+          "native_connected_pin_count": 10,
+          "native_connected_topology_sha256": "518f4947eaa526f8b05a6be9b5591d20a39ab8834f0bd0d3d22797bc6261a1cc",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "4a15659a7f00a5fbc1facfede4281df5f7514c8056da91304255fb02885b064d",
+        "imported_net_count": 4,
+        "imported_pin_node_count": 10,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 4,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 4,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "4a15659a7f00a5fbc1facfede4281df5f7514c8056da91304255fb02885b064d",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 4,
+        "native_pin_node_count": 10,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.329,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "4e4f87fdd1213a316ff0dfe36116f2d983ccad064e87d74122c5a2b276e9d732",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-touch-sensor",
+      "source_artifact_sha256": {
+        "touch sensor circuit.kicad_pcb": "70112d19e7eb999feee754c6383320dae977537bc6f77e994f7c2875b9483c86",
+        "touch sensor circuit.kicad_pro": "1425219a39ea5556a72bd72a2e565ba81b9e3d415ede3943425dd7ad2cdba8eb",
+        "touch sensor circuit.kicad_sch": "456fc1e1bec6778ef8a86b0b4640624018b4fdef23c0540e512f04768f54c476"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 17,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": true,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 17,
+          "imported_connected_pin_count": 41,
+          "imported_connected_topology_sha256": "421a5c1636d3508a0482f4aef93392be2f8ce46620be90f9ecb9d72960008e96",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 0,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 0,
+          "native_connected_group_count": 17,
+          "native_connected_pin_count": 41,
+          "native_connected_topology_sha256": "421a5c1636d3508a0482f4aef93392be2f8ce46620be90f9ecb9d72960008e96",
+          "native_no_connect_pin_count": 0
+        },
+        "exact_connectivity_parity": true,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "3fe06e014ed5b530d0136f797a5607edef1d495f3da4aa2388a8877122745c2c",
+        "imported_net_count": 17,
+        "imported_pin_node_count": 41,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 17,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 17,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "classified_not_verified"
+        },
+        "native_graph_sha256": "3fe06e014ed5b530d0136f797a5607edef1d495f3da4aa2388a8877122745c2c",
+        "native_missing_examples": [],
+        "native_missing_net_count": 0,
+        "native_net_count": 17,
+        "native_pin_node_count": 41,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.408,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 1,
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "b90dab140039374b27b7570a006104dfebb7b9509f5d5d169195b959c868251f",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "jkc-water-level-indicator",
+      "source_artifact_sha256": {
+        "water level indicator.kicad_pcb": "a94892a3d16a5feb740f5a02d4d025cb010084dc52ae1b2a0593c0f2438bfd98",
+        "water level indicator.kicad_pro": "f84c00a90f1f343251ac3db10f3659ab25ccc2a728ab8bfbe071a29dbfa71d4f",
+        "water level indicator.kicad_sch": "f01f1dd1a59074678627e623a2dabaa2c0e22d209905cfffe3e91041f529b973"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "1d33aaab5dca045a6a8b9da1542fb24ed2e55017"
+    },
+    {
+      "comparison": {
+        "common_net_count": 44,
+        "connected_pin_topology": {
+          "connected_pin_topology_parity": false,
+          "extra_connected_pin_count": 0,
+          "imported_connected_group_count": 42,
+          "imported_connected_pin_count": 124,
+          "imported_connected_topology_sha256": "3148bf7467ef927036faac9a6e9fb0a56b7d6b7d930ef0a7f2ae0bc6232a0abe",
+          "imported_erc_power_flag_pin_count": 0,
+          "imported_no_connect_pin_count": 2,
+          "imported_power_annotation_pin_count": 0,
+          "limited_scope": "unnamed connected physical pin groups only; does not attest named nets, full import, PCB, or manufacturing",
+          "missing_connected_pin_count": 6,
+          "native_connected_group_count": 45,
+          "native_connected_pin_count": 130,
+          "native_connected_topology_sha256": "697a0ed1f5ebf779fa8de9c34eeeb44e677b672049f180cadf3551687cf56c24",
+          "native_no_connect_pin_count": 2
+        },
+        "exact_connectivity_parity": false,
+        "imported_extra_examples": [],
+        "imported_extra_net_count": 0,
+        "imported_graph_sha256": "1a802bb1761081200b0698bd6b50055513492506c665635e3fd77f7e0cf1c5d3",
+        "imported_net_count": 44,
+        "imported_pin_node_count": 126,
+        "name_difference_diagnostics": {
+          "category_counts": {
+            "exact": 0,
+            "generated_name_mismatch": 0,
+            "local_sheet_and_escape_candidate": 0,
+            "local_sheet_prefix_candidate": 0,
+            "slash_escape_candidate": 0,
+            "unexplained_name_mismatch": 0
+          },
+          "evaluated_group_count": 0,
+          "limited_scope": "diagnostic only; exact named-net parity remains required",
+          "mismatch_examples": [],
+          "status": "not_evaluated_physical_topology_mismatch"
+        },
+        "native_graph_sha256": "31c3ca288e1c7aa2ec14a8ff6405fadfa18f67264bb9c1a5971f115104b79663",
+        "native_missing_examples": [
+          "Net-(D1-A)",
+          "Net-(D2-A)",
+          "Net-(D3-A)"
+        ],
+        "native_missing_net_count": 3,
+        "native_net_count": 47,
+        "native_pin_node_count": 132,
+        "pin_mismatch_examples": [],
+        "pin_mismatch_net_count": 0
+      },
+      "elapsed_seconds": 0.624,
+      "import_findings": {
+        "error_count": 0,
+        "finding_kinds": {
+          "pcb_schematic_mismatch": 16,
+          "unsupported_construct": 8
+        },
+        "importer_net_score": 1.0,
+        "warning_count": 2
+      },
+      "native_netlist_sha256": "2782bdeed9ff3218120adb576f90bab871b719da588eaa97b5cc60f59f218a5c",
+      "reason": "native/imported electrical graph or import completeness differs",
+      "reference_id": "atomic14-basic-esp32s3-dev-board",
+      "source_artifact_sha256": {
+        "dev-board.kicad_pcb": "70df526cee6d24d4efab1ab5f4526d75f35f282401d5fc397941cdae06aec31a",
+        "dev-board.kicad_pro": "12a9576d7b8cf4df3cacdd705a87ef7dc8546208eefa44bc0eac2ae2b9620556",
+        "dev-board.kicad_sch": "20884d9805f9f038d2ab13afd7c4f9a0513c62382948bea928ff0eeebea94e41"
+      },
+      "source_verification": "vendored-byte-exact",
+      "status": "blocked",
+      "upstream_commit": "7b4804ac3e3b1a7c06fe8769bbc428b05883af2c"
+    }
+  ],
+  "schema_version": "1.0",
+  "scope": "read-only schematic connectivity; not round-trip, AI success, or fabrication sign-off",
+  "status": "blocked",
+  "verified": 0
+}

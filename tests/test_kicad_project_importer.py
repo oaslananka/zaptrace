@@ -194,7 +194,7 @@ class TestFlatSheetImport:
     def test_flat_sheet_nets(self) -> None:
         result = import_kicad_project_from_string(_FLAT_SCH, project_name="flat")
         net_names = {n.name for n in result.design.nets.values()}
-        assert "VCC" in net_names
+        assert "/VCC" in net_names
 
     def test_single_sheet_in_hierarchy(self) -> None:
         result = import_kicad_project_from_string(_FLAT_SCH, project_name="flat")
@@ -580,3 +580,226 @@ class TestSheetPathStability:
         sheet_paths = [s.sheet_id for s in result.sheets]
         # Top-level should contain "top"
         assert any("top" in sp for sp in sheet_paths)
+
+
+def test_multisheet_sources_survive_temporary_project_cleanup() -> None:
+    import hashlib
+
+    result = import_kicad_project_from_string(
+        _TOP_WITH_CHILD,
+        child_sheets={"child.kicad_sch": _CHILD_SCH},
+        project_name="snapshot",
+    )
+    assert set(result.source_snapshots) == {"/top", "/top/child_sheet"}
+    assert result.source_snapshots["/top"].raw_bytes == _TOP_WITH_CHILD.encode("utf-8")
+    assert result.source_snapshots["/top/child_sheet"].raw_bytes == _CHILD_SCH.encode("utf-8")
+    child = result.source_snapshots["/top/child_sheet"]
+    assert child.sha256 == hashlib.sha256(_CHILD_SCH.encode("utf-8")).hexdigest()
+    assert child.top_level_counts["hierarchical_label"] == 1
+    safe_summary = result.to_dict()
+    assert safe_summary["source_sheet_count"] == 2
+    assert safe_summary["source_sha256_by_sheet"]["/top/child_sheet"] == child.sha256
+    assert safe_summary["source_evidence_by_sheet"]["/top/child_sheet"]["byte_size"] == len(_CHILD_SCH.encode())
+    assert "raw_bytes" not in str(safe_summary)
+
+    # The importer used a TemporaryDirectory; source bytes remain accessible.
+    assert child.nodes("hierarchical_label")[0][1] == "SIG"
+
+
+def test_native_power_symbols_are_not_expected_as_physical_pcb_footprints() -> None:
+    """KiCad 10 original: (power) symbols have no native component/PCB footprint."""
+    source = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    project = next(source.glob("*.kicad_pro"))
+    result = import_kicad_project(project)
+    findings = [x for x in result.findings if x.kind == "pcb_schematic_mismatch"]
+    assert findings == []
+    # Annotation/source fidelity and physical status are independent:
+    # preserve the existing 16 #PWR entries in the imported design.
+    assert len([c for c in result.design.components.values() if c.ref.startswith("#PWR")]) == 16
+    # Eight prior top-level constructs are still unsupported; four additional
+    # real KiCad 'unspecified' electrical pins cannot be safely guessed into
+    # a canonical PinType and must remain visible, not fabricated as PASSIVE.
+    unsupported = [x.detail for x in result.findings if x.kind == "unsupported_construct"]
+    assert len([kind for kind in unsupported if kind != "unmapped_pin_electrical_type"]) == 8
+    assert unsupported.count("unmapped_pin_electrical_type") == 4
+
+
+def test_missing_real_resistor_pcb_footprint_still_reports_mismatch(
+    tmp_path: Path,
+) -> None:
+    """Never silence actual PCB mismatch while excluding proved power annotations."""
+    original = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    for path in original.glob("*.kicad_*"):
+        (tmp_path / path.name).write_bytes(path.read_bytes())
+    pcb = next(tmp_path.glob("*.kicad_pcb"))
+    raw = pcb.read_bytes()
+    assert raw.count(b'(property "Reference" "R4"') == 1
+    pcb.write_bytes(raw.replace(b'(property "Reference" "R4"', b'(property "Reference" "R400"', 1))
+    result = import_kicad_project(next(tmp_path.glob("*.kicad_pro")))
+    missing = [f for f in result.findings if f.kind == "pcb_schematic_mismatch"]
+    assert len(missing) == 2
+    assert any(f.message == "Schematic component 'R4' has no PCB footprint" for f in missing)
+    assert any(f.message == "PCB footprint 'R400' not found in schematic" for f in missing)
+    assert not any("#PWR" in f.message for f in missing)
+
+
+def test_embedded_power_marker_not_reference_prefix_controls_pcb_eligibility() -> None:
+    """A fake #PWR ref is physical; a non-#PWR confirmed power symbol isn't."""
+    from zaptrace.kicad.project_importer import _native_nonphysical_power_refs
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    raw = """
+    (kicad_sch (version 20250114)
+      (lib_symbols
+        (symbol "power:GND" (power) (property "Reference" "#PWR"))
+        (symbol "Device:R" (property "Reference" "R")))
+      (symbol (lib_id "power:GND")
+        (property "Reference" "X1")
+        (property "Footprint" ""))
+      (symbol (lib_id "Device:R")
+        (property "Reference" "#PWR99")
+        (property "Footprint" "Resistor_SMD:R_0603"))
+      (symbol (lib_id "power:GND")
+        (property "Reference" "#PWR50")
+        (property "Footprint" "Test:PhysicalPower"))
+      (symbol (lib_id "Device:R")
+        (property "Reference" "R1")
+        (property "Footprint" ""))
+    )
+    """
+    snapshot = import_kicad_schematic_string(raw).source_snapshot
+    assert snapshot is not None
+    assert _native_nonphysical_power_refs({"/top": snapshot}) == {"X1"}
+
+
+def test_duplicate_source_reference_is_not_filtered_when_any_instance_is_physical() -> None:
+    from zaptrace.kicad.project_importer import _native_nonphysical_power_refs
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    raw = """
+    (kicad_sch (version 20250114)
+      (lib_symbols (symbol "power:GND" (power)) (symbol "Device:R"))
+      (symbol (lib_id "power:GND")
+        (property "Reference" "#PWR1") (property "Footprint" ""))
+      (symbol (lib_id "Device:R")
+        (property "Reference" "#PWR1") (property "Footprint" ""))
+    )
+    """
+    snapshot = import_kicad_schematic_string(raw).source_snapshot
+    assert snapshot is not None
+    assert _native_nonphysical_power_refs({"/top": snapshot}) == set()
+    assert _native_nonphysical_power_refs({}) == set()
+
+
+@pytest.mark.parametrize(
+    ("reference_id", "min_linked"),
+    [
+        ("atomic14-basic-esp32s3-dev-board", 120),
+        ("sparkfun-qwiic-navigation", 90),
+        ("mitayi-pico-d1", 220),
+    ],
+)
+def test_original_project_pin_net_links_use_real_project_net_ids(
+    reference_id: str,
+    min_linked: int,
+) -> None:
+    """The AI must not receive dangling pin.net references after sheet prefixing."""
+    source = Path(__file__).parents[1] / "benchmarks/external" / reference_id / "source"
+    imported = import_kicad_project(next(source.glob("*.kicad_pro")))
+    design = imported.design
+    assert all(net.id == key for key, net in design.nets.items())
+    linked = [
+        (component.ref, number, pin.net)
+        for component in design.components.values()
+        for number, pin in component.pins.items()
+        if pin.net is not None
+    ]
+    assert len(linked) >= min_linked
+    assert all(net_id in design.nets for _ref, _number, net_id in linked)
+    assert all(str(net_id).startswith("/top/") for _ref, _number, net_id in linked)
+
+
+def test_original_esp32_project_d1_and_r4_use_same_prefixed_real_net() -> None:
+    source = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    imported = import_kicad_project(next(source.glob("*.kicad_pro")))
+    design = imported.design
+    r4 = next(c for c in design.components.values() if c.ref == "R4")
+    d1 = next(c for c in design.components.values() if c.ref == "D1")
+    assert r4.pins["2"].net == d1.pins["2"].net
+    net_id = r4.pins["2"].net
+    assert net_id is not None
+    assert design.nets[net_id].name == "Net-(D1-A)"
+    assert design.nets[net_id].id == net_id
+
+
+def test_hierarchical_pin_net_links_point_to_own_sheet_not_sibling() -> None:
+    def sheet_with_pin(ref: str, netname: str) -> str:
+        return f"""(kicad_sch (version 20250114)
+          (lib_symbols
+            (symbol "Device:R" (symbol "R_0_1"
+              (pin passive line (at 0 0 0) (length 2.54)
+                (name "~") (number "1")))))
+          (symbol (lib_id "Device:R") (at 50 50 0)
+            (property "Reference" "{ref}") (property "Value" "1k")
+            (pin "1" (uuid "11111111-1111-4111-8111-111111111111")))
+          (label "{netname}" (at 50 50 0))
+        )"""
+
+    root = """(kicad_sch
+      (sheet (property "Sheet name" "child") (property "Sheet file" "child.kicad_sch"))
+      (lib_symbols (symbol "Device:R" (symbol "R_0_1"
+        (pin passive line (at 0 0 0) (length 2.54)
+          (name "~") (number "1")))))
+      (symbol (lib_id "Device:R") (at 40 40 0)
+        (property "Reference" "R1") (property "Value" "1k")
+        (pin "1" (uuid "22222222-2222-4222-8222-222222222222")))
+      (label "NET_TOP" (at 40 40 0))
+    )"""
+    result = import_kicad_project_from_string(
+        root,
+        child_sheets={"child.kicad_sch": sheet_with_pin("R1", "NET_CHILD")},
+        project_name="independent-sheets",
+    )
+    by_sheet = {
+        cid.split("/")[2]: component for cid, component in result.design.components.items() if component.ref == "R1"
+    }
+    assert len(by_sheet) == 2
+    top_net = by_sheet["r1"].pins["1"].net
+    assert top_net is not None
+    assert top_net in result.design.nets
+    assert all(net.id == key for key, net in result.design.nets.items())
+    assert {net.name for net in result.design.nets.values()} == {"/NET_TOP", "/NET_CHILD"}
+    assert {c.pins["1"].net for c in by_sheet.values()} == set(result.design.nets)
+
+
+def test_shared_global_net_keeps_legacy_name_based_identity_across_sheets() -> None:
+    """Do not regress the old global_<native net name> merge contract."""
+    from zaptrace.core.models import Net
+    from zaptrace.kicad.project_importer import _merge_sheet_nets, _SheetNode
+
+    first = _SheetNode("/top", Path("/top.kicad_sch"), "top", None)
+    second = _SheetNode("/top/power", Path("/power.kicad_sch"), "power", "/top")
+    result: dict[str, Net] = {}
+    _merge_sheet_nets(first, {"global_first": Net(id="global_first", name="SHARED")}, result)
+    _merge_sheet_nets(second, {"global_second": Net(id="global_second", name="SHARED")}, result)
+    assert list(result) == ["global_SHARED"]
+    assert result["global_SHARED"].id == "global_SHARED"
+
+
+def test_unresolvable_project_pin_net_is_reported_and_not_fabricated() -> None:
+    from zaptrace.core.models import Component, Pin, PinType
+    from zaptrace.kicad.project_importer import _prefix_component_ids, _SheetNode
+
+    sheet = _SheetNode("/top", Path("/top.kicad_sch"), "top", None)
+    source_comp = Component(
+        id="r1",
+        ref="R1",
+        type="resistor",
+        pins={"1": Pin(name="1", type=PinType.PASSIVE, net="missing_source_net")},
+    )
+    converted: dict[str, Component] = {}
+    findings: list[HierarchicalKiCadFinding] = []
+    _prefix_component_ids(sheet, {"r1": source_comp}, {}, converted, findings)
+    assert converted["/top/r1"].pins["1"].net is None
+    assert source_comp.pins["1"].net == "missing_source_net"  # immutable source evidence
+    assert [(finding.kind, finding.severity) for finding in findings] == [("unresolved_pin_net_identity", "warning")]

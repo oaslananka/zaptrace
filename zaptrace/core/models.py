@@ -156,6 +156,29 @@ class Net(BaseModel):
         return v
 
 
+class BoardPadContact(BaseModel):
+    """Original PCB pad-instance evidence, not qualified fabrication geometry.
+
+    Entries are a LIST: multiple real physical contacts may share the same
+    pad number. Local position is relative to the footprint's KiCad origin,
+    never an inferred absolute board coordinate. A canonical net link is
+    provided only when the native board name maps uniquely to the imported
+    schematic graph.
+    """
+
+    model_config = ConfigDict(strict=False)
+
+    number: str = Field(description="KiCad physical pad number, possibly empty")
+    board_net_name: str = Field(description="Unmodified native KiCad PCB net name")
+    schematic_net_id: str | None = Field(default=None, description="Uniquely matched canonical net ID")
+    matched_pin_number: str | None = Field(default=None, description="Verified component logical pin number")
+    position_in_footprint_mm: tuple[float, float] = Field(description="Original footprint-local pad XY in mm")
+    size_mm: tuple[float, float] = Field(description="Original pad width/height in mm")
+    kind: str = Field(description="Original KiCad pad type e.g. smd or thru_hole")
+    shape: str = Field(description="Original native KiCad pad shape e.g. oval/roundrect/custom")
+    source_uuid: str = Field(default="", description="Original KiCad pad UUID if present")
+
+
 class Component(BaseModel):
     """A physical component (part) placed on the PCB."""
 
@@ -172,6 +195,10 @@ class Component(BaseModel):
     pins: dict[str, Pin] = Field(default_factory=dict, description="Pin dictionary, keyed by pin name")
     package_pin_map: dict[str, str] = Field(
         default_factory=dict, description="Physical package pad/pin ID to logical component pin name"
+    )
+    pcb_pad_contacts: list[BoardPadContact] = Field(
+        default_factory=list,
+        description="Original PCB physical pad-instance evidence (not an editable FootprintDef)",
     )
     lifecycle: Lifecycle = Field(default=Lifecycle.ACTIVE, description="Component lifecycle status")
     datasheet_url: str | None = Field(default=None, description="URL to component datasheet")
