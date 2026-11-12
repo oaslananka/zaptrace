@@ -38,6 +38,7 @@ def desktop_entry(repo: Path) -> str:
 
 
 _GENERATED_HEADER = "[Desktop Entry]\nType=Application\nVersion=1.0\nName=ZapTrace Review Studio\n"
+_UNRECOGNIZED_ENTRY = "Unrecognized desktop entry; refusing overwrite"
 
 
 def _checked_output_path(path: Path) -> Path:
@@ -49,13 +50,13 @@ def _checked_output_path(path: Path) -> Path:
         raise ValueError("Unsafe desktop entry output path")
     if absolute.exists():
         if not absolute.is_file() or absolute.stat().st_size > 8192:
-            raise ValueError("Unrecognized desktop entry; refusing overwrite")
+            raise ValueError(_UNRECOGNIZED_ENTRY)
         try:
             existing = absolute.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
-            raise ValueError("Unrecognized desktop entry; refusing overwrite") from exc
+            raise ValueError(_UNRECOGNIZED_ENTRY) from exc
         if not existing.startswith(_GENERATED_HEADER):
-            raise ValueError("Unrecognized desktop entry; refusing overwrite")
+            raise ValueError(_UNRECOGNIZED_ENTRY)
     return absolute
 
 
