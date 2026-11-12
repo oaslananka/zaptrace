@@ -264,3 +264,61 @@ def test_baseline_rejects_indirect_manifest_file(tmp_path: Path) -> None:
         create_baseline(candidate, tmp_path / "result")
     assert external_manifest.read_text() == '{"fabrication_approved":false}'
     assert not (tmp_path / "result").exists()
+
+
+@pytest.mark.parametrize("changed_name", ["design.json", "candidate-report.json", "manifest.json"])
+def test_pilot_fails_closed_if_candidate_changes_during_native_oracle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed_name: str
+) -> None:
+    """Never publish 'source-bound' evidence for a different candidate revision."""
+    from scripts import ai_native_pilot_pcb_baseline as baseline
+
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    original = {p.name: p.read_bytes() for p in candidate.iterdir()}
+    dest = tmp_path / "native-placement"
+    selected = candidate / changed_name
+
+    def mutation_after_native_staging(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        assert command[-1].startswith(str(tmp_path))
+        stage = Path(command[-1])
+        assert (stage / "placed-design.json").is_file()
+        selected.write_bytes(original[changed_name] + b"\n")
+        (stage / "native-placement-audit.json").write_text('{"summary":{"drc_findings":4}}')
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(baseline.subprocess, "run", mutation_after_native_staging)
+    with pytest.raises(ValueError, match="Candidate source changed during native verification"):
+        create_baseline(candidate, dest)
+    assert not dest.exists()
+    assert selected.read_bytes() == original[changed_name] + b"\n"
+    for name, original_bytes in original.items():
+        if name != changed_name:
+            assert (candidate / name).read_bytes() == original_bytes
+
+
+def test_pilot_rechecks_output_ancestor_before_publish(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Do not publish into a parent directory redirected by another local process."""
+    from scripts import ai_native_pilot_pcb_baseline as baseline
+
+    candidate = tmp_path / "candidate"
+    write_local_candidate(INTENT, candidate)
+    parent = tmp_path / "requested"
+    parent.mkdir()
+    user_folder = tmp_path / "different-user-folder"
+    user_folder.mkdir()
+    (user_folder / "personal-notes.txt").write_text("DO NOT ALTER")
+    destination = parent / "result"
+
+    def redirect_parent_during_native_stage(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        stage = Path(command[-1])
+        (stage / "native-placement-audit.json").write_text('{"summary":{}}')
+        parent.rename(tmp_path / "original-parent-moved")
+        parent.symlink_to(user_folder, target_is_directory=True)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(baseline.subprocess, "run", redirect_parent_during_native_stage)
+    with pytest.raises((ValueError, OSError), match="Unsafe output path|symbolic link|Refusing|No such file"):
+        create_baseline(candidate, destination)
+    assert not (user_folder / "result").exists()
+    assert (user_folder / "personal-notes.txt").read_text() == "DO NOT ALTER"
