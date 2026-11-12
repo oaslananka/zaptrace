@@ -1,0 +1,95 @@
+{
+  "candidate": {
+    "geometry_safety": "PCB pad/track/zone/copper geometry and schematic content unchanged; no merging with existing PCB nets; all other original S-expression atoms preserved.",
+    "net_mappings": [
+      {
+        "from": "Net-(D2-A)",
+        "to": "/LEDA"
+      }
+    ],
+    "rationale": "Four PCB test-point footprint paths already match schematic UUIDs TP1-TP4 but their visible Reference labels use net names; the PCB LED copper net alias differs from original schematic /LEDA. Only selected source labels should change.",
+    "reference_mappings": [
+      {
+        "from": "VIN",
+        "to": "TP1"
+      },
+      {
+        "from": "VRAW",
+        "to": "TP2"
+      },
+      {
+        "from": "+5V",
+        "to": "TP3"
+      },
+      {
+        "from": "GND",
+        "to": "TP4"
+      }
+    ],
+    "silkscreen_risk": "F.SilkS labels change from VIN/VRAW/+5V/GND to TP1-TP4. This can reduce bench test usability; qualified physical silkscreen review not run."
+  },
+  "license": "MIT",
+  "non_claims": [
+    "10-to-0 native parity does not equal validated electrical or fabrication signoff.",
+    "Visible F.SilkS measurement net labels become TP1-TP4; physical usability is unreviewed.",
+    "No simulator, measurements, independent agent/provider score or qualified BOM signoff.",
+    "Original licensed reference source is byte-for-byte unchanged; draft is separate.",
+    "Not one of twenty independently scored accepted G0 AI engineering tasks."
+  ],
+  "observed_execution": {
+    "after_native_drc": 0,
+    "after_native_erc": 0,
+    "after_native_schematic_pcb_parity": 0,
+    "after_native_unconnected": 0,
+    "baseline_parity_types": {
+      "extra_footprint": 4,
+      "missing_footprint": 4,
+      "net_conflict": 2
+    },
+    "before_native_drc": 0,
+    "before_native_erc": 0,
+    "before_native_schematic_pcb_parity": 10,
+    "before_native_unconnected": 0,
+    "candidate_parity_types": {},
+    "candidate_pcb_sha256": "36dc782725714f671731c588da14a08169ffc9f5946eabecf5b8d2d944053aa9",
+    "candidate_project_sha256": "fc36678baf97c7cb901bf91bbb6c307f9f382685cadac9abd272fd01bc54e050",
+    "candidate_schematic_sha256": "8cdda7e28129ca132c29868b94d7d3339ac4d6846d7c6d51278fc40c4ede44d9",
+    "copper_geometry_preserved": true,
+    "native_kicad_version": "10.0.8",
+    "native_run_date": "2026-11-12",
+    "original_pcb_sha256": "4f63a54b18a97e24fc4ccf122cae7c5c6c0eefac745a032a66a36c6b1d234e8b",
+    "original_project_sha256": "fc36678baf97c7cb901bf91bbb6c307f9f382685cadac9abd272fd01bc54e050",
+    "original_schematic_sha256": "8cdda7e28129ca132c29868b94d7d3339ac4d6846d7c6d51278fc40c4ede44d9",
+    "source_files_modified": false,
+    "tool": "zaptrace kicad parity-repair-preview",
+    "verification_method": "actual KiCad CLI 10.0.8 original and proposed PCB DRC with schematic parity, schematic ERC, AST allowlist with schematic UUID checks and input/output SHA-256.",
+    "wall_seconds_local_cli": 18.139
+  },
+  "outcome": {
+    "functional_measurement": "not_run",
+    "functional_simulation": "not_run",
+    "g0_verified": false,
+    "human_review": "not_run",
+    "independently_scored": false,
+    "manufacturing_approved": false,
+    "physical_fabrication_review": "not_run",
+    "physical_silkscreen_review": "not_run",
+    "qualified_component_sourcing": "not_run",
+    "status": "human-review-required"
+  },
+  "prompt_origin": "agent-selected source inspection after G0 #002 inherited parity findings; not an independent user commission",
+  "proposal_provenance": {
+    "api_cost_usd": null,
+    "assistant_model_family": "GPT-6",
+    "human_interventions": null,
+    "independent_agent_run_attested": false,
+    "inference_settings": "not captured",
+    "proposal_type": "AI-assisted explicit source mapping proposal"
+  },
+  "reference_id": "nitu-linear-regulator",
+  "schema_version": "g0-ai-electronics-task-attempt-v1",
+  "source_artifact_set_sha256": "5f0f5f9def5edd77e1db7e4d50404689034954f3aa79912efd6755d1b6309b7f",
+  "source_upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+  "task_brief": "On exact original L7805 schematic/PCB (not the R1=470 candidate), relink the four UUID-bound test point references and rename only the LED branch net alias; keep copper/geometry unchanged and prove native KiCad parity improvement, without manufacture or physical approval.",
+  "task_id": "g0-003-l7805-parity-repair-preview"
+}

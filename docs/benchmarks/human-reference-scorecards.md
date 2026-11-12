@@ -577,6 +577,48 @@ human review or fabrication acceptance was performed. The task remains
 human-review-required-existing-native-findings, and neither task
 001 nor 002 counts as a completed independently scored G0 task.
 
+#### G0 task 003 — source-pinned L7805 parity repair preview
+
+The [third assisted pilot record](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/l7805-parity-ten-to-zero.json)
+starts from the **unchanged MIT-licensed original** Nitu L7805
+schematic/PCB, not task 002's proposed R1=470 resistor value.
+Native source analysis identifies four original PCB testpoint footprint
+Reference labels (VIN, VRAW, +5V, GND) that still point to
+schematic UUIDs TP1–TP4, plus a PCB LED net alias Net-(D2-A)
+whose schematic label is /LEDA.
+
+The explicit-mapping CLI creates a separate draft and refuses stale
+SHA-256, wrong schematic symbol UUID, mismatched TestPoint library,
+existing PCB net collisions, unexpected S-expression changes,
+multi-sheet sources, original source overwrites and native regressions.
+
+~~~sh
+zaptrace kicad parity-repair-preview \
+  benchmarks/external/nitu-linear-regulator/source/05_linear_regulator.kicad_pcb \
+  --reference-map VIN=TP1 --reference-map VRAW=TP2 \
+  --reference-map +5V=TP3 --reference-map GND=TP4 \
+  --net-map 'Net-(D2-A)=/LEDA' \
+  --output-dir /path/to/a-new-separate-draft --json
+~~~
+
+A real **KiCad 10.0.8** run on original and proposed source files
+returned schematic–PCB parity **10 → 0**, ERC **0 → 0**,
+PCB DRC **0 → 0** and unconnected **0 → 0**. The command took
+18.139 seconds in that local execution; source/candidate SHA-256s
+are recorded in the versioned pilot. The source schematic/project
+bytes and PCB pad/track/zone/copper geometry were unchanged.
+
+**Important user-facing limitation:** The four F.SilkS footprint
+Reference text values change from human-readable measurement
+net labels to TP1–TP4. That may make physical bench service
+harder and requires qualified silkscreen and functional review.
+All such reviews are NOT RUN; manufacturing is NOT approved.
+The native parity improvement is **not** 1/20 independent AI
+electronics engineering successes. Task 002 retains the
+historical original ten native issues, while task 003 is a
+separate unapproved candidate. G0 remains **0 VERIFIED /
+16 BLOCKED / 4 NOT RUN** on the strict original reference baseline.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses
