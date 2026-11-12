@@ -559,3 +559,34 @@ def test_http_get_does_not_overwrite_unrelated_workspace_homepage(tmp_path: Path
         assert status == 500
         assert b"Failed to render verified project library" in body
     assert user_file.read_text() == "<!doctype html><title>Personal page</title>"
+
+
+def test_http_workspace_path_cannot_inject_trusted_script(tmp_path: Path) -> None:
+    """A selected folder name must never create extra JS on the authenticated home page."""
+    from html.parser import HTMLParser
+
+    class ScriptCounter(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scripts = 0
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag == "script":
+                self.scripts += 1
+
+    safe = tmp_path / "ordinary-review"
+    dangerous = tmp_path / "<" / "script><script>alert(19)<"
+    with running(safe) as srv:
+        code, clean = request(f"http://127.0.0.1:{srv.server_port}", "/")
+        assert code == 200
+    with running(dangerous) as srv:
+        code, html = request(f"http://127.0.0.1:{srv.server_port}", "/")
+        assert code == 200
+        assert b"window.__REVIEW_LOCAL__" in html
+
+    clean_parser = ScriptCounter()
+    clean_parser.feed(clean.decode("utf-8"))
+    dirty_parser = ScriptCounter()
+    dirty_parser.feed(html.decode("utf-8"))
+    assert clean_parser.scripts == dirty_parser.scripts
+    assert b"</script><script>alert(19)<" not in html
