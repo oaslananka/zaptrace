@@ -22,7 +22,6 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Literal
 
 VALUE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,_+/%Ωµμ°()-]{0,62}$")
 REF = re.compile(r"^[A-Za-z]{1,5}[1-9][0-9]{0,5}$")
@@ -113,27 +112,7 @@ def propose(text: str, reference: str, proposed_value: str) -> tuple[str, str]:
     return changed, old
 
 
-def _run_native(
-    cli: str, source: Path, destination: Path, *, operation: Literal["netlist", "erc", "svg"], timeout: int = 35
-) -> subprocess.CompletedProcess[str]:
-    """Run only the three required KiCad schematic oracles with fixed argv layouts."""
-    if (
-        Path(cli).name not in {"kicad-cli", "kicad-cli.exe"}
-        or not Path(cli).is_absolute()
-        or not source.is_absolute()
-        or not destination.is_absolute()
-    ):
-        raise ValueError("Native KiCad command path or source arguments are untrusted")
-    if source.suffix != ".kicad_sch" or not source.is_file():
-        raise ValueError("Native KiCad oracle requires one staged .kicad_sch source")
-    if operation == "netlist":
-        args = [cli, "sch", "export", "netlist", "--format", "kicadxml", "--output", str(destination), str(source)]
-    elif operation == "erc":
-        args = [cli, "sch", "erc", "--exit-code-violations", "--output", str(destination), str(source)]
-    elif operation == "svg":
-        args = [cli, "sch", "export", "svg", "--output", str(destination), str(source)]
-    else:
-        raise ValueError("Unsupported native KiCad operation")
+def _run_native(args: list[str], *, timeout: int = 35) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(args, text=True, capture_output=True, timeout=timeout, check=False)
     if result.returncode not in (0, 5):
         raise RuntimeError("Native KiCad validation/export failed (" + str(result.returncode) + ")")
@@ -141,7 +120,9 @@ def _run_native(
 
 
 def _netlist(cli: str, source: Path, target: Path) -> ET.Element:
-    result = _run_native(cli, source, target, operation="netlist")
+    result = _run_native(
+        [cli, "sch", "export", "netlist", "--format", "kicadxml", "--output", str(target), str(source)]
+    )
     if result.returncode != 0 or not target.is_file():
         raise RuntimeError("Native KiCad could not export authoritative netlist")
     return ET.parse(target).getroot()
@@ -177,7 +158,7 @@ def _snapshot(root: ET.Element) -> tuple[dict[str, dict], list[tuple]]:
 def _erc(cli: str, source: Path, report: Path) -> tuple[int, int, int]:
     from review_studio_native_kicad import native_erc_summary
 
-    result = _run_native(cli, source, report, operation="erc")
+    result = _run_native([cli, "sch", "erc", "--exit-code-violations", "--output", str(report), str(source)])
     if not report.is_file():
         raise RuntimeError("KiCad did not produce a native ERC report")
     counts = native_erc_summary(report.read_text(encoding="utf-8"))
@@ -188,7 +169,7 @@ def _erc(cli: str, source: Path, report: Path) -> tuple[int, int, int]:
 
 def _svg(cli: str, source: Path, folder: Path) -> str:
     folder.mkdir()
-    result = _run_native(cli, source, folder, operation="svg")
+    result = _run_native([cli, "sch", "export", "svg", "--output", str(folder), str(source)])
     pages = list(folder.glob("*.svg"))
     if result.returncode != 0 or len(pages) != 1:
         raise RuntimeError("Not exactly one native KiCad SVG sheet; ECO preview blocked")

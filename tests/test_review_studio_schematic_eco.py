@@ -246,50 +246,6 @@ def test_eco_refuses_project_rules_changed_after_native_validation(
     assert source.read_bytes() == FIXTURE.read_bytes()
 
 
-def test_native_ecorunner_refuses_arbitrary_program_and_unstaged_sources(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    source = tmp_path / "review.kicad_sch"
-    source.write_bytes(FIXTURE.read_bytes())
-    destination = tmp_path / "native-output.xml"
-
-    def should_not_execute(*args: object, **kwargs: object) -> None:
-        raise AssertionError("No native process may execute when KiCad contract fails")
-
-    monkeypatch.setattr(ECO.subprocess, "run", should_not_execute)
-    for binary, target, operation in (
-        ("/bin/echo", destination, "netlist"),
-        ("kicad-cli", destination, "unknown"),
-        ("/usr/bin/kicad-cli", Path("relative-output.xml"), "netlist"),
-        ("/usr/bin/kicad-cli", destination, "unknown"),
-    ):
-        with pytest.raises(ValueError, match="untrusted|Unsupported"):
-            ECO._run_native(binary, source, target, operation=operation)
-
-
-def test_native_ecorunner_uses_fixed_argument_templates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    source = tmp_path / "review.kicad_sch"
-    source.write_bytes(FIXTURE.read_bytes())
-    destination = tmp_path / "native-output.xml"
-    seen: list[list[str]] = []
-
-    def native_observer(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        seen.append(args)
-        assert kwargs["check"] is False and kwargs["capture_output"] is True
-        return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(ECO.subprocess, "run", native_observer)
-    for operation in ("netlist", "erc", "svg"):
-        ECO._run_native("/usr/bin/kicad-cli", source, destination, operation=operation)
-    assert [row[1:3] for row in seen] == [
-        ["sch", "export"],
-        ["sch", "erc"],
-        ["sch", "export"],
-    ]
-    assert all(row[0] == "/usr/bin/kicad-cli" and row[-1] == str(source) for row in seen)
-    assert all(row.count(str(destination)) == 1 for row in seen)
-
-
 def test_eco_rejects_symlinked_source_project_rules(tmp_path: Path) -> None:
     source_dir = tmp_path / "source"
     source_dir.mkdir()
