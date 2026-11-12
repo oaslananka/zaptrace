@@ -397,3 +397,37 @@ def test_atomic14_esp32s3_direct_led_anodes_match_independent_native_kicad(
     assert compare_graphs(native, imported)["exact_connectivity_parity"] is True
     # Full G0 acceptance remains blocked by unsupported constructs/PCB findings.
     assert metadata["finding_kinds"]["unsupported_construct"] > 0
+
+
+def test_atomic14_native_kicad_excludes_embedded_power_symbols_from_physical_parts(
+    tmp_path: Path,
+) -> None:
+    """Independent KiCad 10 netlist confirms original #PWR refs are annotations."""
+    import shutil
+    import subprocess
+
+    cli = shutil.which("kicad-cli")
+    if cli is None:
+        pytest.skip("independent native KiCad CLI unavailable")
+    version = subprocess.run([cli, "version"], capture_output=True, text=True, timeout=15, check=False)
+    if version.returncode or not version.stdout.strip().startswith("10."):
+        pytest.skip("KiCad 10 is needed for independent original-source evidence")
+
+    source = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    for original in source.glob("*.kicad_*"):
+        (tmp_path / original.name).write_bytes(original.read_bytes())
+    schematic = next(tmp_path.glob("*.kicad_sch"))
+    xml_path = tmp_path / "native.xml"
+    run = subprocess.run(
+        [cli, "sch", "export", "netlist", "--format", "kicadxml", "-o", str(xml_path), str(schematic)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr[-500:]
+    tree = ElementTree.parse(xml_path)
+    refs = {node.attrib["ref"] for node in tree.findall("./components/comp")}
+    assert len(refs) == 21
+    assert {"D1", "R4", "R5", "R6", "U2"} <= refs
+    assert all(not ref.startswith("#PWR") for ref in refs)

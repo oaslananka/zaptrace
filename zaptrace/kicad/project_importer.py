@@ -497,6 +497,36 @@ def _find_pcb_path(project_dir: Path, project_name: str) -> Path | None:
     return pcb_files[0] if pcb_files else None
 
 
+def _native_nonphysical_power_refs(
+    snapshots: dict[str, KiCadSchematicSourceSnapshot],
+) -> set[str]:
+    """Prove power-only, footprint-less schematic refs from embedded KiCad symbols.
+
+    A reference prefix or on_board flag is not a physical-footprint
+    eligibility check. Retain uncertain references as physical candidates;
+    repeated refs stay physical if any source instance is.
+    """
+    instances: dict[str, list[bool]] = {}
+    for snapshot in snapshots.values():
+        tree = _sexp_parse(snapshot.raw_bytes.decode("utf-8"))
+        if not isinstance(tree, list):
+            continue
+        libraries = _find(tree, "lib_symbols")
+        if libraries is None:
+            continue
+        native_power_ids = {
+            _atom(symbol) for symbol in _find_all(libraries, "symbol") if _find(symbol, "power") is not None
+        }
+        for symbol in _find_all(tree, "symbol"):
+            ref = _prop(symbol, "Reference")
+            if not ref:
+                continue
+            lib_id = _atom(_find(symbol, "lib_id") or [])
+            is_annotation = bool(lib_id in native_power_ids and not _prop(symbol, "Footprint"))
+            instances.setdefault(ref, []).append(is_annotation)
+    return {ref for ref, verdicts in instances.items() if verdicts and all(verdicts)}
+
+
 def _crossvalidate_pcb(
     pcb_path: Path | None,
     schematic_refs: set[str],
@@ -661,6 +691,10 @@ def import_kicad_project(
 
     # PCB cross-validation
     schematic_refs = {getattr(c, "ref", cid) for cid, c in components.items()}
+    # Native KiCad's embedded (power) symbols have no real PCB part. Keep
+    # their source components and nets, but exclude proven annotations from
+    # the PCB-only physical footprint correspondence check.
+    schematic_refs -= _native_nonphysical_power_refs(source_snapshots)
     pcb_path = _find_pcb_path(project_dir, project_name)
     _crossvalidate_pcb(pcb_path, schematic_refs, findings)
 
