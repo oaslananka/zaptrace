@@ -1,0 +1,115 @@
+"""Source-bound illustrative ngspice DC cases never imply external load approval."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from scripts import g0_npn_dc_spice_probe as probe
+
+ROOT = Path(__file__).parents[1]
+SOURCE = ROOT / "benchmarks/external/nitu-npn-transistor-switch/source"
+EVIDENCE = ROOT / "benchmarks/g0-ai-engineering-tasks/npn-switch-assumed-load-ngspice.json"
+
+
+def test_assumed_dc_models_are_explicit_and_not_physical_acceptance() -> None:
+    record = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    assert record["schema_version"] == "g0-npn-illustrative-ngspice-dc-v1"
+    assert record["source_reference_id"] == "nitu-npn-transistor-switch"
+    assert record["bjt_model_status"] == "ASSUMED_UNQUALIFIED"
+    assert record["red_led_model_status"] == "ASSUMED_UNQUALIFIED"
+    assert record["external_load_status"] == "UNSPECIFIED_IN_ORIGINAL_SOURCE"
+    assert record["verified_real_load_limit_ma"] is None
+    assert record["qualified_human_approval"] == "NOT_RUN"
+    assert record["physical_measurement"] == "NOT_RUN"
+    assert record["transient_flyback_simulation"] == "NOT_RUN"
+    assert record["manufacturing_approved"] is False
+    assert record["g0_verified"] is False
+    assert record["independent_ai_task_accepted"] is False
+    assert record["simulated_load_ohms"] == [None, 1000, 220, 100, 47, 22, 10]
+    assert record["assumed_transistor_beta_f"] == [50, 150]
+    assert record["r1_ohms"] == [390, 820]
+    assert len(record["cases"]) == 34
+    assert {r["switch_state"] for r in record["cases"]} == {"CLOSED", "OPEN"}
+    assert all(r["engine"] == "ngspice" for r in record["cases"])
+    assert all(r["converged"] for r in record["cases"])
+    assert all(r["qualified_load_pass"] is None for r in record["cases"])
+    assert all(r["v_collector_v"] >= 0 for r in record["cases"])
+    assert all(r["i_collector_ma"] > 0 for r in record["cases"] if r["switch_state"] == "CLOSED")
+    assert all(abs(r["i_collector_ma"]) < 0.01 for r in record["cases"] if r["switch_state"] == "OPEN")
+    source_sha = record["original_source_sha256"]
+    assert {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in SOURCE.glob("*.kicad_*")} == source_sha
+
+
+def test_real_simulation_exposes_assumed_model_sensitivity_and_load_limit() -> None:
+    if not probe.shared_ngspice_available():
+        pytest.skip("ngspice shared library unavailable: no synthetic PASS substitution")
+    binary = shutil.which("kicad-cli")
+    if not binary:
+        pytest.skip("Real KiCad CLI unavailable: source graph cannot be checked")
+    version = subprocess.run([binary, "version"], capture_output=True, text=True, timeout=15)
+    if version.returncode or not version.stdout.startswith("10."):
+        pytest.skip("Only real KiCad 10 source validation qualifies this SPICE run")
+    record = probe.simulate_source_bound_npn(SOURCE)
+    cases = record["cases"]
+    assert len(cases) == 34
+    assert record["engine_version"].startswith("42") or record["engine_version"].split(".")[0].isdigit()
+    scenario = {
+        (r["r1_ohms"], r["assumed_beta_f"], r["external_load_ohms"]): r for r in cases if r["switch_state"] == "CLOSED"
+    }
+    open_cases = [r for r in cases if r["switch_state"] == "OPEN"]
+    assert len(open_cases) == 6
+    assert all(r["r1_ohms"] == 820 for r in open_cases)
+    assert all(r["v_collector_v"] > 4 for r in open_cases)
+    assert all(abs(r["i_led_ma"]) < 0.01 for r in open_cases)
+    assert scenario[(820, 50, None)]["v_collector_v"] < 0.1
+    assert scenario[(820, 50, 220)]["v_collector_v"] < 0.2
+    assert scenario[(820, 50, 22)]["v_collector_v"] > 1.0
+    assert scenario[(820, 150, 22)]["v_collector_v"] > 0.3
+    assert scenario[(820, 50, 10)]["v_collector_v"] > 2.0
+    assert scenario[(820, 150, 10)]["v_collector_v"] > 1.0
+    assert scenario[(390, 50, 22)]["v_collector_v"] < scenario[(820, 50, 22)]["v_collector_v"]
+    for beta in record["assumed_transistor_beta_f"]:
+        baseline = scenario[(390, beta, None)]["i_r1_feed_ma"]
+        candidate = scenario[(820, beta, None)]["i_r1_feed_ma"]
+        assert candidate < baseline
+        assert 100 * (1 - candidate / baseline) > 45
+    assert all(r["qualified_load_pass"] is None for r in cases)
+    stored = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    assert record["original_source_sha256"] == stored["original_source_sha256"]
+    assert record["source_native_kicad_version"] == stored["source_native_kicad_version"]
+    pinned_cases = {
+        (x["switch_state"], x["r1_ohms"], x["assumed_beta_f"], x["external_load_ohms"]): x for x in stored["cases"]
+    }
+    for result in cases:
+        key = (result["switch_state"], result["r1_ohms"], result["assumed_beta_f"], result["external_load_ohms"])
+        pinned = pinned_cases[key]
+        assert result["spice_deck_sha256"] == pinned["spice_deck_sha256"]
+        if record["engine_version"] == stored["engine_version"]:
+            for measurement in (
+                "v_collector_v",
+                "v_base_v",
+                "i_r1_feed_ma",
+                "i_led_ma",
+                "i_collector_ma",
+                "transistor_dissipation_mw",
+            ):
+                assert result[measurement] == pytest.approx(pinned[measurement], abs=0.02)
+
+
+def test_stale_or_edited_original_source_fails_closed(tmp_path: Path) -> None:
+    tmp_path.mkdir(exist_ok=True)
+    for original in SOURCE.glob("*.kicad_*"):
+        (tmp_path / original.name).write_bytes(original.read_bytes())
+    schematic = next(tmp_path.glob("*.kicad_sch"))
+    schematic.write_text(
+        schematic.read_text(encoding="utf-8").replace('(property "Value" "390"', '(property "Value" "470"', 1),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="source|R1|hash|modified"):
+        probe.verify_native_source(tmp_path)

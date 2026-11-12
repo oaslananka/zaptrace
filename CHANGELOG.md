@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add a source-pinned real ngspice 42 shared-library DC load sensitivity probe for the previously independent-model PN2222A base-drive proposal: 34 closed/open button cases across two hypothetical transistor models and seven resistive loads, with native KiCad topology checks, source SHA, reproducible circuit-deck evidence and explicitly unqualified load/human-approval status. No added dependency or paid service.
+
+
 - Record a separately executed, fixed-prompt NVIDIA model suggestion on a real MIT-licensed NPN switch (R1 390 Ω → 820 Ω), independently check its nominal current estimate and source-preserving KiCad DRC/ERC/parity through both direct ECO and staged parity-repair/ECO candidates; keep unknown external load, silkscreen, token usage/cost and human acceptance explicitly blocked or unmeasured.
 
 - Add a source-UUID-guarded KiCad PCB parity-repair preview for explicitly mapped testpoint references and net aliases. Validate improvements with independent native ERC/DRC/parity and preserve original sources; keep physical silkscreen and human review unapproved. Record the licensed L7805 10-to-0 native parity pilot, not an independently scored G0 success.
