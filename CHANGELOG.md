@@ -22,6 +22,8 @@
 
 ### Fixed
 
+- Fail closed when PCB-bench submissions omit grader evidence, skip mandatory checks, supply invalid ERC error counts or mismatch their evidence hash; rank partial oracle results behind complete passes instead of allowing false benchmark success.
+
 - Surface unresolved physical routing nets and an explicit non-fabrication warning in the pipeline CLI and tool response. Successful generation alone is not PCB continuity evidence.
 - Correct Renovate package-rule precedence so the Ruff Python package and ruff-pre-commit hook share one update group, preserving their exact lockfile/pre-commit version-parity test rather than creating independently failing PRs.
 - Harden default plugin process admission: do not inherit the host PYTHONPATH into plugin Python imports, reject directory entrypoints, and reject the schema-reserved WASM entry type until a dedicated WASI sandbox exists. Add adversarial regression tests without claiming OS-level plugin isolation.

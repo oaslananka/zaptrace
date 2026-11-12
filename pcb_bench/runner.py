@@ -15,6 +15,7 @@ Sandbox policy
 
 from __future__ import annotations
 
+import math
 import time
 from typing import Any
 
@@ -36,13 +37,15 @@ def _score_evidence(evidence: GraderEvidence, threshold: dict[str, Any]) -> dict
     }
 
     if evidence.status == "skipped":
-        result["passed"] = True  # skipped counts as pass (not a false failure)
         result["detail"] = f"skipped: {evidence.skip_reason}"
         return result
 
-    if evidence.status == "failed":
-        result["passed"] = False
-        result["detail"] = "grader reported failure"
+    if evidence.status != "passed":
+        result["detail"] = "grader reported failure" if evidence.status == "failed" else "invalid grader status"
+        return result
+
+    if not math.isfinite(evidence.score):
+        result["detail"] = "non-finite grader score"
         return result
 
     # status == "passed" — check threshold
@@ -56,7 +59,10 @@ def _score_evidence(evidence: GraderEvidence, threshold: dict[str, Any]) -> dict
         )
     elif "max_errors" in threshold:
         max_errors = int(threshold["max_errors"])
-        errors = int(evidence.details.get("errors", 0))
+        errors = evidence.details.get("errors")
+        if type(errors) is not int or errors < 0:
+            result["detail"] = "missing or invalid native error count"
+            return result
         result["passed"] = errors <= max_errors
         result["detail"] = f"{errors} errors vs max {max_errors}"
     else:
@@ -82,6 +88,18 @@ def score_submission(submission: Submission, task: TaskSpec) -> ScoreReport:
     ScoreReport
         Deterministic scoring report with per-grader results and summary.
     """
+    if submission.task_id != task.task_id:
+        raise ValueError("Submission task_id does not match benchmark task")
+    if submission.canonical_hash and submission.canonical_hash != submission.compute_hash():
+        raise ValueError("Submission evidence hash mismatch")
+    expected_ids = {grader.grader_id for grader in task.graders}
+    if len(expected_ids) != len(task.graders):
+        raise ValueError("Benchmark task has duplicate grader IDs")
+    if len({e.grader_id for e in submission.evidence}) != len(submission.evidence):
+        raise ValueError("Submission contains duplicate grader evidence")
+    if any(e.grader_id not in expected_ids for e in submission.evidence):
+        raise ValueError("Submission contains unknown grader evidence")
+
     generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     # Build a lookup: grader_id → evidence
@@ -96,29 +114,37 @@ def score_submission(submission: Submission, task: TaskSpec) -> ScoreReport:
         ev = evidence_by_id.get(grader.grader_id)
 
         if ev is None:
-            # Missing evidence → implicit skip
-            ev = GraderEvidence(
-                grader_id=grader.grader_id,
-                status="skipped",
-                skip_reason="no evidence provided",
-            )
-
-        result = _score_evidence(ev, threshold)
+            # Missing evidence is not proof that an external grader was unavailable.
+            result = {
+                "grader_id": grader.grader_id,
+                "status": "failed",
+                "score": 0.0,
+                "passed": False,
+                "detail": "missing required grader evidence",
+            }
+        else:
+            result = _score_evidence(ev, threshold)
+            if ev.status == "skipped" and (
+                grader.skip_policy == "never" or not isinstance(ev.skip_reason, str) or not ev.skip_reason.strip()
+            ):
+                result["status"] = "failed"
+                result["detail"] = "skip forbidden or missing a documented reason"
         grader_results.append(result)
 
         if result["status"] == "skipped":
             skipped += 1
         elif result["passed"]:
             passed += 1
-            scores.append(ev.score)
+            if ev is not None:
+                scores.append(ev.score)
         else:
             failed += 1
 
     mean_score = sum(scores) / len(scores) if scores else 0.0
     overall: str
-    if failed > 0:
+    if failed > 0 or not task.graders:
         overall = "failed"
-    elif skipped > 0 and passed == 0:
+    elif skipped > 0:
         overall = "partial"
     else:
         overall = "passed"

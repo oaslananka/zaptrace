@@ -61,6 +61,15 @@ report = score_submission(sub, task)
 print(report.to_dict())
 ```
 
+Only a complete set of valid `passed` grader evidence is a benchmark
+`passed` result. Missing grader evidence is a failure, while an explicit
+tool-unavailable skip with a reason is `partial` (never a pass); graders
+with `skip_policy: never` cannot skip. Native error thresholds require an
+actual non-negative integer error count. A supplied canonical SHA-256 must
+match the normalized evidence, but a hash alone is **not** an independent
+signature, reviewer approval, or proof of electrical/manufacturing readiness.
+Leaderboards rank complete results above partial ones regardless of score.
+
 ## Leaderboard Generation
 
 ```python
