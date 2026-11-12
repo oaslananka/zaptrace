@@ -10,6 +10,42 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — grounded power-net constraints and false-GND prevention
+
+The latest source-bound review isolates the **remaining three incomplete
+nets** without changing any supplier footprint or electrical limit:
+
+- VCC_5V is a POWER_MED net with a **0.50 mm** routing-class trace width.
+  D1.IO has **0.60 × 0.45 mm** physical land copper; the one logical
+  J1.VBUS terminal represents **four distinct** contacts (A4, A9, B4,
+  B9), all of which must be considered. A constant-width fanout is not
+  independently validated for the smaller D1 land.
+- VCC_3V3 is also POWER_MED (**0.50 mm**): three actual Bosch BME280
+  pads (U2.VDD, VDDIO, CSB) each measure **0.50 × 0.35 mm**. The
+  regulator U3.OUTPUT also has two separate physical copper lands.
+  Net-class-wide arbitrary narrowing would defeat current route rules;
+  a future pad-specific transition needs real current and KiCad DRC
+  evidence.
+- GND has **11 logical nodes** and multiple physical pad instances,
+  including the ESP32 thermal pad and the four USB-C GND contacts. Its
+  copper pour remains **disabled** pending RF/current return review.
+  The generic router deliberately does not claim this ground net
+  complete without a real qualified route/zone.
+
+These are directly measured **constraints**, not a proof that they are
+the *only* obstacles. A separate regression found that the local
+physical-pad and copper-continuity predicates historically skipped every
+GROUND net, including a **proposed, physically disconnected ground
+trace**. That input could be counted as routed if its unrelated local
+DRC checks otherwise passed. The predicates now retain the existing
+nonrouted/poured-ground behavior but subject **any candidate routed GND
+traces** to the exact same every-pad and one-connected-island checks as
+other nets. RED/GREEN tests cover both a disconnected adversarial GND
+trace and a genuine full-width pad-to-pad GND connection. The safe four
+signal nets remain unchanged. This is a safety regression fix; it
+does not close any of the outstanding power, drill, clearance or
+fabrication acceptance gates.
+
 ## 2026-11-13 — default source-bound partial routing, not DFM acceptance
 
 The normal user CLI now selects the pad-aware KiCad geometry router

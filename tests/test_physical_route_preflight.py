@@ -330,3 +330,57 @@ def test_partial_copper_rejects_wrong_net_metadata() -> None:
     accepted = retain_verified_partial_copper(design, candidate, positions)
     assert accepted.routed_net_count == 0
     assert not accepted.traces
+
+
+def test_unconnected_ground_tracks_are_never_counted_as_physically_routed() -> None:
+    """Ground cannot bypass the same physical pad and island checks as signals."""
+    from zaptrace.ee.classifier import classify_design
+    from zaptrace.pipeline.physical_route_preflight import (
+        _physical_net_continuity,
+        _physical_pad_terminal_coverage,
+        retain_verified_partial_copper,
+    )
+
+    design, positions = _contact_design()
+    design.nets["n"].name = "GND"
+    classify_design(design)
+
+    disconnected = RouteResult(
+        traces=[
+            TraceSegment(
+                layer="F.Cu",
+                start=(12, 12),
+                end=(14, 12),
+                width=0.5,
+                net_id="n",
+            )
+        ],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert not _physical_pad_terminal_coverage(design, disconnected, positions)
+    assert not _physical_net_continuity(design, disconnected, positions)
+    rejected = retain_verified_partial_copper(design, disconnected, positions)
+    assert rejected.routed_net_count == 0
+    assert rejected.traces == []
+
+    # A real full-width GND segment touching both actual pads is still
+    # eligible as *partial copper evidence*, not board/fab approval.
+    connected = RouteResult(
+        traces=[
+            TraceSegment(
+                layer="F.Cu",
+                start=(10, 10),
+                end=(20, 10),
+                width=0.5,
+                net_id="n",
+            )
+        ],
+        net_count=1,
+        routed_net_count=1,
+    )
+    assert _physical_pad_terminal_coverage(design, connected, positions)
+    assert _physical_net_continuity(design, connected, positions)
+    accepted = retain_verified_partial_copper(design, connected, positions)
+    assert accepted.routed_net_count == 1
+    assert accepted.traces == connected.traces

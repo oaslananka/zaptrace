@@ -32,14 +32,18 @@ def _physical_pad_terminal_coverage(
     routed: RouteResult,
     positions: dict[str, tuple[float, float]],
 ) -> bool:
-    """Every non-ground net terminal must touch each represented pad region."""
+    """Every represented routed net terminal must touch physical pad copper.
+
+    Poured GND with no candidate tracks is out of scope for this trace
+    predicate. GND with candidate tracks must never bypass pad checks.
+    """
     endpoint_by_net: dict[str, list[tuple[str, tuple[float, float]]]] = defaultdict(list)
     for trace in routed.traces:
         endpoint_by_net[trace.net_id].extend(((trace.layer, trace.start), (trace.layer, trace.end)))
 
     components_by_ref = {comp.ref: comp for comp in design.components.values()}
     for net in design.nets.values():
-        if len(net.nodes) < 2 or get_net_class(design, net.id) == NetClass.GROUND:
+        if len(net.nodes) < 2 or (get_net_class(design, net.id) == NetClass.GROUND and not endpoint_by_net.get(net.id)):
             continue
         if not endpoint_by_net.get(net.id):
             return False
@@ -101,7 +105,7 @@ def _physical_net_continuity(
 
     components_by_ref = {comp.ref: comp for comp in design.components.values()}
     for net in design.nets.values():
-        if len(net.nodes) < 2 or get_net_class(design, net.id) == NetClass.GROUND:
+        if len(net.nodes) < 2 or (get_net_class(design, net.id) == NetClass.GROUND and not by_net.get(net.id)):
             continue
         traces = by_net.get(net.id, [])
         if not traces:
