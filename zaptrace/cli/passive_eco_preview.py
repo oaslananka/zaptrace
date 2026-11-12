@@ -39,9 +39,11 @@ def passive_eco_preview(
             "DRC/ERC/parity added 0 defects."
         )
         native = report["native_review"]
-        assert isinstance(native, dict)
+        if not isinstance(native, dict):
+            raise click.ClickException("Missing native KiCad review evidence")
         electrical = native["electrical_review"]
-        assert isinstance(electrical, dict)
+        if not isinstance(electrical, dict):
+            raise click.ClickException("Missing native electrical evidence")
         drc = int(native["candidate_violations"])
         unconnected = int(native["candidate_unconnected_items"])
         erc = int(electrical["candidate_erc_violations"])
@@ -51,7 +53,8 @@ def passive_eco_preview(
             f"{parity} unresolved schematic-PCB parity findings."
         )
         parity_types = electrical["candidate_schematic_parity_types"]
-        assert isinstance(parity_types, dict)
+        if not isinstance(parity_types, dict):
+            raise click.ClickException("Missing KiCad parity type evidence")
         if parity_types:
             kinds = ", ".join(f"{kind}: {count}" for kind, count in sorted(parity_types.items()))
             click.echo(f"Remaining parity finding types: {kinds}.")
