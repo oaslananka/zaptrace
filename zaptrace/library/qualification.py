@@ -364,6 +364,10 @@ def _proof_machine_blockers(
     component_id: str,
     repository_root: Path,
 ) -> tuple[list[QualificationBlocker], str, str]:
+    # Also guard direct use of this helper: the public cohort gate is not the
+    # only possible caller, and source IDs must never form arbitrary paths.
+    if not isinstance(component_id, str) or not _COMPONENT_ID_RE.fullmatch(component_id):
+        raise ValueError("unsafe component id in footprint proof lookup")
     relative_path = f"data/library/evidence/footprints/{component_id}.json"
     proof_path = repository_root / relative_path
     if not proof_path.is_file() or proof_path.is_symlink():
@@ -380,7 +384,28 @@ def _proof_machine_blockers(
             "",
         )
 
-    proof_bytes = proof_path.read_bytes()
+    # Existing-leaf symlink guards do not cover an indirect symlink in
+    # data/library/evidence/footprints. Pin the resolved parent to the exact
+    # intended directory, then read only the confined regular proof file.
+    try:
+        proof_file = _safe_repository_file(repository_root, relative_path)
+        proof_directory = repository_root.resolve(strict=True) / "data/library/evidence/footprints"
+        if proof_file.parent != proof_directory:
+            raise ValueError("Footprint proof directory escapes the expected repository path")
+    except (OSError, ValueError):
+        return (
+            [
+                _blocker(
+                    QualificationBlockerClass.MACHINE,
+                    "footprint-proof-unsafe",
+                    "committed footprint proof must remain inside its evidence directory",
+                    field="footprint",
+                )
+            ],
+            relative_path,
+            "",
+        )
+    proof_bytes = proof_file.read_bytes()
     proof_digest = hashlib.sha256(proof_bytes).hexdigest()
     try:
         proof = FootprintProof.model_validate_json(proof_bytes)
