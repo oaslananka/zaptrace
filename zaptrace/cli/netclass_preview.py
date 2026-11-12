@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from zaptrace.kicad.netclass_edit import NativeNetclassPreview, preview_native_netclass_reassignment
+from zaptrace.kicad.netclass_edit import preview_native_netclass_reassignment
 from zaptrace.kicad.schematic_importer import import_kicad_schematic
 
 
@@ -38,7 +38,7 @@ def _find_unique_flag(schematic: Path, from_class: str, flag_uuid: str | None) -
     return matched[0]
 
 
-def _save_review_folder(destination: Path, review: NativeNetclassPreview, original_project: bytes) -> None:
+def _save_review_folder(destination: Path, edited_source_bytes: bytes, original_project: bytes) -> None:
     """Only create a new isolated review folder; never replace existing files."""
     if destination.exists():
         raise ValueError("Review output directory already exists; choose a new --output-dir")
@@ -49,7 +49,7 @@ def _save_review_folder(destination: Path, review: NativeNetclassPreview, origin
     created: list[Path] = []
     try:
         for filename, contents in (
-            ("review.kicad_sch", review.edited_source_bytes),
+            ("review.kicad_sch", edited_source_bytes),
             ("review.kicad_pro", original_project),
         ):
             artifact = destination / filename
@@ -108,7 +108,7 @@ def netclass_preview(
             expected_project_sha256=hashlib.sha256(project_bytes).hexdigest(),
         )
         if output_dir is not None:
-            _save_review_folder(output_dir, review, project_bytes)
+            _save_review_folder(output_dir, review.edited_source_bytes, project_bytes)
         result = {
             **review.to_dict(),
             "source_was_modified": False,
