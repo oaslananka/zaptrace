@@ -801,6 +801,18 @@
   "external_load_status": "UNSPECIFIED_IN_ORIGINAL_SOURCE",
   "g0_verified": false,
   "independent_ai_task_accepted": false,
+  "manufacturer_component_readiness": {
+    "exact_orderable_part": null,
+    "exact_orderable_part_status": "NOT_SELECTED_OR_QUALIFIED",
+    "external_j2_load": null,
+    "external_j2_load_status": "NOT_SPECIFIED",
+    "functional_hardware_review": "NOT_RUN",
+    "physical_assembly_review": "NOT_RUN",
+    "qualified_load_pass": false,
+    "source_pinout_consistent_with_reviewed_documents": true,
+    "supplier_model": null,
+    "supplier_model_status": "NOT_RETRIEVED_OR_VERIFIED"
+  },
   "manufacturing_approved": false,
   "native_source_net_count": 6,
   "non_claims": [
@@ -823,6 +835,40 @@
     820
   ],
   "red_led_model_status": "ASSUMED_UNQUALIFIED",
+  "reviewed_PN2222A_document_provenance": {
+    "onsemi-fairchild-pn2222a-2014": {
+      "orderable_candidates": [
+        "PN2222ABU",
+        "PN2222ATA",
+        "PN2222ATF",
+        "PN2222ATFR"
+      ],
+      "pinout": {
+        "1": "E",
+        "2": "B",
+        "3": "C"
+      },
+      "revision": "Fairchild PN2222A Rev. 1.1.0, July 2014",
+      "sha256": "f1eda8482f5f227f5c80c8ba750ae28ff2159139e268158bd656bc8f0db0a6d2",
+      "url": "https://www.onsemi.com/pdf/datasheet/pn2222a-d.pdf"
+    },
+    "onsemi-pn2222-2000-archive": {
+      "orderable_candidates": [
+        "PN2222A",
+        "PN2222ARLRA",
+        "PN2222ARLRM",
+        "PN2222ARLRP"
+      ],
+      "pinout": {
+        "1": "E",
+        "2": "B",
+        "3": "C"
+      },
+      "revision": "onsemi PN2222/D Rev. 0, November 2000",
+      "sha256": "9e61ab90e7ff3e204d6f09c09f00a7a6a0967f11070d6a7f89d7dd5fee16482e",
+      "url": "https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf"
+    }
+  },
   "schema_version": "g0-npn-illustrative-ngspice-dc-v1",
   "simulated_load_ohms": [
     null,
@@ -835,7 +881,42 @@
   ],
   "source_native_kicad_version": "10.0.8",
   "source_parent_task_id": "g0-004-npn-switch-base-drive-reduction",
+  "source_q1_pinout": {
+    "exact_supplier_sku_selected": false,
+    "footprint": "Package_TO_SOT_THT:TO-92_Inline",
+    "manufacturer_spice_model_verified": false,
+    "manufacturing_or_human_approval": "NOT_RUN",
+    "physical_orientation_verified": false,
+    "published_PN2222A_TO92_EBC_mapping": {
+      "1": "E",
+      "2": "B",
+      "3": "C"
+    },
+    "reference": "Q1",
+    "source_j2_external_load_identified": false,
+    "source_pcb_pad_net_names": {
+      "1": "GND",
+      "2": "Net-(Q1-B)",
+      "3": "Net-(D1-K)"
+    },
+    "source_symbol_pin_number_to_function": {
+      "1": "E",
+      "2": "B",
+      "3": "C"
+    },
+    "source_value": "PN2222A",
+    "status": "SOURCE_NUMBERED_PAD_AND_SYMBOL_PINS_CONSISTENT"
+  },
   "source_reference_id": "nitu-npn-transistor-switch",
+  "supplier_pdf_byte_identity": {
+    "model_qualification": false,
+    "part_qualification": false,
+    "revision": "Fairchild PN2222A Rev. 1.1.0, July 2014",
+    "sha256": "f1eda8482f5f227f5c80c8ba750ae28ff2159139e268158bd656bc8f0db0a6d2",
+    "source_id": "onsemi-fairchild-pn2222a-2014",
+    "status": "EXACT_PINNED_SUPPLIER_PDF_BYTES",
+    "url_verified_on_2026_11_12": "https://www.onsemi.com/pdf/datasheet/pn2222a-d.pdf"
+  },
   "transient_flyback_simulation": "NOT_RUN",
   "verified_real_load_limit_ma": null
 }

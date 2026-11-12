@@ -769,6 +769,51 @@ and PCB package conditions, followed by independent qualified
 engineering review and measured functional acceptance.
 G0 #004 and the original G0 benchmark remain **BLOCKED**.
 
+#### G0 task 004 — supplier PDF identity and original TO-92 Q1 pinout
+
+The [official onsemi-hosted Fairchild PN2222A Rev. 1.1.0,
+July 2014](https://www.onsemi.com/pdf/datasheet/pn2222a-d.pdf)
+was independently downloaded on 12 November 2026:
+SHA-256
+f1eda8482f5f227f5c80c8ba750ae28ff2159139e268158bd656bc8f0db0a6d2.
+The [distinct November 2000 onsemi PN2222/D archival PDF](https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf)
+had SHA-256
+9e61ab90e7ff3e204d6f09c09f00a7a6a0967f11070d6a7f89d7dd5fee16482e.
+No copyrighted PDF is added to this repository. Both reviewed
+datasheets depict PN2222A TO-92 E/B/C pins as
+**1=emitter, 2=base, 3=collector**. The Fairchild document
+identifies possible ordering codes PN2222ABU, PN2222ATA,
+PN2222ATF and PN2222ATFR; none is a confirmed actual
+board component.
+
+The real original source's symbol, Q1 Sim.Pins and
+Package_TO_SOT_THT:TO-92_Inline numbered PCB pads were
+independently inspected: **pad 1=GND/emitter,
+pad 2=Net-(Q1-B)/base, pad 3=Net-(D1-K)/collector**.
+The existing KiCad-10-native six-net topology and original
+byte hashes are independently verified before any ngspice
+simulation. This is **source electrical consistency only**,
+not assurance of physical pin orientation, orderable part
+selection, manufacturer-specific SPICE characteristics,
+soldering or manufacturing.
+
+The optional local supplier document is verified against
+these exact known PDF byte hashes. A path that is missing,
+truncated or refers to a different PDF is rejected,
+not silently treated as a valid PN2222A part:
+
+~~~sh
+python scripts/g0_npn_dc_spice_probe.py   --supplier-pdf /path/to/PN2222A.pdf   --output-json /tmp/npn-supplier-evidence.json
+~~~
+
+Without that file, the tool explicitly records
+NOT_SUPPLIED_THIS_RUN; a matching PDF records
+EXACT_PINNED_SUPPLIER_PDF_BYTES. **Neither status
+qualifies a specific supplier part or simulation model.**
+External J2 load characteristics, exact BOM SKU and
+qualified physical/human review remain unknown;
+G0 task 004 remains **BLOCKED**.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses
