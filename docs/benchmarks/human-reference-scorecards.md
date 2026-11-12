@@ -463,6 +463,47 @@ autonomous, qualified engineering revisions. Circuit simulation,
 requirements verification, sourcing/BOM checks, PCB DRC, physical review
 and full G0 task acceptance remain outstanding.
 
+#### One-command passive ECO preview with native verification
+
+Previously a developer had to find a schematic UUID, separately edit
+the schematic and PCB footprint, compare the graphs, and manually run
+independent KiCad validation. For a **single-sheet generic Device:R/C**
+source project with a corresponding PCB footprint, a user or AI
+operator can now request a synchronized, source-preserving candidate:
+
+    zaptrace kicad passive-eco-preview original.kicad_pcb --reference R1 --from-value 4.7k --to-value 5.1k --output-dir /path/to/new-review-folder --json
+
+The CLI resolves the real source UUID, requires exactly the matching
+old value in both the schematic and the PCB footprint, changes only
+their targeted `Value` properties, and proves the canonical net objects
+unchanged. It then runs genuine native KiCad 10 PCB DRC, native
+schematic–PCB parity and ERC **before** publishing draft artifacts.
+A new native finding, stale source, wrong component, vendor fixed-value
+symbol, ambiguous reference or reused output folder **fails closed**.
+Inputs and original project files remain byte-exact. The new directory
+contains the modified `.kicad_sch`, `.kicad_pcb`, the unchanged
+`.kicad_pro`, and a SHA-256-bound `eco-review.json` record.
+
+In one **operator-specified**, nonautonomous task on the MIT-licensed
+original Nitu 555 Blinker (R1 `4.7k → 5.1k`), independently checked
+native KiCad **10.0.8** found **0 DRC, 0 ERC and 0 schematic–PCB
+parity issues before and after**, and the imported canonical nets
+remained unchanged. A user still needs to confirm the modified
+resistor's actual timing and power specifications, BOM/sourcing,
+functional simulation and independent engineering review. No circuit
+operation or manufactured outcome has been approved.
+
+The generated record explicitly uses
+`attempt_status=human-review-required`, `g0_verified=false`,
+`manufacturing_approved=false`, an unknown intervention count, and
+`functional_timing_validation=not_run`. It is **one source-backed
+tooling/engineering-edit attempt**, not proof of autonomous AI
+engineering, a scored human-reviewed design, or the G0 benchmark's
+required 20 successful independent tasks. Only safe single-sheet ECO
+publication is in scope; multi-sheet reference edits still require
+a separate source-complete ECO producer, even though the native
+read-only multi-sheet reviewer supports checking candidates.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses
