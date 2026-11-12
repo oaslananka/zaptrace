@@ -139,16 +139,15 @@ def test_fingerprints_ignore_date_order_but_keep_distinct_duplicate_native_findi
 def test_rejects_stale_source_or_candidate_or_project_digest(tmp_path: Path) -> None:
     board, project = _original()
     candidate = _candidate(tmp_path)
-    arguments = dict(
-        expected_original_sha256=_hash(board),
-        expected_candidate_sha256=_hash(candidate),
-        expected_project_sha256=_hash(project),
-    )
-    for field in arguments:
-        invalid = dict(arguments)
-        invalid[field] = "0" * 64
+    for field in ("original", "candidate", "project"):
         with pytest.raises(ValueError, match="SHA-256"):
-            review_native_pcb_drc_delta(board, candidate, **invalid)
+            review_native_pcb_drc_delta(
+                board,
+                candidate,
+                expected_original_sha256="0" * 64 if field == "original" else _hash(board),
+                expected_candidate_sha256="0" * 64 if field == "candidate" else _hash(candidate),
+                expected_project_sha256="0" * 64 if field == "project" else _hash(project),
+            )
 
 
 def test_rejects_missing_original_project_or_non_board_source(tmp_path: Path) -> None:
@@ -386,7 +385,7 @@ def test_electrical_review_rejects_unpinned_candidate_schematic_without_native_r
         )
 
 
-def test_multi_sheet_electrical_review_fails_closed_instead_of_claiming_partial_erc(
+def test_malformed_candidate_sheet_reference_fails_closed_instead_of_claiming_partial_erc(
     tmp_path: Path,
 ) -> None:
     board, project = _original()
@@ -396,7 +395,7 @@ def test_multi_sheet_electrical_review_fails_closed_instead_of_claiming_partial_
     assert source.startswith("(kicad_sch")
     sheet = '\n\t(sheet (property "Sheet name" "child") (property "Sheet file" "child.kicad_sch"))\n'
     candidate.write_text(source[: source.rfind(")")] + sheet + ")")
-    with pytest.raises(ValueError, match="Multi-sheet electrical review is not yet supported"):
+    with pytest.raises(ValueError, match="sheet must have exactly one filename and UUID"):
         review_native_pcb_drc_delta(
             board,
             _candidate(tmp_path),
