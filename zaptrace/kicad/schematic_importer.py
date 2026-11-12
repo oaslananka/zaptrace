@@ -46,6 +46,8 @@ from zaptrace.core.models import (
     ImportLossRecord,
     Net,
     NetNode,
+    Pin,
+    PinType,
 )
 from zaptrace.io.sexp import SexpNode
 from zaptrace.io.sexp import parse as _sexp_parse
@@ -1025,6 +1027,153 @@ def _add_imported_nets(design: Design, nets_raw: dict[str, list[tuple[str, str]]
     return nets_with_pins / len(nets_raw) if nets_raw else 1.0
 
 
+# The canonical PinType currently expresses these exact native categories.
+# KiCad power_in/out share its POWER class, but preserve the original
+# direction separately to avoid erasing engineering evidence.
+_PIN_TYPE_MAP: dict[str, PinType] = {
+    "input": PinType.INPUT,
+    "output": PinType.OUTPUT,
+    "bidirectional": PinType.BIDIRECTIONAL,
+    "passive": PinType.PASSIVE,
+    "no_connect": PinType.NO_CONNECT,
+    "power_in": PinType.POWER,
+    "power_out": PinType.POWER,
+}
+
+
+def _original_pin_net_ids(
+    design: Design,
+) -> tuple[dict[tuple[str, str], str], set[tuple[str, str]]]:
+    """Link by original ref+pin identity, not by sanitized component ID."""
+    assigned: dict[tuple[str, str], str] = {}
+    ambiguous: set[tuple[str, str]] = set()
+    for net in design.nets.values():
+        for node in net.nodes:
+            key = (node.component_ref, node.pin_name)
+            if key in assigned and assigned[key] != net.id:
+                ambiguous.add(key)
+            else:
+                assigned[key] = net.id
+    return assigned, ambiguous
+
+
+def _record_pin_loss(
+    findings: list[SchematicUnsupportedRecord], ref: str, number: str, kind: str, message: str
+) -> None:
+    findings.append(
+        SchematicUnsupportedRecord(kind=kind, source=f"{ref}:{number}", message=message, severity="warning")
+    )
+
+
+def _one_verified_source_pin(
+    ref: str,
+    pin: tuple[str, float, float],
+    lib_types: dict[str, str],
+    lib_names: dict[str, str],
+    net_by_pin: dict[tuple[str, str], str],
+    ambiguous: set[tuple[str, str]],
+    findings: list[SchematicUnsupportedRecord],
+) -> Pin | None:
+    number, x, y = pin
+    native_type = lib_types.get(number)
+    if native_type is None:
+        return None  # No verified embedded KiCad pin classification.
+    pin_type = _PIN_TYPE_MAP.get(native_type)
+    if pin_type is None:
+        _record_pin_loss(
+            findings,
+            ref,
+            number,
+            "unmapped_pin_electrical_type",
+            f"KiCad pin '{ref}:{number}' electrical type '{native_type}' has no exact canonical mapping",
+        )
+        return None
+    if (ref, number) in ambiguous:
+        _record_pin_loss(
+            findings,
+            ref,
+            number,
+            "ambiguous_pin_net",
+            f"KiCad pin '{ref}:{number}' was resolved into multiple different nets",
+        )
+        return None
+    if not all(math.isfinite(value) for value in (x, y)):
+        _record_pin_loss(
+            findings,
+            ref,
+            number,
+            "invalid_source_pin_coordinate",
+            f"KiCad pin '{ref}:{number}' has nonfinite sheet coordinates",
+        )
+        return None
+    label = lib_names.get(number, "")
+    return Pin(
+        name=label if label and label != "~" else number,
+        type=pin_type,
+        position=(x, y),
+        net=net_by_pin.get((ref, number)),
+        current_domain=native_type.upper() if native_type in {"power_in", "power_out"} else None,
+        description=f"Original KiCad electrical type: {native_type}",
+    )
+
+
+def _populate_native_source_pins(
+    design: Design,
+    symbols: list[dict[str, Any]],
+    sexp: list[SexpNode],
+    findings: list[SchematicUnsupportedRecord],
+) -> None:
+    """Expose source-verified electrical pin meaning without inventing library data.
+
+    This does not import symbol drawings or provide standalone canonical KiCad
+    export fidelity. Nonphysical (power) annotations remain source evidence.
+    """
+    by_ref = {component.ref: component for component in design.components.values()}
+    native_types = _embedded_library_pin_types(sexp)
+    net_by_pin, ambiguous = _original_pin_net_ids(design)
+    library = _find(sexp, "lib_symbols")
+    annotations = (
+        {_atom(lib) for lib in _find_all(library, "symbol") if _find(lib, "power") is not None}
+        if library is not None
+        else set()
+    )
+    conflicting: set[tuple[str, str]] = set()
+    for symbol in symbols:
+        ref, lib_id = symbol["ref"], symbol["lib_id"]
+        component = by_ref.get(ref)
+        if component is None or (lib_id in annotations and not symbol["footprint"]):
+            continue
+        pin_types = native_types.get(lib_id, {})
+        pin_names = symbol.get("pin_library_names") or {}
+        if not isinstance(pin_names, dict):
+            pin_names = {}
+        for item in symbol["pins"]:
+            number = item[0]
+            identity = ref, number
+            if identity in conflicting:
+                continue
+            native_type = pin_types.get(number)
+            if native_type is not None:
+                original_types = component.properties.setdefault("kicad_original_pin_types", {})
+                original_types[number] = native_type
+            selected = _one_verified_source_pin(ref, item, pin_types, pin_names, net_by_pin, ambiguous, findings)
+            if selected is None:
+                continue
+            previous = component.pins.get(number)
+            if previous is not None and previous != selected:
+                component.pins.pop(number)
+                conflicting.add(identity)
+                _record_pin_loss(
+                    findings,
+                    ref,
+                    number,
+                    "ambiguous_source_pin_instance",
+                    f"Different source symbol units disagree on pin '{ref}:{number}'",
+                )
+                continue
+            component.pins[number] = selected
+
+
 def _record_schematic_import_losses(
     design: Design,
     unsupported: list[SchematicUnsupportedRecord],
@@ -1165,6 +1314,7 @@ def import_kicad_schematic_string(
 
     _add_imported_components(design, symbols)
     net_score = _add_imported_nets(design, nets_raw)
+    _populate_native_source_pins(design, symbols, sexp, unsupported)
     _record_schematic_import_losses(design, unsupported)
 
     return KiCadSchematicImportResult(
