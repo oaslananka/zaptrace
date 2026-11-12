@@ -619,6 +619,65 @@ historical original ten native issues, while task 003 is a
 separate unapproved candidate. G0 remains **0 VERIFIED /
 16 BLOCKED / 4 NOT RUN** on the strict original reference baseline.
 
+#### G0 task 004 — independent NVIDIA model suggests NPN switch base-drive ECO
+
+For the first **separately executed model-origin proposal**, a
+[fixed prompt](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/npn-switch-base-drive-independent-brief.txt)
+was prepared from an exact MIT-licensed original NPN transistor
+switch schematic/PCB and its genuine KiCad 10.0.8 native netlist.
+The task was fixed *before* seeing the model output: reduce the
+5-V pushbutton-to-base feed current by at least 50%, modify only
+R1, retain plausible LED-only switching, and **never** claim that
+the unspecified external J2 LOAD can be driven reliably.
+
+OpenClaw 2026.11.3 executed a separate
+nvidia/nemotron-3-ultra-550b-a55b model through the
+configured NVIDIA Free Endpoint (one prompt, no successful tool
+calls or delegation). Its actual reply chose **R1 390 Ω → 820 Ω**,
+with a nominal current estimate of **11.03 → 5.24 mA**, about
+**52.44% lower**. At assumed VBE=0.7 V, the 10 kΩ pull-down
+leaves approximately **5.17 mA** transistor base current; a
+forced-beta-of-10 *heuristic* gives roughly **51.7 mA** collector
+current budget while the LED indicator alone is estimated at
+**7.9–9.1 mA** for the explicitly assumed LED Vf=1.8–2.2 V
+and VCEsat=0.2 V. These are calculations, not SPICE or
+physical measurements. The [PN2222A manufacturer's datasheet
+mirror](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/4849/DS_488_PN2222.pdf)
+shows forced-beta-10 saturation *test conditions*, not a
+guarantee for this particular board, unknown J2 load or
+diode operating point.
+
+The [source-bound evidence record](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/npn-switch-base-drive-independent-model.json)
+preserves the model response, fixed-prompt SHA-256, external model
+and OpenClaw run identity, wall time (86.905 s), reported
+inference duration (76.283 s), exact source and candidate hashes
+and both KiCad review passes. Provider token usage and billable
+cost **were not reported** and are not fabricated as zero.
+
+On the original board, native KiCad produced ERC **0 → 0**,
+PCB DRC **0 → 0**, and inherited schematic–PCB parity
+**8 → 8** after the synchronized passive-eco-preview. These
+eight existing issues are four missing and four extra PCB test
+point references, not new electrical defects. The optional,
+independently tested **two-stage source-preserving draft** first
+uses parity-repair-preview to align PCB testpoint references
++5V/GND/BASE/COLL to the schematic TP1/TP2/TP3/TP4,
+taking parity **8 → 0**; then applies the model's resistor
+proposal, preserving parity **0 → 0**, ERC **0 → 0**
+and PCB DRC **0 → 0**. All originals remain byte-exact.
+
+**Real user limitation:** In the combined candidate the PCB
+F.SilkS reference text for testpoints changes from legible
+measurement net labels to TP numbers. Actual collector load
+current, transistor saturation, diode behavior, thermal performance,
+functional simulation, manufacturing and qualified human review
+are still **NOT RUN**. Thus the independent model proposal's
+*nominal numerical criterion* passed but **G0 task success is
+BLOCKED**. This is a real separate-model attempt, not a
+fully autonomous or human-accepted design success. The strict
+historic original-source score remains **0 VERIFIED /
+16 BLOCKED / 4 NOT RUN**.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses
