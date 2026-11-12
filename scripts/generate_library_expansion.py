@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -3252,13 +3253,35 @@ def collect_all_parts() -> list[tuple[str, str, dict]]:
     return all_parts
 
 
+def _checked_library_output(path: Path) -> Path:
+    """Keep generated files inside the explicit, unaliased output location."""
+    if ".." in path.parts:
+        raise ValueError("Unsafe library output: parent traversal is not supported")
+    absolute = path.absolute()
+    if any(part.is_symlink() for part in (absolute, *absolute.parents)):
+        raise ValueError("Unsafe library output: symbolic-link paths are not supported")
+    return absolute
+
+
+def _checked_inventory_name(value: str, *, category: bool) -> None:
+    pattern = r"[a-z][a-z0-9_-]{0,79}" if category else r"[A-Za-z0-9][A-Za-z0-9._+#-]{0,127}"
+    if not isinstance(value, str) or re.fullmatch(pattern, value) is None:
+        raise ValueError("Unsafe library output: generated inventory name is not a filename")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate library expansion to 500+ parts")
     parser.add_argument("--dry-run", action="store_true", help="Report count without writing files")
     parser.add_argument("--output-dir", type=Path, default=LIBRARY_ROOT)
     args = parser.parse_args(argv)
 
+    root = _checked_library_output(args.output_dir)
     parts = collect_all_parts()
+    # Validate the entire generated inventory before writing any artifact.
+    for category, part_id, _data in parts:
+        _checked_inventory_name(category, category=True)
+        _checked_inventory_name(part_id, category=False)
+
     ids_seen: set[str] = set()
     written = 0
     skipped = 0
@@ -3270,8 +3293,10 @@ def main(argv: list[str] | None = None) -> int:
             continue
         ids_seen.add(part_id)
 
-        target = Path(args.output_dir) / category / f"{part_id}.yaml"
+        target = _checked_library_output(root / category / f"{part_id}.yaml")
         if target.exists():
+            if not target.is_file():
+                raise ValueError("Unsafe library output: existing target is not a regular file")
             skipped += 1
             continue
 
@@ -3280,11 +3305,19 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         target.parent.mkdir(parents=True, exist_ok=True)
-        with open(target, "w", encoding="utf-8") as fh:
-            yaml.dump(data, fh, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        target = _checked_library_output(target)
+        try:
+            # Exclusive creation prevents a pre-existing or newly swapped
+            # symlink/hard link from being truncated by the generator.
+            with target.open("x", encoding="utf-8") as fh:
+                yaml.dump(data, fh, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        except FileExistsError:
+            _checked_library_output(target)
+            skipped += 1
+            continue
         written += 1
 
-    total_existing = sum(1 for _ in Path(args.output_dir).rglob("*.yaml"))
+    total_existing = sum(1 for _ in root.rglob("*.yaml"))
     action = "Would write" if args.dry_run else "Wrote"
     print(f"{action} {written} new parts ({skipped} already exist)")
     total_after = total_existing + written if args.dry_run else total_existing
