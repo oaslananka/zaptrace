@@ -264,6 +264,103 @@
       "title": "BoardDefinition",
       "type": "object"
     },
+    "BoardPadContact": {
+      "description": "Original PCB pad-instance evidence, not qualified fabrication geometry.\n\nEntries are a LIST: multiple real physical contacts may share the same\npad number. Local position is relative to the footprint's KiCad origin,\nnever an inferred absolute board coordinate. A canonical net link is\nprovided only when the native board name maps uniquely to the imported\nschematic graph.",
+      "properties": {
+        "number": {
+          "description": "KiCad physical pad number, possibly empty",
+          "title": "Number",
+          "type": "string"
+        },
+        "board_net_name": {
+          "description": "Unmodified native KiCad PCB net name",
+          "title": "Board Net Name",
+          "type": "string"
+        },
+        "schematic_net_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Uniquely matched canonical net ID",
+          "title": "Schematic Net Id"
+        },
+        "matched_pin_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Verified component logical pin number",
+          "title": "Matched Pin Number"
+        },
+        "position_in_footprint_mm": {
+          "description": "Original footprint-local pad XY in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position In Footprint Mm",
+          "type": "array"
+        },
+        "size_mm": {
+          "description": "Original pad width/height in mm",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Size Mm",
+          "type": "array"
+        },
+        "kind": {
+          "description": "Original KiCad pad type e.g. smd or thru_hole",
+          "title": "Kind",
+          "type": "string"
+        },
+        "shape": {
+          "description": "Original native KiCad pad shape e.g. oval/roundrect/custom",
+          "title": "Shape",
+          "type": "string"
+        },
+        "source_uuid": {
+          "default": "",
+          "description": "Original KiCad pad UUID if present",
+          "title": "Source Uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "number",
+        "board_net_name",
+        "position_in_footprint_mm",
+        "size_mm",
+        "kind",
+        "shape"
+      ],
+      "title": "BoardPadContact",
+      "type": "object"
+    },
     "BoardToBoardConnector": {
       "description": "A connector bridging two PCBs in a multi-board system.",
       "properties": {
@@ -517,6 +614,14 @@
           "description": "Physical package pad/pin ID to logical component pin name",
           "title": "Package Pin Map",
           "type": "object"
+        },
+        "pcb_pad_contacts": {
+          "description": "Original PCB physical pad-instance evidence (not an editable FootprintDef)",
+          "items": {
+            "$ref": "#/$defs/BoardPadContact"
+          },
+          "title": "Pcb Pad Contacts",
+          "type": "array"
         },
         "lifecycle": {
           "$ref": "#/$defs/Lifecycle",

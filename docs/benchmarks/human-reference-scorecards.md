@@ -85,6 +85,47 @@ The original manifest SHA and historic baseline report are unchanged.
 The educational repository reports its own hardware testing, which
 is not independent ZapTrace physical-review authority.
 
+### Native KiCad PCB physical pad-to-pin/net evidence (read-only)
+
+An AI agent reviewing a complete original `.kicad_pro` can now
+inspect `Component.pcb_pad_contacts` as a typed **list of real board
+pad instances**, including the original pad number, shape/type, dimensions,
+footprint-local position, source UUID, native PCB net name and (only
+where the schematic net identity is unambiguous) the canonical
+`schematic_net_id` and `matched_pin_number`. This is intentional:
+`Component.footprint_def` is **not** populated or certified by
+this source-only evidence, and no routing/placement/fabrication engine
+should treat these contacts as qualified manufacturing geometry.
+
+Original ESP32-S3 board in **independent KiCad pcbnew 10.0.8**
+has **21 footprints and 145 physical pad instances**; all 145
+retain native pad numbers, native net names and real footprint-local
+coordinates under this import. Repeated pad numbers are never
+collapsed: U2 pad `41` has **11 physical contacts** and U3 pad
+`2` has **two**, while the two J1 unnamed pads are retained
+as unconnected contacts. R4 pad `2` and D1 pad `2` both
+resolve to the canonical `Net-(D1-A)` ID. A deliberately changed
+R4 copper pad on a disposable source copy produces a
+`pcb_pad_net_mismatch` warning without changing the correct
+schematic pin's net. Unknown board net names, duplicate footprint
+references and incomplete source pad sizes fail closed with explicit
+findings, never fabricated pad or pin links.
+
+A read-only pass over **16 pinned original KiCad projects** imported
+**800 physical pad instances**, of which **564** have an
+unambiguous existing schematic net ID and **763** match a
+source-verified schematic pin number. Nine SparkFun pad-net names
+have no exact schematic net identity and are explicitly recorded,
+not guessed. Native PCB comparison uses actual `pcbnew`
+coordinates/number/net tuples; ordinary tests do not require the
+Python PCB binding and the independent native test is marked
+SKIPPED when that separate authority is unavailable.
+
+This still does **not** certify complete layered land patterns,
+copper, physical DRC/ERC, edited KiCad round-trip, manufacturing
+readiness or engineer-reviewed AI circuit changes. Strict G0
+remains **0 VERIFIED / 16 BLOCKED / 4 NOT RUN**.
+
 ### Project-level pin and net identity consistency
 
 KiCad `.kicad_sch` pin evidence alone does not establish a usable

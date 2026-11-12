@@ -39,15 +39,19 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from zaptrace.core.models import (
+    BoardPadContact,
+    Component,
     Design,
     DesignMeta,
     HierarchySheet,
+    Net,
 )
 from zaptrace.io.sexp import SexpNode
 from zaptrace.io.sexp import parse as _sexp_parse
@@ -618,6 +622,136 @@ def _crossvalidate_pcb(
         )
 
 
+def _native_pad_contact(
+    node: list[SexpNode],
+    component: Component,
+    net_by_name: dict[str, set[str]],
+) -> tuple[BoardPadContact, str | None]:
+    """Resolve source-only footprint-local pad evidence without guessing IDs."""
+    at = _find(node, "at")
+    size = _find(node, "size")
+    if at is None or size is None or len(at) < 3 or len(size) < 3 or len(node) < 4:
+        raise ValueError("Missing original KiCad pad size, local coordinate, type or shape")
+    x, y, w, h = (
+        float(_atom(at, 1)),
+        float(_atom(at, 2)),
+        float(_atom(size, 1)),
+        float(_atom(size, 2)),
+    )
+    if not all(math.isfinite(value) for value in (x, y, w, h)) or w <= 0 or h <= 0:
+        raise ValueError("Nonfinite or invalid native KiCad physical pad coordinates/size")
+    number = _atom(node)
+    net_node = _find(node, "net")
+    net_name = _atom(net_node, 2) if net_node else ""
+    ids = net_by_name.get(net_name, set()) if net_name else set()
+    canonical_id = next(iter(ids)) if len(ids) == 1 else None
+    note = None
+    if net_name and not ids:
+        note = "pcb_pad_unknown_net"
+    elif net_name and len(ids) > 1:
+        note = "pcb_pad_ambiguous_net"
+    elif number in component.pins and canonical_id is not None:
+        old_pin_net = component.pins[number].net
+        if old_pin_net is not None and old_pin_net != canonical_id:
+            note = "pcb_pad_net_mismatch"
+    uuid_node = _find(node, "uuid")
+    return BoardPadContact(
+        number=number,
+        board_net_name=net_name,
+        schematic_net_id=canonical_id,
+        matched_pin_number=number if number and number in component.pins else None,
+        position_in_footprint_mm=(x, y),
+        size_mm=(w, h),
+        kind=_atom(node, 2),
+        shape=_atom(node, 3),
+        source_uuid=_atom(uuid_node) if uuid_node else "",
+    ), note
+
+
+def _append_component_pcb_contacts(
+    component: Component,
+    footprint: list[SexpNode],
+    ids_by_name: dict[str, set[str]],
+    findings: list[HierarchicalKiCadFinding],
+) -> None:
+    for pad in _find_all(footprint, "pad"):
+        try:
+            contact, issue = _native_pad_contact(pad, component, ids_by_name)
+        except (ValueError, TypeError, OverflowError) as exc:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind="pcb_pad_unmapped_geometry",
+                    message=f"PCB pad for '{component.ref}' has unverified original geometry: {exc}",
+                )
+            )
+            continue
+        component.pcb_pad_contacts.append(contact)
+        if issue:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind=issue,
+                    message=(
+                        f"PCB pad '{component.ref}:{contact.number}' on native net "
+                        f"'{contact.board_net_name}' cannot be trusted as the corresponding schematic pin net"
+                    ),
+                    detail=f"ref={component.ref};pad={contact.number};native_net={contact.board_net_name}",
+                )
+            )
+
+
+def _original_pcb_footprint_nodes(pcb_path: Path | None) -> list[list[SexpNode]]:
+    if pcb_path is None:
+        return []
+    try:
+        tree = _sexp_parse(pcb_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return []  # Existing PCB cross-validation owns parse-error findings.
+    return _find_all(tree, "footprint") if isinstance(tree, list) else []
+
+
+def _populate_pcb_pad_contacts(
+    pcb_path: Path | None,
+    components: dict[str, Component],
+    nets: dict[str, Net],
+    findings: list[HierarchicalKiCadFinding],
+) -> None:
+    """Add exact original physical pad instances without projecting unverified PCB geometry.
+
+    Never treat this source evidence as fabricated/certified footprint_def.
+    """
+    footprints = _original_pcb_footprint_nodes(pcb_path)
+    ids_by_name: dict[str, set[str]] = {}
+    for net_id, net in nets.items():
+        ids_by_name.setdefault(net.name, set()).add(net_id)
+
+    by_ref: dict[str, list[Component]] = {}
+    for component in components.values():
+        by_ref.setdefault(component.ref, []).append(component)
+
+    footprint_ref_counts = {ref: 0 for ref in by_ref}
+    for fp in footprints:
+        ref = _prop(fp, "Reference")
+        if ref in footprint_ref_counts:
+            footprint_ref_counts[ref] += 1
+    for fp in footprints:
+        ref = _prop(fp, "Reference")
+        matches = by_ref.get(ref, [])
+        if not matches:
+            continue  # Existing PCB vs schematic reference checker owns this mismatch.
+        if len(matches) != 1 or footprint_ref_counts[ref] != 1:
+            findings.append(
+                HierarchicalKiCadFinding(
+                    severity="warning",
+                    kind="pcb_pad_ambiguous_reference",
+                    message=f"PCB footprint reference '{ref}' is not uniquely tied to one schematic component",
+                )
+            )
+            continue
+        _append_component_pcb_contacts(matches[0], fp, ids_by_name, findings)
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -724,6 +858,7 @@ def import_kicad_project(
     schematic_refs -= _native_nonphysical_power_refs(source_snapshots)
     pcb_path = _find_pcb_path(project_dir, project_name)
     _crossvalidate_pcb(pcb_path, schematic_refs, findings)
+    _populate_pcb_pad_contacts(pcb_path, components, nets, findings)
 
     # Build canonical Design
     from zaptrace.core.models import ImportLossRecord
