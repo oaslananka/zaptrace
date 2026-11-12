@@ -283,6 +283,35 @@ draft proofs, **not** full editable Design round-trip, PCB netclass
 propagation, DRC clearance review, routing approval or qualified hardware
 signoff. Strict G0 full acceptance remains unchanged.
 
+### Native KiCad 10 sheet page/title/revision review
+
+The original source snapshot retains KiCad's page geometry and title
+block evidence without claiming full editable graphical Design parity.
+To review **one exact existing** metadata value and get independent
+native netlist/ERC evidence without changing any original files:
+
+    zaptrace kicad sheet-metadata-preview path/to/board.kicad_sch --field paper --expected-value USLetter --new-value A4 --json
+
+Supported fields are paper, title and rev. The command resolves the
+original source + sibling .kicad_pro hashes automatically, verifies
+the target is unique (and an unchanged value fails closed), and runs
+KiCad CLI **10** on temporary source copies before returning success.
+All named native nets, pin nodes, effective netclasses and ERC finding
+identities must be identical before and after the change. For an
+editable review copy **outside the original project** add:
+
+    --output-dir path/to/new-sheet-review-folder
+
+The destination must not exist. It receives only review.kicad_sch and
+the byte-identical matching review.kicad_pro. Original schematic, PCB,
+library assets and project files are never overwritten. An absent
+title/revision, hierarchical sheet, stale hash, unsupported paper size,
+native KiCad failure or ambiguous source field is an explicit error.
+This is a *source-only review draft*, not a canonical Design round-trip,
+validated PCB geometry, DRC, manufacturing or human acceptance.
+Merely retaining KiCad source constructs in a snapshot never closes a
+G0 unsupported semantic construct gate.
+
 ### Terminal review workflow
 
 Users and automation can run the same native proof without writing Python,
