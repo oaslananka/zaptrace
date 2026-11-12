@@ -808,7 +808,7 @@
     "external_j2_load_status": "NOT_SPECIFIED",
     "functional_hardware_review": "NOT_RUN",
     "physical_assembly_review": "NOT_RUN",
-    "qualified_load_pass": false,
+    "qualified_load_status": "NOT_RUN",
     "source_pinout_consistent_with_reviewed_documents": true,
     "supplier_model": null,
     "supplier_model_status": "NOT_RETRIEVED_OR_VERIFIED"

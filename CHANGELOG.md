@@ -4,7 +4,7 @@
 
 ### Added
 
-- Verify source Q1 PN2222A E-B-C symbol pin numbers against real TO-92 PCB pad nets and the reviewed onsemi/Fairchild documents; optionally check exact original supplier PDF bytes offline, refusing unknown or silently changed documents while preserving unselected SKU, unverified SPICE model and no hardware signoff.
+- Verify source Q1 PN2222A E-B-C symbol pin numbers against real TO-92 PCB pad nets and the reviewed onsemi/Fairchild documents; check exact original supplier PDF bytes from bounded offline standard input, rejecting unknown documents without file-path access while preserving unselected SKU, unverified SPICE model and no hardware signoff.
 
 
 - Add an archival onsemi PN2222A datasheet condition check to the real 34-case ngspice G0 probe: explicitly show why 390/820-ohm base drive cannot reproduce the published 150mA/15mA saturation test condition and flag hypothetical 50C derated-power concerns without inventing component safety, real-load or manufacturing approval.

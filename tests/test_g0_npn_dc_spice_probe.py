@@ -224,19 +224,21 @@ def test_verified_supplier_pdf_identity_does_not_select_part_or_spice() -> None:
     assert readiness["external_j2_load_status"] == "NOT_SPECIFIED"
     assert readiness["physical_assembly_review"] == "NOT_RUN"
     assert readiness["functional_hardware_review"] == "NOT_RUN"
-    assert readiness["qualified_load_pass"] is False
+    assert readiness["qualified_load_status"] == "NOT_RUN"
 
 
 def test_supplier_document_identity_rejects_missing_or_wrong_pdf(tmp_path: Path) -> None:
     no_supplier = probe.verify_supplier_pdf(None)
     assert no_supplier["status"] == "NOT_SUPPLIED_THIS_RUN"
     assert not no_supplier["part_qualification"]
-    with pytest.raises(ValueError, match="not found"):
-        probe.verify_supplier_pdf(tmp_path / "missing.pdf")
+    with pytest.raises(ValueError, match="not a recognized complete PDF"):
+        probe.verify_supplier_pdf(b"")
+    with pytest.raises(ValueError, match="unexpectedly large"):
+        probe.verify_supplier_pdf(b"%PDF-1.4" + b" " * 5_000_001)
     wrong_document = tmp_path / "other-mosfet.pdf"
     wrong_document.write_bytes(b"%PDF-1.4\n" + b"This is NOT a PN2222A datasheet. " * 400)
     with pytest.raises(ValueError, match="do not trust a URL"):
-        probe.verify_supplier_pdf(wrong_document)
+        probe.verify_supplier_pdf(wrong_document.read_bytes())
 
 
 def test_q1_symbol_pin_drift_fails_closed_on_original_source_copy(tmp_path: Path) -> None:
@@ -258,7 +260,7 @@ def test_q1_symbol_pin_drift_fails_closed_on_original_source_copy(tmp_path: Path
 def test_supplier_pdf_cli_reports_actionable_error_without_emitting_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    def reject_supplier(_source: Path, *, supplier_pdf: Path | None = None) -> dict:
+    def reject_supplier(_source: Path, *, supplier_pdf_bytes: bytes | None = None) -> dict:
         raise ValueError("Supplier document not recognized; please use the reviewed PDF revision")
 
     outfile = tmp_path / "untrusted.json"
@@ -266,7 +268,7 @@ def test_supplier_pdf_cli_reports_actionable_error_without_emitting_artifact(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["g0_npn_dc_spice_probe.py", "--supplier-pdf", str(tmp_path / "wrong.pdf"), "--output-json", str(outfile)],
+        ["g0_npn_dc_spice_probe.py", "--output-json", str(outfile)],
     )
     with pytest.raises(SystemExit) as raised:
         probe.main()

@@ -15,6 +15,7 @@ import hashlib
 import json
 import re
 import shutil
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -75,24 +76,21 @@ def shared_ngspice_available() -> bool:
     return ctypes.util.find_library("ngspice") is not None
 
 
-def verify_supplier_pdf(path: Path | None) -> dict[str, Any]:
-    """Read only an opt-in local PDF, accept only pinned exact supplier bytes."""
-    if path is None:
+def verify_supplier_pdf(blob: bytes | None) -> dict[str, Any]:
+    """Only hash bounded, explicit binary input; never read an untrusted path."""
+    if blob is None:
         return {
             "status": "NOT_SUPPLIED_THIS_RUN",
             "sha256": None,
             "part_qualification": False,
             "model_qualification": False,
             "instruction": (
-                "Use --supplier-pdf with a separately obtained, exact source PDF "
-                "to check its identity without network access."
+                "Use --supplier-pdf-stdin and redirect a separately obtained "
+                "PDF to standard input, without granting file-path access."
             ),
         }
-    if not path.is_file():
-        raise ValueError(f"Supplier PDF not found: {path}")
-    if path.stat().st_size > 5_000_000:
+    if len(blob) > 5_000_000:
         raise ValueError("Supplier PDF unexpectedly large; document identity NOT verified")
-    blob = path.read_bytes()
     if not blob.startswith(b"%PDF-") or len(blob) < 10_000:
         raise ValueError("Supplier document is not a recognized complete PDF")
     sha = digest(blob)
@@ -113,63 +111,71 @@ def verify_supplier_pdf(path: Path | None) -> dict[str, Any]:
     )
 
 
-def verify_q1_source_pinout(schematic: Path, board: Path) -> dict[str, Any]:
-    """Reconcile exact Q1 library symbol pin names with real PCB pad nets."""
+def _sexp_children(tree: Any, tag: str) -> list[list[Any]]:
+    """Select immediate S-expression lists while ignoring atom children."""
+    return [item for item in tree if isinstance(item, list) and item[:1] == [tag]]
+
+
+def _symbol_pin_name_map(schematic: Path) -> dict[str, str]:
+    """Read the immutable source KiCad library symbol, not guessed pin names."""
     tree = parse_kicad(schematic.read_text(encoding="utf-8"))
-    pcb = parse_kicad(board.read_text(encoding="utf-8"))
-    symbol_names: dict[str, str] = {}
-    for node in tree:
-        if not isinstance(node, list) or node[:1] != ["lib_symbols"]:
-            continue
-        for item in node:
-            if not isinstance(item, list) or item[:2] != ["symbol", "Transistor_BJT:PN2222A"]:
-                continue
-            for unit in item:
-                if not isinstance(unit, list) or unit[:1] != ["symbol"]:
-                    continue
-                for pin in unit:
-                    if not isinstance(pin, list) or pin[:1] != ["pin"]:
-                        continue
-                    names = {
-                        sub[0]: sub[1]
-                        for sub in pin
-                        if isinstance(sub, list) and len(sub) > 1 and sub[0] in {"number", "name"}
-                    }
-                    number = names.get("number")
-                    pin_name = names.get("name")
-                    if isinstance(number, str) and isinstance(pin_name, str):
-                        symbol_names[number] = pin_name
+    symbols = [
+        symbol
+        for libraries in _sexp_children(tree, "lib_symbols")
+        for symbol in _sexp_children(libraries, "symbol")
+        if len(symbol) > 1 and symbol[1] == "Transistor_BJT:PN2222A"
+    ]
+    if len(symbols) != 1:
+        raise ValueError("Source PN2222A library symbol missing or ambiguous")
+    pins = [pin for unit in _sexp_children(symbols[0], "symbol") for pin in _sexp_children(unit, "pin")]
+    pin_names: dict[str, str] = {}
+    for pin in pins:
+        fields = {
+            sub[0]: sub[1] for sub in pin if isinstance(sub, list) and len(sub) > 1 and sub[0] in {"number", "name"}
+        }
+        number = fields.get("number")
+        pin_name = fields.get("name")
+        if isinstance(number, str) and isinstance(pin_name, str):
+            pin_names[number] = pin_name
+    return pin_names
+
+
+def _find_q1_footprint(board: Path) -> tuple[list[Any], dict[str, Any]]:
+    """Return the exact and unique source PCB footprint and its properties."""
+    tree = parse_kicad(board.read_text(encoding="utf-8"))
+    selected = []
+    for fp in _sexp_children(tree, "footprint"):
+        props = {field[1]: field[2] for field in _sexp_children(fp, "property") if len(field) > 2}
+        if props.get("Reference") == "Q1":
+            selected.append((fp, props))
+    if len(selected) != 1:
+        raise ValueError("Expected exactly one Q1 footprint; supplier pinout NOT verified")
+    return selected[0]
+
+
+def _q1_pcb_pad_nets(footprint: list[Any]) -> dict[str, str]:
+    """Collect the real PCB numbered pad connections, excluding unnamed pads."""
+    pad_nets: dict[str, str] = {}
+    for pad in _sexp_children(footprint, "pad"):
+        nets = _sexp_children(pad, "net")
+        number = pad[1] if len(pad) > 1 else None
+        net_name = nets[0][1] if nets and len(nets[0]) > 1 else None
+        if isinstance(number, str) and isinstance(net_name, str):
+            pad_nets[number] = net_name
+    return pad_nets
+
+
+def verify_q1_source_pinout(schematic: Path, board: Path) -> dict[str, Any]:
+    """Fail closed when original Q1 source pins and PCB pads differ."""
+    symbol_names = _symbol_pin_name_map(schematic)
     if symbol_names != EXPECTED_Q1_PIN_NAMES:
         raise ValueError("Original PN2222A symbol pin numbers do not match supplier E-B-C diagram")
-
-    q1_footprints = []
-    for item in pcb:
-        if not isinstance(item, list) or item[:1] != ["footprint"]:
-            continue
-        props = {
-            field[1]: field[2]
-            for field in item
-            if isinstance(field, list) and field[:1] == ["property"] and len(field) > 2
-        }
-        if props.get("Reference") == "Q1":
-            q1_footprints.append((item, props))
-    if len(q1_footprints) != 1:
-        raise ValueError("Expected exactly one Q1 footprint; supplier pinout NOT verified")
-    fp, props = q1_footprints[0]
-    if fp[1] != EXPECTED_Q1_FOOTPRINT:
+    footprint, props = _find_q1_footprint(board)
+    if footprint[1] != EXPECTED_Q1_FOOTPRINT:
         raise ValueError("Q1 footprint is not the pinned TO-92 Inline part")
     if props.get("Value") != "PN2222A" or props.get("Sim.Pins") != "1=E 2=B 3=C":
         raise ValueError("Q1 source PN2222A footprint model/pin assignment is inconsistent")
-    pad_nets: dict[str, str] = {}
-    for pad in fp:
-        if not isinstance(pad, list) or pad[:1] != ["pad"]:
-            continue
-        net = next(
-            (field[1] for field in pad if isinstance(field, list) and field[:1] == ["net"] and len(field) > 1),
-            None,
-        )
-        if net is not None:
-            pad_nets[pad[1]] = net
+    pad_nets = _q1_pcb_pad_nets(footprint)
     if pad_nets != EXPECTED_Q1_PADS:
         raise ValueError("Q1 physical PCB pad net names differ from original circuit model")
     return {
@@ -451,9 +457,9 @@ class SharedNgspice:
             self.library.ngSpice_Command(b"destroy all")
 
 
-def simulate_source_bound_npn(source: Path, *, supplier_pdf: Path | None = None) -> dict[str, Any]:
+def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None = None) -> dict[str, Any]:
     pinned = verify_native_source(source)
-    document_check = verify_supplier_pdf(supplier_pdf)
+    document_check = verify_supplier_pdf(supplier_pdf_bytes)
     simulator = SharedNgspice()
     cases: list[dict[str, Any]] = []
     scenarios = [
@@ -515,7 +521,7 @@ def simulate_source_bound_npn(source: Path, *, supplier_pdf: Path | None = None)
             "external_j2_load_status": "NOT_SPECIFIED",
             "physical_assembly_review": "NOT_RUN",
             "functional_hardware_review": "NOT_RUN",
-            "qualified_load_pass": False,
+            "qualified_load_status": "NOT_RUN",
         },
         "engine": "ngspice",
         "engine_version": simulator.version,
@@ -574,14 +580,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dir", type=Path, default=SOURCE)
     parser.add_argument(
-        "--supplier-pdf",
-        type=Path,
-        help="Optional local onsemi/Fairchild PDF; only known exact byte hashes pass identity checks",
+        "--supplier-pdf-stdin",
+        action="store_true",
+        help="Read at most 5 MB of explicit binary PDF standard input; never accept a filesystem path",
     )
     parser.add_argument("--output-json", type=Path, required=True)
     args = parser.parse_args()
     try:
-        result = simulate_source_bound_npn(args.source_dir, supplier_pdf=args.supplier_pdf)
+        supplier_bytes = sys.stdin.buffer.read(5_000_001) if args.supplier_pdf_stdin else None
+        result = simulate_source_bound_npn(args.source_dir, supplier_pdf_bytes=supplier_bytes)
     except (ValueError, RuntimeError) as exc:
         parser.error(str(exc))
     output: Path = args.output_json

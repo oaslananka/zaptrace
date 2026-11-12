@@ -797,13 +797,14 @@ not assurance of physical pin orientation, orderable part
 selection, manufacturer-specific SPICE characteristics,
 soldering or manufacturing.
 
-The optional local supplier document is verified against
-these exact known PDF byte hashes. A path that is missing,
-truncated or refers to a different PDF is rejected,
-not silently treated as a valid PN2222A part:
+The optional supplier document is streamed explicitly through
+binary standard input and verified against these exact known PDF
+byte hashes. There is **no arbitrary PDF filename input** into
+the tool. Missing, truncated or mismatched PDF data is rejected,
+rather than silently treated as a valid PN2222A part:
 
 ~~~sh
-python scripts/g0_npn_dc_spice_probe.py   --supplier-pdf /path/to/PN2222A.pdf   --output-json /tmp/npn-supplier-evidence.json
+python scripts/g0_npn_dc_spice_probe.py   --supplier-pdf-stdin   --output-json /tmp/npn-supplier-evidence.json < /path/to/PN2222A.pdf
 ~~~
 
 Without that file, the tool explicitly records
