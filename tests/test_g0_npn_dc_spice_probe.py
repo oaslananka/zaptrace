@@ -260,7 +260,9 @@ def test_q1_symbol_pin_drift_fails_closed_on_original_source_copy(tmp_path: Path
 def test_supplier_pdf_cli_reports_actionable_error_without_emitting_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    def reject_supplier(_source: Path, *, supplier_pdf_bytes: bytes | None = None) -> dict:
+    def reject_supplier(
+        _source: Path, *, supplier_pdf_bytes: bytes | None = None, j2_resistive_ohms: int | None = None
+    ) -> dict:
         raise ValueError("Supplier document not recognized; please use the reviewed PDF revision")
 
     outfile = tmp_path / "untrusted.json"
@@ -274,4 +276,80 @@ def test_supplier_pdf_cli_reports_actionable_error_without_emitting_artifact(
         probe.main()
     assert raised.value.code == 2
     assert "Supplier document not recognized" in capsys.readouterr().err
+    assert not outfile.exists()
+
+
+@pytest.mark.parametrize("invalid_load", [0, -10, 9, 1_000_001, 2.3, "22", True])
+def test_user_supplied_resistance_rejected_without_simulating(invalid_load: object) -> None:
+    with pytest.raises(ValueError, match="resistive|ohm|integer"):
+        probe.validate_custom_j2_resistance(invalid_load)
+
+
+def test_valid_resistive_load_bounds_do_not_qualify_technical_load() -> None:
+    for candidate in (10, 68, 1000, 1_000_000):
+        assert probe.validate_custom_j2_resistance(candidate) == candidate
+
+
+def test_actual_user_resistive_j2_comparison_is_separate_from_pinned_34_cases() -> None:
+    if not probe.shared_ngspice_available():
+        pytest.skip("Real ngspice shared library required, no fake DC evidence")
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Real KiCad 10 CLI required")
+    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, timeout=15)
+    if version.returncode or not version.stdout.startswith("10."):
+        pytest.skip("Real KiCad 10 required to verify original source before DC review")
+    result = probe.simulate_source_bound_npn(SOURCE, j2_resistive_ohms=68)
+    pinned = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    assert result["cases"] == pinned["cases"]
+    assert len(result["cases"]) == 34
+    assert result["original_source_sha256"] == pinned["original_source_sha256"]
+    custom = result["user_supplied_j2_scenario"]
+    assert custom["j2_resistive_ohms"] == 68
+    assert custom["input_status"] == "USER_ENTERED_RESISTIVE_VALUE_NOT_VERIFIED_FROM_SOURCE"
+    assert custom["source_j2_load_specified"] is False
+    assert custom["actual_part_model_verified"] is False
+    assert custom["verified_load_current_ma"] is None
+    assert custom["qualified_load_status"] == "NOT_RUN"
+    assert custom["manufacturing_approved"] is False
+    assert custom["human_signoff"] == "NOT_RUN"
+    assert custom["load_type"] == "IDEAL_RESISTOR_DC_ONLY"
+    rows = custom["cases"]
+    assert len(rows) == 6
+    assert {(r["r1_ohms"], r["assumed_beta_f"], r["switch_state"]) for r in rows} == {
+        (390, 50, "CLOSED"),
+        (820, 50, "CLOSED"),
+        (390, 150, "CLOSED"),
+        (820, 150, "CLOSED"),
+        (820, 50, "OPEN"),
+        (820, 150, "OPEN"),
+    }
+    assert all(r["external_load_ohms"] == 68 for r in rows)
+    assert all(r["qualified_load_status"] == "NOT_RUN" for r in rows)
+    assert all(r["spice_deck_sha256"] for r in rows)
+    original_50 = next(
+        r for r in rows if r["r1_ohms"] == 390 and r["assumed_beta_f"] == 50 and r["switch_state"] == "CLOSED"
+    )
+    candidate_50 = next(
+        r for r in rows if r["r1_ohms"] == 820 and r["assumed_beta_f"] == 50 and r["switch_state"] == "CLOSED"
+    )
+    assert candidate_50["v_collector_v"] > original_50["v_collector_v"]
+    assert all(r["v_collector_v"] > 4 for r in rows if r["switch_state"] == "OPEN")
+    assert result["manufacturer_component_readiness"]["external_j2_load"] is None
+    assert not result["g0_verified"]
+
+
+@pytest.mark.parametrize("bad_number", ["5", "-12", "0", "1000001", "abc", "2.2"])
+def test_resistive_cli_bad_input_fails_without_creating_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], bad_number: str
+) -> None:
+    outfile = tmp_path / "no-false-positive.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["g0_npn_dc_spice_probe.py", "--j2-resistive-ohms", bad_number, "--output-json", str(outfile)],
+    )
+    with pytest.raises(SystemExit) as raised:
+        probe.main()
+    assert raised.value.code == 2
+    assert "j2" in capsys.readouterr().err.lower() or "resistive" in bad_number
     assert not outfile.exists()

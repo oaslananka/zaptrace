@@ -4,6 +4,9 @@
 
 ### Added
 
+- Let G0-004 users compare an explicitly entered, bounded ideal resistive J2 load for original and proposed PN2222A base-drive values using six additional real ngspice DC runs; preserve all 34 pinned baseline cases and fail closed on unsupported load inputs while keeping supplier model and hardware approval unverified.
+
+
 - Verify source Q1 PN2222A E-B-C symbol pin numbers against real TO-92 PCB pad nets and the reviewed onsemi/Fairchild documents; check exact original supplier PDF bytes from bounded offline standard input, rejecting unknown documents without file-path access while preserving unselected SKU, unverified SPICE model and no hardware signoff.
 
 
