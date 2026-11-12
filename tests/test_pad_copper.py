@@ -229,14 +229,16 @@ def test_ground_without_pour_rejects_narrow_and_repeated_physical_lands() -> Non
     router = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=20_000)
     assert router.route(d, pos).routed_net_count == 1
 
-    d.components["b"].footprint_def.pads[0].size = (0.5, 0.35)
+    footprint = d.components["b"].footprint_def
+    assert footprint is not None
+    footprint.pads[0].size = (0.5, 0.35)
     narrow = router.route(d, pos)
     assert narrow.net_count == 1
     assert narrow.routed_net_count == 0 and not narrow.traces
 
-    d.components["b"].footprint_def.pads[0].size = (2.0, 1.5)
+    footprint.pads[0].size = (2.0, 1.5)
     # Duplicate actual copper occurrence, despite a single logical GND pin.
-    d.components["b"].footprint_def.pads.append(Pad(id="1", position=(2.0, 0), size=(2.0, 1.5), layer=LayerSet.TOP))
+    footprint.pads.append(Pad(id="1", position=(2.0, 0), size=(2.0, 1.5), layer=LayerSet.TOP))
     repeated = router.route(d, pos)
     assert repeated.net_count == 1
     assert repeated.routed_net_count == 0 and not repeated.traces
