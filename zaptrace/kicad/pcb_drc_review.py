@@ -75,7 +75,9 @@ class NativeElectricalEvidence:
     candidate_child_sha256: dict[str, str]
     sheet_file_count: int
     baseline_schematic_parity_issues: int
+    baseline_schematic_parity_types: dict[str, int]
     candidate_schematic_parity_issues: int
+    candidate_schematic_parity_types: dict[str, int]
     new_schematic_parity_issues: int
     new_schematic_parity_types: dict[str, int]
     baseline_erc_violations: int
@@ -288,7 +290,13 @@ def _review_electrical_delta(
         candidate_child_sha256=candidate_child_sha256,
         sheet_file_count=1 + len(original_child_sha256),
         baseline_schematic_parity_issues=len(before_parity),
+        baseline_schematic_parity_types=dict(
+            sorted(Counter(str(item.get("type", "unknown")) for item in before_parity).items())
+        ),
         candidate_schematic_parity_issues=len(after_parity),
+        candidate_schematic_parity_types=dict(
+            sorted(Counter(str(item.get("type", "unknown")) for item in after_parity).items())
+        ),
         new_schematic_parity_issues=len(new_parity),
         new_schematic_parity_types=dict(
             sorted(Counter(str(item.get("type", "unknown")) for item in new_parity).items())

@@ -416,3 +416,217 @@ def test_multisheet_eco_preview_fails_closed_without_incomplete_output(tmp_path:
     assert response.exit_code != 0
     assert "single-sheet" in response.output
     assert not output_dir.exists()
+
+
+def test_operator_sees_existing_kicad_parity_blocker_not_only_zero_new_findings(monkeypatch, tmp_path: Path) -> None:
+    """User-first: draft/no-regression is never presented as electrical approval."""
+    import importlib
+
+    cli_module = importlib.import_module("zaptrace.cli.passive_eco_preview")
+
+    def example(*_args: object, **_kwargs: object) -> dict[str, object]:
+        return {
+            "native_kicad_version": "10.0.8",
+            "native_review": {
+                "baseline_violations": 0,
+                "candidate_violations": 0,
+                "candidate_unconnected_items": 0,
+                "electrical_review": {
+                    "baseline_erc_violations": 0,
+                    "candidate_erc_violations": 0,
+                    "baseline_schematic_parity_issues": 10,
+                    "candidate_schematic_parity_issues": 10,
+                    "candidate_schematic_parity_types": {
+                        "net_conflict": 2,
+                        "missing_footprint": 4,
+                        "extra_footprint": 4,
+                    },
+                    "candidate_electrical_clean": False,
+                },
+            },
+        }
+
+    monkeypatch.setattr(cli_module, "preview_passive_value_eco", example)
+    original = tmp_path / "test.kicad_pcb"
+    original.write_text("(kicad_pcb)")
+    answer = CliRunner().invoke(
+        cli,
+        [
+            "kicad",
+            "passive-eco-preview",
+            str(original),
+            "--reference",
+            "R1",
+            "--from-value",
+            "330",
+            "--to-value",
+            "470",
+            "--output-dir",
+            str(tmp_path / "eco"),
+        ],
+    )
+    assert answer.exit_code == 0, answer.output
+    assert "10 unresolved" in answer.output
+    assert "net_conflict: 2" in answer.output
+    assert "missing_footprint: 4" in answer.output
+    assert "extra_footprint: 4" in answer.output
+    assert "NOT electrically clean" in answer.output
+    assert "Manufacturing NOT approved" in answer.output
+
+
+def test_operator_sees_clean_native_results_without_false_manufacturing_approval(monkeypatch, tmp_path: Path) -> None:
+    import importlib
+
+    cli_module = importlib.import_module("zaptrace.cli.passive_eco_preview")
+
+    def example(*_args: object, **_kwargs: object) -> dict[str, object]:
+        return {
+            "native_kicad_version": "10.0.8",
+            "native_review": {
+                "baseline_violations": 0,
+                "candidate_violations": 0,
+                "candidate_unconnected_items": 0,
+                "electrical_review": {
+                    "baseline_erc_violations": 0,
+                    "candidate_erc_violations": 0,
+                    "baseline_schematic_parity_issues": 0,
+                    "candidate_schematic_parity_issues": 0,
+                    "candidate_schematic_parity_types": {},
+                    "candidate_electrical_clean": True,
+                },
+            },
+        }
+
+    monkeypatch.setattr(cli_module, "preview_passive_value_eco", example)
+    original = tmp_path / "test.kicad_pcb"
+    original.write_text("(kicad_pcb)")
+    answer = CliRunner().invoke(
+        cli,
+        [
+            "kicad",
+            "passive-eco-preview",
+            str(original),
+            "--reference",
+            "R1",
+            "--from-value",
+            "4.7k",
+            "--to-value",
+            "5.1k",
+            "--output-dir",
+            str(tmp_path / "eco"),
+        ],
+    )
+    assert answer.exit_code == 0, answer.output
+    assert "0 remaining" in answer.output
+    assert "Manufacturing NOT approved" in answer.output
+
+
+def test_real_l7805_indicator_eco_keeps_existing_kicad_parity_blockers_visible(
+    tmp_path: Path, native_kicad_10: str
+) -> None:
+    """G0-002: preserve LED branch topology and disclose ten native *existing* blockers."""
+    repo = Path(__file__).parents[1]
+    task = json.loads(
+        (repo / "benchmarks/g0-ai-engineering-tasks/linear-regulator-led-current-minus-thirty-percent.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert task["task_id"] == "g0-002-l7805-led-indicator-current-eco"
+    manifest = json.loads((repo / "benchmarks/human-reference-corpus/manifest.json").read_text(encoding="utf-8"))
+    item = next(row for row in manifest["references"] if row["reference_id"] == task["reference_id"])
+    assert task["source_artifact_set_sha256"] == item["artifact_set_sha256"]
+    assert task["source_upstream_commit"] == item["upstream_commit"]
+    assert item["license_expression"] == task["license"] == "MIT"
+
+    source = repo / "benchmarks/external/nitu-linear-regulator/source"
+    board = next(source.glob("*.kicad_pcb"))
+    original_sheet = board.with_suffix(".kicad_sch")
+    project = board.with_suffix(".kicad_pro")
+    before_hashes = {path: _hash(path.read_bytes()) for path in (board, original_sheet, project)}
+    observed = task["observed_execution"]
+    assert observed["original_pcb_sha256"] == before_hashes[board]
+    assert observed["original_schematic_sha256"] == before_hashes[original_sheet]
+    assert observed["original_project_sha256"] == before_hashes[project]
+    candidate = task["candidate"]
+    output = tmp_path / "candidate"
+    response = CliRunner().invoke(
+        cli,
+        [
+            "kicad",
+            "passive-eco-preview",
+            str(board),
+            "--reference",
+            candidate["reference"],
+            "--from-value",
+            candidate["original_value"],
+            "--to-value",
+            candidate["proposed_value"],
+            "--output-dir",
+            str(output),
+            "--json",
+        ],
+    )
+    assert response.exit_code == 0, response.output
+    report = json.loads(response.output)
+    assert report["reference"] == "R1"
+    assert report["new_value"] == "470"
+    assert report["native_candidate_clean"] is False
+    assert report["attempt_status"] == "human-review-required-existing-native-findings"
+    assert report["g0_verified"] is False
+    assert report["manufacturing_approved"] is False
+    assert report["canonical_nets_preserved"] is True
+    assert report["native_kicad_version"] == "10.0.8"
+    assert report["original_pcb_sha256"] == observed["original_pcb_sha256"]
+    assert report["candidate_pcb_sha256"] == observed["candidate_pcb_sha256"]
+    assert report["candidate_schematic_sha256"] == observed["candidate_schematic_sha256"]
+    review = report["native_review"]
+    er = review["electrical_review"]
+    assert review["no_review_regression"] is True
+    assert review["candidate_drc_clean"] is True
+    assert review["baseline_violations"] == review["candidate_violations"] == 0
+    assert review["baseline_unconnected_items"] == review["candidate_unconnected_items"] == 0
+    assert er["baseline_erc_violations"] == er["candidate_erc_violations"] == 0
+    assert er["baseline_schematic_parity_issues"] == er["candidate_schematic_parity_issues"] == 10
+    assert er["new_schematic_parity_issues"] == 0
+    assert er["new_erc_violations"] == 0
+    assert er["candidate_electrical_clean"] is False
+    expected_types = {"extra_footprint": 4, "missing_footprint": 4, "net_conflict": 2}
+    assert er["baseline_schematic_parity_types"] == expected_types
+    assert er["candidate_schematic_parity_types"] == expected_types
+    assert task["observed_execution"]["baseline_and_candidate_parity_types"] == expected_types
+    assert task["outcome"]["g0_verified"] is False
+    assert task["outcome"]["human_review"] == "not_run"
+    assert task["outcome"]["functional_measurement"] == "not_run"
+    assert task["proposal_provenance"]["independent_agent_run_attested"] is False
+    assert json.loads((output / "eco-review.json").read_text(encoding="utf-8")) == report
+    assert _hash((output / board.name).read_bytes()) == observed["candidate_pcb_sha256"]
+    assert _hash((output / original_sheet.name).read_bytes()) == observed["candidate_schematic_sha256"]
+    assert _hash((output / project.name).read_bytes()) == before_hashes[project]
+    assert all(_hash(path.read_bytes()) == digest for path, digest in before_hashes.items())
+
+    baseline_values, baseline_graph = _native_netlist(native_kicad_10, original_sheet, tmp_path / "old.xml")
+    candidate_values, candidate_graph = _native_netlist(
+        native_kicad_10, output / original_sheet.name, tmp_path / "new.xml"
+    )
+    assert baseline_graph == candidate_graph
+    assert len(baseline_graph) == task["observed_execution"]["native_net_count"] == 5
+    assert baseline_values["U1"] == candidate_values["U1"] == "L7805"
+    assert baseline_values["R1"] == "330"
+    assert candidate_values["R1"] == "470"
+    assert baseline_values["D2"] == candidate_values["D2"] == "RED"
+    assert {("U1", "3"), ("R1", "1")}.issubset(set(baseline_graph["+5V"]))
+    assert {("R1", "2"), ("D2", "2")}.issubset(set(baseline_graph["/LEDA"]))
+    assert {("D2", "1"), ("U1", "2")}.issubset(set(baseline_graph["GND"]))
+
+    calc = task["nominal_analysis"]
+    vout = calc["assumed_vout_volts"]
+    assert vout == 5.0
+    for vf, suffix in ((1.8, "1_8"), (2.2, "2_2")):
+        before_ma = 1000 * (vout - vf) / 330
+        after_ma = 1000 * (vout - vf) / 470
+        assert before_ma == pytest.approx(calc[f"current_before_ma_at_vf_{suffix}"], abs=0.00001)
+        assert after_ma == pytest.approx(calc[f"current_after_ma_at_vf_{suffix}"], abs=0.00001)
+        assert 100 * (1 - after_ma / before_ma) == pytest.approx(
+            calc["nominal_current_reduction_percent_at_fixed_vf"], abs=0.005
+        )
+    assert calc["evidence_kind"].startswith("assumption-bound")

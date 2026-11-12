@@ -1,0 +1,105 @@
+{
+  "candidate": {
+    "original_value": "330",
+    "proposed_value": "470",
+    "rationale": "470 ohms is a standard resistor value; at fixed VOUT and unchanged LED Vf current decreases by about 29.79%. Real Vf and brightness require review.",
+    "reference": "R1"
+  },
+  "circuit_parts": {
+    "led_branch_net": "/LEDA",
+    "led_reference": "D2",
+    "led_symbol": "Device:LED",
+    "native_connectivity": "+5V/U1.3 to R1.1; R1.2 on /LEDA with D2.2; D2.1 on GND with U1.2",
+    "original_resistor_value": "330",
+    "regulator_output_net": "+5V",
+    "regulator_reference": "U1",
+    "regulator_value": "L7805",
+    "resistor_reference": "R1",
+    "return_net": "GND"
+  },
+  "license": "MIT",
+  "nominal_analysis": {
+    "assumed_led_forward_drop_volts_max": 2.2,
+    "assumed_led_forward_drop_volts_min": 1.8,
+    "assumed_vout_volts": 5.0,
+    "assumptions": "Fixed 5.0 V output and same red LED forward drop before and after; actual LED Vf varies with current; resistor and regulator tolerances unmeasured",
+    "current_after_ma_at_vf_1_8": 6.80851,
+    "current_after_ma_at_vf_2_2": 5.95745,
+    "current_before_ma_at_vf_1_8": 9.69697,
+    "current_before_ma_at_vf_2_2": 8.48485,
+    "evidence_kind": "assumption-bound Ohm-law estimate, not current measurement, simulation, LED Vf or brightness qualification",
+    "formula": "I_LED = (VOUT - VF) / R; P_R = (VOUT - VF)^2 / R",
+    "nominal_current_reduction_percent_at_fixed_vf": 29.787,
+    "resistor_dissipation_after_mw_range": [
+      16.68,
+      21.79
+    ],
+    "resistor_dissipation_before_mw_range": [
+      23.76,
+      31.03
+    ],
+    "voltage_source": "KiCad +5V net and L7805 symbol; no measured output-voltage confirmation"
+  },
+  "non_claims": [
+    "10 inherited original schematic-PCB parity findings: 2 net-name conflicts, 4 missing test point footprints, 4 extra test point footprints",
+    "No physical LED current, brightness, voltage or thermal measurement",
+    "LED Vf will vary with current so 29.79 percent is only an assumption-bound estimate",
+    "Not an independently scored autonomous engineering success",
+    "No human signoff, approved resistor/LED BOM or fabrication qualification"
+  ],
+  "observed_execution": {
+    "after_native_drc": 0,
+    "after_native_erc": 0,
+    "after_native_schematic_pcb_parity": 10,
+    "baseline_and_candidate_parity_types": {
+      "extra_footprint": 4,
+      "missing_footprint": 4,
+      "net_conflict": 2
+    },
+    "before_native_drc": 0,
+    "before_native_erc": 0,
+    "before_native_schematic_pcb_parity": 10,
+    "candidate_pcb_sha256": "af12fb154aef44003775b8b0c9211018821be4f555367c479bef5f53ef6d532e",
+    "candidate_schematic_sha256": "1ba9bcd18a950e9b58eb5ca6c26e6aed3a737941b8626b4452121b6ee0d55388",
+    "command_runtime_seconds": 55.636,
+    "native_candidate_clean": false,
+    "native_kicad_version": "10.0.8",
+    "native_net_count": 5,
+    "native_net_pin_topology_equal": true,
+    "native_run_date": "2026-11-12",
+    "new_native_findings": 0,
+    "original_pcb_sha256": "4f63a54b18a97e24fc4ccf122cae7c5c6c0eefac745a032a66a36c6b1d234e8b",
+    "original_project_sha256": "fc36678baf97c7cb901bf91bbb6c307f9f382685cadac9abd272fd01bc54e050",
+    "original_schematic_sha256": "8cdda7e28129ca132c29868b94d7d3339ac4d6846d7c6d51278fc40c4ede44d9",
+    "source_files_modified": false,
+    "tool": "zaptrace kicad passive-eco-preview",
+    "verification_method": "independent native KiCad 10.0.8 DRC/ERC/parity, native XML pin-net graph, SHA-256-bounded original/candidate files"
+  },
+  "outcome": {
+    "functional_measurement": "not_run",
+    "functional_simulation": "not_run",
+    "g0_verified": false,
+    "human_review": "not_run",
+    "independently_scored": false,
+    "manufacturing_approved": false,
+    "physical_fabrication_review": "not_run",
+    "qualified_component_sourcing": "not_run",
+    "status": "human-review-required-existing-native-findings",
+    "tolerance_analysis": "not_run"
+  },
+  "prompt_origin": "agent-selected reproducible G0 pilot, not a separate end-user power-saving request",
+  "proposal_provenance": {
+    "api_cost_usd": null,
+    "assistant_model_family": "GPT-6",
+    "human_interventions": null,
+    "independent_agent_run_attested": false,
+    "inference_settings": "not captured",
+    "proposal_type": "AI-assisted source-inspected engineering suggestion"
+  },
+  "reference_id": "nitu-linear-regulator",
+  "schema_version": "g0-ai-electronics-task-attempt-v1",
+  "source_artifact_set_sha256": "5f0f5f9def5edd77e1db7e4d50404689034954f3aa79912efd6755d1b6309b7f",
+  "source_upstream_commit": "856b0daf1d358504cd035724f5ec9d1e6bfe3ad7",
+  "task_brief": "On an actual L7805 5 V regulator board, reduce nominal indicator LED branch current by about 30% using a standard resistor, keep pin/net/physical PCB geometry unchanged and disclose existing KiCad parity blockers.",
+  "task_id": "g0-002-l7805-led-indicator-current-eco"
+}

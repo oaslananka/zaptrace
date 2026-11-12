@@ -24,6 +24,8 @@
 
 ### Fixed
 
+- Show inherited schematic–PCB parity types and remaining native ERC/DRC issues in passive ECO previews; keep zero new defects distinct from electrically clean. Record a source-pinned L7805 LED-current pilot with 10 preexisting KiCad parity issues explicitly not accepted.
+
 - Fail closed when PCB-bench submissions omit grader evidence, skip mandatory checks, supply invalid ERC error counts or mismatch their evidence hash; rank partial oracle results behind complete passes instead of allowing false benchmark success.
 
 - Surface unresolved physical routing nets and an explicit non-fabrication warning in the pipeline CLI and tool response. Successful generation alone is not PCB continuity evidence.

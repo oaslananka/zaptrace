@@ -33,9 +33,30 @@ def passive_eco_preview(
     if as_json:
         click.echo(json.dumps(report, ensure_ascii=False, sort_keys=True))
     else:
-        click.echo(f"Created reviewed KiCad ECO draft at: {output_dir}")
+        click.echo(f"Created source-preserving KiCad ECO draft (not approved) at: {output_dir}")
         click.echo(
             f"{reference}: {old_value} -> {new_value}; native KiCad {report['native_kicad_version']} "
             "DRC/ERC/parity added 0 defects."
         )
+        native = report["native_review"]
+        assert isinstance(native, dict)
+        electrical = native["electrical_review"]
+        assert isinstance(electrical, dict)
+        drc = int(native["candidate_violations"])
+        unconnected = int(native["candidate_unconnected_items"])
+        erc = int(electrical["candidate_erc_violations"])
+        parity = int(electrical["candidate_schematic_parity_issues"])
+        click.echo(
+            f"Candidate has {drc} DRC, {unconnected} unconnected, {erc} ERC, "
+            f"{parity} unresolved schematic-PCB parity findings."
+        )
+        parity_types = electrical["candidate_schematic_parity_types"]
+        assert isinstance(parity_types, dict)
+        if parity_types:
+            kinds = ", ".join(f"{kind}: {count}" for kind, count in sorted(parity_types.items()))
+            click.echo(f"Remaining parity finding types: {kinds}.")
+        if any((drc, unconnected, erc, parity)):
+            click.echo("NOT electrically clean: the existing findings still require investigation.")
+        else:
+            click.echo("0 remaining native KiCad findings. Functional and component evidence are still missing.")
         click.echo("Human engineering and functional review REQUIRED. Manufacturing NOT approved.")

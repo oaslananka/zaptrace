@@ -156,9 +156,16 @@ def preview_passive_value_eco(
         )
     ):
         raise ValueError("Original KiCad source changed during review; refuse stale ECO")
+    candidate_native_clean = bool(
+        native.candidate_drc_clean
+        and native.electrical_review is not None
+        and native.electrical_review.candidate_electrical_clean
+    )
     report: dict[str, object] = {
         "task_kind": "human-directed-passive-value-edit",
-        "attempt_status": "human-review-required",
+        "attempt_status": (
+            "human-review-required" if candidate_native_clean else "human-review-required-existing-native-findings"
+        ),
         "g0_verified": False,
         "manufacturing_approved": False,
         "reference": reference,
@@ -176,6 +183,7 @@ def preview_passive_value_eco(
         "functional_timing_validation": "not_run",
         "physical_fabrication_review": "not_run",
         "native_review": native.to_dict(),
+        "native_candidate_clean": candidate_native_clean,
         "candidate_board": str(output / board.name),
         "candidate_schematic": str(output / schematic.name),
         "candidate_project": str(output / project.name),
