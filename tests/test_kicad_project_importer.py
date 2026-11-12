@@ -604,3 +604,83 @@ def test_multisheet_sources_survive_temporary_project_cleanup() -> None:
 
     # The importer used a TemporaryDirectory; source bytes remain accessible.
     assert child.nodes("hierarchical_label")[0][1] == "SIG"
+
+
+def test_native_power_symbols_are_not_expected_as_physical_pcb_footprints() -> None:
+    """KiCad 10 original: (power) symbols have no native component/PCB footprint."""
+    source = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    project = next(source.glob("*.kicad_pro"))
+    result = import_kicad_project(project)
+    findings = [x for x in result.findings if x.kind == "pcb_schematic_mismatch"]
+    assert findings == []
+    # Annotation/source fidelity and physical status are independent:
+    # preserve the existing 16 #PWR entries in the imported design.
+    assert len([c for c in result.design.components.values() if c.ref.startswith("#PWR")]) == 16
+    assert len([x for x in result.findings if x.kind == "unsupported_construct"]) == 8
+
+
+def test_missing_real_resistor_pcb_footprint_still_reports_mismatch(
+    tmp_path: Path,
+) -> None:
+    """Never silence actual PCB mismatch while excluding proved power annotations."""
+    original = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    for path in original.glob("*.kicad_*"):
+        (tmp_path / path.name).write_bytes(path.read_bytes())
+    pcb = next(tmp_path.glob("*.kicad_pcb"))
+    raw = pcb.read_bytes()
+    assert raw.count(b'(property "Reference" "R4"') == 1
+    pcb.write_bytes(raw.replace(b'(property "Reference" "R4"', b'(property "Reference" "R400"', 1))
+    result = import_kicad_project(next(tmp_path.glob("*.kicad_pro")))
+    missing = [f for f in result.findings if f.kind == "pcb_schematic_mismatch"]
+    assert len(missing) == 2
+    assert any(f.message == "Schematic component 'R4' has no PCB footprint" for f in missing)
+    assert any(f.message == "PCB footprint 'R400' not found in schematic" for f in missing)
+    assert not any("#PWR" in f.message for f in missing)
+
+
+def test_embedded_power_marker_not_reference_prefix_controls_pcb_eligibility() -> None:
+    """A fake #PWR ref is physical; a non-#PWR confirmed power symbol isn't."""
+    from zaptrace.kicad.project_importer import _native_nonphysical_power_refs
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    raw = """
+    (kicad_sch (version 20250114)
+      (lib_symbols
+        (symbol "power:GND" (power) (property "Reference" "#PWR"))
+        (symbol "Device:R" (property "Reference" "R")))
+      (symbol (lib_id "power:GND")
+        (property "Reference" "X1")
+        (property "Footprint" ""))
+      (symbol (lib_id "Device:R")
+        (property "Reference" "#PWR99")
+        (property "Footprint" "Resistor_SMD:R_0603"))
+      (symbol (lib_id "power:GND")
+        (property "Reference" "#PWR50")
+        (property "Footprint" "Test:PhysicalPower"))
+      (symbol (lib_id "Device:R")
+        (property "Reference" "R1")
+        (property "Footprint" ""))
+    )
+    """
+    snapshot = import_kicad_schematic_string(raw).source_snapshot
+    assert snapshot is not None
+    assert _native_nonphysical_power_refs({"/top": snapshot}) == {"X1"}
+
+
+def test_duplicate_source_reference_is_not_filtered_when_any_instance_is_physical() -> None:
+    from zaptrace.kicad.project_importer import _native_nonphysical_power_refs
+    from zaptrace.kicad.schematic_importer import import_kicad_schematic_string
+
+    raw = """
+    (kicad_sch (version 20250114)
+      (lib_symbols (symbol "power:GND" (power)) (symbol "Device:R"))
+      (symbol (lib_id "power:GND")
+        (property "Reference" "#PWR1") (property "Footprint" ""))
+      (symbol (lib_id "Device:R")
+        (property "Reference" "#PWR1") (property "Footprint" ""))
+    )
+    """
+    snapshot = import_kicad_schematic_string(raw).source_snapshot
+    assert snapshot is not None
+    assert _native_nonphysical_power_refs({"/top": snapshot}) == set()
+    assert _native_nonphysical_power_refs({}) == set()

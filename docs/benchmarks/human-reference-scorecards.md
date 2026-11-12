@@ -67,7 +67,21 @@ or nearby-pin nets. Re-running the full independent KiCad 10.0.8
 netlist comparison after this fix produces **47/47 identical named nets
 and 132/132 pin nodes** for the ESP32-S3 board. All 19 other reference
 graphs were unchanged. The ESP32-S3 board is **still G0 BLOCKED** because
-unsupported constructs and PCB/schematic findings remain.
+unsupported constructs and PCB/schematic findings remain in the
+historic graph-fix run. A later KiCad-native source check proved that
+the 16 '#PWR' references are schematic power annotations: the embedded
+library definitions contain the (power) marker and KiCad's own XML
+component inventory excludes them, while retaining all 21 actual
+physical component references. The project's footprint cross-check
+now excludes only verified (power) annotations with empty Footprint
+properties, rather than filtering any reference merely named '#PWR'
+or using the on_board flag. The ESP32-S3 project therefore has
+**0 false PCB/schematic footprint mismatches**, but its **8 unsupported
+source constructs remain** and the project is **still G0 BLOCKED**.
+Across all 20 pinned projects, the independently rerun strict result
+remains **0 VERIFIED / 16 BLOCKED / 4 NOT RUN**; other proven power-symbol
+false positives are reduced without silencing missing actual parts.
+The original manifest SHA and historic baseline report are unchanged.
 The educational repository reports its own hardware testing, which
 is not independent ZapTrace physical-review authority.
 
