@@ -5,10 +5,10 @@ It is a **working generation-and-inspection demo**, **not a passed release
 candidate**. ZapTrace can generate placement, routing, KiCad project files,
 reviewable SVG/HTML, Gerber layers, and a manufacturing bundle. With
 verified physical copper pads, the obstacle-aware router now keeps
-**three electrically continuous partial net routes** (USB_CC1, USB_CC2
-and I2C_SDA) only after independent pad geometry and local DRC checks.
-The provisional PCB includes **33 emitted copper segments**, while four
-nets (VCC_5V, VCC_3V3, GND, I2C_SCL) remain unrouted. No unsafe straight-line
+**four electrically continuous partial net routes** (USB_CC1, USB_CC2,
+I2C_SDA and I2C_SCL) only after independent pad geometry and local DRC checks.
+The provisional PCB includes **44 emitted copper segments**, while three
+nets (VCC_5V, VCC_3V3, GND) remain unrouted. No unsafe straight-line
 fallback, fabricated connectivity or unqualified GND pour is exported.
 The bundled Gerbers are incomplete and must not be fabricated. **Generating
 files is not evidence that the board is safe to build.**
@@ -78,9 +78,12 @@ uv run --no-sync zaptrace proof run \
 **The nonzero exit code is intentional for the present design.** The eight
 checks report six passes (including full physical pad identity mapping) and
 two blockers: source DRC and copper clearance. The result is **still a fail**.
-The source-only routing-completeness check is **not proof that KiCad PCB traces
-were generated or all physical pads are electrically joined**. The pipeline rejects unverified portions of its route candidate
-and leaves four original net groups unrouted:
+The source-only routing-completeness check is **not proof that all KiCad PCB
+pads are electrically joined**. The pad-aware router avoids drawing
+tiny redundant inside-pad microtracks; their endpoints already lie on
+the same real pad copper, preserving contact without a sharp-angle
+artifact. The pipeline rejects unverified portions of its route candidate
+and leaves three original net groups unrouted:
 
 - `drc-clean`: copper clearance error between `VCC_3V3` and `I2C_SCL`
   plus right-angle routing warnings on `I2C_SDA`.
@@ -106,7 +109,7 @@ two track-to-via links and a final R2 pad-to-existing-SCL-track
 connection** (92 copper segments, eighteen 0.30 mm drilled
 through-vias; 37→0 unconnected; native DRC still 16) are documented in
 [MANUFACTURING_REVIEW.md](MANUFACTURING_REVIEW.md). The default pipeline
-now retains **33 verified partial tracks**, leaving 32 unconnected native
+now retains **44 verified partial tracks**, leaving 29 unconnected native
 items; the separate optional review PCB has **zero KiCad unconnected items**, but it is **not fabrication-ready** because the sixteen original drill/NPTH clearance errors, source Proof Pack and qualified RF/electrical/DFM review remain blocked.
 For the twelve ESP32 thermal-pad drill errors and four USB-C locating-hole
 clearance errors, see the separate [fabrication DFM decision record](DFM_DECISION_91.md):
@@ -130,7 +133,7 @@ Both official command-line checks were independently executed with
 severity-all, schematic parity, and exit-code-violations. The regenerated
 source-bound board retains the exact original **16 manufacturing DRC
 errors** (12 undersized ESP32 pad-39 drill holes and 4 GCT J1 NPTH-pad
-clearances), **zero ERC violations**, and **32 unconnected PCB items**.
+clearances), **zero ERC violations**, and **29 unconnected PCB items**.
 The preceding unrouted board had 37 unconnected items: five real
 connections were made without a new manufacturing DRC finding. The
 strict eight-check source Proof Pack still fails 2/8, and neither
@@ -174,7 +177,7 @@ unchanged, SHA-256-verified supplier source. The remaining hardware
 DRC violations and unconnected copper still prevent fabrication;
 no KiCad DRC rules were waived, no drill minimum was lowered, and
 no source footprint geometry was rewritten. The reduced trace-related violation count came from discarding
-78 unsafe fallback segments; the three subsequently verified net
+78 unsafe fallback segments; the four subsequently verified net
 islands are limited partial copper evidence, **not complete physical continuity**. These results may change with KiCad version, configuration,
 or routing changes. They are *not* the same rule set as the in-process
 ZapTrace ERC/DRC checks. A clean ZapTrace source ERC result must never

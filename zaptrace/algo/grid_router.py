@@ -1043,8 +1043,11 @@ class GridRouter:
                 if not context.obstacles.is_free(GridPos(*grid, layer), net_id=net.id):
                     requires_geometric_fanout = True
                     continue
-                if math.dist(exact, snapped) > 1e-6:
-                    pad_stubs.append((exact, snapped))
+                # The snapped grid anchor is already on this same real pad's
+                # copper. It is electrically connected without a separate
+                # centre-to-anchor track, whose tiny off-grid tail can create
+                # a false sharp-angle/acid-trap at the pad itself. Geometric
+                # fanout below still emits real stubs outside pad copper.
             if not accessible:
                 return _GridNetPlan(True, False, net.id)
             if layer not in accessible:

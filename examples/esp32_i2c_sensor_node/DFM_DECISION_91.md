@@ -19,13 +19,17 @@ contacts, one physical copper island and no new whole-design local DRC
 findings relative to unchanged source; unrouted-net errors remain visible.
 The generic trace-to-trace DRC distance calculation was corrected so
 interior cross-net track intersections are zero-distance shorts rather
-than being missed by independent parameter clamping.
+than being missed by independent parameter clamping. The router also
+avoids drawing off-grid centre-to-anchor microsegments when the grid
+anchor already lies inside that same physical pad copper. This removes
+a spurious local acute-angle artifact without relaxing the DRC rule
+or weakening exact pad-contact verification.
 
 The exact current PR source on KiCad CLI 10.0.8 was independently checked:
-**3 complete source-bound partial nets**, **33 real copper track segments**,
-**37 to 32 unconnected native PCB items**, **16 to 16 native DRC violations**
+**4 complete source-bound partial nets**, **44 real copper track segments**,
+**37 to 29 unconnected native PCB items**, **16 to 16 native DRC violations**
 (12 drill-out-of-range and four hole clearances), **0 ERC violations** and
-zero schematic parity changes. Power, GND and SCL remain physically
+zero schematic parity changes. Power and GND remain physically
 unrouted; their DRC/continuity failures are not waived or counted as
 completed. No new drill, copper clearance or source net class exception.
 The optional 37-to-0 review-only manually connected project remains a

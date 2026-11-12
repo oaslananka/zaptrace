@@ -347,7 +347,10 @@ def test_pad_mode_connects_off_grid_centre_only_inside_real_pad_copper() -> None
     _net(d, "SIG", "a", "b")
     result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
     assert result.net_count == result.routed_net_count == 1
-    assert any(segment.start == (10.1, 10) and segment.end == (10.0, 10.0) for segment in result.traces)
+    # Both exact centre and snapped anchor are on the same physical pad.
+    # Do not draw a redundant microtrack *inside* the already connected pad.
+    assert not any(segment.start == (10.1, 10) for segment in result.traces)
+    assert any(segment.start == (10.0, 10.0) for segment in result.traces)
     assert _physical_pad_terminal_coverage(d, result, pos)
 
 
@@ -362,7 +365,10 @@ def test_pad_mode_offgrid_rotated_pad_emits_exact_copper_contact() -> None:
     _net(d, "SIG", "a", "b")
     result = GridRouter(pad_aware=True, resolution_mm=0.5).route(d, pos)
     assert result.net_count == result.routed_net_count == 1
-    assert any(segment.start == pytest.approx((10.1, 9.0)) for segment in result.traces)
+    # Rotated oval pad already connects the off-grid centre to the in-pad
+    # grid anchor; no redundant physical copper segment is necessary.
+    assert not any(segment.start == pytest.approx((10.1, 9.0)) for segment in result.traces)
+    assert any(segment.start == pytest.approx((10.0, 9.0)) for segment in result.traces)
     assert _physical_pad_terminal_coverage(d, result, pos)
 
 
@@ -580,7 +586,7 @@ def test_real_esp32_pad_fanout_improves_only_physically_proven_nets() -> None:
         "I2C_SCL",
         "I2C_SDA",
     }
-    assert len(result.traces) == 47
+    assert len(result.traces) == 44
     assert result.vias == []
     assert not verified_route_candidate_safe(design, result, design.placement or {})
 
@@ -630,3 +636,21 @@ def test_real_esp32_i2c_sda_uses_bounded_four_terminal_geometric_fanout() -> Non
     # Multi-terminal mode is intentionally one anchor and one MST attempt
     # per terminal; no Cartesian combination search is performed.
     assert all(math.dist(*stub) > 0 for stub in plan.pad_stubs)
+
+
+def test_pad_mode_off_grid_anchor_inside_real_pad_needs_no_redundant_microtrack() -> None:
+    """The pad itself connects its centre to an in-pad grid anchor."""
+    from zaptrace.pipeline.physical_route_preflight import _physical_net_continuity, _physical_pad_terminal_coverage
+
+    design, positions = _board(
+        ("a", (10.01, 10.0), Pad(id="1", size=(1.0, 1.0))),
+        ("b", (20.0, 10.0), Pad(id="1", size=(1.0, 1.0))),
+    )
+    _net(design, "SIG", "a", "b")
+    routed = GridRouter(pad_aware=True, resolution_mm=0.25).route(design, positions)
+    assert routed.net_count == routed.routed_net_count == 1
+    assert routed.traces
+    assert not any(segment.start == (10.01, 10.0) for segment in routed.traces)
+    assert any(segment.start == (10.0, 10.0) or segment.end == (10.0, 10.0) for segment in routed.traces)
+    assert _physical_pad_terminal_coverage(design, routed, positions)
+    assert _physical_net_continuity(design, routed, positions)

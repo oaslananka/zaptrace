@@ -168,20 +168,19 @@ def test_physical_demo_keeps_source_bound_safe_partial_copper(tmp_path: Path) ->
     pilot.run_stage(ctx, PipelineStage.PLACE)
     pilot.run_stage(ctx, PipelineStage.ROUTE)
     assert ctx.routing is not None
-    assert ctx.routing.routed_nets == 3
+    assert ctx.routing.routed_nets == 4
     assert ctx.routing.total_nets > 0
-    # Both CC resistors and the I2C SDA pad network have native-verifiable
-    # partial copper. Keep POWER/GND and the acute-angle SCL net blocked.
+    # USB-C CC1/CC2 and both I2C nets now have native-verifiable
+    # physical copper. Power and GND remain unconnected.
     assert set(ctx.routing.unrouted_nets) == {
         "VCC_5V",
         "VCC_3V3",
         "GND",
-        "I2C_SCL",
     }
-    assert len(ctx.routing.unrouted_nets) == 4
+    assert len(ctx.routing.unrouted_nets) == 3
     assert ctx.routing.total_nets == 7
     assert design.routing is not None
-    assert {trace.net_id for trace in design.routing.traces} == {"USB_CC1", "USB_CC2", "I2C_SDA"}
+    assert {trace.net_id for trace in design.routing.traces} == {"USB_CC1", "USB_CC2", "I2C_SDA", "I2C_SCL"}
     assert not design.routing.vias
     assert ctx.positions == design.placement
     # Reject the legacy source ground flood pending genuine RF keepout review.
@@ -236,7 +235,7 @@ def test_partial_copper_native_kicad_does_not_increase_physical_drc(tmp_path: Pa
 
     pilot.run_stage(ctx, PipelineStage.ROUTE)
     assert ctx.routing is not None
-    assert ctx.routing.routed_nets == 3
+    assert ctx.routing.routed_nets == 4
     routed_files = export_kicad(design, tmp_path / "partially-routed")
 
     reports = []
@@ -290,6 +289,6 @@ def test_partial_copper_native_kicad_does_not_increase_physical_drc(tmp_path: Pa
     assert Counter(v["type"] for v in before["violations"]) == Counter({"drill_out_of_range": 12, "hole_clearance": 4})
     assert Counter(v["type"] for v in after["violations"]) == Counter(v["type"] for v in before["violations"])
     assert len(before["unconnected_items"]) == 37
-    assert len(after["unconnected_items"]) == 32
+    assert len(after["unconnected_items"]) == 29
     assert design.routing is not None
-    assert {x.net_id for x in design.routing.traces} == {"USB_CC1", "USB_CC2", "I2C_SDA"}
+    assert {x.net_id for x in design.routing.traces} == {"USB_CC1", "USB_CC2", "I2C_SDA", "I2C_SCL"}
