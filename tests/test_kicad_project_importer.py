@@ -689,3 +689,117 @@ def test_duplicate_source_reference_is_not_filtered_when_any_instance_is_physica
     assert snapshot is not None
     assert _native_nonphysical_power_refs({"/top": snapshot}) == set()
     assert _native_nonphysical_power_refs({}) == set()
+
+
+@pytest.mark.parametrize(
+    ("reference_id", "min_linked"),
+    [
+        ("atomic14-basic-esp32s3-dev-board", 120),
+        ("sparkfun-qwiic-navigation", 90),
+        ("mitayi-pico-d1", 220),
+    ],
+)
+def test_original_project_pin_net_links_use_real_project_net_ids(
+    reference_id: str,
+    min_linked: int,
+) -> None:
+    """The AI must not receive dangling pin.net references after sheet prefixing."""
+    source = Path(__file__).parents[1] / "benchmarks/external" / reference_id / "source"
+    imported = import_kicad_project(next(source.glob("*.kicad_pro")))
+    design = imported.design
+    assert all(net.id == key for key, net in design.nets.items())
+    linked = [
+        (component.ref, number, pin.net)
+        for component in design.components.values()
+        for number, pin in component.pins.items()
+        if pin.net is not None
+    ]
+    assert len(linked) >= min_linked
+    assert all(net_id in design.nets for _ref, _number, net_id in linked)
+    assert all(str(net_id).startswith("/top/") for _ref, _number, net_id in linked)
+
+
+def test_original_esp32_project_d1_and_r4_use_same_prefixed_real_net() -> None:
+    source = Path(__file__).parents[1] / "benchmarks/external/atomic14-basic-esp32s3-dev-board/source"
+    imported = import_kicad_project(next(source.glob("*.kicad_pro")))
+    design = imported.design
+    r4 = next(c for c in design.components.values() if c.ref == "R4")
+    d1 = next(c for c in design.components.values() if c.ref == "D1")
+    assert r4.pins["2"].net == d1.pins["2"].net
+    net_id = r4.pins["2"].net
+    assert net_id is not None
+    assert design.nets[net_id].name == "Net-(D1-A)"
+    assert design.nets[net_id].id == net_id
+
+
+def test_hierarchical_pin_net_links_point_to_own_sheet_not_sibling() -> None:
+    def sheet_with_pin(ref: str, netname: str) -> str:
+        return f"""(kicad_sch (version 20250114)
+          (lib_symbols
+            (symbol "Device:R" (symbol "R_0_1"
+              (pin passive line (at 0 0 0) (length 2.54)
+                (name "~") (number "1")))))
+          (symbol (lib_id "Device:R") (at 50 50 0)
+            (property "Reference" "{ref}") (property "Value" "1k")
+            (pin "1" (uuid "11111111-1111-4111-8111-111111111111")))
+          (label "{netname}" (at 50 50 0))
+        )"""
+
+    root = """(kicad_sch
+      (sheet (property "Sheet name" "child") (property "Sheet file" "child.kicad_sch"))
+      (lib_symbols (symbol "Device:R" (symbol "R_0_1"
+        (pin passive line (at 0 0 0) (length 2.54)
+          (name "~") (number "1")))))
+      (symbol (lib_id "Device:R") (at 40 40 0)
+        (property "Reference" "R1") (property "Value" "1k")
+        (pin "1" (uuid "22222222-2222-4222-8222-222222222222")))
+      (label "NET_TOP" (at 40 40 0))
+    )"""
+    result = import_kicad_project_from_string(
+        root,
+        child_sheets={"child.kicad_sch": sheet_with_pin("R1", "NET_CHILD")},
+        project_name="independent-sheets",
+    )
+    by_sheet = {
+        cid.split("/")[2]: component for cid, component in result.design.components.items() if component.ref == "R1"
+    }
+    assert len(by_sheet) == 2
+    top_net = by_sheet["r1"].pins["1"].net
+    assert top_net is not None
+    assert top_net in result.design.nets
+    assert all(net.id == key for key, net in result.design.nets.items())
+    assert {net.name for net in result.design.nets.values()} == {"/NET_TOP", "/NET_CHILD"}
+    assert {c.pins["1"].net for c in by_sheet.values()} == set(result.design.nets)
+
+
+def test_shared_global_net_keeps_legacy_name_based_identity_across_sheets() -> None:
+    """Do not regress the old global_<native net name> merge contract."""
+    from zaptrace.core.models import Net
+    from zaptrace.kicad.project_importer import _merge_sheet_nets, _SheetNode
+
+    first = _SheetNode("/top", Path("/top.kicad_sch"), "top", None)
+    second = _SheetNode("/top/power", Path("/power.kicad_sch"), "power", "/top")
+    result: dict[str, Net] = {}
+    _merge_sheet_nets(first, {"global_first": Net(id="global_first", name="SHARED")}, result)
+    _merge_sheet_nets(second, {"global_second": Net(id="global_second", name="SHARED")}, result)
+    assert list(result) == ["global_SHARED"]
+    assert result["global_SHARED"].id == "global_SHARED"
+
+
+def test_unresolvable_project_pin_net_is_reported_and_not_fabricated() -> None:
+    from zaptrace.core.models import Component, Pin, PinType
+    from zaptrace.kicad.project_importer import _prefix_component_ids, _SheetNode
+
+    sheet = _SheetNode("/top", Path("/top.kicad_sch"), "top", None)
+    source_comp = Component(
+        id="r1",
+        ref="R1",
+        type="resistor",
+        pins={"1": Pin(name="1", type=PinType.PASSIVE, net="missing_source_net")},
+    )
+    converted: dict[str, Component] = {}
+    findings: list[HierarchicalKiCadFinding] = []
+    _prefix_component_ids(sheet, {"r1": source_comp}, {}, converted, findings)
+    assert converted["/top/r1"].pins["1"].net is None
+    assert source_comp.pins["1"].net == "missing_source_net"  # immutable source evidence
+    assert [(finding.kind, finding.severity) for finding in findings] == [("unresolved_pin_net_identity", "warning")]

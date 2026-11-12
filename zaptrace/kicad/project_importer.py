@@ -384,9 +384,17 @@ def _prefix_id(sheet_path: str, original_id: str) -> str:
     return f"{sheet_path}/{original_id}"
 
 
+def _project_net_id(node: _SheetNode, original_net_id: str, net_name: str) -> str:
+    """Use one key for net objects and pin links; retain global-name merging."""
+    if original_net_id.startswith("global_"):
+        return f"global_{net_name}"
+    return _prefix_id(node.sheet_path, original_net_id)
+
+
 def _prefix_component_ids(
     node: _SheetNode,
     components: dict,
+    source_nets: dict,
     all_components: dict,
     findings: list[HierarchicalKiCadFinding],
 ) -> list[str]:
@@ -397,12 +405,29 @@ def _prefix_component_ids(
     # Preserve original ref; multi-instance disambiguation uses sheet path.
     from zaptrace.core.models import Component  # local import to avoid cycle
 
+    net_ids = {net_id: _project_net_id(node, net_id, net.name) for net_id, net in source_nets.items()}
     sheet_component_ids: list[str] = []
     for orig_id, comp in components.items():
         new_id = _prefix_id(node.sheet_path, orig_id)
         # Keep a copy with updated id (models use frozen approach, work with dict)
         comp_dict = comp.model_dump()
         comp_dict["id"] = new_id
+        for pin_number, pin in comp_dict.get("pins", {}).items():
+            local_net = pin.get("net")
+            if local_net is None:
+                continue
+            if local_net not in net_ids:
+                pin["net"] = None
+                findings.append(
+                    HierarchicalKiCadFinding(
+                        severity="warning",
+                        kind="unresolved_pin_net_identity",
+                        message=f"Component '{comp.ref}' pin '{pin_number}' references unknown source net",
+                        sheet_path=node.sheet_path,
+                    )
+                )
+                continue
+            pin["net"] = net_ids[local_net]
         try:
             new_comp = Component(**comp_dict)
         except Exception:
@@ -428,10 +453,10 @@ def _merge_sheet_nets(node: _SheetNode, nets: dict, all_nets: dict) -> None:
 
     for orig_id, net in nets.items():
         net_name = net.name
-        canonical_id = f"global_{net_name}" if orig_id.startswith("global_") else _prefix_id(node.sheet_path, orig_id)
+        canonical_id = _project_net_id(node, orig_id, net_name)
 
         if canonical_id not in all_nets:
-            all_nets[canonical_id] = net
+            all_nets[canonical_id] = net.model_copy(update={"id": canonical_id})
             continue
 
         # Merge nodes from same-named global nets
@@ -468,7 +493,9 @@ def _flatten_sheets(
         net_scores.append(result.net_score)
         if result.source_snapshot is not None:
             source_snapshots[node.sheet_path] = result.source_snapshot
-        sheet_component_ids = _prefix_component_ids(node, result.design.components, all_components, findings)
+        sheet_component_ids = _prefix_component_ids(
+            node, result.design.components, result.design.nets, all_components, findings
+        )
         _merge_sheet_nets(node, result.design.nets, all_nets)
 
         hierarchy_sheets.append(
