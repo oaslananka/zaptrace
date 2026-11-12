@@ -590,3 +590,160 @@ def test_http_workspace_path_cannot_inject_trusted_script(tmp_path: Path) -> Non
     dirty_parser.feed(html.decode("utf-8"))
     assert clean_parser.scripts == dirty_parser.scripts
     assert b"</script><script>alert(19)<" not in html
+
+
+def _registered_asset_workspace(tmp_path: Path) -> tuple[Path, Path]:
+    """Minimum independently valid native review manifest for HTTP boundary tests."""
+    from review_studio_workspace import _append_project
+
+    review = tmp_path / "native-evidence"
+    review.mkdir()
+    (review / "index.html").write_text("<!doctype html><title>Native board proof</title>")
+    (review / "REVIEW_REPORT.html").write_text("Independent native KiCad: NOT FABRICATION APPROVED")
+    (review / "evidence.json").write_text(
+        json.dumps(
+            {
+                "board_name": "real-source-board",
+                "source_sha256": "a" * 64,
+                "drc_state": "not_run",
+                "board": {"pads": [], "copper": [], "size": [20, 10]},
+                "erc": {"state": "not_run", "count": None},
+                "findings": [],
+            }
+        )
+    )
+    workspace = tmp_path / "workspace"
+    _append_project(workspace, "Source board", review)
+    return workspace, review
+
+
+def test_registered_evidence_rejects_oversized_file_before_full_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace, review = _registered_asset_workspace(tmp_path)
+    large = review / "native-plot.png"
+    with large.open("wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.truncate(513)
+    monkeypatch.setattr(server_code, "MAX_REVIEW_ASSET", 512, raising=False)
+    original_read_bytes = Path.read_bytes
+
+    def fail_on_unbounded_read(path: Path) -> bytes:
+        if path == large:
+            raise AssertionError("Cannot read an unbounded registered source-backed asset")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", fail_on_unbounded_read)
+    with running(workspace) as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        opaque = "/review-assets/" + server_code.registered_review_asset_id(review) + "/native-plot.png"
+        for route in (opaque, "/native-evidence/native-plot.png"):
+            status, result = request(base, route)
+            assert status in (403, 404, 413), (status, route)
+            assert b"\x89PNG" not in result
+    assert large.stat().st_size == 513
+
+
+def test_registered_evidence_refuses_symlink_swapped_after_allowlist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace, review = _registered_asset_workspace(tmp_path)
+    asset = review / "native-copper.svg"
+    asset.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg"><title>safe</title></svg>')
+    private = tmp_path / "private-source.md"
+    private.write_text("PRIVATE PCB NOTE")
+    original = server_code.ReviewHandler._is_known_file
+
+    def swap_after_allowlist(handler: server_code.ReviewHandler, path: Path) -> bool:
+        allowed = original(handler, path)
+        if allowed and path == asset:
+            asset.unlink()
+            asset.symlink_to(private)
+        return allowed
+
+    monkeypatch.setattr(server_code.ReviewHandler, "_is_known_file", swap_after_allowlist)
+    with running(workspace) as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        opaque = "/review-assets/" + server_code.registered_review_asset_id(review) + "/native-copper.svg"
+        status, content = request(base, opaque)
+        assert status in (403, 404), status
+        assert b"PRIVATE PCB NOTE" not in content
+    assert private.read_text() == "PRIVATE PCB NOTE"
+
+
+def test_eco_download_refuses_symlink_swapped_after_file_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with running(tmp_path / "workspace") as srv:
+        output = tmp_path / "eco-draft"
+        output.mkdir()
+        asset = output / "ECO_EVIDENCE.json"
+        asset.write_bytes(b'{"source":"verified"}')
+        private = tmp_path / "private-eda-notes.json"
+        private.write_text('{"secret":"DO NOT EXPORT"}')
+        job = "d" * 32
+        srv.eco_outputs[job] = output
+        srv.jobs[job] = {"state": "complete"}
+        original = Path.is_symlink
+        was_swapped = False
+
+        def swap_after_validation(path: Path) -> bool:
+            nonlocal was_swapped
+            if path == asset and not was_swapped:
+                was_swapped = True
+                asset.unlink()
+                asset.symlink_to(private)
+                return False
+            return original(path)
+
+        monkeypatch.setattr(Path, "is_symlink", swap_after_validation)
+        base = f"http://127.0.0.1:{srv.server_port}"
+        status, content = request(base, f"/api/eco/result/{job}/ECO_EVIDENCE.json", token=srv.secret)
+        assert was_swapped
+        assert status in (403, 404), status
+        assert b"DO NOT EXPORT" not in content
+        assert private.read_text() == '{"secret":"DO NOT EXPORT"}'
+
+
+def test_html_evidence_downloads_keep_original_bytes_but_cannot_execute_inline(
+    tmp_path: Path,
+) -> None:
+    """Downloaded native review HTML is always inert as an HTTP document."""
+    import hashlib
+
+    unsafe_preview = b"<!doctype html><script>fetch('/api/jobs/private')</script>"
+    with running(tmp_path / "workspace") as server:
+        base = f"http://127.0.0.1:{server.server_port}"
+        copper = tmp_path / "copper"
+        copper.mkdir()
+        (copper / "PREVIEW.html").write_bytes(unsafe_preview)
+        copper_job = "a" * 32
+        server.native_copper_outputs[copper_job] = copper
+        server.jobs[copper_job] = {
+            "state": "complete",
+            "native_copper": {"download_sha256": {"PREVIEW.html": hashlib.sha256(unsafe_preview).hexdigest()}},
+        }
+
+        pcb = tmp_path / "pcb-eco"
+        pcb.mkdir()
+        (pcb / "CHANGE_REVIEW.html").write_bytes(unsafe_preview)
+        pcb_job = "b" * 32
+        server.pcb_eco_outputs[pcb_job] = pcb
+        server.jobs[pcb_job] = {
+            "state": "complete",
+            "pcb_eco": {"change_review_sha256": hashlib.sha256(unsafe_preview).hexdigest()},
+        }
+
+        for route in (
+            f"/api/native-copper/result/{copper_job}/PREVIEW.html",
+            f"/api/pcb-eco/result/{pcb_job}/CHANGE_REVIEW.html",
+        ):
+            with urlopen(Request(base + route, headers={"X-Review-Token": server.secret}), timeout=7) as resp:
+                assert resp.status == 200
+                assert resp.read() == unsafe_preview
+                assert resp.headers["Content-Disposition"].startswith("attachment;")
+                csp = resp.headers["Content-Security-Policy"]
+                assert "sandbox" in csp
+                assert "default-src 'none'" in csp
+                assert "allow-scripts" not in csp
+                assert resp.headers["X-Content-Type-Options"] == "nosniff"

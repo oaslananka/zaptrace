@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import contextlib
 import hashlib
 import json
 import math
@@ -33,6 +34,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from review_studio_library import delete_review, export_review, validate_restore_backup
+from review_studio_local_file_guard import read_regular_bytes
 from review_studio_workspace import (
     _read_projects,
     _safe_workspace_root,
@@ -55,6 +57,8 @@ MAX_ECO_REQUEST = 6 * 1024 * 1024
 MAX_PCB_ECO_REQUEST = 22 * 1024 * 1024
 MAX_PROJECT = 3 * 1024 * 1024
 MAX_CUSTOM_RULES = 512 * 1024
+# Bounded, no-follow reads for all registered native review HTTP assets.
+MAX_REVIEW_ASSET = 28_000_000
 # A document loaded directly from a registered review must not inherit the
 # privileged localhost application's origin or execute native SVG scripts.
 INERT_DOCUMENT_CSP = "sandbox; default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
@@ -305,6 +309,18 @@ class ReviewHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
+    def _read_review_file(self, path: Path, *, max_size: int) -> bytes | None:
+        """Open the already authorized evidence without following a late symlink.
+
+        A concurrently replaced or oversized artifact is unavailable, never
+        partially streamed or silently interpreted as a different source.
+        """
+        try:
+            return read_regular_bytes(path, max_size=max_size)
+        except ValueError:
+            self._json(HTTPStatus.NOT_FOUND, {"error": "Verified local review file unavailable"})
+            return None
+
     def _authorize(self) -> bool:
         # Origin protection includes literal IPv4 loopback + exact ephemeral port.
         origin = self.headers.get("Origin")
@@ -397,16 +413,10 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 item = output / filename if output is not None else None
                 # Read the entire bounded result while holding the same lock
                 # as discard; downloads and secure deletion cannot race.
-                raw = (
-                    item.read_bytes()
-                    if item is not None
-                    and job is not None
-                    and job.get("state") == "complete"
-                    and item.is_file()
-                    and not item.is_symlink()
-                    and item.stat().st_size <= 28_000_000
-                    else None
-                )
+                raw = None
+                if item is not None and job is not None and job.get("state") == "complete":
+                    with contextlib.suppress(ValueError):
+                        raw = read_regular_bytes(item, max_size=MAX_REVIEW_ASSET)
             if raw is None or hashlib.sha256(raw).hexdigest() != (job or {}).get("native_copper", {}).get(
                 "download_sha256", {}
             ).get(filename):
@@ -432,6 +442,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
             )
             self.send_header("Content-Type", mime)
             self.send_header("Content-Disposition", disposition)
+            if filename.endswith(".html"):
+                self.send_header("Content-Security-Policy", INERT_DOCUMENT_CSP)
             self.send_header("Cache-Control", "no-store")
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -460,13 +472,16 @@ class ReviewHandler(BaseHTTPRequestHandler):
             if not item.is_file() or item.is_symlink() or item.stat().st_size > 12_000_000:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "PCB ECO artifact unavailable"})
                 return
+            raw = self._read_review_file(item, max_size=12_000_000)
+            if raw is None:
+                return
             if filename == "CHANGE_REVIEW.html":
-                raw = item.read_bytes()
                 if hashlib.sha256(raw).hexdigest() != job.get("pcb_eco", {}).get("change_review_sha256"):
                     self._json(HTTPStatus.NOT_FOUND, {"error": "Change review proof no longer matches current ECO"})
                     return
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Security-Policy", INERT_DOCUMENT_CSP)
                 self.send_header(
                     "Content-Disposition", 'attachment; filename="ZapTrace-Source-Bound-Change-Review.html"'
                 )
@@ -477,7 +492,6 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 self.wfile.write(raw)
                 return
             if filename in ("source.kicad_pcb", "source.project.zip"):
-                raw = item.read_bytes()
                 self.send_response(HTTPStatus.OK)
                 self.send_header(
                     "Content-Type", "application/zip" if filename.endswith(".zip") else "application/octet-stream"
@@ -492,7 +506,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(raw)
             else:
-                self._serve_bytes(item.read_bytes(), item.suffix, sandboxed=True)
+                self._serve_bytes(raw, item.suffix, sandboxed=True)
             return
         if url.path.startswith("/api/eco/result/"):
             if not self._authorize():
@@ -514,8 +528,10 @@ class ReviewHandler(BaseHTTPRequestHandler):
             if not file.is_file() or file.is_symlink() or file.stat().st_size > 3_000_000:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "ECO source artifact unavailable"})
                 return
+            data = self._read_review_file(file, max_size=3_000_000)
+            if data is None:
+                return
             if filename == "source.kicad_sch":
-                data = file.read_bytes()
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", 'attachment; filename="source-edited-ECO.kicad_sch"')
@@ -525,7 +541,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(data)
             else:
-                self._serve_bytes(file.read_bytes(), file.suffix, sandboxed=True)
+                self._serve_bytes(data, file.suffix, sandboxed=True)
             return
         if url.path.startswith("/api/jobs/"):
             if not self._authorize():
@@ -590,7 +606,9 @@ class ReviewHandler(BaseHTTPRequestHandler):
             if not candidate.is_relative_to(base) or not self._is_known_file(candidate):
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            native_bytes = candidate.read_bytes()
+            native_bytes = self._read_review_file(candidate, max_size=MAX_REVIEW_ASSET)
+            if native_bytes is None:
+                return
             if candidate.name == "index.html":
                 # Independent build-era pages may still point to a prior
                 # offline workspace. In this verified localhost wrapper,
@@ -617,7 +635,10 @@ class ReviewHandler(BaseHTTPRequestHandler):
         if not self._is_known_file(candidate):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        self._serve_bytes(candidate.read_bytes(), candidate.suffix.lower(), sandboxed=True)
+        content = self._read_review_file(candidate, max_size=MAX_REVIEW_ASSET)
+        if content is None:
+            return
+        self._serve_bytes(content, candidate.suffix.lower(), sandboxed=True)
 
     def _serve_bytes(self, body: bytes, ext: str, *, sandboxed: bool = False) -> None:
         self.send_response(HTTPStatus.OK)
