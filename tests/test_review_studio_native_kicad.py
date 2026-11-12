@@ -826,3 +826,13 @@ def test_native_schematic_gallery_uses_only_real_kicad_svg_pages_and_refuses_chi
     assert "k===']'&&mode==='schematic'" in template
     assert "k==='['&&mode==='schematic'" in template
     assert "NOT FABRICATION APPROVED" in template
+
+
+def test_native_build_rejects_changed_board_before_creating_output(tmp_path: Path) -> None:
+    """The GUI's selected source SHA must bind the actual native job input."""
+    reference = Path(__file__).parents[1] / "benchmarks/external/nitu-555-blinker/source"
+    board = next(reference.glob("*.kicad_pcb"))
+    output = tmp_path / "new-native-evidence"
+    with pytest.raises(ValueError, match="changed|digest|SHA"):
+        native.build(board, output, TEMPLATE, expected_source_sha256="0" * 64)
+    assert not output.exists()

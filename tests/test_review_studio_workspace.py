@@ -491,3 +491,107 @@ def test_workspace_js_path_round_trips_special_characters_without_html_parsing(
     assert "\\u2028" in rendered
     assert str(destination) not in rendered
     assert "FABRICATION" in rendered
+
+
+@pytest.mark.parametrize("case", ["wrong-suffix", "linked-file", "oversized", "wrong-format"])
+def test_workspace_add_rejects_untrusted_pcb_before_any_unbounded_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    """Agent-provided --board must not read an unrelated file before native checks."""
+    private = tmp_path / "private-user-notes.txt"
+    private.write_text("NOT A KICAD PCB: do not read or publish")
+    chosen = tmp_path / "board.kicad_pcb"
+    if case == "wrong-suffix":
+        chosen = private
+    elif case == "linked-file":
+        chosen.symlink_to(private)
+    elif case == "oversized":
+        with chosen.open("wb") as f:
+            f.write(b"(kicad_pcb (version 20241030)")
+            f.truncate(10 * 1024 * 1024 + 1)
+    else:
+        chosen.write_text("NOT A KICAD PCB: do not pass this through")
+
+    actual_read_bytes = Path.read_bytes
+
+    def no_premature_read(source: Path) -> bytes:
+        if source == chosen:
+            raise AssertionError("unsafe/unbounded board source read before native validation")
+        return actual_read_bytes(source)
+
+    monkeypatch.setattr(Path, "read_bytes", no_premature_read)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "review_studio_workspace.py",
+            "--workspace",
+            str(tmp_path / "workspace"),
+            "add",
+            "--name",
+            "My actual KiCad PCB",
+            "--board",
+            str(chosen),
+            "--no-drc",
+            "--no-3d",
+        ],
+    )
+    with pytest.raises(ValueError, match="KiCad|PCB|native|oversized|unsafe"):
+        workspace.main()
+    assert private.read_text() == "NOT A KICAD PCB: do not read or publish"
+    assert not (tmp_path / "workspace").exists()
+    assert not (tmp_path / "workspace" / "projects.json").exists()
+
+
+def test_workspace_pcb_preflight_accepts_real_source_exact_sha() -> None:
+    import hashlib
+
+    source = Path(__file__).parents[1] / "benchmarks/external/nitu-555-blinker/source"
+    board = next(source.glob("*.kicad_pcb"))
+    assert workspace._source_board_sha256(board) == hashlib.sha256(board.read_bytes()).hexdigest()
+
+
+def test_workspace_add_rejects_source_changed_before_native_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Do not publish an apparently verified review for a different PCB revision."""
+    import importlib
+
+    source = Path(__file__).parents[1] / "benchmarks/external/nitu-555-blinker/source"
+    board = tmp_path / "source.kicad_pcb"
+    board.write_bytes(next(source.glob("*.kicad_pcb")).read_bytes())
+    import_native = importlib.import_module("review_studio_native_kicad")
+    actual_build = import_native.build
+    observed: list[str] = []
+
+    def changed_source_build(board_path: Path, output: Path, template: Path, **kwargs: object) -> Path:
+        expected = kwargs["expected_source_sha256"]
+        assert isinstance(expected, str)
+        observed.append(expected)
+        # Simulate a separate editor saving the PCB after the selection hash.
+        board_path.write_bytes(board_path.read_bytes() + b"\n")
+        return actual_build(board_path, output, template, **kwargs)
+
+    monkeypatch.setattr(import_native, "build", changed_source_build)
+    workspace_path = tmp_path / "workspace"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "review_studio_workspace.py",
+            "--workspace",
+            str(workspace_path),
+            "add",
+            "--name",
+            "Edited board",
+            "--board",
+            str(board),
+            "--no-drc",
+            "--no-3d",
+        ],
+    )
+    with pytest.raises(ValueError, match="changed since selection"):
+        workspace.main()
+    assert len(observed) == 1
+    assert not (workspace_path / "projects").exists()
+    assert not (workspace_path / "projects.json").exists()
