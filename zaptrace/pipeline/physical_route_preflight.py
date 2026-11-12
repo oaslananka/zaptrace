@@ -227,7 +227,7 @@ def retain_verified_partial_copper(
     all_net_ids = set(design.nets)
     if any(t.net_id not in all_net_ids for t in candidate.traces):
         return empty
-    owned_vias: list[tuple[float, float, float, float, str]] = []
+    owned_vias: list[Via] = []
     for via in candidate.vias:
         if len(via) != 5 or via[4] not in all_net_ids:
             return empty
@@ -254,7 +254,10 @@ def retain_verified_partial_copper(
         net_traces = [t for t in candidate.traces if t.net_id == net_id]
         if not net_traces or len(net.nodes) < 2:
             continue
-        net_vias = [v for v in owned_vias if v[4] == net_id]
+        net_vias: list[Via] = []
+        for via in owned_vias:
+            if len(via) == 5 and via[4] == net_id:
+                net_vias.append(via)
         single = RouteResult(traces=net_traces, vias=net_vias, net_count=1, routed_net_count=1)
         # Validate all logical terminals of this single physical net. The
         # existing strict predicates inspect *every* net in their design;

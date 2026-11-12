@@ -129,3 +129,16 @@ def test_main_rejects_output_outside_trusted_root(tmp_path: Path, capsys: pytest
 
     assert ci_kicad_oracle.main(["--check", "--output", str(outside)], trusted_root=trusted) == 2
     assert "escapes repository root" in capsys.readouterr().err
+
+
+def test_native_grid_shell_accepts_verified_kicad_appimage_wrapper() -> None:
+    """The signed KiCad 10 CI wrapper is in /usr/local/bin, not /usr/bin."""
+    script = (Path(__file__).resolve().parents[1] / "scripts" / "issue35_native_grid_oracle.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "command -v kicad-cli" in script
+    assert "/usr/local/bin/kicad-cli" in script
+    assert "/usr/bin/kicad-cli" in script
+    assert "readonly CLI=/usr/bin/kicad-cli" not in script
+    assert '"$CLI" version' in script
+    assert '"$CLI" pcb drc --exit-code-violations' in script

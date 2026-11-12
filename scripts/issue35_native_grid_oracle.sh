@@ -5,7 +5,15 @@ if (( $# > 2 )); then
   echo "Usage: $0 [output-dir] [--smd]" >&2
   exit 2
 fi
-readonly CLI=/usr/bin/kicad-cli
+# APT KiCad uses /usr/bin; the upstream-signed AppImage installer puts its
+# verified wrapper in /usr/local/bin. Permit only those system-managed paths,
+# never an arbitrary local checkout or PATH-injected executable.
+cli_path="$(command -v kicad-cli || true)"
+case "$cli_path" in
+  /usr/bin/kicad-cli|/usr/local/bin/kicad-cli) ;;
+  *) echo "Trusted KiCad 10 CLI not found in approved system paths" >&2; exit 2 ;;
+esac
+readonly CLI="$cli_path"
 readonly PYTHON=/usr/bin/python3
 readonly TIMEOUT=/usr/bin/timeout
 readonly ENV_BIN=/usr/bin/env
