@@ -545,7 +545,7 @@ native rule check.
 
 #### G0 task 002 — L7805 indicator LED current ECO with inherited KiCad issues
 
-The second [versioned pilot record](../../benchmarks/g0-ai-engineering-tasks/linear-regulator-led-current-minus-thirty-percent.json)
+The second [versioned pilot record](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/linear-regulator-led-current-minus-thirty-percent.json)
 uses the original MIT-licensed Nitu L7805 regulator schematic and PCB.
 It is an **AI-assisted, agent-selected pilot**, not an independently
 commissioned or competitively scored electronics design task.
