@@ -38,7 +38,7 @@ def test_assumed_dc_models_are_explicit_and_not_physical_acceptance() -> None:
     assert {r["switch_state"] for r in record["cases"]} == {"CLOSED", "OPEN"}
     assert all(r["engine"] == "ngspice" for r in record["cases"])
     assert all(r["converged"] for r in record["cases"])
-    assert all(r["qualified_load_pass"] is None for r in record["cases"])
+    assert all(r["qualified_load_status"] == "NOT_RUN" for r in record["cases"])
     assert all(r["v_collector_v"] >= 0 for r in record["cases"])
     assert all(r["i_collector_ma"] > 0 for r in record["cases"] if r["switch_state"] == "CLOSED")
     assert all(abs(r["i_collector_ma"]) < 0.01 for r in record["cases"] if r["switch_state"] == "OPEN")
@@ -79,7 +79,7 @@ def test_real_simulation_exposes_assumed_model_sensitivity_and_load_limit() -> N
         candidate = scenario[(820, beta, None)]["i_r1_feed_ma"]
         assert candidate < baseline
         assert 100 * (1 - candidate / baseline) > 45
-    assert all(r["qualified_load_pass"] is None for r in cases)
+    assert all(r["qualified_load_status"] == "NOT_RUN" for r in cases)
     stored = json.loads(EVIDENCE.read_text(encoding="utf-8"))
     assert record["original_source_sha256"] == stored["original_source_sha256"]
     assert record["source_native_kicad_version"] == stored["source_native_kicad_version"]

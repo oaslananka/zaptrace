@@ -721,8 +721,8 @@ python scripts/g0_npn_dc_spice_probe.py   --output-json /tmp/zaptrace-g0-npn-spi
 ~~~
 
 The versioned evidence stores all computed voltages and currents,
-model parameters, circuit-deck SHA-256 for every case and explicitly
-null qualified load status. This **upgrades evidence** from
+model parameters, circuit-deck SHA-256 for every case and an explicit
+NOT_RUN qualified-load status. This **upgrades evidence** from
 hand calculations to *real DC simulation under unqualified
 models*. It does **not** upgrade the previous G0 #004
 BLOCKED outcome or claim any real load capacity,

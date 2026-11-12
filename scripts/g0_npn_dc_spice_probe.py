@@ -15,11 +15,14 @@ import hashlib
 import json
 import re
 import shutil
-import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
-from xml.etree import ElementTree
+
+from defusedxml import ElementTree
+
+from zaptrace.kicad.oracle import KiCadOracle
+from zaptrace.kicad.step_export import _execute_step_command
 
 ROOT = Path(__file__).parents[1]
 SOURCE = ROOT / "benchmarks/external/nitu-npn-transistor-switch/source"
@@ -68,8 +71,8 @@ def verify_native_source(source: Path) -> dict[str, Any]:
     tool = shutil.which("kicad-cli")
     if tool is None:
         raise RuntimeError("Real KiCad CLI unavailable; source topology is NOT verified")
-    version = subprocess.run([tool, "version"], capture_output=True, text=True, timeout=15)
-    if version.returncode or not version.stdout.startswith("10."):
+    oracle = KiCadOracle(tool)
+    if not oracle.available or not oracle.version.startswith("10."):
         raise RuntimeError("Real KiCad 10 required for source-bound G0 SPICE evidence")
 
     with TemporaryDirectory(prefix="zaptrace-g0-npn-source-netlist-") as scratch:
@@ -88,10 +91,12 @@ def verify_native_source(source: Path) -> dict[str, Any]:
             str(native_xml),
             str(folder / schematic.name),
         ]
-        run = subprocess.run(cmd, capture_output=True, text=True, timeout=85)
-        if run.returncode:
-            raise RuntimeError(f"Native KiCad netlist export failed: {run.stderr[:350]}")
+        run = _execute_step_command(cmd, timeout=85)
+        if run.exit_code != 0:
+            raise RuntimeError(f"Native KiCad netlist export failed: {run.stderr_snippet[:350]}")
         tree = ElementTree.parse(native_xml).getroot()
+        if tree is None:
+            raise ValueError("Native KiCad netlist XML was empty; no simulation evidence")
         components = {element.get("ref"): element.findtext("value") for element in tree.findall("./components/comp")}
         required = {
             "Q1": "PN2222A",
@@ -115,7 +120,7 @@ def verify_native_source(source: Path) -> dict[str, Any]:
 
     if any(digest(p.read_bytes()) != originals[p.name] for p in (board, schematic, project)):
         raise RuntimeError("Original KiCad files were altered during native source check")
-    return {"source_sha256": originals, "kicad_version": version.stdout.strip(), "net_count": len(GROUPS)}
+    return {"source_sha256": originals, "kicad_version": oracle.version, "net_count": len(GROUPS)}
 
 
 def circuit_cards(*, r1: int, beta_f: int, external_load: int | None, switch_state: str = "CLOSED") -> list[str]:
@@ -260,7 +265,7 @@ def simulate_source_bound_npn(source: Path) -> dict[str, Any]:
                 "i_collector_ma": round(collector_current_ma, 6),
                 "transistor_dissipation_mw": round(collector * collector_current_ma, 6),
                 "exploratory_vce_above_0_3v": collector > 0.3,
-                "qualified_load_pass": None,
+                "qualified_load_status": "NOT_RUN",
             }
         )
     return {
