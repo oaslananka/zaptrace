@@ -85,6 +85,44 @@ The original manifest SHA and historic baseline report are unchanged.
 The educational repository reports its own hardware testing, which
 is not independent ZapTrace physical-review authority.
 
+### Native KiCad 10 PCB DRC before/after review (AI candidate, non-destructive)
+
+To review an AI-proposed KiCad PCB edit without overwriting the
+original source, run **one** local command:
+
+    zaptrace kicad pcb-drc-delta path/to/original.kicad_pcb path/to/candidate.kicad_pcb --json
+
+A matching original `.kicad_pro` is required for consistent native
+design rules. The command SHA-256 pins both boards and the project,
+then copies the original + project and candidate + same project into
+**separate temporary folders**. It executes real `kicad-cli pcb drc`
+with all severities and JSON reporting; no `--save-board` or zone
+refill, so original or candidate files are **never modified**.
+A missing/non-10 native KiCad CLI or unreadable/failed DRC is a hard
+error. Native issue comparison preserves duplicate violations and
+item UUID/coordinates, while discarding report dates and finding order.
+
+The review reports pre-existing issues **and** newly introduced
+violations/unconnected items separately. It exits **2** if the
+candidate introduced any new DRC issue, so tools and AI agents cannot
+silently accept a regression. No-regression is **not** a clean board
+or electrical/fabrication approval when the baseline contains defects.
+
+An actual original MIT-licensed ESP32-S3 board has **30 existing native
+DRC violations and no unconnected items**. On a temporary *copy*
+only, deliberately changing R4 pad `2` from
+`Net-(D1-A)` to `+5V` produces **four new native violations**
+(two `shorting_items`, two `solder_mask_bridge`) and
+**one new unconnected item**. Its source schematic and original PCB
+remain byte-for-byte unchanged. The baseline, native report
+categories and error exit code are verified by executable tests.
+
+This is strictly **PCB DRC delta evidence**, not source KiCad
+schematic parity, ERC, complete footprint geometry validation,
+zone refill verification, 20 AI engineering task signoffs,
+manufacturer certification, or permission to fabricate.
+G0 remains **0 VERIFIED / 16 BLOCKED / 4 NOT RUN**.
+
 ### Native KiCad PCB physical pad-to-pin/net evidence (read-only)
 
 An AI agent reviewing a complete original `.kicad_pro` can now
