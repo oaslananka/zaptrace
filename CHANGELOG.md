@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add a byte-guarded, one-command KiCad resistor/capacitor ECO preview that synchronizes schematic and PCB Value fields and checks native KiCad ERC, DRC and parity before producing separate human-review-only drafts; record an AI-assisted NE555 timing pilot with clear unverified outcomes.
+
 - Show source-bound native DRC findings, ERC and scoped pin/net evidence gaps in offline Review Studio alternative comparisons; reject incompatible original DRC baselines without automatically ranking or approving a board.
 
 - Bind offline Review Studio assistant handoffs to native schematic source/target hashes, selected ERC details and scoped pin/net findings, with explicit missing-evidence status and no added AI/network authority.
