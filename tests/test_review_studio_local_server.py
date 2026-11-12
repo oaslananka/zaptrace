@@ -420,6 +420,12 @@ def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_
     )
     preview = b"\x89PNG\r\n\x1a\n" + b"known-native-evidence-only"
     (external / "professional-desktop-final.png").write_bytes(preview)
+    # A registered native SVG may include untrusted content and must not
+    # execute in the privileged localhost origin when viewed as a document.
+    (external / "native-false-preview.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>',
+        encoding="utf-8",
+    )
     (external / "source.kicad_pcb").write_bytes(b"private PCB source must not be served")
     (tmp_path / "private.md").write_bytes(b"sibling private notes must not be served")
     (external / "stealth.md").symlink_to(tmp_path / "private.md")
@@ -452,6 +458,24 @@ def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_
             assert "allow-same-origin" not in csp
             assert "connect-src 'none'" in csp
             assert "form-action 'none'" in csp
+        for asset_path in (route + "native-false-preview.svg", "/independent-native-review/native-false-preview.svg"):
+            with urlopen(Request(base + asset_path), timeout=7) as asset:
+                assert asset.status == 200
+                assert b"<script>" in asset.read()
+                policy = asset.headers["Content-Security-Policy"]
+                assert "sandbox" in policy
+                assert "default-src 'none'" in policy
+                assert "allow-same-origin" not in policy
+                assert "allow-scripts" not in policy
+        # Legacy relative links must not bypass the sandbox used by opaque
+        # registered review links, even when HTML includes active JavaScript.
+        with urlopen(Request(base + "/independent-native-review/index.html"), timeout=7) as legacy:
+            assert legacy.status == 200
+            assert b"Real review evidence" in legacy.read()
+            legacy_policy = legacy.headers["Content-Security-Policy"]
+            assert "sandbox allow-scripts allow-popups" in legacy_policy
+            assert "allow-same-origin" not in legacy_policy
+            assert "connect-src 'none'" in legacy_policy
         for blocked in (
             route + "source.kicad_pcb",
             route + "%2e%2e/private.md",
@@ -463,3 +487,49 @@ def test_registered_external_readonly_assets_use_safe_opaque_localhost_urls(tmp_
             status, body = request(base, blocked)
             assert status in {403, 404}, (blocked, status)
             assert b"private" not in body.lower()
+
+
+def test_local_api_json_is_html_inert_while_preserving_exact_user_strings(tmp_path: Path) -> None:
+    malicious = '</script><svg onload="alert(document.domain)">&notAnEntity;</svg>'
+    with running(tmp_path / "review") as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        srv.jobs["untrusted-job"] = {"state": "complete", "message": malicious}
+        req = Request(base + "/api/jobs/untrusted-job", headers={"X-Review-Token": srv.secret})
+        with urlopen(req, timeout=7) as resp:
+            body = resp.read()
+            assert resp.status == 200
+            assert resp.headers["Content-Type"].startswith("application/json")
+            assert resp.headers["X-Content-Type-Options"] == "nosniff"
+            assert "sandbox" in resp.headers["Content-Security-Policy"]
+            assert "default-src 'none'" in resp.headers["Content-Security-Policy"]
+            assert b"<" not in body
+            assert b">" not in body
+            assert b"&" not in body
+            assert json.loads(body)["message"] == malicious
+
+
+def test_generated_local_eco_html_is_sandboxed_not_privileged_same_origin(tmp_path: Path) -> None:
+    with running(tmp_path / "review") as srv:
+        base = f"http://127.0.0.1:{srv.server_port}"
+        for prefix, job_id, registry in (
+            ("eco", "a" * 32, srv.eco_outputs),
+            ("pcb-eco", "b" * 32, srv.pcb_eco_outputs),
+        ):
+            output = tmp_path / ("test-" + prefix)
+            output.mkdir()
+            (output / "PREVIEW.html").write_text(
+                "<!doctype html><script>fetch('/api/health')</script>", encoding="utf-8"
+            )
+            registry[job_id] = output
+            srv.jobs[job_id] = {"state": "complete"}
+            req = Request(
+                base + f"/api/{prefix}/result/{job_id}/PREVIEW.html",
+                headers={"X-Review-Token": srv.secret},
+            )
+            with urlopen(req, timeout=7) as resp:
+                assert resp.status == 200
+                assert b"fetch('/api/health')" in resp.read()
+                policy = resp.headers["Content-Security-Policy"]
+                assert "sandbox allow-scripts allow-popups" in policy
+                assert "allow-same-origin" not in policy
+                assert "connect-src 'none'" in policy
