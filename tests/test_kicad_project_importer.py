@@ -616,7 +616,12 @@ def test_native_power_symbols_are_not_expected_as_physical_pcb_footprints() -> N
     # Annotation/source fidelity and physical status are independent:
     # preserve the existing 16 #PWR entries in the imported design.
     assert len([c for c in result.design.components.values() if c.ref.startswith("#PWR")]) == 16
-    assert len([x for x in result.findings if x.kind == "unsupported_construct"]) == 8
+    # Eight prior top-level constructs are still unsupported; four additional
+    # real KiCad 'unspecified' electrical pins cannot be safely guessed into
+    # a canonical PinType and must remain visible, not fabricated as PASSIVE.
+    unsupported = [x.detail for x in result.findings if x.kind == "unsupported_construct"]
+    assert len([kind for kind in unsupported if kind != "unmapped_pin_electrical_type"]) == 8
+    assert unsupported.count("unmapped_pin_electrical_type") == 4
 
 
 def test_missing_real_resistor_pcb_footprint_still_reports_mismatch(

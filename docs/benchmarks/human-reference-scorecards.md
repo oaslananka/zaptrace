@@ -85,6 +85,37 @@ The original manifest SHA and historic baseline report are unchanged.
 The educational repository reports its own hardware testing, which
 is not independent ZapTrace physical-review authority.
 
+### Source-proven canonical KiCad pin inventory (partial semantic import)
+
+Users and AI tools inspecting an original KiCad schematic now receive
+**source-verified electrical pin entries** under each actual component's
+`design.components[...].pins`. For example, on the original atomic14
+ESP32-S3 development board, `R4.pins["2"]` identifies a `PASSIVE`
+pin at the original KiCad sheet coordinate and points to the same
+`Net-(D1-A)` net ID as `D1.pins["2"]`; `D1`'s pin label is
+`A`. `U2.pins["3"]` retains the library label `EN` and native
+`INPUT` type; `U2.pins["2"]` is `POWER` with the original
+`power_in` direction also recorded in `current_domain`. For
+unambiguously typed symbols, original electrical type strings remain
+visible under `Component.properties["kicad_original_pin_types"]`.
+
+Only a referenced embedded-library pin number, native pin type, name
+and position can populate the canonical Pin object; actual net links
+come from the already independently matched named-net graph. An
+unmapped KiCad type such as `unspecified` is **not** guessed as
+`PASSIVE`. Instead, its raw type is retained and an
+`unmapped_pin_electrical_type` finding remains visible. Ambiguous
+multi-unit pin positions or net assignments also fail closed.
+
+On the unchanged atomic14 source, **128 pin records** are now
+source-typed and linked, and four `unspecified` pins remain unmapped;
+the independent native topology is still **47/47 exact nets and
+132/132 nodes**. Full 20-source native parity remains **0 VERIFIED /
+16 BLOCKED / 4 NOT RUN**. This is *partial source-to-canonical pin
+identity*, not support for native KiCad symbol drawing geometry,
+electrical ERC equivalence of all pin types, editable source round-trip,
+board pad mapping, physical DRC, fabrication or human signoff.
+
 **Recorded G0 baseline (2026-11-12):**
 benchmarks/human-reference-corpus/native-parity-baseline-20261112.json.
 With the 20-reference manifest and KiCad CLI 10.0.8, the genuine
