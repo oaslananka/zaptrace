@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
-import subprocess
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+
+from zaptrace.kicad.oracle import KiCadOracle
 
 _DRC_TIMEOUT_SECONDS = 80
 
@@ -108,18 +108,14 @@ class NativePcbDrcDeltaReview:
         }
 
 
-def _require_native_kicad_10() -> tuple[str, str]:
-    executable = shutil.which("kicad-cli")
-    if not executable:
+def _require_native_kicad_10() -> KiCadOracle:
+    """Reuse the existing vetted native KiCad process boundary."""
+    oracle = KiCadOracle()
+    if not oracle.available:
         raise RuntimeError("Native KiCad 10 CLI is required for PCB DRC; no simulated DRC success")
-    try:
-        version = subprocess.run([executable, "version"], capture_output=True, text=True, timeout=15, check=False)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError("Native KiCad version check failed") from exc
-    value = version.stdout.strip()
-    if version.returncode or not value.startswith("10."):
-        raise RuntimeError(f"Independent PCB DRC requires native KiCad 10, got {value!r}")
-    return executable, value
+    if not oracle.version.startswith("10."):
+        raise RuntimeError(f"Independent PCB DRC requires native KiCad 10, got {oracle.version!r}")
+    return oracle
 
 
 def _pinned_bytes(path: Path, expected_sha: str, description: str) -> bytes:
@@ -132,33 +128,24 @@ def _pinned_bytes(path: Path, expected_sha: str, description: str) -> bytes:
     return raw
 
 
-def _run_native_drc(cli: str, directory: Path, board_name: str, board: bytes, project: bytes) -> dict[str, Any]:
+def _run_native_drc(oracle: KiCadOracle, directory: Path, board: bytes, project: bytes) -> dict[str, Any]:
+    """Only fixed filenames inside our new temporary directory are writable."""
     directory.mkdir()
-    (directory / board_name).write_bytes(board)
-    (directory / f"{Path(board_name).stem}.kicad_pro").write_bytes(project)
+    board_file = directory / "review.kicad_pcb"
+    board_file.write_bytes(board)
+    (directory / "review.kicad_pro").write_bytes(project)
     report_file = directory / "native-drc.json"
-    try:
-        result = subprocess.run(
-            [
-                cli,
-                "pcb",
-                "drc",
-                "--format",
-                "json",
-                "--severity-all",
-                "-o",
-                str(report_file),
-                str(directory / board_name),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=_DRC_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError("Native KiCad PCB DRC execution failed") from exc
-    if result.returncode:
-        raise RuntimeError(f"Native KiCad PCB DRC failed (exit {result.returncode}): {result.stderr[-400:]}")
+    result = oracle.run_drc(
+        board_file,
+        output_path=report_file,
+        timeout=_DRC_TIMEOUT_SECONDS,
+        severity="all",
+        exit_code_violations=False,
+    )
+    # Real native DRC may find errors on an existing board; that is NOT a
+    # process failure. Enforce a successful process and a valid report instead.
+    if result.exit_code != 0:
+        raise RuntimeError(f"Native KiCad PCB DRC execution failed: {result.message}")
     try:
         report = json.loads(report_file.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -194,17 +181,17 @@ def review_native_pcb_drc_delta(
     original_bytes = _pinned_bytes(original, expected_original_sha256, "Original PCB")
     candidate_bytes = _pinned_bytes(candidate, expected_candidate_sha256, "Candidate PCB")
     project_bytes = _pinned_bytes(project_file, expected_project_sha256, "Original project")
-    cli, version = _require_native_kicad_10()
+    oracle = _require_native_kicad_10()
     with TemporaryDirectory(prefix="zaptrace-native-drc-delta-") as temp:
         root = Path(temp)
-        before = _run_native_drc(cli, root / "baseline", original.name, original_bytes, project_bytes)
-        after = _run_native_drc(cli, root / "candidate", original.name, candidate_bytes, project_bytes)
+        before = _run_native_drc(oracle, root / "baseline", original_bytes, project_bytes)
+        after = _run_native_drc(oracle, root / "candidate", candidate_bytes, project_bytes)
 
     added, removed = _delta_fingerprints(before["violations"], after["violations"])
     new_unconnected, _ = _delta_fingerprints(before["unconnected_items"], after["unconnected_items"])
     violation_types = dict(sorted(Counter(str(item.get("type", "unknown")) for item in added).items()))
     return NativePcbDrcDeltaReview(
-        native_kicad_version=version,
+        native_kicad_version=oracle.version,
         original_sha256=expected_original_sha256,
         candidate_sha256=expected_candidate_sha256,
         project_sha256=expected_project_sha256,
