@@ -12,6 +12,18 @@ RF/electrical sign-off.
 
 ## 2026-11-13 — grounded power-net constraints and false-GND prevention
 
+The normal pipeline CLI and MCP tool now expose source-measured
+routing_evidence.physical_constraints for **each unrouted net**:
+nominal net-class trace width, shorter physical land dimensions (which
+may require a locally qualified fanout), **every repeated physical contact
+count** (including identical pad numbers), unmapped terminals, and whether
+the source board disables a GND copper pour. This is an actionable
+engineering *review list*, **not** proof that a route is categorically
+impossible, proof of safe local width reduction, or fabrication approval.
+The CLI bounds the displayed items, while machine-readable evidence
+retains the complete analyzed source contacts. The existing native KiCad
+unconnected/DRC failures remain authoritative.
+
 The latest source-bound review isolates the **remaining three incomplete
 nets** without changing any supplier footprint or electrical limit:
 

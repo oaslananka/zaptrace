@@ -12,9 +12,11 @@ from collections import Counter, defaultdict
 
 from zaptrace.algo.grid_router import GridRouter
 from zaptrace.algo.pad_copper import point_in_pad_copper, rotated_offset
+from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Design, DRCViolation, LayerSet, NetClass, Pad, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import get_net_class
 from zaptrace.ee.drc.engine import DRCEngine
+from zaptrace.ee.knowledge import KnowledgeBase
 
 
 def _trace_layer_compatible(pad: Pad, layer: str) -> bool:
@@ -302,3 +304,74 @@ def retain_verified_partial_copper(
         net_count=candidate.net_count,
         routed_net_count=len(accepted_ids),
     )
+
+
+def physical_constraints_for_unrouted_nets(design: Design, unrouted_net_ids: list[str]) -> list[dict[str, object]]:
+    """Report measurable source-land constraints, never guess routing feasibility.
+
+    A land's shortest dimension below the net's standard trace width means
+    the present constant-width fanout needs qualified local geometry/current
+    review. It does NOT establish that the PCB is impossible to manufacture
+    or that global trace-width/clearance rules may be relaxed.
+
+    Preserve every distinct physical pad occurrence, including duplicate
+    KiCad pad numbers. This is useful to users and agents troubleshooting
+    unresolved routes, but it is NOT independent KiCad DRC or approval.
+    """
+    kb = KnowledgeBase()
+    board = canonical_board_definition(design)
+    components = {component.ref: component for component in design.components.values()}
+    details: list[dict[str, object]] = []
+    for net_id in unrouted_net_ids:
+        net = design.nets.get(net_id)
+        if net is None or len(net.nodes) < 2:
+            continue
+        net_class = get_net_class(design, net_id)
+        trace_width = kb.get_rule(net_class).trace_width
+        narrow: list[dict[str, object]] = []
+        multiple: list[dict[str, object]] = []
+        missing: list[dict[str, str]] = []
+        for node in net.nodes:
+            comp = components.get(node.component_ref)
+            if comp is None or comp.footprint_def is None:
+                missing.append({"component_ref": node.component_ref, "pin_name": node.pin_name})
+                continue
+            pads = [
+                pad
+                for pad in comp.footprint_def.pads
+                if (comp.package_pin_map.get(pad.id, pad.id) if comp.package_pin_map else pad.id) == node.pin_name
+            ]
+            if not pads:
+                missing.append({"component_ref": comp.ref, "pin_name": node.pin_name})
+                continue
+            if len(pads) > 1:
+                multiple.append(
+                    {
+                        "component_ref": comp.ref,
+                        "pin_name": node.pin_name,
+                        "physical_contact_count": len(pads),
+                    }
+                )
+            for pad in pads:
+                short_dimension = min(pad.size)
+                if short_dimension + 1e-6 < trace_width:
+                    narrow.append(
+                        {
+                            "component_ref": comp.ref,
+                            "pin_name": node.pin_name,
+                            "pad_id": str(pad.id),
+                            "short_dimension_mm": short_dimension,
+                        }
+                    )
+        details.append(
+            {
+                "net_id": net_id,
+                "trace_width_mm": trace_width,
+                "narrow_pad_lands": narrow,
+                "multi_pad_terminals": multiple,
+                "unmapped_terminals": missing,
+                "ground_pour_disabled": net_class == NetClass.GROUND and not board.copper_pour_gnd,
+                "physical_routing_verified": False,
+            }
+        )
+    return details

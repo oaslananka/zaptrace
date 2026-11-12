@@ -36,7 +36,14 @@ def tool_pipeline_run(
             "total_routable_nets": ctx.routing.total_nets,
             "unrouted_nets": list(ctx.routing.unrouted_nets),
             "physical_continuity_verified": False,
+            "fabrication_approved": False,
         }
+        if ctx.design is not None and any(c.footprint_asset for c in ctx.design.components.values()):
+            from zaptrace.pipeline.physical_route_preflight import physical_constraints_for_unrouted_nets
+
+            routing_evidence["physical_constraints"] = physical_constraints_for_unrouted_nets(
+                ctx.design, list(ctx.routing.unrouted_nets)
+            )
     return {
         "routing_evidence": routing_evidence,
         "stages_completed": len(ctx.results),

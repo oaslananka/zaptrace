@@ -79,6 +79,37 @@ def test_example_pipeline_reports_real_unrouted_nets_to_tool_consumers() -> None
     assert evidence["unrouted_nets"] == ["VCC_5V", "VCC_3V3", "GND"]
     assert evidence["physical_continuity_verified"] is False
 
+    # Give AI agents and users the actual manufacturer contact geometry
+    # behind the remaining physical review, not an invented autoroute claim.
+    reviews = {item["net_id"]: item for item in evidence["physical_constraints"]}
+    assert set(reviews) == {"VCC_5V", "VCC_3V3", "GND"}
+    assert all(item["trace_width_mm"] == 0.5 for item in reviews.values())
+    assert any(
+        pad["component_ref"] == "D1"
+        and pad["pin_name"] == "IO"
+        and pad["pad_id"] == "1"
+        and pad["short_dimension_mm"] == 0.45
+        for pad in reviews["VCC_5V"]["narrow_pad_lands"]
+    )
+    assert {
+        (pad["component_ref"], pad["pin_name"], pad["short_dimension_mm"])
+        for pad in reviews["VCC_3V3"]["narrow_pad_lands"]
+    } >= {("U2", "VDD", 0.35), ("U2", "VDDIO", 0.35), ("U2", "CSB", 0.35)}
+    assert ("J1", "VBUS", 4) in {
+        (pad["component_ref"], pad["pin_name"], pad["physical_contact_count"])
+        for pad in reviews["VCC_5V"]["multi_pad_terminals"]
+    }
+    assert ("U3", "OUTPUT", 2) in {
+        (pad["component_ref"], pad["pin_name"], pad["physical_contact_count"])
+        for pad in reviews["VCC_3V3"]["multi_pad_terminals"]
+    }
+    assert reviews["GND"]["ground_pour_disabled"] is True
+    assert ("U1", "GND", 25) in {
+        (pad["component_ref"], pad["pin_name"], pad["physical_contact_count"])
+        for pad in reviews["GND"]["multi_pad_terminals"]
+    }
+    assert evidence["fabrication_approved"] is False
+
 
 def test_regulator_vout_and_tab_share_physical_pad_id_without_short(tmp_path: Path) -> None:
     import re

@@ -156,6 +156,62 @@ def test_pipeline_explicitly_marks_routed_output_unverified(tmp_path, monkeypatc
     assert "Physical continuity and fabrication readiness NOT VERIFIED" in result.output
 
 
+def test_pipeline_explains_real_pad_constraints_without_claiming_fabrication(tmp_path, monkeypatch) -> None:
+    import zaptrace.cli.main as cli_main
+
+    def fake_pipeline(**kwargs):
+        return {
+            "all_successful": True,
+            "stages_completed": 10,
+            "duration_seconds": 1.0,
+            "stages": {"route": {"success": True}},
+            "routing_evidence": {
+                "reported_routed_nets": 4,
+                "total_routable_nets": 7,
+                "unrouted_nets": ["VCC_5V", "GND"],
+                "physical_continuity_verified": False,
+                "fabrication_approved": False,
+                "physical_constraints": [
+                    {
+                        "net_id": "VCC_5V",
+                        "trace_width_mm": 0.5,
+                        "narrow_pad_lands": [
+                            {
+                                "component_ref": "D1",
+                                "pin_name": "IO",
+                                "pad_id": "1",
+                                "short_dimension_mm": 0.45,
+                            }
+                        ],
+                        "multi_pad_terminals": [
+                            {"component_ref": "J1", "pin_name": "VBUS", "physical_contact_count": 4}
+                        ],
+                        "ground_pour_disabled": False,
+                    },
+                    {
+                        "net_id": "GND",
+                        "trace_width_mm": 0.5,
+                        "narrow_pad_lands": [],
+                        "multi_pad_terminals": [],
+                        "ground_pour_disabled": True,
+                    },
+                ],
+            },
+        }
+
+    monkeypatch.setattr(cli_main, "tool_pipeline_run", fake_pipeline)
+    source = tmp_path / "source.yaml"
+    source.write_text("meta:\n  name: demo\n", encoding="utf-8")
+    result = _runner().invoke(cli, ["pipeline", "--source", str(source)])
+    assert result.exit_code == 0
+    assert "D1.IO" in result.output
+    assert "0.45" in result.output and "0.50" in result.output
+    assert "J1.VBUS" in result.output and "4" in result.output
+    assert "GND" in result.output and "pour disabled" in result.output
+    assert "local fanout" in result.output
+    assert "NOT VERIFIED" in result.output
+
+
 class TestRequirementsCommand:
     def test_requirements_prints_json(self) -> None:
         result = _runner().invoke(cli, ["requirements", "esp32 usb-c 3.3v i2c"])
