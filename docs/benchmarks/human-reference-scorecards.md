@@ -728,6 +728,47 @@ models*. It does **not** upgrade the previous G0 #004
 BLOCKED outcome or claim any real load capacity,
 qualified function, human approval or manufacturing readiness.
 
+#### G0 task 004 supplemental: supplier-data-sheet test-condition and thermal screen
+
+The [published historical ON Semiconductor PN2222/D document,
+November 2000 Rev. 0, pages 1–2](https://media.digikey.com/pdf/Data%20Sheets/ON%20Semiconductor%20PDFs/DS_488_PN2222.pdf)
+is the archived copy of the document referenced by the original KiCad
+PN2222A symbol. The KiCad-embedded historical onsemi URL now redirects
+to general technical documentation; **the exact orderable supplier part
+and manufacturer-provided SPICE model remain unverified**. Do not confuse
+the historic published table with a current supplied-part guarantee.
+
+The source-bound DC report now includes a **separate, conditional
+data-sheet review**. Its 150 mA collector current and VCE(sat)
+maximum 0.3 V entry is explicitly measured at **15 mA base current**,
+a short-duration pulse condition. At 5 V, even granting the
+physically idealized upper bound of zero base-emitter voltage, the
+entire R1 branch could supply only **12.82 mA for 390 Ω** and
+**6.10 mA for 820 Ω** (with the model's 0.05 Ω closed switch).
+The real base-emitter junction and 10 kΩ pull-down make the
+transistor base current smaller. Therefore **neither variant can
+reproduce this particular 15 mA test condition**, and the documented
+0.3 V limit cannot simply be claimed for the design. This is NOT a
+proof that either variant fails to switch all real loads, nor a
+predicted continuous collector-current limit.
+
+The same historical document lists TO-92 625 mW dissipation at
+25°C, a 5 mW/°C derating above 25°C and maximum junction-to-ambient
+thermal resistance 200°C/W in its stated conditions. A **warning-only**
+comparison to a 50°C ambient rated limit (500 mW) finds **three
+hypothetical 27°C DC-model cases above the limit**: a 10 Ω load
+with R1=390 Ω/BF=50, plus R1=820 Ω with BF=50 and BF=150.
+This comparison is **not a self-consistent 50°C SPICE simulation**,
+real heatsinking model, or thermal qualification. No case
+receives physical-load PASS merely because it falls below a
+historical dissipation rating.
+
+The useful next user action is to supply J2 load type and measured
+switching current, the exact orderable PN2222A part, thermal/ambient
+and PCB package conditions, followed by independent qualified
+engineering review and measured functional acceptance.
+G0 #004 and the original G0 benchmark remain **BLOCKED**.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses
