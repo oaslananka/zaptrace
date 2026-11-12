@@ -11,9 +11,12 @@ An upstream design being human-engineered does not mean ZapTrace reviewed, appro
 
 The corpus pins one project, schematic, and PCB artifact for each design. Four older
 KiCad-format projects are reference-only hash-pinned metadata (not locally executable).
-Two original projects reuse byte-exact vendored external-benchmark files; three
-additional MIT-licensed KiCad 10 educational source projects are independently
-vendored with their original licenses. These references are not hardware approvals.
+Sixteen original source projects are locally vendored byte-for-byte: the earlier
+two external-benchmark boards, three MIT-licensed KiCad 10 learning projects,
+and eleven newly pinned licensed projects (ten educational sensor/control
+circuits plus an independent ESP32-S3 development board). The original
+LICENSE text is vendored with the new projects. None of these references
+is a ZapTrace-qualified hardware approval.
 
 | Reference ID | Domain | Upstream repository | Exact revision | Hardware license | Source verification |
 |---|---|---|---|---|---|
@@ -26,6 +29,53 @@ vendored with their original licenses. These references are not hardware approva
 | `nitu-555-blinker` | 555 timer demonstrator | `nitu2126/kicad-learning-path` | `856b0daf1d358504cd035724f5ec9d1e6bfe3ad7` | `MIT` | `vendored-byte-exact` |
 | `nitu-npn-transistor-switch` | Transistor switching | `nitu2126/kicad-learning-path` | `856b0daf1d358504cd035724f5ec9d1e6bfe3ad7` | `MIT` | `vendored-byte-exact` |
 | `nitu-linear-regulator` | Linear regulation | `nitu2126/kicad-learning-path` | `856b0daf1d358504cd035724f5ec9d1e6bfe3ad7` | `MIT` | `vendored-byte-exact` |
+
+### Additional licensed native KiCad references (11 projects)
+
+These are exact byte copies of project, schematic and PCB originals from
+the listed pinned Git commits, with original MIT LICENSE files. The table
+records **KiCad's native netlist**, not ZapTrace's imported graph or an
+electrical correctness verdict. All eleven original schematics exported
+under native KiCad CLI 10.0.8 on 12 November 2026.
+
+| Reference ID | Board purpose | Pinned upstream source | Native nets | Native pin nodes |
+|---|---|---|---:|---:|
+| jkc-9v-battery-indicator | 9V battery indication | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 9 | 24 |
+| jkc-hidden-wire-detector | Hidden wire detection | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 7 | 16 |
+| jkc-light-activated-switch | Light-activated switch | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 5 | 13 |
+| jkc-astable-multivibrator | Astable multivibrator | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 6 | 24 |
+| jkc-automatic-hand-sanitizer | Infrared-activated sanitiser | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 5 | 12 |
+| jkc-clap-switch | Clap-triggered switch | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 7 | 22 |
+| jkc-obstacle-detector | Optical obstacle detector | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 6 | 18 |
+| jkc-temperature-fan | Temperature-controlled fan | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 4 | 11 |
+| jkc-touch-sensor | Touch sensor switch | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 4 | 10 |
+| jkc-water-level-indicator | Water level indicator | [JKCadilo14-CpE/DIY-Circuits](https://github.com/JKCadilo14-CpE/DIY-Circuits/tree/1d33aaab5dca045a6a8b9da1542fb24ed2e55017) | 17 | 41 |
+| atomic14-basic-esp32s3-dev-board | ESP32-S3 USB development board | [atomic14/basic-esp32s3-dev-board](https://github.com/atomic14/basic-esp32s3-dev-board/tree/7b4804ac3e3b1a7c06fe8769bbc428b05883af2c) | 47 | 132 |
+
+For all eleven new boards, native KiCad 10.0.8 produced **117 named
+nets and 323 pin nodes**. Ten simpler educational designs have exact
+named-net/ref-pin imported graph parity, but each still has unsupported
+source constructs and some PCB mismatches; therefore **none passes
+full G0 import**. The ESP32-S3 board independently reveals a concrete
+gap: **47 native nets versus 44 imported nets**, alongside other
+unsupported constructs. The educational repository reports its own
+hardware testing, which is not independent ZapTrace physical-review
+authority.
+
+**Recorded G0 baseline (2026-11-12):**
+benchmarks/human-reference-corpus/native-parity-baseline-20261112.json.
+With the 20-reference manifest and KiCad CLI 10.0.8, the genuine
+read-only native-source comparison yields **0 verified / 16 blocked /
+4 not run**. This is a historic, machine-readable diagnostic, **not**
+a passing benchmark or reviewer approval. Reproduce after making
+importer changes with:
+
+    python scripts/ci_real_kicad_reference_parity.py --output /tmp/native-parity.json
+
+The four legacy reference-only OLIMEX projects remain NOT RUN until
+their exact original bytes can be made available; no score is inferred
+from provenance alone. Strict G0 hardware, fabrication, cost and
+autonomous AI task gates remain unresolved.
 
 For every row, the manifest records the selected upstream paths, file formats, byte sizes, individual SHA-256 values, total bytes, and a path-sorted artifact-set SHA-256. The upstream repository remains authoritative for reference-only source content.
 
@@ -74,7 +124,7 @@ of `{slash}`. When a net has no labels, it uses embedded library pin names
 or pad numbers to form native-style `Net-(ref-pin)` names **only when all
 connected pins have complete, unambiguous pin metadata**. Otherwise the
 existing deterministic fallback remains; it is not claimed to be an exact
-KiCad net name. On the five current source-pinned KiCad 10 references,
+KiCad net name. On the five originally pinned KiCad 10 references,
 105 connected pin-group names now match independent native XML. This does not
 verify no-connect handling, complete project import, PCB equivalence, or
 hardware sign-off; `--strict` remains a separate fail-closed gate.
