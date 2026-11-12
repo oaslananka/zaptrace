@@ -815,6 +815,54 @@ External J2 load characteristics, exact BOM SKU and
 qualified physical/human review remain unknown;
 G0 task 004 remains **BLOCKED**.
 
+#### G0 task 004 — compare a user-specified ideal resistive J2 load
+
+The historic NPN switch schematic names **J2 LOAD** but does **not**
+specify external current, startup behavior, impedance, inductance,
+duty cycle or temperature. Rather than invent these properties,
+the source-hashed [ngspice G0-004 reviewer](https://github.com/oaslananka/zaptrace/blob/main/scripts/g0_npn_dc_spice_probe.py)
+now accepts an *optional*, bounded **whole-number resistance of
+10–1,000,000 Ω** for a clearly labeled **ideal DC resistor only**.
+
+With KiCad CLI 10 and the ngspice shared library installed locally:
+
+~~~sh
+python scripts/g0_npn_dc_spice_probe.py   --j2-resistive-ohms 68   --output-json /tmp/npn-j2-hypothetical-68ohm.json
+~~~
+
+This input is a **user-entered hypothesis**, not an inferred or
+measured load from the board. The output keeps all **34 original**
+source-pinned DC cases intact and adds a separate
+user_supplied_j2_scenario containing six genuine
+ngspice solves: R1=390 Ω versus 820 Ω, each for assumed BF=50
+and BF=150 with switch CLOSED, plus 820 Ω switch OPEN states.
+It prints the original and proposed collector voltage and
+candidate transistor dissipation for each assumed device model.
+
+For the **example** 68 Ω resistor, the BF=50 model showed about
+**0.160 V versus 0.183 V** collector voltage (390 Ω versus
+820 Ω); this is **not a real PN2222A hardware rating**.
+Out-of-range, negative, fractional and nonnumeric resistance
+inputs fail closed without producing a misleading result file.
+No load type other than an ideal DC resistor is accepted,
+and there is no automatic assertion of safe operation.
+
+A supplier model is still not imported: onsemi's
+[Analog BJT Product Recommendation Tool+](https://www.onsemi.com/design/tools-software/product-recommendation-tools-plus/analog-bjt/products)
+advertises **SPICE Live Model** for some PN2222A variants;
+onsemi's [AND90315 simulation-model instructions](https://www.onsemi.com/download/application-notes/pdf/and90315-d.pdf)
+describe downloadable model bundles on *supported product pages*.
+This is **not evidence that a validated PN2222ABU model file
+was retrieved or that Q1 uses that SKU**. Third-party generic
+2N2222 parameter sets are not manufacturer-qualified models.
+
+The report retains J2 source status UNSPECIFIED,
+supplier model NOT_RETRIEVED_OR_VERIFIED,
+qualified_load_status NOT_RUN and G0-004 **BLOCKED**.
+Real inductive loads, switching transients, saturation corners,
+thermal margins, physical measurements and qualified human
+signoff require separate, validated evidence.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses

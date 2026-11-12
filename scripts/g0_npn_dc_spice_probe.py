@@ -76,6 +76,13 @@ def shared_ngspice_available() -> bool:
     return ctypes.util.find_library("ngspice") is not None
 
 
+def validate_custom_j2_resistance(value: object) -> int:
+    """Accept a bounded ideal DC resistor, never a fabricated load profile."""
+    if type(value) is not int or not 10 <= value <= 1_000_000:
+        raise ValueError("J2 resistive load must be a whole number from 10 to 1000000 ohms")
+    return value
+
+
 def verify_supplier_pdf(blob: bytes | None) -> dict[str, Any]:
     """Only hash bounded, explicit binary input; never read an untrusted path."""
     if blob is None:
@@ -270,8 +277,10 @@ def verify_native_source(source: Path) -> dict[str, Any]:
 
 
 def circuit_cards(*, r1: int, beta_f: int, external_load: int | None, switch_state: str = "CLOSED") -> list[str]:
-    if r1 not in RESISTORS_OHMS or beta_f not in ASSUMED_BETA_F or external_load not in LOADS_OHMS:
-        raise ValueError("Unregistered SPICE case; refuse an unrecorded parameter scenario")
+    if r1 not in RESISTORS_OHMS or beta_f not in ASSUMED_BETA_F:
+        raise ValueError("Only source-bound R1 values and bounded assumed gains are supported")
+    if external_load is not None:
+        validate_custom_j2_resistance(external_load)
     if switch_state not in {"CLOSED", "OPEN"}:
         raise ValueError("Only bounded closed/open DC pushbutton states are supported")
     contact_ohms = 0.05 if switch_state == "CLOSED" else 1_000_000_000
@@ -457,7 +466,10 @@ class SharedNgspice:
             self.library.ngSpice_Command(b"destroy all")
 
 
-def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None = None) -> dict[str, Any]:
+def simulate_source_bound_npn(
+    source: Path, *, supplier_pdf_bytes: bytes | None = None, j2_resistive_ohms: int | None = None
+) -> dict[str, Any]:
+    custom_load = None if j2_resistive_ohms is None else validate_custom_j2_resistance(j2_resistive_ohms)
     pinned = verify_native_source(source)
     document_check = verify_supplier_pdf(supplier_pdf_bytes)
     simulator = SharedNgspice()
@@ -471,6 +483,12 @@ def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None 
     # The normally-open pushbutton's DC rest state matters to the end user;
     # model OPEN with a 1 gigaohm contact (not a transient bounce model).
     scenarios += [(820, beta, load, "OPEN") for beta in ASSUMED_BETA_F for load in (None, 220, 22)]
+    reference_count = len(scenarios)
+    if custom_load is not None:
+        scenarios += [
+            (resistance, beta, custom_load, "CLOSED") for beta in ASSUMED_BETA_F for resistance in RESISTORS_OHMS
+        ]
+        scenarios += [(820, beta, custom_load, "OPEN") for beta in ASSUMED_BETA_F]
     for resistance, beta, load, switch_state in scenarios:
         cards = circuit_cards(r1=resistance, beta_f=beta, external_load=load, switch_state=switch_state)
         node = simulator.operating_point(cards)
@@ -501,7 +519,8 @@ def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None 
                 "qualified_load_status": "NOT_RUN",
             }
         )
-    return {
+    reference_cases = cases[:reference_count]
+    result: dict[str, Any] = {
         "schema_version": "g0-npn-illustrative-ngspice-dc-v1",
         "source_reference_id": "nitu-npn-transistor-switch",
         "source_parent_task_id": "g0-004-npn-switch-base-drive-reduction",
@@ -552,8 +571,8 @@ def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None 
         "assumed_transistor_beta_f": list(ASSUMED_BETA_F),
         "simulated_load_ohms": list(LOADS_OHMS),
         "exploratory_collector_voltage_threshold_v": 0.3,
-        "cases": cases,
-        "datasheet_condition_review": datasheet_conditional_review(cases),
+        "cases": reference_cases,
+        "datasheet_condition_review": datasheet_conditional_review(reference_cases),
         "verified_real_load_limit_ma": None,
         "qualified_human_approval": "NOT_RUN",
         "physical_measurement": "NOT_RUN",
@@ -574,6 +593,26 @@ def simulate_source_bound_npn(source: Path, *, supplier_pdf_bytes: bytes | None 
             "does NOT make G0 #004 an accepted autonomous design.",
         ],
     }
+    if custom_load is not None:
+        result["user_supplied_j2_scenario"] = {
+            "j2_resistive_ohms": custom_load,
+            "load_type": "IDEAL_RESISTOR_DC_ONLY",
+            "input_status": "USER_ENTERED_RESISTIVE_VALUE_NOT_VERIFIED_FROM_SOURCE",
+            "source_j2_load_specified": False,
+            "actual_part_model_verified": False,
+            "verified_load_current_ma": None,
+            "qualified_load_status": "NOT_RUN",
+            "human_signoff": "NOT_RUN",
+            "manufacturing_approved": False,
+            "nonclaims": (
+                "User-entered resistance is an ideal DC resistor, NOT a sourced or "
+                "measured real J2 load, inductive or capacitive load, startup behavior "
+                "or verified physical electronics capability. BJT and LED models "
+                "are unqualified approximations."
+            ),
+            "cases": cases[reference_count:],
+        }
+    return result
 
 
 def main() -> int:
@@ -584,11 +623,20 @@ def main() -> int:
         action="store_true",
         help="Read at most 5 MB of explicit binary PDF standard input; never accept a filesystem path",
     )
+    parser.add_argument(
+        "--j2-resistive-ohms",
+        type=int,
+        help="Optional whole-number 10..1000000 ohm ideal DC J2 resistor, never hardware approval",
+    )
     parser.add_argument("--output-json", type=Path, required=True)
     args = parser.parse_args()
     try:
         supplier_bytes = sys.stdin.buffer.read(5_000_001) if args.supplier_pdf_stdin else None
-        result = simulate_source_bound_npn(args.source_dir, supplier_pdf_bytes=supplier_bytes)
+        result = simulate_source_bound_npn(
+            args.source_dir,
+            supplier_pdf_bytes=supplier_bytes,
+            j2_resistive_ohms=args.j2_resistive_ohms,
+        )
     except (ValueError, RuntimeError) as exc:
         parser.error(str(exc))
     output: Path = args.output_json
@@ -627,6 +675,28 @@ def main() -> int:
         f"Q1 original {proof['footprint']}: source pins 1=E 2=B 3=C, "
         f"PCB pads 1=GND, 2=BASE, 3=COLLECTOR; PDF identity {pdf_status}."
     )
+    if "user_supplied_j2_scenario" in result:
+        custom = result["user_supplied_j2_scenario"]
+        print(
+            f"USER-SUPPLIED hypothetical {custom['j2_resistive_ohms']} ohm J2 resistor, "
+            "not independently confirmed from the PCB or physical load."
+        )
+        for beta in ASSUMED_BETA_F:
+            original = next(
+                row
+                for row in custom["cases"]
+                if row["assumed_beta_f"] == beta and row["r1_ohms"] == 390 and row["switch_state"] == "CLOSED"
+            )
+            candidate = next(
+                row
+                for row in custom["cases"]
+                if row["assumed_beta_f"] == beta and row["r1_ohms"] == 820 and row["switch_state"] == "CLOSED"
+            )
+            print(
+                f"Assumed BF={beta}: original R1=390 VCE={original['v_collector_v']:.3f} V, "
+                f"candidate R1=820 VCE={candidate['v_collector_v']:.3f} V, "
+                f"candidate transistor DC power={candidate['transistor_dissipation_mw']:.1f} mW."
+            )
     print(
         "PN2222A orderable SKU, verified supplier SPICE model, J2 load, "
         "physical orientation and human approval NOT RUN; G0 BLOCKED."
