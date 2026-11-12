@@ -1,0 +1,123 @@
+{
+  "cases": [
+    {
+      "assumed_beta_f": 50,
+      "deck_sha256": "a3fcade9ce8f96eaaf770794f217eae9344795c718cc4d3532114a81db9798f3",
+      "diode_pulse_rating_verified": false,
+      "i_coil_after_one_ideal_rl_tau_ma": 19.08844,
+      "i_coil_before_off_ma": 71.17077,
+      "ideal_coil_energy_at_switch_off_mj": 0.050653,
+      "load_approved": false,
+      "r1_ohms": 390,
+      "source_model_status": "HYPOTHETICAL_UNQUALIFIED",
+      "v_collector_before_off_v": 0.160382,
+      "v_collector_off_window_peak_v": 5.817513
+    },
+    {
+      "assumed_beta_f": 50,
+      "deck_sha256": "3bd755dbbb8eafdcd568259d3761a60ebccb11ecd995cb62f2f0e31ebff2f1d0",
+      "diode_pulse_rating_verified": false,
+      "i_coil_after_one_ideal_rl_tau_ma": 18.96727,
+      "i_coil_before_off_ma": 70.83759,
+      "ideal_coil_energy_at_switch_off_mj": 0.05018,
+      "load_approved": false,
+      "r1_ohms": 820,
+      "source_model_status": "HYPOTHETICAL_UNQUALIFIED",
+      "v_collector_before_off_v": 0.183038,
+      "v_collector_off_window_peak_v": 5.817106
+    },
+    {
+      "assumed_beta_f": 150,
+      "deck_sha256": "f3b9c51983e2953ebd2e4c3090339a6ceb68f9986a1ec489bc71838b3b54014e",
+      "diode_pulse_rating_verified": false,
+      "i_coil_after_one_ideal_rl_tau_ma": 19.11018,
+      "i_coil_before_off_ma": 71.22683,
+      "ideal_coil_energy_at_switch_off_mj": 0.050733,
+      "load_approved": false,
+      "r1_ohms": 390,
+      "source_model_status": "HYPOTHETICAL_UNQUALIFIED",
+      "v_collector_before_off_v": 0.156569,
+      "v_collector_off_window_peak_v": 5.817586
+    },
+    {
+      "assumed_beta_f": 150,
+      "deck_sha256": "05819e92242575e8514e2db946b46bcce714a93ec2fb345b21e045c106e6eff8",
+      "diode_pulse_rating_verified": false,
+      "i_coil_after_one_ideal_rl_tau_ma": 19.0212,
+      "i_coil_before_off_ma": 70.97852,
+      "ideal_coil_energy_at_switch_off_mj": 0.05038,
+      "load_approved": false,
+      "r1_ohms": 820,
+      "source_model_status": "HYPOTHETICAL_UNQUALIFIED",
+      "v_collector_before_off_v": 0.173455,
+      "v_collector_off_window_peak_v": 5.817287
+    }
+  ],
+  "engine": "ngspice",
+  "engine_version": "42",
+  "flyback_diode_pulse_rating": "NOT_VERIFIED",
+  "flyback_diode_supplier_model": "ASSUMED_UNQUALIFIED",
+  "g0_verified": false,
+  "human_approval": "NOT_RUN",
+  "load": {
+    "inductance_mh": 20,
+    "resistance_ohms": 68,
+    "type": "IDEAL_SERIES_RL_ONLY"
+  },
+  "load_origin": "USER_ENTERED_UNVERIFIED",
+  "manufacturing_approved": false,
+  "nonclaims": "Four real ngspice transient solves on an explicitly HYPOTHETICAL series RL load; assumed device models, ideal controlled switch, no mechanical bounce, no real diode/part rating, no supplier validation, no measured J2 load, no temperature-dependent or avalanche qualification. Reported sample-window peak is not a guaranteed physical peak or compliance threshold.",
+  "original_source_sha256": {
+    "04_npn_transistor_switch.kicad_pcb": "f3aeb2c90582dd3973b1dda17afd1f34055f52e29c45faa8fdc1947d16b8e0fe",
+    "04_npn_transistor_switch.kicad_pro": "1105cf81251cf9cf8f08e58067cbfb88349eca6406f2c03840491ce7c3072230",
+    "04_npn_transistor_switch.kicad_sch": "ec751400fac33ec7303cac808b90320393f9260539ece9c2ce64097e9e96de7e"
+  },
+  "physical_j2_load_measured": false,
+  "real_load_approved": false,
+  "schema_version": "g0-npn-hypothetical-coil-turnoff-v1",
+  "source_d2_flyback_polarity": {
+    "anode": "D2.2 on Q1.3/J2.2 collector",
+    "cathode": "D2.1 on J1.1/J2.1 supply",
+    "manufacturer_diode_model_verified": false,
+    "manufacturer_diode_pulse_rating_checked": false,
+    "physical_diode_orientation_verified": false,
+    "source_symbol": "Diode:1N4148",
+    "status": "ORIGINAL_LOGICAL_DIODE_DIRECTION_VERIFIED"
+  },
+  "source_kicad_version": "10.0.8",
+  "source_q1_pinout": {
+    "exact_supplier_sku_selected": false,
+    "footprint": "Package_TO_SOT_THT:TO-92_Inline",
+    "manufacturer_spice_model_verified": false,
+    "manufacturing_or_human_approval": "NOT_RUN",
+    "physical_orientation_verified": false,
+    "published_PN2222A_TO92_EBC_mapping": {
+      "1": "E",
+      "2": "B",
+      "3": "C"
+    },
+    "reference": "Q1",
+    "source_j2_external_load_identified": false,
+    "source_pcb_pad_net_names": {
+      "1": "GND",
+      "2": "Net-(Q1-B)",
+      "3": "Net-(D1-K)"
+    },
+    "source_symbol_pin_number_to_function": {
+      "1": "E",
+      "2": "B",
+      "3": "C"
+    },
+    "source_value": "PN2222A",
+    "status": "SOURCE_NUMBERED_PAD_AND_SYMBOL_PINS_CONSISTENT"
+  },
+  "timing": {
+    "ideal_rl_tau_ms": 0.294118,
+    "sample_after_one_ideal_tau_s": 0.005294117647058823,
+    "sample_before_switch_off_s": 0.00492,
+    "simulation_stop_s": 0.012,
+    "switch_off_s": 0.005,
+    "switch_on_s": 0.001
+  },
+  "transistor_supplier_model": "ASSUMED_UNQUALIFIED"
+}
