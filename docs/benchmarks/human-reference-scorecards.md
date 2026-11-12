@@ -543,6 +543,40 @@ review remain \`not_run\`. G0 is still **0 VERIFIED / 16 BLOCKED /
 engineering tasks**. Do not infer fabrication approval from a clean
 native rule check.
 
+#### G0 task 002 — L7805 indicator LED current ECO with inherited KiCad issues
+
+The second [versioned pilot record](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/linear-regulator-led-current-minus-thirty-percent.json)
+uses the original MIT-licensed Nitu L7805 regulator schematic and PCB.
+It is an **AI-assisted, agent-selected pilot**, not an independently
+commissioned or competitively scored electronics design task.
+
+Native KiCad's XML netlist confirms U1 output pin 3 on +5V, R1 pin 1
+on +5V, R1 pin 2 and the red D2 anode pin 2 on /LEDA, and D2 cathode
+pin 1 on GND with U1 pin 2. The suggested change is **R1 330 Ω to 470 Ω**.
+At fixed 5.0 V output and unchanged (assumed, unqualified) 1.8–2.2 V
+red LED forward drop, the Ohm's-law estimate for this *indicator branch*
+is **8.48–9.70 mA before to 5.96–6.81 mA after**, about **29.79%**
+lower at fixed Vf. The actual LED Vf varies with current, and
+brightness/output regulation and real part qualification were not measured.
+
+On the real KiCad 10.0.8 source, the one-command preview produced
+matching separate schematic and PCB candidate Value changes while
+leaving all original bytes and all five native pin/net groups intact.
+Native KiCad DRC stayed **0 to 0**, ERC **0 to 0**, but **10 preexisting
+schematic–PCB parity issues remain 10 to 10**, including 2 net_conflict,
+4 missing_footprint and 4 extra_footprint findings. These originate
+in the reference board and are NOT introduced by the proposed ECO.
+The candidate is **NOT electrically clean**. The CLI now shows the
+remaining issue counts and types, rather than suggesting that zero
+new errors equals clean. The JSON evidence includes
+native_candidate_clean=false and baseline/candidate parity-type totals.
+
+No current/voltage/LED brightness measurement, SPICE, verified LED
+component/datasheet, BOM qualification, tolerance analysis, independent
+human review or fabrication acceptance was performed. The task remains
+human-review-required-existing-native-findings, and neither task
+001 nor 002 counts as a completed independently scored G0 task.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses
