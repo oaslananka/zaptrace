@@ -11,6 +11,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/review_studio_local_server.py"
 sys.path.insert(0, str(SCRIPT.parent))
 spec = importlib.util.spec_from_file_location("review_local_test", SCRIPT)
@@ -533,3 +535,27 @@ def test_generated_local_eco_html_is_sandboxed_not_privileged_same_origin(tmp_pa
                 assert "sandbox allow-scripts allow-popups" in policy
                 assert "allow-same-origin" not in policy
                 assert "connect-src 'none'" in policy
+
+
+def test_http_server_rejects_linked_workspace_root(tmp_path: Path) -> None:
+    target = tmp_path / "outside"
+    target.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(target, target_is_directory=True)
+    with pytest.raises(ValueError, match="Unsafe Review Studio workspace"):
+        server_code.ReviewLocalServer(("127.0.0.1", 0), alias)
+    assert not (target / "index.html").exists()
+
+
+def test_http_get_does_not_overwrite_unrelated_workspace_homepage(tmp_path: Path) -> None:
+    home = tmp_path / "review"
+    home.mkdir()
+    user_file = tmp_path / "private-homepage.html"
+    user_file.write_text("<!doctype html><title>Personal page</title>")
+    (home / "index.html").symlink_to(user_file)
+    with running(home) as srv:
+        url = f"http://127.0.0.1:{srv.server_port}"
+        status, body = request(url, "/")
+        assert status == 500
+        assert b"Failed to render verified project library" in body
+    assert user_file.read_text() == "<!doctype html><title>Personal page</title>"
