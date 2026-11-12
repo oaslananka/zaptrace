@@ -30,14 +30,27 @@ def sha(file: Path) -> str:
     return hashlib.sha256(file.read_bytes()).hexdigest()
 
 
+def _unaliased_path(path: Path, *, role: str) -> Path:
+    """Keep native source and newly produced evidence inside caller-selected paths."""
+    if ".." in path.parts:
+        raise ValueError(f"Unsafe {role} path: parent traversal is unsupported")
+    absolute = path.absolute()
+    if any(part.is_symlink() for part in (absolute, *absolute.parents)):
+        raise ValueError(f"Unsafe {role} path: symbolic links are unsupported")
+    return absolute
+
+
 def create_baseline(candidate: Path, dest: Path) -> dict:
-    candidate = candidate.absolute()
-    dest = dest.absolute()
-    if candidate.is_symlink() or not candidate.is_dir() or dest.exists() or dest.is_symlink():
+    candidate = _unaliased_path(candidate, role="candidate")
+    dest = _unaliased_path(dest, role="output")
+    if not candidate.is_dir() or dest.exists():
         raise ValueError("Source must be real and output directory new")
-    if not dest.parent.is_dir() or dest.parent.is_symlink():
+    if not dest.parent.is_dir():
         raise ValueError("Output parent must exist and not be a symlink")
-    manifest = json.loads((candidate / "manifest.json").read_text())
+    manifest_file = candidate / "manifest.json"
+    if manifest_file.is_symlink() or not manifest_file.is_file():
+        raise ValueError("Unsafe candidate manifest: a real local file is required")
+    manifest = json.loads(manifest_file.read_text())
     if manifest.get("fabrication_approved") is not False:
         raise ValueError("Untrusted source fabrication authority")
     hashes = manifest["files_sha256"]

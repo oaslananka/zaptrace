@@ -219,3 +219,48 @@ def test_placement_rejects_forged_gct_geometry_even_with_new_manifest_sha(tmp_pa
     with pytest.raises(ValueError, match="USB-C geometry does not match"):
         create_baseline(candidate, tmp_path / "refused")
     assert not (tmp_path / "refused").exists()
+
+
+@pytest.mark.parametrize("side", ["candidate_ancestor", "output_ancestor", "output_parent_reference"])
+def test_baseline_refuses_indirect_symlink_paths(tmp_path: Path, side: str) -> None:
+    """Never read a different source or write to an aliased output location."""
+    safe = tmp_path / "safe"
+    safe.mkdir()
+    candidate = safe / "candidate"
+    candidate.mkdir()
+    protected = tmp_path / "outside"
+    protected.mkdir()
+    (protected / "user-data.txt").write_text("do not touch")
+    output = safe / "result"
+    if side == "candidate_ancestor":
+        alias = tmp_path / "candidate-alias"
+        alias.symlink_to(safe, target_is_directory=True)
+        candidate = alias / "candidate"
+        expected = "Unsafe candidate path"
+    elif side == "output_ancestor":
+        alias = tmp_path / "output-alias"
+        alias.symlink_to(protected, target_is_directory=True)
+        output = alias / "result"
+        expected = "Unsafe output path"
+    else:
+        output = safe / "temp" / ".." / "result"
+        (safe / "temp").mkdir()
+        expected = "Unsafe output path"
+
+    with pytest.raises(ValueError, match=expected):
+        create_baseline(candidate, output)
+    assert (protected / "user-data.txt").read_text() == "do not touch"
+    assert not (safe / "result").exists()
+
+
+def test_baseline_rejects_indirect_manifest_file(tmp_path: Path) -> None:
+    """Do not follow a manifest symlink before checking source integrity."""
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    external_manifest = tmp_path / "other-users-manifest.json"
+    external_manifest.write_text('{"fabrication_approved":false}')
+    (candidate / "manifest.json").symlink_to(external_manifest)
+    with pytest.raises(ValueError, match="Unsafe candidate manifest"):
+        create_baseline(candidate, tmp_path / "result")
+    assert external_manifest.read_text() == '{"fabrication_approved":false}'
+    assert not (tmp_path / "result").exists()
