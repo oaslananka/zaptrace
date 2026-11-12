@@ -85,6 +85,39 @@ The original manifest SHA and historic baseline report are unchanged.
 The educational repository reports its own hardware testing, which
 is not independent ZapTrace physical-review authority.
 
+### Project-level pin and net identity consistency
+
+KiCad `.kicad_sch` pin evidence alone does not establish a usable
+imported `.kicad_pro` project model. In particular, per-sheet component
+and net IDs are namespaced during hierarchical flattening. Before the
+project importer fix, original source pins such as `R4.pins["2"].net`
+still referenced the **unprefixed sheet-local** net ID, while the
+project's `design.nets` dictionary used `/top/...` IDs. The
+`Net.id` stored in each object could also disagree with its
+dictionary key. AI consumers could not reliably follow a pin to its
+project net, even though named native connectivity was correct.
+
+The project importer now applies **one shared net-ID mapping** to the
+component pins, `design.nets` dictionary keys and stored `Net.id`
+properties. Per-sheet net keys keep their sheet path, while existing
+name-based global-net merges stay shared across sheets. Any source pin
+that references a missing net is explicitly **reported and set to
+unbound**, never assigned a fabricated connection. This changes
+canonical references, **not** the original KiCad source bytes,
+electrical topology, source pin names or net names.
+
+Read-only verification of all 16 locally present licensed KiCad 10
+project sources found **711 referenced pin-to-net links and 231
+project-level net objects, all with valid IDs**. Original ESP32-S3
+`R4.pins["2"]` and `D1.pins["2"]` now both reference the same
+real `/top/...` project net. A separate two-sheet fixture checks
+distinct local nets; a global-net fixture checks existing shared
+namespace behavior. The independent 20-reference native parity
+diagnostic remains **0 VERIFIED / 16 BLOCKED / 4 NOT RUN**:
+this is referential integrity for partial source-backed canonical
+data, not complete KiCad hierarchy, PCB pad mapping, ERC/DRC,
+or manufacturing acceptance.
+
 ### Source-proven canonical KiCad pin inventory (partial semantic import)
 
 Users and AI tools inspecting an original KiCad schematic now receive
