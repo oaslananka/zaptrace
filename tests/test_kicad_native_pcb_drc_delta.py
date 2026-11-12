@@ -265,3 +265,198 @@ def test_native_drc_scratch_path_is_fixed_even_for_untrusted_source_filename(
     )
     assert result.no_drc_regression
     assert len(seen) == 2
+
+
+def _changed_r4_schematic(tmp_path: Path) -> Path:
+    """Discardable user proposed root schematic; original stays immutable."""
+    original = _original()[0].with_suffix(".kicad_sch")
+    text = original.read_text()
+    start = text.index('(property "Reference" "R4"')
+    original_value = '(property "Value" "5.1K"'
+    value_index = text.index(original_value, start)
+    candidate = tmp_path / "candidate-schematic.kicad_sch"
+    candidate.write_text(text[:value_index] + '(property "Value" "900K"' + text[value_index + len(original_value) :])
+    return candidate
+
+
+def test_native_electrical_review_preserves_preexisting_original_parity_and_erc(
+    tmp_path: Path, native_kicad_10
+) -> None:
+    board, project = _original()
+    schematic = board.with_suffix(".kicad_sch")
+    original_sha = _hash(schematic)
+    review = review_native_pcb_drc_delta(
+        board,
+        _candidate(tmp_path),
+        expected_original_sha256=_hash(board),
+        expected_candidate_sha256=_hash(board),
+        expected_project_sha256=_hash(project),
+        include_electrical_checks=True,
+        expected_original_schematic_sha256=original_sha,
+    )
+    report = review.to_dict()
+    evidence = report["electrical_review"]
+    assert evidence["baseline_schematic_parity_issues"] == 2
+    assert evidence["candidate_schematic_parity_issues"] == 2
+    assert evidence["new_schematic_parity_issues"] == 0
+    assert evidence["baseline_erc_violations"] == 76
+    assert evidence["candidate_erc_violations"] == 76
+    assert evidence["new_erc_violations"] == 0
+    assert evidence["no_electrical_regression"]
+    assert evidence["baseline_electrical_clean"] is False
+    assert report["no_review_regression"] is True
+    assert report["manufacturing_approved"] is False
+    assert _hash(schematic) == original_sha
+
+
+def test_native_new_candidate_schematic_value_mismatch_is_an_explicit_review_failure(
+    tmp_path: Path, native_kicad_10
+) -> None:
+    board, project = _original()
+    original_schematic = board.with_suffix(".kicad_sch")
+    candidate_schematic = _changed_r4_schematic(tmp_path)
+    candidate_sha = _hash(candidate_schematic)
+    result = review_native_pcb_drc_delta(
+        board,
+        _candidate(tmp_path),
+        expected_original_sha256=_hash(board),
+        expected_candidate_sha256=_hash(board),
+        expected_project_sha256=_hash(project),
+        include_electrical_checks=True,
+        expected_original_schematic_sha256=_hash(original_schematic),
+        candidate_schematic=candidate_schematic,
+        expected_candidate_schematic_sha256=candidate_sha,
+    )
+    report = result.to_dict()
+    evidence = report["electrical_review"]
+    assert result.no_drc_regression
+    assert evidence["baseline_schematic_parity_issues"] == 2
+    assert evidence["candidate_schematic_parity_issues"] == 3
+    assert evidence["new_schematic_parity_issues"] == 1
+    assert evidence["new_schematic_parity_types"]["footprint_symbol_mismatch"] == 1
+    assert evidence["new_erc_violations"] >= 0
+    assert report["no_review_regression"] is False
+    assert report["manufacturing_approved"] is False
+    assert _hash(candidate_schematic) == candidate_sha
+
+
+def test_electrical_review_cli_json_exits_two_for_source_schematic_parity_regression(
+    tmp_path: Path, native_kicad_10
+) -> None:
+    board, _ = _original()
+    candidate_board = _candidate(tmp_path)
+    candidate_schematic = _changed_r4_schematic(tmp_path)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "kicad",
+            "pcb-drc-delta",
+            str(board),
+            str(candidate_board),
+            "--electrical-checks",
+            "--candidate-schematic",
+            str(candidate_schematic),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 2, result.output
+    response = json.loads(result.output)
+    assert response["no_drc_regression"] is True
+    assert response["no_review_regression"] is False
+    assert response["electrical_review"]["new_schematic_parity_issues"] == 1
+
+
+def test_electrical_review_rejects_unpinned_candidate_schematic_without_native_run(
+    tmp_path: Path,
+) -> None:
+    board, project = _original()
+    candidate = _changed_r4_schematic(tmp_path)
+    original_schematic = board.with_suffix(".kicad_sch")
+    with pytest.raises(ValueError, match="SHA-256"):
+        review_native_pcb_drc_delta(
+            board,
+            _candidate(tmp_path),
+            expected_original_sha256=_hash(board),
+            expected_candidate_sha256=_hash(board),
+            expected_project_sha256=_hash(project),
+            include_electrical_checks=True,
+            expected_original_schematic_sha256=_hash(original_schematic),
+            candidate_schematic=candidate,
+            expected_candidate_schematic_sha256="0" * 64,
+        )
+
+
+def test_multi_sheet_electrical_review_fails_closed_instead_of_claiming_partial_erc(
+    tmp_path: Path,
+) -> None:
+    board, project = _original()
+    original_sch = board.with_suffix(".kicad_sch")
+    candidate = tmp_path / "proposed.kicad_sch"
+    source = original_sch.read_text()
+    assert source.startswith("(kicad_sch")
+    sheet = '\n\t(sheet (property "Sheet name" "child") (property "Sheet file" "child.kicad_sch"))\n'
+    candidate.write_text(source[: source.rfind(")")] + sheet + ")")
+    with pytest.raises(ValueError, match="Multi-sheet electrical review is not yet supported"):
+        review_native_pcb_drc_delta(
+            board,
+            _candidate(tmp_path),
+            expected_original_sha256=_hash(board),
+            expected_candidate_sha256=_hash(board),
+            expected_project_sha256=_hash(project),
+            include_electrical_checks=True,
+            expected_original_schematic_sha256=_hash(original_sch),
+            candidate_schematic=candidate,
+            expected_candidate_schematic_sha256=_hash(candidate),
+        )
+
+
+def test_real_original_schematic_new_unconnected_pin_is_rejected_by_native_erc(tmp_path: Path, native_kicad_10) -> None:
+    board, project = _original()
+    original_sch = board.with_suffix(".kicad_sch")
+    before_hash = _hash(original_sch)
+    source = original_sch.read_text()
+    marker = '\t(no_connect\n\t\t(at 44.45 151.13)\n\t\t(uuid "89323bf6-e107-4ef5-b287-4b29c50059e6")\n\t)\n'
+    assert source.count(marker) == 1
+    changed = tmp_path / "user-proposed.kicad_sch"
+    changed.write_text(source.replace(marker, "", 1))
+    changed_sha = _hash(changed)
+    result = review_native_pcb_drc_delta(
+        board,
+        _candidate(tmp_path),
+        expected_original_sha256=_hash(board),
+        expected_candidate_sha256=_hash(board),
+        expected_project_sha256=_hash(project),
+        include_electrical_checks=True,
+        expected_original_schematic_sha256=before_hash,
+        candidate_schematic=changed,
+        expected_candidate_schematic_sha256=changed_sha,
+    )
+    assert result.no_drc_regression
+    assert not result.no_review_regression
+    evidence = result.to_dict()["electrical_review"]
+    assert evidence["baseline_erc_violations"] == 76
+    assert evidence["candidate_erc_violations"] == 77
+    assert evidence["new_erc_violations"] == 1
+    assert evidence["new_erc_violation_types"]["pin_not_connected"] == 1
+    assert result.manufacturing_approved is False
+    assert _hash(original_sch) == before_hash
+    assert _hash(changed) == changed_sha
+
+
+def test_cli_candidate_schematic_requires_electrical_checks(tmp_path: Path) -> None:
+    board, _ = _original()
+    candidate_board = _candidate(tmp_path)
+    candidate_schematic = _changed_r4_schematic(tmp_path)
+    response = CliRunner().invoke(
+        cli,
+        [
+            "kicad",
+            "pcb-drc-delta",
+            str(board),
+            str(candidate_board),
+            "--candidate-schematic",
+            str(candidate_schematic),
+        ],
+    )
+    assert response.exit_code != 0
+    assert "requires --electrical-checks" in response.output
