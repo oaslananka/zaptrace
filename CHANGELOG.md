@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add a source-UUID-guarded KiCad PCB parity-repair preview for explicitly mapped testpoint references and net aliases. Validate improvements with independent native ERC/DRC/parity and preserve original sources; keep physical silkscreen and human review unapproved. Record the licensed L7805 10-to-0 native parity pilot, not an independently scored G0 success.
+
 - Add a byte-guarded, one-command KiCad resistor/capacitor ECO preview that synchronizes schematic and PCB Value fields and checks native KiCad ERC, DRC and parity before producing separate human-review-only drafts; record an AI-assisted NE555 timing pilot with clear unverified outcomes.
 
 - Show source-bound native DRC findings, ERC and scoped pin/net evidence gaps in offline Review Studio alternative comparisons; reject incompatible original DRC baselines without automatically ranking or approving a board.
