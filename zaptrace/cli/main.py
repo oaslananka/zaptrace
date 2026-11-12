@@ -33,6 +33,7 @@ from zaptrace.agent._tool_impls import (
     tool_route_nets,
     tool_synthesize_design,
 )
+from zaptrace.cli.netclass_preview import netclass_preview
 from zaptrace.cli.output import (
     console,
     print_json,
@@ -345,6 +346,9 @@ def svg(name: str, output: str | None) -> None:
 @cli.group()
 def kicad() -> None:
     """Export designs to KiCad format and run KiCad verification via kicad-cli."""
+
+
+kicad.add_command(netclass_preview)
 
 
 @kicad.command()
