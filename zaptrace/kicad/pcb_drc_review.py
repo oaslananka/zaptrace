@@ -131,9 +131,16 @@ def _pinned_bytes(path: Path, expected_sha: str, description: str) -> bytes:
 def _run_native_drc(oracle: KiCadOracle, directory: Path, board: bytes, project: bytes) -> dict[str, Any]:
     """Only fixed filenames inside our new temporary directory are writable."""
     directory.mkdir()
+    # The filesystem paths are constants inside our exclusive private
+    # TemporaryDirectory. Untrusted bytes are only written through an opened
+    # file handle, never interpreted as path components.
     board_file = directory / "review.kicad_pcb"
-    board_file.write_bytes(board)
-    (directory / "review.kicad_pro").write_bytes(project)
+    for path, payload in (
+        (board_file, board),
+        (directory / "review.kicad_pro", project),
+    ):
+        with path.open("xb") as destination:
+            destination.write(payload)
     report_file = directory / "native-drc.json"
     result = oracle.run_drc(
         board_file,
