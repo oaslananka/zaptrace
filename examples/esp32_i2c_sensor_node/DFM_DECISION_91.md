@@ -10,6 +10,33 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — default source-bound partial routing, not DFM acceptance
+
+The normal user CLI now selects the pad-aware KiCad geometry router
+instead of first generating graph-only routes and then discarding them
+wholesale. Each individually connected net must satisfy exact pad
+contacts, one physical copper island and no new whole-design local DRC
+findings relative to unchanged source; unrouted-net errors remain visible.
+The generic trace-to-trace DRC distance calculation was corrected so
+interior cross-net track intersections are zero-distance shorts rather
+than being missed by independent parameter clamping.
+
+The exact current PR source on KiCad CLI 10.0.8 was independently checked:
+**3 complete source-bound partial nets**, **33 real copper track segments**,
+**37 to 32 unconnected native PCB items**, **16 to 16 native DRC violations**
+(12 drill-out-of-range and four hole clearances), **0 ERC violations** and
+zero schematic parity changes. Power, GND and SCL remain physically
+unrouted; their DRC/continuity failures are not waived or counted as
+completed. No new drill, copper clearance or source net class exception.
+The optional 37-to-0 review-only manually connected project remains a
+separate artifact and is **not** substituted for the default router.
+
+Manufacturing, RF, thermal, USB-C, solder-stencil, via-hole tolerance,
+electrical bench measurements and qualified fabricator/human acceptance
+remain **BLOCKED**. The 16 existing mechanical DRC violations were not
+reclassified, waived, ignored or reduced by changing vendor geometry.
+No hardware order, support request or supplier contact is authorized.
+
 ## New independent routing evidence — 2026-11-02
 
 System KiCad **10.0.8** reproduced the existing 25-link / 61-segment

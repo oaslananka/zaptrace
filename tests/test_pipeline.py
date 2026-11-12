@@ -158,7 +158,7 @@ def test_route_stage_falls_back_when_grid_router_routes_nothing() -> None:
     assert design.routing.traces  # fallback router produced traces
 
 
-def test_physical_demo_rejects_graph_routes_without_real_pad_continuity(tmp_path: Path) -> None:
+def test_physical_demo_keeps_source_bound_safe_partial_copper(tmp_path: Path) -> None:
     from zaptrace.core.parser import parse_file
 
     demo = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
@@ -168,22 +168,20 @@ def test_physical_demo_rejects_graph_routes_without_real_pad_continuity(tmp_path
     pilot.run_stage(ctx, PipelineStage.PLACE)
     pilot.run_stage(ctx, PipelineStage.ROUTE)
     assert ctx.routing is not None
-    assert ctx.routing.routed_nets == 0
+    assert ctx.routing.routed_nets == 3
     assert ctx.routing.total_nets > 0
-    # Both USB-C CC paths and the source GND net (whose pour is disabled)
-    # must remain visibly unresolved instead of unsafe fallback copper.
+    # Both CC resistors and the I2C SDA pad network have native-verifiable
+    # partial copper. Keep POWER/GND and the acute-angle SCL net blocked.
     assert set(ctx.routing.unrouted_nets) == {
         "VCC_5V",
         "VCC_3V3",
         "GND",
-        "I2C_SDA",
         "I2C_SCL",
-        "USB_CC1",
-        "USB_CC2",
     }
-    assert len(ctx.routing.unrouted_nets) == ctx.routing.total_nets == 7
+    assert len(ctx.routing.unrouted_nets) == 4
+    assert ctx.routing.total_nets == 7
     assert design.routing is not None
-    assert not design.routing.traces
+    assert {trace.net_id for trace in design.routing.traces} == {"USB_CC1", "USB_CC2", "I2C_SDA"}
     assert not design.routing.vias
     assert ctx.positions == design.placement
     # Reject the legacy source ground flood pending genuine RF keepout review.
@@ -192,7 +190,7 @@ def test_physical_demo_rejects_graph_routes_without_real_pad_continuity(tmp_path
     assert ctx.kicad_files is not None
     pcb = ctx.kicad_files["pcb"].read_text(encoding="utf-8")
     assert "(footprint " in pcb
-    assert "  (segment" not in pcb
+    assert "  (segment" in pcb
 
 
 def test_pipeline_kicad_export_contains_routed_segments(tmp_path: Path) -> None:
@@ -205,3 +203,93 @@ def test_pipeline_kicad_export_contains_routed_segments(tmp_path: Path) -> None:
     pcb = ctx.kicad_files["pcb"]
     assert pcb.exists()
     assert "(segment" in pcb.read_text(encoding="utf-8")
+
+
+def test_partial_copper_native_kicad_does_not_increase_physical_drc(tmp_path: Path) -> None:
+    """Independently check routed copper on exact generated KiCad 10 geometry.
+
+    Native manufacture violations and open copper are reported, not hidden:
+    this is a measured partial improvement, not a whole-board signoff.
+    """
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+
+    import pytest
+
+    from zaptrace.core.models import RouteResult
+    from zaptrace.core.parser import parse_file
+    from zaptrace.export.kicad import export_kicad
+
+    if shutil.which("kicad-cli") is None:
+        pytest.skip("Real KiCad 10 CLI required for physical route acceptance")
+    design = parse_file(Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml")
+    ctx = PipelineContext(design=design, output_dir=tmp_path)
+    pilot = Autopilot(output_dir=tmp_path)
+    pilot.run_stage(ctx, PipelineStage.PLACE)
+    assert ctx.positions is not None
+    original = design.model_copy(deep=True)
+    original.placement = dict(ctx.positions)
+    original.routing = RouteResult(net_count=7)
+    original_files = export_kicad(original, tmp_path / "original")
+
+    pilot.run_stage(ctx, PipelineStage.ROUTE)
+    assert ctx.routing is not None
+    assert ctx.routing.routed_nets == 3
+    routed_files = export_kicad(design, tmp_path / "partially-routed")
+
+    reports = []
+    for label, files in (("original", original_files), ("partially-routed", routed_files)):
+        pcb_report = tmp_path / f"{label}-drc.json"
+        sch_report = tmp_path / f"{label}-erc.json"
+        pcb = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--schematic-parity",
+                "--format",
+                "json",
+                "--output",
+                str(pcb_report),
+                str(files["pcb"]),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        sch = subprocess.run(
+            [
+                "kicad-cli",
+                "sch",
+                "erc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(sch_report),
+                str(files["schematic"]),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        assert pcb.returncode == 5, pcb.stderr
+        assert sch.returncode == 0, sch.stderr
+        native = json.loads(pcb_report.read_text(encoding="utf-8"))
+        erc = json.loads(sch_report.read_text(encoding="utf-8"))
+        reports.append(native)
+        assert sum(len(sheet.get("violations", [])) for sheet in erc.get("sheets", [])) == 0
+    before, after = reports
+    assert Counter(v["type"] for v in before["violations"]) == Counter({"drill_out_of_range": 12, "hole_clearance": 4})
+    assert Counter(v["type"] for v in after["violations"]) == Counter(v["type"] for v in before["violations"])
+    assert len(before["unconnected_items"]) == 37
+    assert len(after["unconnected_items"]) == 32
+    assert design.routing is not None
+    assert {x.net_id for x in design.routing.traces} == {"USB_CC1", "USB_CC2", "I2C_SDA"}

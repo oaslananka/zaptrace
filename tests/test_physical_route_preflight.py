@@ -257,3 +257,76 @@ def test_actual_usb_c_demo_graph_routing_is_rejected_before_export() -> None:
     assert candidate.routed_net_count > 0
     assert candidate.traces
     assert not verified_route_candidate_safe(design, candidate, design.placement)
+
+
+def test_partial_copper_retains_complete_source_owned_pads_only() -> None:
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    design, positions = _contact_design()
+    candidate = RouteResult(
+        traces=[TraceSegment(layer="F.Cu", start=(10, 10), end=(20, 10), net_id="n")],
+        net_count=1,
+        routed_net_count=1,
+    )
+    accepted = retain_verified_partial_copper(design, candidate, positions)
+    assert accepted.routed_net_count == 1
+    assert accepted.net_count == 1
+    assert accepted.traces == candidate.traces
+
+    candidate.traces[0].start = (12, 10)
+    rejected = retain_verified_partial_copper(design, candidate, positions)
+    assert rejected.routed_net_count == 0
+    assert rejected.net_count == 1
+    assert not rejected.traces
+
+
+def test_partial_copper_never_accepts_two_intersecting_foreign_nets() -> None:
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    design, positions = _contact_design()
+
+    def second(ref: str, y: float) -> Component:
+        return Component(
+            id=ref,
+            ref=ref,
+            type="resistor",
+            footprint_def=FootprintDef(pads=[Pad(id="1", size=(1.0, 1.0))]),
+            pins={"P1": Pin(name="P1", type=PinType.PASSIVE, net="cross")},
+            package_pin_map={"1": "P1"},
+            position=(15.0, y),
+        )
+
+    design.components["R3"] = second("R3", 5.0)
+    design.components["R4"] = second("R4", 15.0)
+    positions.update({"R3": (15.0, 5.0), "R4": (15.0, 15.0)})
+    design.nets["cross"] = Net(
+        id="cross",
+        name="cross",
+        nodes=[NetNode(component_ref="R3", pin_name="P1"), NetNode(component_ref="R4", pin_name="P1")],
+    )
+    candidate = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(20, 10), net_id="n"),
+            TraceSegment(layer="F.Cu", start=(15, 5), end=(15, 15), net_id="cross"),
+        ],
+        net_count=2,
+        routed_net_count=2,
+    )
+    accepted = retain_verified_partial_copper(design, candidate, positions)
+    assert accepted.net_count == 2
+    assert accepted.routed_net_count <= 1
+    assert len({trace.net_id for trace in accepted.traces}) == accepted.routed_net_count
+
+
+def test_partial_copper_rejects_wrong_net_metadata() -> None:
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    design, positions = _contact_design()
+    candidate = RouteResult(
+        traces=[TraceSegment(layer="F.Cu", start=(10, 10), end=(20, 10), net_id="nonexistent")],
+        net_count=1,
+        routed_net_count=1,
+    )
+    accepted = retain_verified_partial_copper(design, candidate, positions)
+    assert accepted.routed_net_count == 0
+    assert not accepted.traces

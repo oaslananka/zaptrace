@@ -70,13 +70,13 @@ def test_example_pipeline_reports_real_unrouted_nets_to_tool_consumers() -> None
         )
         report = (Path(temporary) / "generated" / "ESP32 I2C Sensor Board_report.md").read_text(encoding="utf-8")
     assert "| ERC status | PASS |" in report
-    assert "| Copper routing | 7 net(s) unrouted; not native-verified |" in report
+    assert "| Copper routing | 4 net(s) unrouted; not native-verified |" in report
     assert "| Fabrication readiness | NOT VERIFIED" in report
     assert result["all_successful"]  # Artifact generation, not PCB validation.
     evidence = result["routing_evidence"]
-    assert evidence["reported_routed_nets"] == 0
+    assert evidence["reported_routed_nets"] == 3
     assert evidence["total_routable_nets"] == 7
-    assert evidence["unrouted_nets"] == ["VCC_5V", "VCC_3V3", "GND", "USB_CC1", "USB_CC2", "I2C_SDA", "I2C_SCL"]
+    assert evidence["unrouted_nets"] == ["VCC_5V", "VCC_3V3", "GND", "I2C_SCL"]
     assert evidence["physical_continuity_verified"] is False
 
 

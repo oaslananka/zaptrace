@@ -231,41 +231,43 @@ def _segment_segment_distance(
     q1: tuple[float, float],
     q2: tuple[float, float],
 ) -> float:
-    """Minimum distance between two 2D line segments using parameter-based approach."""
-    # Direction vectors
-    u = _vec(p1, p2)
-    v = _vec(q1, q2)
-    w = _vec(p1, q1)
+    """Exact planar copper-centreline spacing, including crossing interiors.
 
-    a = _dot(u, u)
-    b = _dot(u, v)
-    c = _dot(v, v)
-    d = _dot(u, w)
-    e = _dot(v, w)
-    D = a * c - b * b
+    Clamping two infinite-line parameters independently is not the closest
+    point of two *segments* and previously returned 7 mm for two traces
+    crossing at their midpoints. Intersecting segments are at zero distance;
+    otherwise at least one closest point is an endpoint of a segment.
+    """
 
-    # Handle parallel segments
-    if abs(D) < 1e-12:
-        # Compute distance between point p1 and segment (q1,q2), etc.
-        d1 = _point_segment_dist(p1, q1, q2)
-        d2 = _point_segment_dist(p2, q1, q2)
-        d3 = _point_segment_dist(q1, p1, p2)
-        d4 = _point_segment_dist(q2, p1, p2)
-        return min(d1, d2, d3, d4)
+    def turn(
+        start: tuple[float, float],
+        end: tuple[float, float],
+        point: tuple[float, float],
+    ) -> float:
+        return (end[0] - start[0]) * (point[1] - start[1]) - (end[1] - start[1]) * (point[0] - start[0])
 
-    # Compute the line parameters of the two closest points
-    sc = (b * e - c * d) / D
-    tc = (a * e - b * d) / D
+    tolerance = 1e-10
+    bounding_overlap = (
+        max(min(p1[0], p2[0]), min(q1[0], q2[0])) <= min(max(p1[0], p2[0]), max(q1[0], q2[0])) + tolerance
+        and max(min(p1[1], p2[1]), min(q1[1], q2[1])) <= min(max(p1[1], p2[1]), max(q1[1], q2[1])) + tolerance
+    )
 
-    # Clamp to segment bounds
-    sc = max(0.0, min(1.0, sc))
-    tc = max(0.0, min(1.0, tc))
+    def straddles(a: float, b: float) -> bool:
+        return (a <= tolerance and b >= -tolerance) or (b <= tolerance and a >= -tolerance)
 
-    # Compute closest points
-    p_close = (p1[0] + sc * u[0], p1[1] + sc * u[1])
-    q_close = (q1[0] + tc * v[0], q1[1] + tc * v[1])
+    if (
+        bounding_overlap
+        and straddles(turn(p1, p2, q1), turn(p1, p2, q2))
+        and straddles(turn(q1, q2, p1), turn(q1, q2, p2))
+    ):
+        return 0.0
 
-    return _dist(p_close, q_close)
+    return min(
+        _point_segment_dist(p1, q1, q2),
+        _point_segment_dist(p2, q1, q2),
+        _point_segment_dist(q1, p1, p2),
+        _point_segment_dist(q2, p1, p2),
+    )
 
 
 def _point_segment_dist(p: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:

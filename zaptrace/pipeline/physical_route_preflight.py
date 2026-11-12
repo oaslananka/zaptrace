@@ -8,11 +8,11 @@ as though it were routed copper; native KiCad DRC remains authoritative.
 from __future__ import annotations
 
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from zaptrace.algo.grid_router import GridRouter
 from zaptrace.algo.pad_copper import point_in_pad_copper, rotated_offset
-from zaptrace.core.models import Design, LayerSet, NetClass, Pad, RouteResult, TraceSegment
+from zaptrace.core.models import Design, DRCViolation, LayerSet, NetClass, Pad, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import get_net_class
 from zaptrace.ee.drc.engine import DRCEngine
 
@@ -202,3 +202,96 @@ def verified_route_candidate_safe(
     trial.placement = dict(positions)
     trial.routing = candidate
     return DRCEngine().run(trial).passed
+
+
+def retain_verified_partial_copper(
+    design: Design,
+    candidate: RouteResult,
+    positions: dict[str, tuple[float, float]],
+) -> RouteResult:
+    """Publish only individually connected nets with no new local DRC faults.
+
+    Partial physical routing is NOT whole-board approval. Keep all missing
+    physical nets in the denominator and all their DRC-005 findings visible.
+    Each accepted net must touch every pad, join exactly one copper island,
+    and coexist safely with every previously accepted net. Independent
+    native KiCad DRC/continuity is still authoritative.
+    """
+    empty = RouteResult(net_count=candidate.net_count)
+    if not candidate.traces or candidate.net_count <= 0:
+        return empty
+    all_net_ids = set(design.nets)
+    if any(t.net_id not in all_net_ids for t in candidate.traces):
+        return empty
+    owned_vias: list[tuple[float, float, float, float, str]] = []
+    for via in candidate.vias:
+        if len(via) != 5 or via[4] not in all_net_ids:
+            return empty
+        owned_vias.append(via)
+
+    def signature(violation: DRCViolation) -> tuple:
+        return (
+            violation.rule_id,
+            violation.severity,
+            violation.net_id,
+            violation.component_id,
+            violation.location,
+            violation.message,
+        )
+
+    unchanged = design.model_copy(deep=True)
+    unchanged.placement = dict(positions)
+    unchanged.routing = empty
+    baseline_violations = Counter(signature(v) for v in DRCEngine().run(unchanged).violations if v.rule_id != "DRC-005")
+    accepted_traces: list[TraceSegment] = []
+    accepted_vias: list[Via] = []
+    accepted_ids: set[str] = set()
+    for net_id, net in design.nets.items():
+        net_traces = [t for t in candidate.traces if t.net_id == net_id]
+        if not net_traces or len(net.nodes) < 2:
+            continue
+        net_vias = [v for v in owned_vias if v[4] == net_id]
+        single = RouteResult(traces=net_traces, vias=net_vias, net_count=1, routed_net_count=1)
+        # Validate all logical terminals of this single physical net. The
+        # existing strict predicates inspect *every* net in their design;
+        # use an isolated model for this connectivity decision only, while
+        # full-board DRC below always retains the real unmodified netlist.
+        one_net = design.model_copy(deep=True)
+        one_net.nets = {net_id: net}
+        if not (
+            _physical_pad_terminal_coverage(one_net, single, positions)
+            and _physical_net_continuity(one_net, single, positions)
+        ):
+            continue
+        combined = RouteResult(
+            traces=[*accepted_traces, *net_traces],
+            vias=[*accepted_vias, *net_vias],
+            net_count=candidate.net_count,
+            routed_net_count=len(accepted_ids) + 1,
+        )
+        trial = design.model_copy(deep=True)
+        trial.placement = dict(positions)
+        trial.routing = combined
+        result = DRCEngine().run(trial)
+        connected = accepted_ids | {net_id}
+        # DRC-005 is not cleared or suppressed: a missing net remains an
+        # explicit error in the exported whole-board evidence. Other
+        # warnings/errors, including sharp angles and copper overlap, are
+        # release blockers even for a proposed partial net.
+        if any(v.rule_id == "DRC-005" and v.net_id in connected for v in result.violations):
+            continue
+        new_violations = Counter(signature(v) for v in result.violations if v.rule_id != "DRC-005")
+        if new_violations - baseline_violations:
+            continue
+        accepted_ids.add(net_id)
+        accepted_traces.extend(net_traces)
+        accepted_vias.extend(net_vias)
+
+    return RouteResult(
+        traces=accepted_traces,
+        vias=accepted_vias,
+        layers_used=sorted({seg.layer for seg in accepted_traces}),
+        total_trace_length_mm=round(sum(math.dist(seg.start, seg.end) for seg in accepted_traces), 3),
+        net_count=candidate.net_count,
+        routed_net_count=len(accepted_ids),
+    )

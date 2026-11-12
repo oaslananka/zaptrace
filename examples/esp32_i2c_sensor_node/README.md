@@ -4,10 +4,13 @@ This example uses the ESP32-WROOM-32E-N16 + BME280 sensor-node source design.
 It is a **working generation-and-inspection demo**, **not a passed release
 candidate**. ZapTrace can generate placement, routing, KiCad project files,
 reviewable SVG/HTML, Gerber layers, and a manufacturing bundle. With
-verified physical copper pads, the obstacle-aware router currently cannot
-legally route this placement, so the PCB **intentionally contains no generated
-trace segments** instead of quietly falling back to unsafe straight-line
-copper. The bundled Gerbers are incomplete and must not be fabricated. **Generating
+verified physical copper pads, the obstacle-aware router now keeps
+**three electrically continuous partial net routes** (USB_CC1, USB_CC2
+and I2C_SDA) only after independent pad geometry and local DRC checks.
+The provisional PCB includes **33 emitted copper segments**, while four
+nets (VCC_5V, VCC_3V3, GND, I2C_SCL) remain unrouted. No unsafe straight-line
+fallback, fabricated connectivity or unqualified GND pour is exported.
+The bundled Gerbers are incomplete and must not be fabricated. **Generating
 files is not evidence that the board is safe to build.**
 
 ## Run from the repository root
@@ -48,14 +51,14 @@ placement, not an approved board outline, antenna layout, USB enclosure fit,
 or qualified RF layout. The pipeline **refuses** to silently override partial,
 off-board, or conflicting explicit positions.
 
-The grid router can misleadingly report 6/6 graph-connected nets while
-native KiCad sees dangling traces, shorts, and more missing connections.
-For verified physical footprints the pipeline now rejects candidate copper
-when actual pad-endpoint coverage or source DRC fails. Consequently this
-demo intentionally exports **zero traces, zero vias and zero GND zones**
-rather than apparently complete but invalid copper. The earlier hand-drawn
-GND polygon was also removed because its antenna/keepout clearance was not
-qualified. This fail-closed result is **not** a successful physical route.
+The grid router previously reported graph-connected nets that did not
+touch all real pads. Its internal copper clearance calculation could also
+miss traces crossing at their interiors. Both failure modes now have
+negative tests. The default physical pipeline uses pad-aware pathfinding
+and publishes only complete individual net islands that add **no** internal
+DRC violations. It does not make unresolved net errors disappear. Ground
+pour is still disabled because RF/antenna return-path constraints have
+not been independently qualified.
 
 The CLI pipeline returning success means the generation stages ran; it is
 **not** a manufacturing sign-off. The program does not submit boards to a
@@ -76,8 +79,8 @@ uv run --no-sync zaptrace proof run \
 checks report six passes (including full physical pad identity mapping) and
 two blockers: source DRC and copper clearance. The result is **still a fail**.
 The source-only routing-completeness check is **not proof that KiCad PCB traces
-were generated or all physical pads are electrically joined**. The pipeline
-refuses to export the current grid-router trace candidate:
+were generated or all physical pads are electrically joined**. The pipeline rejects unverified portions of its route candidate
+and leaves four original net groups unrouted:
 
 - `drc-clean`: copper clearance error between `VCC_3V3` and `I2C_SCL`
   plus right-angle routing warnings on `I2C_SDA`.
@@ -103,8 +106,8 @@ two track-to-via links and a final R2 pad-to-existing-SCL-track
 connection** (92 copper segments, eighteen 0.30 mm drilled
 through-vias; 37→0 unconnected; native DRC still 16) are documented in
 [MANUFACTURING_REVIEW.md](MANUFACTURING_REVIEW.md). The default pipeline
-remains fail-closed and exports **zero routed tracks**; the optional review PCB
-now has **zero KiCad unconnected items**, but it is **not fabrication-ready** because the sixteen original drill/NPTH clearance errors, source Proof Pack and qualified RF/electrical/DFM review remain blocked.
+now retains **33 verified partial tracks**, leaving 32 unconnected native
+items; the separate optional review PCB has **zero KiCad unconnected items**, but it is **not fabrication-ready** because the sixteen original drill/NPTH clearance errors, source Proof Pack and qualified RF/electrical/DFM review remain blocked.
 For the twelve ESP32 thermal-pad drill errors and four USB-C locating-hole
 clearance errors, see the separate [fabrication DFM decision record](DFM_DECISION_91.md):
 written board-specific supplier confirmation versus a fully requalified
@@ -122,6 +125,18 @@ kicad-cli sch erc --exit-code-violations \
   build/esp32-demo/kicad/ESP32_I2C_Sensor_Board.kicad_sch
 ```
 
+**Latest default pipeline — 13 November 2026, KiCad 10.0.8.**
+Both official command-line checks were independently executed with
+severity-all, schematic parity, and exit-code-violations. The regenerated
+source-bound board retains the exact original **16 manufacturing DRC
+errors** (12 undersized ESP32 pad-39 drill holes and 4 GCT J1 NPTH-pad
+clearances), **zero ERC violations**, and **32 unconnected PCB items**.
+The preceding unrouted board had 37 unconnected items: five real
+connections were made without a new manufacturing DRC finding. The
+strict eight-check source Proof Pack still fails 2/8, and neither
+the remaining four physical nets nor human/fabricator acceptance is complete.
+
+**Historical source baseline — October 2026.**
 Independent KiCad **10.0.6** on exact PR head `29847de` (2026-10-11)
 finds **16 PCB DRC violations, 37 unconnected items, and ZERO schematic ERC
 violations**. The previously overlapping 50 × 40 mm placement with the same
@@ -143,9 +158,9 @@ exporter preserves all 13, reducing `lib_footprint_mismatch` warnings
 from 14 to **ZERO**. Only **12 `drill_out_of_range` errors**
 (real ESP32 0.20 mm holes versus configured 0.30 mm minimum) and **four
 `hole_clearance` errors** (GCT J1 locating pegs versus outer GND
-contacts, measured 0.1944 mm versus 0.25 mm board rule). All 37 real
-unconnected copper items remain, no traces/vias/zones are falsely emitted,
-and **PCB DRC still exits nonzero**. The prior main baseline before J1 physical binding
+contacts, measured 0.1944 mm versus 0.25 mm board rule). The historical baseline had 37 unconnected copper items and zero
+emitted trace/via/zone artifacts; the new partial-route result is
+documented above. **PCB DRC still exits nonzero**. The prior main baseline before J1 physical binding
 had 78 DRC findings, 31 unconnected items, and one J1 footprint-link ERC
 warning. J1 now references the byte-pinned USB4105 footprint; ERC is clean
 because this *metadata link* is resolved, **not** because physical copper is
@@ -159,8 +174,8 @@ unchanged, SHA-256-verified supplier source. The remaining hardware
 DRC violations and unconnected copper still prevent fabrication;
 no KiCad DRC rules were waived, no drill minimum was lowered, and
 no source footprint geometry was rewritten. The reduced trace-related violation count came from discarding
-78 unsafe fallback segments, **not** successful routing. In particular, no
-physical continuity has been verified. These results may change with KiCad version, configuration,
+78 unsafe fallback segments; the three subsequently verified net
+islands are limited partial copper evidence, **not complete physical continuity**. These results may change with KiCad version, configuration,
 or routing changes. They are *not* the same rule set as the in-process
 ZapTrace ERC/DRC checks. A clean ZapTrace source ERC result must never
 be substituted for KiCad CLI acceptance.

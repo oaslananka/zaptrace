@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from zaptrace.core.models import (
     BoardConfig,
     BoardDefinition,
@@ -720,3 +722,49 @@ class TestHighCurrentTraceWidth:
         result = DRCEngine(enabled_rules={"DRC-012"}).run(design)
 
         assert [violation for violation in result.violations if violation.rule_id == "DRC-012"] == []
+
+
+def test_foreign_copper_traces_crossing_at_midpoints_are_zero_distance() -> None:
+    """Crossed horizontal/vertical copper is a real short, not two distant ends."""
+    from zaptrace.ee.drc.engine import _segment_segment_distance
+
+    horizontal = ((10.0, 10.0), (20.0, 10.0))
+    vertical = ((15.0, 5.0), (15.0, 15.0))
+    assert _segment_segment_distance(*horizontal, *vertical) == pytest.approx(0.0)
+    assert _segment_segment_distance(*vertical, *horizontal) == pytest.approx(0.0)
+
+
+def test_nonintersecting_trace_distance_keeps_endpoint_and_parallel_clearance() -> None:
+    from zaptrace.ee.drc.engine import _segment_segment_distance
+
+    assert _segment_segment_distance((0, 0), (10, 0), (0, 2), (10, 2)) == pytest.approx(2.0)
+    assert _segment_segment_distance((0, 0), (10, 0), (11, 0), (20, 0)) == pytest.approx(1.0)
+    assert _segment_segment_distance((0, 0), (10, 0), (10, 0), (10, 5)) == pytest.approx(0.0)
+    assert _segment_segment_distance((0, 0), (10, 0), (5, 0), (15, 0)) == pytest.approx(0.0)
+
+
+def test_crossing_foreign_net_copper_is_a_drc_violation() -> None:
+    """The actual rule gate must flag an intersection, not just a helper."""
+    design = _design(
+        nets={
+            "A": Net(
+                id="A",
+                name="A",
+                nodes=[NetNode(component_ref="X", pin_name="P1"), NetNode(component_ref="Y", pin_name="P1")],
+            ),
+            "B": Net(
+                id="B",
+                name="B",
+                nodes=[NetNode(component_ref="X", pin_name="P2"), NetNode(component_ref="Y", pin_name="P2")],
+            ),
+        }
+    )
+    design.routing = RouteResult(
+        traces=[
+            TraceSegment(layer="F.Cu", start=(10, 10), end=(20, 10), net_id="A"),
+            TraceSegment(layer="F.Cu", start=(15, 5), end=(15, 15), net_id="B"),
+        ],
+        net_count=2,
+        routed_net_count=2,
+    )
+    assert any(v.rule_id == "DRC-001" for v in DRCEngine().run(design).violations)
