@@ -10,11 +10,12 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from zaptrace.io.sexp import parse as _parse_sexp
 from zaptrace.kicad.oracle import KiCadOracle
 
 _DRC_TIMEOUT_SECONDS = 80
@@ -29,6 +30,7 @@ def _fingerprint(entry: dict[str, Any]) -> str:
             entry.get("type", ""),
             entry.get("severity", ""),
             entry.get("description", ""),
+            entry.get("sheet_path", ""),
             ordered_items,
         ),
         ensure_ascii=False,
@@ -60,6 +62,28 @@ def _delta_fingerprints(
 
 
 @dataclass(frozen=True, slots=True)
+class NativeElectricalEvidence:
+    """Native schematic/PCB parity and ERC *deltas*; never electrical approval."""
+
+    original_schematic_sha256: str
+    candidate_schematic_sha256: str
+    baseline_schematic_parity_issues: int
+    candidate_schematic_parity_issues: int
+    new_schematic_parity_issues: int
+    new_schematic_parity_types: dict[str, int]
+    baseline_erc_violations: int
+    candidate_erc_violations: int
+    new_erc_violations: int
+    new_erc_violation_types: dict[str, int]
+    no_electrical_regression: bool
+    baseline_electrical_clean: bool
+    candidate_electrical_clean: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class NativePcbDrcDeltaReview:
     native_kicad_version: str
     original_sha256: str
@@ -78,6 +102,13 @@ class NativePcbDrcDeltaReview:
     baseline_drc_clean: bool
     candidate_drc_clean: bool
     candidate_identical: bool
+    electrical_review: NativeElectricalEvidence | None = None
+
+    @property
+    def no_review_regression(self) -> bool:
+        return self.no_drc_regression and (
+            self.electrical_review is None or self.electrical_review.no_electrical_regression
+        )
 
     @property
     def manufacturing_approved(self) -> bool:
@@ -102,9 +133,16 @@ class NativePcbDrcDeltaReview:
             "baseline_drc_clean": self.baseline_drc_clean,
             "candidate_drc_clean": self.candidate_drc_clean,
             "candidate_identical": self.candidate_identical,
+            "no_review_regression": self.no_review_regression,
+            "electrical_review": self.electrical_review.to_dict() if self.electrical_review else None,
             "original_files_modified": False,
             "manufacturing_approved": False,
-            "scope": "native KiCad 10 PCB DRC delta only; no schematic parity, ERC or fabrication approval",
+            "scope": (
+                "native KiCad 10 PCB DRC plus opt-in schematic parity/ERC delta; "
+                "not manufacturing, full electrical, or fabrication approval"
+                if self.electrical_review
+                else "native KiCad 10 PCB DRC delta only; no schematic parity, ERC or fabrication approval"
+            ),
         }
 
 
@@ -128,17 +166,27 @@ def _pinned_bytes(path: Path, expected_sha: str, description: str) -> bytes:
     return raw
 
 
-def _run_native_drc(oracle: KiCadOracle, directory: Path, board: bytes, project: bytes) -> dict[str, Any]:
+def _run_native_drc(
+    oracle: KiCadOracle,
+    directory: Path,
+    board: bytes,
+    project: bytes,
+    *,
+    schematic: bytes | None = None,
+) -> dict[str, Any]:
     """Only fixed filenames inside our new temporary directory are writable."""
     directory.mkdir()
     # The filesystem paths are constants inside our exclusive private
     # TemporaryDirectory. Untrusted bytes are only written through an opened
     # file handle, never interpreted as path components.
     board_file = directory / "review.kicad_pcb"
-    for path, payload in (
+    files = [
         (board_file, board),
         (directory / "review.kicad_pro", project),
-    ):
+    ]
+    if schematic is not None:
+        files.append((directory / "review.kicad_sch", schematic))
+    for path, payload in files:
         with path.open("xb") as destination:
             destination.write(payload)
     report_file = directory / "native-drc.json"
@@ -148,6 +196,7 @@ def _run_native_drc(oracle: KiCadOracle, directory: Path, board: bytes, project:
         timeout=_DRC_TIMEOUT_SECONDS,
         severity="all",
         exit_code_violations=False,
+        schematic_parity=schematic is not None,
     )
     # Real native DRC may find errors on an existing board; that is NOT a
     # process failure. Enforce a successful process and a valid report instead.
@@ -162,7 +211,90 @@ def _run_native_drc(oracle: KiCadOracle, directory: Path, board: bytes, project:
         for k in ("violations", "unconnected_items")
     ):
         raise RuntimeError("Native KiCad PCB DRC report is missing verified issue arrays")
+    if schematic is not None and (
+        not isinstance(report.get("schematic_parity"), list)
+        or not all(isinstance(item, dict) for item in report["schematic_parity"])
+    ):
+        raise RuntimeError("Native KiCad did not produce valid schematic-PCB parity evidence")
     return report
+
+
+def _run_native_erc(oracle: KiCadOracle, directory: Path) -> list[dict[str, Any]]:
+    """Flatten sheet-scoped ERC findings with source sheet identity preserved."""
+    report_file = directory / "native-erc.json"
+    result = oracle.run_erc(
+        directory / "review.kicad_sch",
+        output_path=report_file,
+        timeout=_DRC_TIMEOUT_SECONDS,
+        severity="all",
+        exit_code_violations=False,
+    )
+    if result.exit_code != 0:
+        raise RuntimeError(f"Native KiCad schematic ERC execution failed: {result.message}")
+    try:
+        raw = json.loads(report_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("Native KiCad did not produce readable ERC JSON evidence") from exc
+    if not isinstance(raw, dict) or not isinstance(raw.get("sheets"), list) or not raw["sheets"]:
+        raise RuntimeError("Native KiCad ERC report lacks schematic sheets")
+    findings: list[dict[str, Any]] = []
+    for sheet in raw["sheets"]:
+        if not isinstance(sheet, dict) or not isinstance(sheet.get("violations"), list):
+            raise RuntimeError("Native KiCad ERC sheet evidence is invalid")
+        for finding in sheet["violations"]:
+            if not isinstance(finding, dict):
+                raise RuntimeError("Native KiCad ERC finding is invalid")
+            findings.append({**finding, "sheet_path": sheet.get("uuid_path", sheet.get("path", ""))})
+    return findings
+
+
+def _review_electrical_delta(
+    oracle: KiCadOracle,
+    root: Path,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    original_schematic_sha256: str,
+    candidate_schematic_sha256: str,
+) -> NativeElectricalEvidence:
+    before_parity = before["schematic_parity"]
+    after_parity = after["schematic_parity"]
+    before_erc = _run_native_erc(oracle, root / "baseline")
+    after_erc = (
+        before_erc
+        if original_schematic_sha256 == candidate_schematic_sha256
+        else _run_native_erc(oracle, root / "candidate")
+    )
+    new_parity, _ = _delta_fingerprints(before_parity, after_parity)
+    new_erc, _ = _delta_fingerprints(before_erc, after_erc)
+    return NativeElectricalEvidence(
+        original_schematic_sha256=original_schematic_sha256,
+        candidate_schematic_sha256=candidate_schematic_sha256,
+        baseline_schematic_parity_issues=len(before_parity),
+        candidate_schematic_parity_issues=len(after_parity),
+        new_schematic_parity_issues=len(new_parity),
+        new_schematic_parity_types=dict(
+            sorted(Counter(str(item.get("type", "unknown")) for item in new_parity).items())
+        ),
+        baseline_erc_violations=len(before_erc),
+        candidate_erc_violations=len(after_erc),
+        new_erc_violations=len(new_erc),
+        new_erc_violation_types=dict(sorted(Counter(str(item.get("type", "unknown")) for item in new_erc).items())),
+        no_electrical_regression=not new_parity and not new_erc,
+        baseline_electrical_clean=not before_parity and not before_erc,
+        candidate_electrical_clean=not after_parity and not after_erc,
+    )
+
+
+def _validate_single_sheet_source(data: bytes) -> None:
+    """Refuse to call incomplete hierarchy traversal full ERC/parity evidence."""
+    try:
+        sexp = _parse_sexp(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ValueError("Electrical review requires a readable KiCad schematic S-expression") from exc
+    if not isinstance(sexp, list) or not sexp or sexp[0] != "kicad_sch":
+        raise ValueError("Electrical review requires a KiCad root .kicad_sch")
+    if any(isinstance(node, list) and node and node[0] == "sheet" for node in sexp[1:]):
+        raise ValueError("Multi-sheet electrical review is not yet supported; refusing partial ERC/parity evidence")
 
 
 def review_native_pcb_drc_delta(
@@ -172,6 +304,10 @@ def review_native_pcb_drc_delta(
     expected_original_sha256: str,
     expected_candidate_sha256: str,
     expected_project_sha256: str,
+    include_electrical_checks: bool = False,
+    expected_original_schematic_sha256: str | None = None,
+    candidate_schematic: str | Path | None = None,
+    expected_candidate_schematic_sha256: str | None = None,
 ) -> NativePcbDrcDeltaReview:
     """Compare real source and candidate PCB DRC without modifying either file.
 
@@ -188,11 +324,39 @@ def review_native_pcb_drc_delta(
     original_bytes = _pinned_bytes(original, expected_original_sha256, "Original PCB")
     candidate_bytes = _pinned_bytes(candidate, expected_candidate_sha256, "Candidate PCB")
     project_bytes = _pinned_bytes(project_file, expected_project_sha256, "Original project")
+    if not include_electrical_checks and (candidate_schematic is not None or expected_original_schematic_sha256):
+        raise ValueError("Schematic input requires include_electrical_checks=True")
+    original_schematic: bytes | None = None
+    new_schematic: bytes | None = None
+    new_schematic_sha: str | None = None
+    if include_electrical_checks:
+        if not expected_original_schematic_sha256:
+            raise ValueError("Original schematic SHA-256 is required for electrical review")
+        original_schematic_file = original.with_suffix(".kicad_sch")
+        original_schematic = _pinned_bytes(
+            original_schematic_file, expected_original_schematic_sha256, "Original schematic"
+        )
+        _validate_single_sheet_source(original_schematic)
+        if candidate_schematic is not None:
+            new_file = Path(candidate_schematic)
+            if new_file.suffix != ".kicad_sch" or not expected_candidate_schematic_sha256:
+                raise ValueError("Candidate schematic must be a .kicad_sch with its SHA-256")
+            new_schematic = _pinned_bytes(new_file, expected_candidate_schematic_sha256, "Candidate schematic")
+            _validate_single_sheet_source(new_schematic)
+            new_schematic_sha = expected_candidate_schematic_sha256
+        else:
+            new_schematic = original_schematic
+            new_schematic_sha = expected_original_schematic_sha256
     oracle = _require_native_kicad_10()
     with TemporaryDirectory(prefix="zaptrace-native-drc-delta-") as temp:
         root = Path(temp)
-        before = _run_native_drc(oracle, root / "baseline", original_bytes, project_bytes)
-        after = _run_native_drc(oracle, root / "candidate", candidate_bytes, project_bytes)
+        before = _run_native_drc(oracle, root / "baseline", original_bytes, project_bytes, schematic=original_schematic)
+        after = _run_native_drc(oracle, root / "candidate", candidate_bytes, project_bytes, schematic=new_schematic)
+        electrical_review = None
+        if original_schematic is not None and new_schematic_sha and expected_original_schematic_sha256:
+            electrical_review = _review_electrical_delta(
+                oracle, root, before, after, expected_original_schematic_sha256, new_schematic_sha
+            )
 
     added, removed = _delta_fingerprints(before["violations"], after["violations"])
     new_unconnected, _ = _delta_fingerprints(before["unconnected_items"], after["unconnected_items"])
@@ -222,4 +386,5 @@ def review_native_pcb_drc_delta(
         baseline_drc_clean=not before["violations"] and not before["unconnected_items"],
         candidate_drc_clean=not after["violations"] and not after["unconnected_items"],
         candidate_identical=original_bytes == candidate_bytes,
+        electrical_review=electrical_review,
     )

@@ -117,11 +117,47 @@ only, deliberately changing R4 pad `2` from
 remain byte-for-byte unchanged. The baseline, native report
 categories and error exit code are verified by executable tests.
 
-This is strictly **PCB DRC delta evidence**, not source KiCad
-schematic parity, ERC, complete footprint geometry validation,
-zone refill verification, 20 AI engineering task signoffs,
-manufacturer certification, or permission to fabricate.
-G0 remains **0 VERIFIED / 16 BLOCKED / 4 NOT RUN**.
+Without `--electrical-checks` the command remains a backward-compatible
+**PCB DRC-only delta**. For a **single-sheet** native KiCad project,
+include real schematic–PCB consistency and ERC before/after in the same
+source-safe command:
+
+    zaptrace kicad pcb-drc-delta original.kicad_pcb candidate.kicad_pcb --electrical-checks --candidate-schematic candidate.kicad_sch --json
+
+A matching original `.kicad_sch` is mandatory for this mode. The
+optional candidate schematic is itself SHA-256 pinned and may be in
+a separate directory. Without it, the candidate is explicitly
+reviewed against the **unchanged** original schematic. Each native
+`--schematic-parity` report is evaluated against its corresponding
+board and schematic; the ERC report uses the same project rules.
+The machine-readable `electrical_review` distinguishes existing
+and new parity/ERC findings, with original and candidate schematic
+SHA-256 identities. The CLI fails with **exit 2** for any new
+native DRC, unconnected item, parity or ERC finding. Identical
+schematic bytes share exact ERC evidence instead of rerunning an
+unnecessary second native ERC; changing the schematic always
+recomputes candidate ERC.
+
+Independent original MIT-licensed ESP32-S3 native KiCad 10.0.8 proof:
+**2 existing C4/C5 value-parity mismatches and 76 existing ERC
+findings** are not hidden. Deliberately changing *only* R4's
+value in a disposable candidate schematic produces **one new
+`footprint_symbol_mismatch`** even when the board itself
+is unchanged and PCB DRC has no new failures. Removing one
+original `no_connect` marker in another disposable candidate
+produces **one new `pin_not_connected` ERC violation** (76 → 77).
+Both candidate edits are rejected and all original source hashes
+remain unchanged.
+
+The electrical mode explicitly **rejects multi-sheet hierarchy**
+instead of falsely claiming full ERC or parity from an incomplete
+copied project; multi-sheet support needs a separately proven
+source-preserving sheet-file traversal. A no-new-finding result
+does **not** mean the baseline is ERC/DRC clean, the altered
+circuit behaves correctly, zones have been refilled, footprint
+geometry is proven, qualified human engineers approved the board,
+or manufacturing may proceed. Strict G0 is still
+**0 VERIFIED / 16 BLOCKED / 4 NOT RUN**.
 
 ### Native KiCad PCB physical pad-to-pin/net evidence (read-only)
 
