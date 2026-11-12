@@ -451,3 +451,43 @@ def test_register_keeps_other_hardlinked_json_data_intact(tmp_path: Path) -> Non
     workspace._append_project(library, "Evidence", review)
     assert json.loads(original.read_text()) == {"version": 1, "projects": []}
     assert json.loads(manifest.read_text())["projects"][0]["name"] == "Evidence"
+
+
+def test_workspace_js_path_cannot_break_out_of_inline_script(tmp_path: Path) -> None:
+    """A local folder name can contain HTML delimiters, not just shell metacharacters."""
+    from html.parser import HTMLParser
+
+    class ScriptCounter(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.scripts = 0
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag == "script":
+                self.scripts += 1
+
+    dangerous = tmp_path / "<" / "script><script>alert(19)<"
+    baseline = workspace.workspace_html(tmp_path / "safe", [])
+    rendered = workspace.workspace_html(dangerous, [])
+    original = ScriptCounter()
+    original.feed(baseline)
+    parsed = ScriptCounter()
+    parsed.feed(rendered)
+    assert parsed.scripts == original.scripts
+    assert "</script><script>alert(19)<" not in rendered
+    assert "\\u003c" in rendered
+    assert "\\u003e" in rendered
+
+
+def test_workspace_js_path_round_trips_special_characters_without_html_parsing(
+    tmp_path: Path,
+) -> None:
+    """An escaped path must remain the exact selected workspace in the generated JS."""
+    name = "KiCad & <review> \\u2028"
+    destination = tmp_path / name
+    rendered = workspace.workspace_html(destination, [])
+    assert "\\u003c" in rendered
+    assert "\\u0026" in rendered
+    assert "\\u2028" in rendered
+    assert str(destination) not in rendered
+    assert "FABRICATION" in rendered

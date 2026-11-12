@@ -94,6 +94,18 @@ def _display(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def _inline_js_string(value: str) -> str:
+    """Encode JavaScript data without allowing HTML to terminate its script tag."""
+    return (
+        json.dumps(value, ensure_ascii=True)
+        .replace("<", r"\u003c")
+        .replace(">", r"\u003e")
+        .replace("&", r"\u0026")
+        .replace("\u2028", r"\u2028")
+        .replace("\u2029", r"\u2029")
+    )
+
+
 def _slug(value: str) -> str:
     result = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:55]
     if not result:
@@ -374,7 +386,7 @@ def workspace_html(workspace: Path, items: list[dict]) -> str:
                 "Select two snapshots" if len(cards) >= 2 else "Add another native KiCad board to unlock comparison",
             )
             .replace("__WORKSPACE_SHELL__", _display(shell_workspace))
-            .replace("__WORKSPACE_JS__", json.dumps(command_workspace, ensure_ascii=True))
+            .replace("__WORKSPACE_JS__", _inline_js_string(command_workspace))
         ),
         image_sources="'self' data:",
         connect_sources="'self'",
