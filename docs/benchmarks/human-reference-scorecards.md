@@ -149,15 +149,49 @@ produces **one new `pin_not_connected` ERC violation** (76 → 77).
 Both candidate edits are rejected and all original source hashes
 remain unchanged.
 
-The electrical mode explicitly **rejects multi-sheet hierarchy**
-instead of falsely claiming full ERC or parity from an incomplete
-copied project; multi-sheet support needs a separately proven
-source-preserving sheet-file traversal. A no-new-finding result
-does **not** mean the baseline is ERC/DRC clean, the altered
-circuit behaves correctly, zones have been refilled, footprint
-geometry is proven, qualified human engineers approved the board,
-or manufacturing may proceed. Strict G0 is still
-**0 VERIFIED / 16 BLOCKED / 4 NOT RUN**.
+For native KiCad **multi-sheet** projects, the same opt-in review
+now follows the complete set of referenced **project-relative**
+`.kicad_sch` child files. Each child is parsed and copied from an
+SHA-256 recorded immutable source snapshot; the baseline and
+candidate each receive their own isolated native KiCad scratch
+directory. To propose an edited child, leave the real source intact
+and supply its original project-relative path and new local file:
+
+    zaptrace kicad pcb-drc-delta original.kicad_pcb candidate.kicad_pcb --electrical-checks --candidate-child-sheet auxiliary.kicad_sch=/path/to/proposed-auxiliary.kicad_sch --json
+
+The `electrical_review` JSON includes `original_child_sha256`,
+`candidate_child_sha256`, and `sheet_file_count`. **Unchanged
+root schematics do not skip native candidate ERC** when a child
+content SHA changes. Each sheet instance retains its original
+UUID and reference, while repeated references to the same child
+source are preserved. Topology edits (new/deleted sheet references
+or changed sheet instance identifiers) are deliberately blocked:
+adding/removing hierarchical sheets is a separate, unqualified
+user operation and must not silently pass as an edit.
+
+A **native KiCad 10.0.8** acceptance test constructs a disposable
+valid two-sheet project *from* the original licensed ESP32-S3
+source. The independent KiCad parser sees both root and child sheets;
+adding an unconnected wire to a **candidate child only** produces
+new native ERC findings, triggering exit **2**, even though the PCB
+and root schematic are byte-for-byte unchanged. No upstream
+licensed source is modified, and the real 20-project G0 parity
+baseline is separately retained. Legacy synthetic project-import
+fixtures are NOT treated as native KiCad-valid evidence.
+
+Potentially dangerous child paths (`../`, absolute, Windows-drive
+or symlink escapes), missing files, malformed trees, cycles, a
+candidate SHA mismatch, unreferenced candidate sheets or
+unverified hierarchy-topology changes **fail closed**. The
+collector bounds recursion, file count and source bytes. Complex
+external/absolute references outside the project root require
+a separate qualified capability rather than silent omission.
+
+A no-new-finding result does **not** mean the existing circuit is
+ERC/DRC clean, its electrical behavior is qualified, zones are
+refilled, complete footprint geometry is verified, a human
+engineer has approved the design, or manufacturing may proceed.
+Strict G0 remains **0 VERIFIED / 16 BLOCKED / 4 NOT RUN**.
 
 ### Native KiCad PCB physical pad-to-pin/net evidence (read-only)
 

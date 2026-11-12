@@ -15,8 +15,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from zaptrace.io.sexp import parse as _parse_sexp
 from zaptrace.kicad.oracle import KiCadOracle
+from zaptrace.kicad.schematic_hierarchy import (
+    candidate_source_hierarchy,
+    sheet_relative_path,
+    snapshot_source_hierarchy,
+)
 
 _DRC_TIMEOUT_SECONDS = 80
 
@@ -67,6 +71,9 @@ class NativeElectricalEvidence:
 
     original_schematic_sha256: str
     candidate_schematic_sha256: str
+    original_child_sha256: dict[str, str]
+    candidate_child_sha256: dict[str, str]
+    sheet_file_count: int
     baseline_schematic_parity_issues: int
     candidate_schematic_parity_issues: int
     new_schematic_parity_issues: int
@@ -173,6 +180,7 @@ def _run_native_drc(
     project: bytes,
     *,
     schematic: bytes | None = None,
+    child_sheets: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     """Only fixed filenames inside our new temporary directory are writable."""
     directory.mkdir()
@@ -186,6 +194,11 @@ def _run_native_drc(
     ]
     if schematic is not None:
         files.append((directory / "review.kicad_sch", schematic))
+    for name, payload in sorted((child_sheets or {}).items()):
+        relative = sheet_relative_path(name)
+        target = directory.joinpath(*relative.parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        files.append((target, payload))
     for path, payload in files:
         with path.open("xb") as destination:
             destination.write(payload)
@@ -255,13 +268,15 @@ def _review_electrical_delta(
     after: dict[str, Any],
     original_schematic_sha256: str,
     candidate_schematic_sha256: str,
+    original_child_sha256: dict[str, str],
+    candidate_child_sha256: dict[str, str],
 ) -> NativeElectricalEvidence:
     before_parity = before["schematic_parity"]
     after_parity = after["schematic_parity"]
     before_erc = _run_native_erc(oracle, root / "baseline")
     after_erc = (
         before_erc
-        if original_schematic_sha256 == candidate_schematic_sha256
+        if (original_schematic_sha256 == candidate_schematic_sha256 and original_child_sha256 == candidate_child_sha256)
         else _run_native_erc(oracle, root / "candidate")
     )
     new_parity, _ = _delta_fingerprints(before_parity, after_parity)
@@ -269,6 +284,9 @@ def _review_electrical_delta(
     return NativeElectricalEvidence(
         original_schematic_sha256=original_schematic_sha256,
         candidate_schematic_sha256=candidate_schematic_sha256,
+        original_child_sha256=original_child_sha256,
+        candidate_child_sha256=candidate_child_sha256,
+        sheet_file_count=1 + len(original_child_sha256),
         baseline_schematic_parity_issues=len(before_parity),
         candidate_schematic_parity_issues=len(after_parity),
         new_schematic_parity_issues=len(new_parity),
@@ -285,18 +303,6 @@ def _review_electrical_delta(
     )
 
 
-def _validate_single_sheet_source(data: bytes) -> None:
-    """Refuse to call incomplete hierarchy traversal full ERC/parity evidence."""
-    try:
-        sexp = _parse_sexp(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError) as exc:
-        raise ValueError("Electrical review requires a readable KiCad schematic S-expression") from exc
-    if not isinstance(sexp, list) or not sexp or sexp[0] != "kicad_sch":
-        raise ValueError("Electrical review requires a KiCad root .kicad_sch")
-    if any(isinstance(node, list) and node and node[0] == "sheet" for node in sexp[1:]):
-        raise ValueError("Multi-sheet electrical review is not yet supported; refusing partial ERC/parity evidence")
-
-
 def review_native_pcb_drc_delta(
     original_board: str | Path,
     candidate_board: str | Path,
@@ -308,6 +314,8 @@ def review_native_pcb_drc_delta(
     expected_original_schematic_sha256: str | None = None,
     candidate_schematic: str | Path | None = None,
     expected_candidate_schematic_sha256: str | None = None,
+    candidate_child_sheets: dict[str, Path] | None = None,
+    expected_candidate_child_sha256: dict[str, str] | None = None,
 ) -> NativePcbDrcDeltaReview:
     """Compare real source and candidate PCB DRC without modifying either file.
 
@@ -324,11 +332,20 @@ def review_native_pcb_drc_delta(
     original_bytes = _pinned_bytes(original, expected_original_sha256, "Original PCB")
     candidate_bytes = _pinned_bytes(candidate, expected_candidate_sha256, "Candidate PCB")
     project_bytes = _pinned_bytes(project_file, expected_project_sha256, "Original project")
-    if not include_electrical_checks and (candidate_schematic is not None or expected_original_schematic_sha256):
+    if not include_electrical_checks and (
+        candidate_schematic is not None
+        or expected_original_schematic_sha256
+        or candidate_child_sheets is not None
+        or expected_candidate_child_sha256 is not None
+    ):
         raise ValueError("Schematic input requires include_electrical_checks=True")
     original_schematic: bytes | None = None
     new_schematic: bytes | None = None
     new_schematic_sha: str | None = None
+    original_child_bytes: dict[str, bytes] = {}
+    candidate_child_bytes: dict[str, bytes] = {}
+    original_child_hashes: dict[str, str] = {}
+    candidate_child_hashes: dict[str, str] = {}
     if include_electrical_checks:
         if not expected_original_schematic_sha256:
             raise ValueError("Original schematic SHA-256 is required for electrical review")
@@ -336,26 +353,56 @@ def review_native_pcb_drc_delta(
         original_schematic = _pinned_bytes(
             original_schematic_file, expected_original_schematic_sha256, "Original schematic"
         )
-        _validate_single_sheet_source(original_schematic)
+        original_hierarchy = snapshot_source_hierarchy(original_schematic, original.parent)
+        original_child_bytes = original_hierarchy.children
+        original_child_hashes = original_hierarchy.child_sha256
         if candidate_schematic is not None:
             new_file = Path(candidate_schematic)
             if new_file.suffix != ".kicad_sch" or not expected_candidate_schematic_sha256:
                 raise ValueError("Candidate schematic must be a .kicad_sch with its SHA-256")
             new_schematic = _pinned_bytes(new_file, expected_candidate_schematic_sha256, "Candidate schematic")
-            _validate_single_sheet_source(new_schematic)
             new_schematic_sha = expected_candidate_schematic_sha256
         else:
             new_schematic = original_schematic
             new_schematic_sha = expected_original_schematic_sha256
+        candidate_hierarchy = candidate_source_hierarchy(
+            original_hierarchy,
+            new_schematic,
+            candidate_child_sheets,
+            expected_candidate_child_sha256,
+        )
+        candidate_child_bytes = candidate_hierarchy.children
+        candidate_child_hashes = candidate_hierarchy.child_sha256
     oracle = _require_native_kicad_10()
     with TemporaryDirectory(prefix="zaptrace-native-drc-delta-") as temp:
         root = Path(temp)
-        before = _run_native_drc(oracle, root / "baseline", original_bytes, project_bytes, schematic=original_schematic)
-        after = _run_native_drc(oracle, root / "candidate", candidate_bytes, project_bytes, schematic=new_schematic)
+        before = _run_native_drc(
+            oracle,
+            root / "baseline",
+            original_bytes,
+            project_bytes,
+            schematic=original_schematic,
+            child_sheets=original_child_bytes,
+        )
+        after = _run_native_drc(
+            oracle,
+            root / "candidate",
+            candidate_bytes,
+            project_bytes,
+            schematic=new_schematic,
+            child_sheets=candidate_child_bytes,
+        )
         electrical_review = None
         if original_schematic is not None and new_schematic_sha and expected_original_schematic_sha256:
             electrical_review = _review_electrical_delta(
-                oracle, root, before, after, expected_original_schematic_sha256, new_schematic_sha
+                oracle,
+                root,
+                before,
+                after,
+                expected_original_schematic_sha256,
+                new_schematic_sha,
+                original_child_hashes,
+                candidate_child_hashes,
             )
 
     added, removed = _delta_fingerprints(before["violations"], after["violations"])

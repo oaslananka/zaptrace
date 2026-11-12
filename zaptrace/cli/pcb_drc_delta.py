@@ -11,6 +11,22 @@ import click
 from zaptrace.kicad.pcb_drc_review import review_native_pcb_drc_delta
 
 
+def _candidate_child_sources(assignments: tuple[str, ...]) -> tuple[dict[str, Path], dict[str, str]]:
+    """Pin candidate child files without treating their contents as source paths."""
+    sources: dict[str, Path] = {}
+    hashes: dict[str, str] = {}
+    for assignment in assignments:
+        name, separator, filename = assignment.partition("=")
+        if not separator or not filename or name in sources:
+            raise ValueError("--candidate-child-sheet requires distinct SHEET_PATH=FILE")
+        source = Path(filename)
+        if not source.is_file():
+            raise ValueError("Candidate child sheet source file is missing")
+        sources[name] = source
+        hashes[name] = hashlib.sha256(source.read_bytes()).hexdigest()
+    return sources, hashes
+
+
 @click.command("pcb-drc-delta")
 @click.argument("original", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.argument("candidate", type=click.Path(exists=True, dir_okay=False, path_type=Path))
@@ -19,6 +35,13 @@ from zaptrace.kicad.pcb_drc_review import review_native_pcb_drc_delta
     "--electrical-checks",
     is_flag=True,
     help="Also compare native schematic-PCB parity and ERC before and after",
+)
+@click.option(
+    "--candidate-child-sheet",
+    "candidate_children",
+    multiple=True,
+    metavar="SHEET_PATH=FILE",
+    help="Proposed child .kicad_sch matching the project-relative original sheet path",
 )
 @click.option(
     "--candidate-schematic",
@@ -31,6 +54,7 @@ def pcb_drc_delta(
     as_json: bool,
     electrical_checks: bool,
     candidate_schematic: Path | None,
+    candidate_children: tuple[str, ...],
 ) -> None:
     """Compare an original board and AI candidate; do not modify either.
 
@@ -44,6 +68,9 @@ def pcb_drc_delta(
             raise ValueError("A matching original .kicad_pro is required")
         if candidate_schematic is not None and not electrical_checks:
             raise ValueError("--candidate-schematic requires --electrical-checks")
+        if candidate_children and not electrical_checks:
+            raise ValueError("--candidate-child-sheet requires --electrical-checks")
+        child_files, child_hashes = _candidate_child_sources(candidate_children)
         original_schematic = original.with_suffix(".kicad_sch")
         if electrical_checks and not original_schematic.is_file():
             raise ValueError("Electrical review requires a matching original .kicad_sch")
@@ -58,6 +85,8 @@ def pcb_drc_delta(
                 hashlib.sha256(original_schematic.read_bytes()).hexdigest() if electrical_checks else None
             ),
             candidate_schematic=candidate_schematic,
+            candidate_child_sheets=child_files or None,
+            expected_candidate_child_sha256=child_hashes or None,
             expected_candidate_schematic_sha256=(
                 hashlib.sha256(candidate_schematic.read_bytes()).hexdigest()
                 if candidate_schematic is not None
