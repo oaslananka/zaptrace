@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
 from review_studio_local_csp import apply_offline_csp
+from review_studio_local_file_guard import read_regular_bytes
 
 # KiCad hierarchical references are part of a sheet's S-expression, not the
 # currently open board. Reject incomplete/insecure graphs before invoking ERC.
@@ -415,6 +416,16 @@ def render_workspace(workspace: Path) -> Path:
     return target
 
 
+def _source_board_sha256(board: Path) -> str:
+    """Bound the original PCB read before an agent-selected path reaches native review."""
+    if board.suffix != ".kicad_pcb" or board.is_symlink():
+        raise ValueError("Select an existing native .kicad_pcb source file (not a symlink)")
+    raw = read_regular_bytes(board, max_size=10 * 1024 * 1024)
+    if not raw.lstrip().startswith(b"(kicad_pcb"):
+        raise ValueError("Selected PCB is not a native KiCad board")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", type=Path, default=Path("build/review-studio-workspace"))
@@ -448,7 +459,7 @@ def main() -> int:
 
         if args.schematic is not None:
             validate_schematic_hierarchy(args.schematic)
-        source_sha = hashlib.sha256(args.board.read_bytes()).hexdigest()
+        source_sha = _source_board_sha256(args.board)
         if args.run_id is not None and not re.fullmatch(r"[0-9a-f]{32}", args.run_id):
             raise ValueError("Invalid local import run ID")
         base_name = _slug(args.name) + "-" + source_sha[:12]
@@ -462,6 +473,7 @@ def main() -> int:
             with_drc=not args.no_drc,
             with_3d=not args.no_3d,
             workspace_home=workspace / "index.html",
+            expected_source_sha256=source_sha,
         )
         _append_project(workspace, args.name, review_output)
     target = render_workspace(workspace)
