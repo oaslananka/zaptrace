@@ -863,6 +863,60 @@ Real inductive loads, switching transients, saturation corners,
 thermal margins, physical measurements and qualified human
 signoff require separate, validated evidence.
 
+#### G0 task 004 — source-bound, hypothetical 1N4148 flyback transient
+
+The original PN2222A switch schematic identifies a **J2 LOAD**
+connector, and **D2** is a Diode:1N4148 across the load.
+The native KiCad 10.0.8 six-net graph places **D2 pin 1 = cathode**
+on the +5 V/J2.1 supply, and **D2 pin 2 = anode** on
+Q1 collector/J2.2. This is the expected *logical* polarity of a
+flyback diode, but **neither the actual fitted diode nor its
+pulse-current, energy or temperature ratings has been qualified**.
+
+The [separate bounded illustrative transient probe](https://github.com/oaslananka/zaptrace/blob/main/scripts/g0_npn_flyback_probe.py)
+checks the original source hashes, native KiCad pin/net groups
+and D2 library symbol/polarity before doing real **ngspice 42**
+transient calculations. A real user must explicitly enter **both**
+an idealized coil's DC resistance (10–500 whole ohms) and
+inductance (10–100 whole millihenrys). This is **not** a load
+value inferred from the real board.
+
+~~~sh
+python -m scripts.g0_npn_flyback_probe   --j2-coil-ohms 68 --j2-coil-mh 20   --output-json /tmp/npn-g0-hypothetical-flyback.json
+~~~
+
+The source-preserving output includes four true transient
+solutions: original 390 Ω and proposal 820 Ω base resistors,
+each with *assumed* BJT BF=50 and BF=150; the red LED and
+1N4148 diode are also **unqualified hypothetical models**.
+Each run records its SPICE deck SHA-256, numerical collector
+voltage peak within a specified post-switch-off sampling window,
+coil current just before turn-off, current after one *ideal R/L*
+time constant, and energy calculated as ½LI² using the modeled
+pre-off current. Switching pulse timings are derived from the
+entered ideal R/L value and recorded alongside the observations.
+
+The [pinned illustrative 68 Ω / 20 mH example](https://github.com/oaslananka/zaptrace/blob/main/benchmarks/g0-ai-engineering-tasks/npn-switch-hypothetical-rl-turnoff.json)
+produced **5.817–5.818 V** off-window collector voltage
+peaks and about **71 mA** coil current immediately before
+switch-off. These readings **are not transistor or diode
+absolute-maximum tests** and do not prove the 1N4148 is
+safe for any actual relay or motor. The ideal pulse voltage
+source does not simulate a real mechanical pushbutton,
+contacts, bounce, parasitic inductance or transistor avalanche.
+The transistor and diode models have no validated
+manufacturer or lot provenance; actual J2 load and ambient
+conditions remain unspecified.
+
+No physical/fabrication PASS is returned:
+g0_verified=false, manufacturing_approved=false,
+real_load_approved=false and human_approval=NOT_RUN.
+The original **34 source-pinned DC benchmark cases and their
+versioned JSON SHA-256 are unchanged**.
+G0 #34 and this G0-004 task remain **BLOCKED** until actual
+component/load identity, thermal/pulsed ratings, independent
+review and functional measurements are available.
+
 ### Native KiCad 10 netclass directive preview (bounded G0)
 
 AI-assisted project review must not silently equate KiCad custom netclasses

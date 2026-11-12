@@ -4,6 +4,9 @@
 
 ### Added
 
+- Add a separate source-verified, bounded hypothetical NPN inductive J2 turn-off review: native KiCad 10 flyback 1N4148 D2 cathode/anode proof and four real ngspice transient cases for user-entered series R/L; publish exact model/evidence hashes without treating unknown real parts, diode pulse ratings or physical behavior as qualified.
+
+
 - Let G0-004 users compare an explicitly entered, bounded ideal resistive J2 load for original and proposed PN2222A base-drive values using six additional real ngspice DC runs; preserve all 34 pinned baseline cases and fail closed on unsupported load inputs while keeping supplier model and hardware approval unverified.
 
 
