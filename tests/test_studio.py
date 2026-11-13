@@ -155,6 +155,48 @@ def test_windows_source_line_endings_are_preserved_on_value_save(tmp_path: Path,
     assert file.read_bytes() == original.replace(b'value: "4.7k"', b'value: "9.1k"', 1)
 
 
+@pytest.mark.parametrize("newlines", ["crlf", "mixed"])
+def test_source_backed_visual_edits_support_windows_line_endings(newlines: str) -> None:
+    """Native agent/Inspector operations accept CRLF without rewriting unrelated lines."""
+    raw = FIXTURE.read_bytes()
+    if newlines == "crlf":
+        original = raw.replace(b"\n", b"\r\n")
+    else:
+        original = b"".join(
+            line.replace(b"\n", b"\r\n") if index % 2 else line
+            for index, line in enumerate(raw.splitlines(keepends=True))
+        )
+    source = original.decode()
+    crlf_count = source.count("\r\n")
+    assert crlf_count > 0
+    value = apply_component_value(source, component_ref="R1", value="9.1k")
+    assert value == source.replace('value: "4.7k"', 'value: "9.1k"', 1)
+    assert value.count("\r\n") == crlf_count
+    assert preview_design(value)["ok"]
+
+    placed = apply_placement(source, component_ref="R1", x=12.5, y=23.0)
+    assert placed.startswith(source)
+    assert placed.count("\r\n") >= crlf_count
+    assert preview_design(placed)["ok"]
+    moved = apply_placement(placed, component_ref="R1", x=14, y=21)
+    assert moved.count("placement:") == 1
+    assert moved.count("\r\n") == placed.count("\r\n")
+    assert preview_design(moved)["ok"]
+
+    pinned = apply_pin_connection(source, component_ref="U1", pin_name="GPIO22", target_net="I2C_SDA")
+    assert pinned.count("\r\n") == crlf_count
+    assert preview_design(pinned)["ok"]
+
+    wired = apply_schematic_wire(source, start="U1.GPIO21", end="R1.P2")
+    assert wired.count("\r\n") >= crlf_count
+    assert preview_design(wired)["ok"]
+    if newlines == "crlf":
+        assert value.count("\n") == value.count("\r\n")
+        assert placed.count("\n") == placed.count("\r\n")
+        assert pinned.count("\n") == pinned.count("\r\n")
+        assert wired.count("\n") == wired.count("\r\n")
+
+
 def test_invalid_and_stale_edits_never_write(tmp_path: Path) -> None:
     source = FIXTURE.read_text()
     doc = StudioDocument(tmp_path / "design.yaml")

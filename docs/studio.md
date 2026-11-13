@@ -20,8 +20,11 @@ YAML files with CRLF or mixed LF/CRLF remain usable: the browser editor
 shows its normal LF text without incorrectly reporting an unsaved draft.
 When you actually change and Save the source, untouched portions of the
 original file retain their exact line endings instead of having the entire
-design rewritten. A real edit still uses the saved source hash to prevent
-concurrent agent overwrite.
+design rewritten. The source-backed Inspector value editor, visual
+placement editor, pin-net changes and schematic wire authoring also accept
+Windows CRLF declarations; new lines follow the local source style instead
+of introducing unexpected mixed endings. A real edit still uses the saved
+source hash to prevent concurrent agent overwrite.
 
 ## Recover an unsaved draft after refreshing the tab
 

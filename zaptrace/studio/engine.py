@@ -134,9 +134,10 @@ def apply_placement(source: str, *, component_ref: str, x: float, y: float) -> s
         raise StudioInputError("Cannot visually move a routed board without rerouting its copper")
     coordinates = f"[{round(x, 3)}, {round(y, 3)}]"
     source = source.rstrip("\n") + "\n"
-    section = re.search(r"^placement:[ \t]*(?:#.*)?$", source, flags=re.MULTILINE | re.ASCII)
+    section = re.search(r"^placement:[ \t]*(?:#[^\r\n]*)?(?=\r?$)", source, flags=re.MULTILINE | re.ASCII)
     if section is None:
-        return source + f"\nplacement:\n  {component.id}: {coordinates}\n"
+        newline = "\r\n" if source.endswith("\r\n") else "\n"
+        return source + newline + f"placement:{newline}  {component.id}: {coordinates}{newline}"
     following = re.search(r"^[A-Za-z][\w]*:", source[section.end() :], flags=re.MULTILINE | re.ASCII)
     end = section.end() + following.start() if following else len(source)
     placement_block = source[section.end() : end]
@@ -145,9 +146,11 @@ def apply_placement(source: str, *, component_ref: str, x: float, y: float) -> s
     if target:
         if not re.match(r"^  " + re.escape(component.id) + r":\s*\[[^\]\n]+\]\s*(?:#.*)?$", target.group()):
             raise StudioInputError("This placement syntax cannot be edited visually; edit the YAML directly")
-        placement_block = placement_block[: target.start()] + entry + placement_block[target.end() :]
+        line_tail = "\r" if target.group().endswith("\r") else ""
+        placement_block = placement_block[: target.start()] + entry + line_tail + placement_block[target.end() :]
     else:
-        placement_block = placement_block.rstrip("\n") + "\n" + entry + "\n"
+        newline = "\r\n" if "\r\n" in placement_block else "\n"
+        placement_block = placement_block.rstrip("\r\n") + newline + entry + newline
     return source[: section.end()] + placement_block + source[end:]
 
 
@@ -156,13 +159,13 @@ def apply_component_value(source: str, *, component_ref: str, value: str) -> str
     _, component = _verified_component(source, component_ref)
     if not isinstance(value, str) or len(value) > 120 or "\x00" in value:
         raise StudioInputError("Value must be a short string")
-    header = re.search(r"(?m)^components:[ \t]*(?:#.*)?$", source)
+    header = re.search(r"(?m)^components:[ \t]*(?:#[^\r\n]*)?(?=\r?$)", source)
     if header is None:
         raise StudioInputError("A block-style components section is required")
     next_top = re.search(r"(?m)^[A-Za-z][\w]*:", source[header.end() :])
     section_end = header.end() + next_top.start() if next_top else len(source)
     block = source[header.end() : section_end]
-    start = re.search(r"(?m)^  " + re.escape(component.id) + r":[ \t]*(?:#.*)?$", block)
+    start = re.search(r"(?m)^  " + re.escape(component.id) + r":[ \t]*(?:#[^\r\n]*)?(?=\r?$)", block)
     if start is None:
         raise StudioInputError("Only canonical block-style YAML components can be edited")
     following = re.search(r"(?m)^ {2}[A-Za-z][\w-]*:", block[start.end() :])
@@ -172,10 +175,11 @@ def apply_component_value(source: str, *, component_ref: str, value: str) -> str
     lines = entry.splitlines(keepends=True)
     for index, line in enumerate(lines):
         if line.startswith("    value:"):
-            lines[index] = "    " + replacement + ("\n" if line.endswith("\n") else "")
+            lines[index] = "    " + replacement + line[len(line.rstrip("\r\n")) :]
             break
     else:
-        lines.insert(0, "\n    " + replacement)
+        newline = "\r\n" if entry.startswith("\r\n") else "\n"
+        lines.insert(0, newline + "    " + replacement)
     entry = "".join(lines)
     updated_block = block[: start.end()] + entry + block[end:]
     result = source[: header.end()] + updated_block + source[section_end:]
@@ -325,10 +329,11 @@ def apply_schematic_wire(source: str, *, start: str, end: str, bend: float = 0.5
     endpoints = frozenset((start, end))
     if len(existing) >= 64 and not any(frozenset((route["start"], route["end"])) == endpoints for route in existing):
         raise StudioInputError("The Studio wire limit of 64 has been reached")
-    entry = f"  - {{start: {json.dumps(start)}, end: {json.dumps(end)}, bend: {bend}}}\n"
+    newline = "\r\n" if source.endswith("\r\n") else "\n"
+    entry = f"  - {{start: {json.dumps(start)}, end: {json.dumps(end)}, bend: {bend}}}{newline}"
     lines = source.splitlines(keepends=True)
     if not any(line.rstrip("\r\n") == "schematic_wires:" for line in lines):
-        edited = source.rstrip("\n") + "\nschematic_wires:\n" + entry
+        edited = source.rstrip("\r\n") + newline + "schematic_wires:" + newline + entry
     else:
         first, last = _section_bounds(lines, "schematic_wires")
         match_line = None
