@@ -18,6 +18,7 @@ from zaptrace.studio.engine import (
     apply_component_value,
     apply_pin_connection,
     apply_placement,
+    export_native_kicad_schematic,
     inspect_native_symbol,
     preview_design,
 )
@@ -155,6 +156,8 @@ class StudioHandler(BaseHTTPRequestHandler):
         return self.studio.document.save(edited, expected_hash=expected_hash)
 
     def _handle_mutation(self, route: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if route == "/api/kicad/schematic":
+            return export_native_kicad_schematic(self._require_text(payload, "source"))
         if route == "/api/native/inspect":
             return inspect_native_symbol(
                 self._require_text(payload, "source"),
@@ -195,6 +198,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             "/api/agent/change",
             "/api/pin/connect",
             "/api/native/inspect",
+            "/api/kicad/schematic",
         }:
             self._fail(404, "NOT_FOUND", "No such Studio route")
             return

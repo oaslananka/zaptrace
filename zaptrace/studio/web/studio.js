@@ -143,6 +143,9 @@ $("undo").onclick = () => {
 $("save").onclick = () => {
     void saveSource();
 };
+$("export-kicad").onclick = () => {
+    void downloadKicadSchematic();
+};
 $("wire-cancel").onclick = () => {
     state.wireStart = null;
     draw();
@@ -1769,6 +1772,47 @@ async function checkExternalChange() {
     } catch (error) {
         // Offline polling is non-destructive: keep the draft until connection resumes.
         console.warn("Studio source watch interrupted:", error);
+    }
+}
+async function downloadKicadSchematic() {
+    if (state.stale) {
+        $("activity").textContent =
+            "Another editor changed the saved source. Resolve that conflict before exporting.";
+        return;
+    }
+    const source = $("editor").value;
+    const button = $("export-kicad");
+    button.disabled = true;
+    try {
+        // This POST creates no server-side file and never saves the YAML draft.
+        const exported = await sendMutation("/api/kicad/schematic", {source});
+        if (source !== $("editor").value) {
+            $("activity").textContent =
+                "Source changed during export; the outdated download was discarded.";
+            return;
+        }
+        const blob = new Blob([exported.schematic], {
+            type: "application/x-kicad-schematic",
+        });
+        const href = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = href;
+        link.download = exported.filename;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(href), 60000);
+        $("activity").textContent =
+            "Downloaded real KiCad schematic wires and global net labels from "
+            + (state.dirty ? "the unsaved source draft" : "the current source")
+            + ". Generated rectangular symbols are not qualified native KiCad library symbols."
+            + " No ERC, DRC or fabrication claim.";
+        $("status-text").textContent =
+            "KiCad .kicad_sch downloaded · original YAML unchanged";
+    } catch (error) {
+        $("activity").textContent = "KiCad export failed; source not changed. " + error.message;
+    } finally {
+        button.disabled = false;
     }
 }
 async function saveSource() {

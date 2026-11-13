@@ -577,3 +577,73 @@ def test_native_esp32_pin_coordinates_match_library_viewbox_and_source() -> None
         assert native_match("ESP32-WROOM-32", {"99": "GPIO21"}) is None
     finally:
         module._installed_units = old
+
+
+def test_live_draft_exports_actual_kicad_wires_without_saving(tmp_path: Path) -> None:
+    from zaptrace.studio.engine import export_native_kicad_schematic
+
+    source = FIXTURE.read_text()
+    changed = apply_pin_connection(source, component_ref="U2", pin_name="SCK", target_net="I2C_SDA")
+    rendered = export_native_kicad_schematic(changed)
+    assert rendered["filename"].endswith(".kicad_sch")
+    assert "/" not in rendered["filename"] and "\\" not in rendered["filename"]
+    assert rendered["source_hash"] == sha(changed)
+    schematic = rendered["schematic"]
+    assert schematic.startswith("(kicad_sch\n")
+    assert schematic.count("\n  (wire ") == 41
+    assert schematic.count("\n  (global_label ") == 41
+    # Native KiCad pin 4 of U2 moves to the new net in the exported file.
+    assert '(global_label "I2C_SDA"' in schematic
+    assert '(global_label "I2C_SCL"' in schematic
+    assert schematic != export_native_kicad_schematic(source)["schematic"]
+    assert export_native_kicad_schematic(changed)["schematic"] == schematic
+    saved = tmp_path / "design.yaml"
+    saved.write_text(source)
+    assert saved.read_text() == source
+    with pytest.raises(StudioInputError):
+        export_native_kicad_schematic(changed + "\nbroken: [")
+    assert saved.read_text() == source
+
+
+def test_http_kicad_export_requires_local_session_and_keeps_draft_unsaved(tmp_path: Path) -> None:
+    from zaptrace.studio.engine import export_native_kicad_schematic
+
+    saved = FIXTURE.read_text()
+    draft = apply_pin_connection(saved, component_ref="U2", pin_name="SCK", target_net="I2C_SDA")
+    design = tmp_path / "design.yaml"
+    design.write_text(saved)
+    server = create_studio_server(design, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    endpoint = f"http://127.0.0.1:{server.server_port}/api/kicad/schematic"
+
+    def send(source: str, token: str | None = None) -> tuple[int, dict]:
+        headers = {"Content-Type": "application/json"}
+        if token is not None:
+            headers["X-ZapTrace-Studio-Token"] = token
+        request = Request(
+            endpoint,
+            data=json.dumps({"source": source}).encode(),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                return response.status, json.load(response)
+        except HTTPError as error:
+            return error.code, json.loads(error.read())
+
+    try:
+        code, denied = send(draft)
+        assert code == 403 and denied["error"]["code"] == "WRITE_DENIED"
+        code, exported = send(draft, server.session_token)
+        assert code == 200
+        assert exported == export_native_kicad_schematic(draft)
+        assert design.read_text() == saved
+        code, invalid = send(draft + "\ninvalid: [", server.session_token)
+        assert code == 400 and invalid["error"]["code"] == "BAD_DESIGN"
+        assert design.read_text() == saved
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=10)

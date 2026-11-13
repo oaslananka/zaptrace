@@ -22,6 +22,7 @@ from zaptrace.algo.placer import place_components
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.exceptions import ParseError
 from zaptrace.core.parser import parse_str
+from zaptrace.export.kicad import _build_schematic
 from zaptrace.studio.native_symbols import native_match
 from zaptrace.viewer.interactive import _extract_viewer_data
 
@@ -262,6 +263,28 @@ def _patch_net_nodes(lines: list[str], net_name: str, node_id: str, *, remove: b
             raise StudioInputError("Pin already exists in the target net")
         nodes.append(node_id)
     lines[index] = original[:left] + json.dumps(nodes) + original[right + 1 :]
+
+
+def export_native_kicad_schematic(source: str) -> dict[str, str]:
+    """Render a portable, embedded-symbol KiCad schematic from the live draft.
+
+    This is the genuine native KiCad wire/global-label interchange produced by
+    ZapTrace's existing exporter; it does not rewrite the user's source YAML.
+    Generated symbols are generic connectivity shapes, not verified vendor art.
+    """
+    design = _parse(source)
+    try:
+        native = _build_schematic(design)
+    except (ValueError, OSError, KeyError) as error:
+        raise StudioInputError("Could not generate a KiCad schematic from this source") from error
+    if len(native.encode("utf-8")) > 3_000_000:
+        raise StudioInputError("Generated KiCad schematic exceeds the Studio download size limit")
+    label = re.sub(r"[^A-Za-z0-9_-]+", "-", design.meta.name).strip("-")[:56] or "design"
+    return {
+        "filename": label + ".kicad_sch",
+        "schematic": native,
+        "source_hash": source_sha(source),
+    }
 
 
 def inspect_native_symbol(source: str, *, component_ref: str) -> dict[str, Any]:
