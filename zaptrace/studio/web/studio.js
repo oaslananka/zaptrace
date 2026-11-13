@@ -188,6 +188,43 @@ $("export-kicad").onclick = () => {
     void downloadKicadSchematic();
 };
 $("projects-close").onclick = () => $("projects-dialog").close();
+$("desktop-install").onclick = async () => {
+    const button = $("desktop-install");
+    const status = $("desktop-install-status");
+    button.disabled = true;
+    status.textContent = "Adding a local application launcher…";
+    try {
+        const installed = await sendMutation("/api/desktop/shortcut", {});
+        status.textContent =
+            "Added ZapTrace Studio to your " + installed.location +
+            ". Open it there next time without a terminal.";
+    } catch (error) {
+        status.textContent = error.message;
+        button.disabled = false;
+    }
+};
+$("desktop-quit").onclick = async () => {
+    if (state.dirty || state.stale) {
+        $("desktop-install-status").textContent =
+            "Save or Undo your current draft before quitting the desktop app.";
+        return;
+    }
+    const button = $("desktop-quit");
+    button.disabled = true;
+    try {
+        const result = await sendMutation("/api/desktop/quit", {});
+        if (result.closed) {
+            $("projects-dialog").close();
+            $("activity").textContent =
+                "ZapTrace Studio has stopped. Open it again from your application menu.";
+            $("status-text").textContent = "Desktop Studio closed";
+            $("editor").readOnly = true;
+        }
+    } catch (error) {
+        $("desktop-install-status").textContent = error.message;
+        button.disabled = false;
+    }
+};
 $("recent-projects").onclick = async () => {
     if (state.dirty || state.stale) {
         $("activity").textContent =
@@ -2438,6 +2475,7 @@ async function sendMutation(route, data) {
 async function useDiskSnapshot(snapshot, activity) {
     state.wireStart = null;
     clearTimeout(handle);
+    $("desktop-quit").hidden = !snapshot.desktop_mode;
     state.savedSource = snapshot.source;
     state.original = snapshot.source;
     state.diskHash = snapshot.source_hash;

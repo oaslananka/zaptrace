@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Add an opt-in, browser-triggered ZapTrace Studio application-menu launcher (XDG Linux or Windows Start menu), reusing the installed Python runtime and existing local server, plus an explicit desktop-mode Quit action. Preserve CLI launch/stop semantics, user-owned shortcuts and project files; no Electron/Tauri or automatic desktop installation.
 - Let Studio users pick an existing YAML design from the browser and open an isolated, editable personal project copy, then return to saved imports from **Recent projects**. Validate source and restrict file selection before writing; preserve the selected original, existing project, separate session tokens and Undo/Save semantics without any cloud or new dependency.
 - Replace Studio's empty 3D pane with a source-linked, keyboard-selectable isometric **placement concept** based on actual board dimensions, component footprint courtyard extents and saved/suggested XY positions. Selecting a part opens its source definition; Board movement updates the concept immediately, without claiming native 3D, copper or fabrication proof.
 - Display source-checked local KiCad artwork for ESP32/BME280/AMS1117 directly within Studio schematic component cards, with truthful source-pad mapping counts, async nonblocking native inspection and safe fallback when libraries or mappings are unavailable.

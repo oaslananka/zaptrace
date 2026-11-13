@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlsplit
 
+from zaptrace.studio.desktop import install_desktop_shortcut
 from zaptrace.studio.engine import (
     MAX_SOURCE_SIZE,
     StudioConflictError,
@@ -44,8 +45,10 @@ class StudioHTTPServer(ThreadingHTTPServer):
         *,
         import_directory: Path | None = None,
         parent: StudioHTTPServer | None = None,
+        desktop_mode: bool = False,
     ) -> None:
         self.document = StudioDocument(path)
+        self.desktop_mode = parent.desktop_mode if parent is not None else desktop_mode
         self.session_token = secrets.token_urlsafe(32)
         self.asset_dir = Path(__file__).with_name("web")
         self.root_server = parent.root_server if parent is not None else self
@@ -227,7 +230,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         elif route == "/studio.js":
             self._send((self.studio.asset_dir / "studio.js").read_bytes(), "text/javascript; charset=utf-8")
         elif route == "/api/source":
-            self._json(self.studio.document.read())
+            self._json({**self.studio.document.read(), "desktop_mode": self.studio.desktop_mode})
         elif route == "/api/projects":
             self._json({"projects": self.studio.list_personal_imports()})
         elif (
@@ -276,6 +279,19 @@ class StudioHandler(BaseHTTPRequestHandler):
         return self.studio.document.save(edited, expected_hash=expected_hash)
 
     def _handle_mutation(self, route: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if route == "/api/desktop/quit":
+            if not self.studio.desktop_mode:
+                raise StudioInputError("Studio is not running as a desktop application")
+            # Shutdown MUST be called from another thread; otherwise the
+            # HTTP request handler deadlocks waiting for itself to stop.
+            threading.Thread(
+                target=self.studio.root_server.shutdown,
+                name="zaptrace-studio-desktop-quit",
+                daemon=True,
+            ).start()
+            return {"ok": True, "closed": True}
+        if route == "/api/desktop/shortcut":
+            return install_desktop_shortcut()
         if route == "/api/project/open":
             return self.studio.open_personal_import(
                 self._require_text(payload, "project_id"),
@@ -341,6 +357,8 @@ class StudioHandler(BaseHTTPRequestHandler):
             "/api/save",
             "/api/project/import",
             "/api/project/open",
+            "/api/desktop/shortcut",
+            "/api/desktop/quit",
             "/api/agent/change",
             "/api/pin/connect",
             "/api/schematic/wire",
@@ -373,9 +391,16 @@ def create_studio_server(
     port: int = 0,
     import_directory: Path | None = None,
     parent: StudioHTTPServer | None = None,
+    desktop_mode: bool = False,
 ) -> StudioHTTPServer:
     """Serve one local design per session, never silently switch its file."""
     path = Path(path).expanduser().resolve()
     if not path.is_file() or path.suffix.lower() not in {".yaml", ".yml"}:
         raise StudioInputError("Open an existing local YAML design file")
-    return StudioHTTPServer(path, port, import_directory=import_directory, parent=parent)
+    return StudioHTTPServer(
+        path,
+        port,
+        import_directory=import_directory,
+        parent=parent,
+        desktop_mode=desktop_mode,
+    )

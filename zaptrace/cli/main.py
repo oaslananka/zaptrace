@@ -1271,32 +1271,18 @@ def init_project(name: str, template: str, target_dir: str) -> None:
 @click.option("--no-browser", is_flag=True, default=False, help="Only print the local Studio URL.")
 def studio(project: Path | None, port: int, no_browser: bool) -> None:
     """Open a live visual code-to-circuit editing workspace in your browser."""
-    from zaptrace.studio.engine import StudioInputError, demo_project, preview_design
-    from zaptrace.studio.http import create_studio_server
+    from zaptrace.studio.engine import StudioInputError
+    from zaptrace.studio.launcher import serve_studio
+
+    def announce(url: str, path: str) -> None:
+        console.print(f"[green]ZapTrace Studio ready[/] · [bold cyan]{url}[/]")
+        console.print(f"[dim]Project:[/] {escape(path)}")
+        console.print("[dim]Source edits and local agent changes use one YAML file; Ctrl+C closes Studio.[/]")
 
     try:
-        document = project if project is not None else demo_project(Path.home() / "ZapTrace Studio Projects")
-        design = preview_design(document.read_text(encoding="utf-8"))
-        if not design["ok"]:
-            raise StudioInputError(design["error"])
-        server = create_studio_server(document, port=port)
+        serve_studio(project, port=port, no_browser=no_browser, announce=announce)
     except (OSError, StudioInputError) as error:
         raise click.ClickException(str(error)) from error
-
-    url = f"http://127.0.0.1:{server.server_port}/"
-    console.print(f"[green]ZapTrace Studio ready[/] · [bold cyan]{url}[/]")
-    console.print(f"[dim]Project:[/] {escape(str(document.resolve()))}")
-    console.print("[dim]Source edits and local agent changes use one YAML file; Ctrl+C closes Studio.[/]")
-    if not no_browser:
-        import webbrowser
-
-        webbrowser.open(url)
-    try:
-        server.serve_forever(poll_interval=0.2)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.server_close()
 
 
 # ---------------------------------------------------------------------------

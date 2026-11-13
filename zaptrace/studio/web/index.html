@@ -876,6 +876,29 @@
                 text-align: left;
             }
             .projects-list small { color: #95c4c6; }
+            .desktop-install-row {
+                display: grid;
+                gap: 8px;
+                border-top: 1px solid #34515b;
+                margin-top: 15px;
+                padding-top: 15px;
+            }
+            #desktop-install {
+                background: #205c59;
+                border-color: #6fbcb1;
+                min-height: 44px;
+                font-weight: 650;
+            }
+            #desktop-install-status {
+                color: #a6c5cf;
+                font-size: 11px;
+            }
+            #desktop-quit {
+                margin-top: 12px;
+                border-color: #b48d76;
+                color: #f2cfbb;
+                min-height: 40px;
+            }
             .actions .primary {
                 background: linear-gradient(130deg, #1e706f, #185454);
                 border: 1px solid #4cbeb0;
@@ -989,7 +1012,7 @@
                 ><button
                     id="recent-projects"
                     type="button"
-                    title="Open a saved personal Studio project copy"
+                    title="Open saved personal projects or add Studio to your applications menu"
                 >Recent projects</button
                 ><input
                     id="import-file"
@@ -1027,6 +1050,11 @@
             </div>
             <p>Saved personal YAML copies. Your originally selected files are never overwritten by importing.</p>
             <div id="projects-list" class="projects-list" aria-live="polite"></div>
+            <div class="desktop-install-row">
+                <button id="desktop-install" type="button">Add Studio to your apps</button>
+                <span id="desktop-install-status" role="status" aria-live="polite">One-time setup. No new framework or cloud service.</span>
+            </div>
+            <button id="desktop-quit" type="button" hidden>Quit desktop Studio</button>
         </dialog>
         <main class="shell">
             <section class="panel">
