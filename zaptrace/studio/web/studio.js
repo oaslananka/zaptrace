@@ -89,7 +89,7 @@ $("editor").addEventListener("input", () => {
     markDirty();
     handle = setTimeout(() => {
         void update();
-    }, 250);
+    }, 120);
     $("lines").textContent = $("editor").value.split("\n").length + " lines";
 });
 $("apply").onclick = () => {
