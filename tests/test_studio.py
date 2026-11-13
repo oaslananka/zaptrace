@@ -870,3 +870,24 @@ def test_schematic_wire_rejects_foreign_net_collision_and_keeps_source() -> None
     assert not result["ok"]
     assert "source net" in result["error"] or "share one" in result["error"]
     assert source == FIXTURE.read_text()
+
+
+def test_studio_source_preview_never_blocks_on_optional_installed_kicad_artwork(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Live YAML preview must stay available without a warm KiCad library."""
+    from zaptrace.studio import native_symbols
+
+    def disallow_library_probe(symbol: str) -> None:
+        raise AssertionError(f"Live preview must not probe optional local symbol {symbol}")
+
+    monkeypatch.setattr(native_symbols, "_installed_units", disallow_library_probe)
+    source = FIXTURE.read_text()
+    result = preview_design(source)
+    assert result["ok"] is True
+    assert len(result["components"]) == 14
+    assert len(result["nets"]) == 7
+    # Optional native data is requested on the side after the first diagram,
+    # not embedded into the canonical source preview or saved YAML.
+    assert all("native_artwork" not in component for component in result["components"])
+    assert source == FIXTURE.read_text()

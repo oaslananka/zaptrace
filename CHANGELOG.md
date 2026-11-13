@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Display source-checked local KiCad artwork for ESP32/BME280/AMS1117 directly within Studio schematic component cards, with truthful source-pad mapping counts, async nonblocking native inspection and safe fallback when libraries or mappings are unavailable.
 
 - Add bounded, optional source-backed schematic wire paths: create them by dragging between separate symbol pins, persist their bend in canonical YAML, edit the route handle or delete the path without rewiring its net, and export real orthogonal KiCad wire segments. Reject foreign-net crossings and preserve Undo/Save/reopen without adding dependencies or claiming PCB copper/ERC/DRC.
 

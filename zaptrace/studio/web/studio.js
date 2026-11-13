@@ -20,6 +20,29 @@ const state = {
     nativeCache: new Map(),
     nativePending: new Set(),
 };
+const NATIVE_DETAIL_TYPES = new Set([
+    "ESP32-WROOM-32",
+    "BME280",
+    "AMS1117-3.3",
+]);
+let nativeArtworkTimer = 0;
+function scheduleNativeArtwork() {
+    clearTimeout(nativeArtworkTimer);
+    if (!state.data) return;
+    const hash = state.data.source_hash;
+    const source = $("editor").value;
+    // Fetch optional local library evidence out of the critical source-parse
+    // path. A KiCad library can take seconds to open on a cold machine.
+    nativeArtworkTimer = window.setTimeout(() => {
+        if (state.data?.source_hash !== hash || $("editor").value !== source) return;
+        for (const component of state.data.components.filter((c) => NATIVE_DETAIL_TYPES.has(c.type)).slice(0, 4)) {
+            const key = hash + ":" + component.ref;
+            if (!state.nativeCache.has(key) && !state.nativePending.has(key)) {
+                void loadNativeInspection(component.ref, key);
+            }
+        }
+    }, 320);
+}
 function svg(name, attrs, text) {
     const e = document.createElementNS(NS, name);
     for (const [key, value] of Object.entries(attrs || {})) {
@@ -123,6 +146,7 @@ async function update() {
                 " nets",
         );
         draw();
+        scheduleNativeArtwork();
     } catch (error) {
         console.error("Studio preview failed:", error);
         updateStatus(false, "Preview backend unavailable");
@@ -652,7 +676,65 @@ function nativeSymbolKey(component) {
 }
 function appendSchematicBody(group, component, cx, cy, left, top, width) {
     if (!isTwoTerminalSymbol(component)) {
-        drawSymbolKind(group, component, left + width - 18, top + 15);
+        const key = state.data.source_hash + ":" + component.ref;
+        const info = state.nativeCache.get(key);
+        if (!info?.id || !info.matches?.length || !info.view_box) {
+            drawSymbolKind(group, component, left + width - 18, top + 15);
+            return;
+        }
+        const height = schematicSymbolHeight(component);
+        // This is an authentic, locally installed *library drawing*. The
+        // clickable side pins remain source-logical placements, not physical
+        // KiCad symbol coordinates; the full native pinout is separate below.
+        group.append(
+            svg("rect", {
+                x: cx - 30,
+                y: top + 33,
+                width: 60,
+                height: height - 40,
+                rx: 5,
+                fill: "#17313b",
+                stroke: "#416574",
+                "stroke-width": 0.75,
+                "pointer-events": "none",
+            }),
+        );
+        const fallback = svg("g", {class: "illustrative-symbol-fallback"});
+        drawSymbolKind(fallback, component, cx, cy + 7);
+        group.append(fallback);
+        const drawing = svg("image", {
+            href: "/native-symbol/" + info.id + ".svg",
+            x: cx - 27,
+            y: top + 37,
+            width: 54,
+            height: height - 60,
+            preserveAspectRatio: "xMidYMid meet",
+            "pointer-events": "none",
+            "aria-hidden": "true",
+            "data-native-symbol": info.id,
+        });
+        drawing.style.filter = "invert(92%)";
+        drawing.addEventListener("load", () => {
+            fallback.setAttribute("visibility", "hidden");
+            (group.closest(".schematic-symbol") || group).setAttribute(
+                "data-symbol-rendering", "kicad-native-mapped",
+            );
+        });
+        drawing.addEventListener("error", () => {
+            drawing.remove();
+        });
+        group.append(drawing);
+        group.append(svg("text", {
+            x: cx, y: top + height - 10,
+            fill: "#8ee2d3",
+            "font-size": 8.8,
+            "font-family": "ui-monospace,Consolas,monospace",
+            "text-anchor": "middle",
+            "pointer-events": "none",
+        }, info.mapped_pads + "/" + info.library_pins + " mapped"));
+        group.append(svg("title", {},
+            info.library + ":" + info.symbol + " · " + info.mapped_pads +
+            "/" + info.library_pins + " source pads matched. Artwork only, not ERC/DRC or native canvas pins."));
         return;
     }
     const nativeKey = nativeSymbolKey(component);
@@ -676,7 +758,9 @@ function appendSchematicBody(group, component, cx, cy, left, top, width) {
     artwork.style.filter = "invert(90%)";
     artwork.addEventListener("load", () => {
         fallback.setAttribute("visibility", "hidden");
-        group.setAttribute("data-symbol-rendering", "kicad-native");
+        (group.closest(".schematic-symbol") || group).setAttribute(
+            "data-symbol-rendering", "kicad-native",
+        );
     });
     artwork.addEventListener("error", () => {
         artwork.remove();
@@ -867,6 +951,18 @@ function drawSchematicComponent(root, component, cx, cy) {
         "data-layout": simple ? "two-terminal" : "multi-pin",
     });
     a11y(group, component.ref);
+    const nativeInfo = state.nativeCache.get(
+        state.data.source_hash + ":" + component.ref,
+    );
+    if (nativeInfo?.id && !simple) {
+        group.setAttribute(
+            "aria-label",
+            "Select " + component.ref + "; installed KiCad " +
+            nativeInfo.library + ":" + nativeInfo.symbol + " artwork; " +
+            nativeInfo.mapped_pads + " of " + nativeInfo.library_pins +
+            " library pins mapped to the source; pin positions on the card are logical",
+        );
+    }
     group.append(
         svg("rect", {
             x: left,
@@ -928,7 +1024,11 @@ function drawSchematicComponent(root, component, cx, cy) {
             (component.value || component.type).slice(0, 13),
         ),
     );
-    appendSchematicBody(group, component, cx, cy, left, top, width);
+    const artGroup = svg("g", { class: "schematic-symbol-art" });
+    appendSchematicBody(artGroup, component, cx, cy, left, top, width);
+    group.append(artGroup);
+    group.dataset.centerX = String(cx);
+    group.dataset.centerY = String(cy);
     for (const [index, pin] of component.pins.entries()) {
         addSchematicPin(
             group,
@@ -1634,7 +1734,8 @@ function drawCircuit() {
                   " labeled nets",
     );
     $("note").textContent =
-        "Drag between different symbols to author a KiCad wire path in YAML · adjust the round bend handle · Save or Undo · ERC/DRC not checked";
+        "Installed KiCad artwork appears only when source-mapped; card pin rows remain logical. " +
+        "Drag between different symbols to author a real KiCad wire path · ERC/DRC not checked.";
 }
 function drawBoard() {
     const root = $("drawing"),
@@ -1786,10 +1887,38 @@ async function loadNativeInspection(ref, key) {
         state.nativePending.delete(key);
     }
     if (
-        state.data?.source_hash + ":" + state.selection === key &&
+        state.data?.source_hash + ":" + ref === key &&
         $("editor").value === original
     ) {
-        draw();
+        // Do NOT rebuild the entire SVG from an asynchronous library lookup.
+        // That would remove a live pin drag / keyboard focus or an unsaved
+        // route gesture. Only hydrate the affected card's illustration.
+        const component = state.data.components.find((c) => c.ref === ref);
+        const card = [...$("drawing").querySelectorAll(".schematic-symbol")]
+            .find((element) => element.dataset.ref === ref);
+        const art = card?.querySelector(".schematic-symbol-art");
+        if (component && art && state.view === "circuit") {
+            const cx = Number(card.dataset.centerX);
+            const cy = Number(card.dataset.centerY);
+            if (Number.isFinite(cx) && Number.isFinite(cy)) {
+                art.replaceChildren();
+                appendSchematicBody(
+                    art, component, cx, cy, cx - 94,
+                    cy - schematicSymbolHeight(component) / 2, 188,
+                );
+                const info = state.nativeCache.get(key);
+                if (info?.id) {
+                    card.setAttribute(
+                        "aria-label",
+                        "Select " + ref + "; installed KiCad " +
+                        info.library + ":" + info.symbol + " artwork; " +
+                        info.mapped_pads + " of " + info.library_pins +
+                        " library pins mapped to the source; card pins remain logical",
+                    );
+                }
+            }
+        }
+        if (state.selection === ref) inspector();
     }
 }
 function inspector() {
@@ -1822,7 +1951,7 @@ function inspector() {
     if (
         c &&
         nativeCacheKey &&
-        ["ESP32-WROOM-32", "BME280", "AMS1117-3.3"].includes(c.type) &&
+        NATIVE_DETAIL_TYPES.has(c.type) &&
         !state.nativeCache.has(nativeCacheKey) &&
         !state.nativePending.has(nativeCacheKey)
     ) {
