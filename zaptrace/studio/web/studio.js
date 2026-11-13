@@ -1018,6 +1018,208 @@ function drawLogicalNetWires(root, layout, net) {
     }
     root.append(wireGroup);
 }
+function drawNativePinout(root, component, info, top) {
+    if (!component || !info?.view_box || !info.matches?.length) return 0;
+    const cols = 2;
+    const rowCount = Math.ceil(info.matches.length / cols);
+    const height = Math.max(326, 86 + rowCount * 30);
+    root.append(
+        svg("rect", {
+            class: "native-pinout-panel",
+            x: 14,
+            y: top,
+            width: 892,
+            height,
+            rx: 10,
+            fill: "#112e38",
+            stroke: "#6aada4",
+            "stroke-width": 1.3,
+            "stroke-opacity": 0.8,
+        }),
+    );
+    root.append(
+        svg(
+            "text",
+            {
+                x: 32,
+                y: top + 26,
+                fill: "#9de4d7",
+                "font-size": 15,
+                "font-weight": 750,
+            },
+            component.ref + " · native KiCad pinout",
+        ),
+    );
+    root.append(
+        svg(
+            "text",
+            {
+                x: 32,
+                y: top + 44,
+                fill: "#b2d2d7",
+                "font-size": 10.5,
+            },
+            info.library +
+                ":" +
+                info.symbol +
+                " · " +
+                info.mapped_pads +
+                "/" +
+                info.library_pins +
+                " pads matched in the source",
+        ),
+    );
+    root.append(
+        svg(
+            "text",
+            {
+                x: 32,
+                y: top + height - 13,
+                fill: "#87b3bb",
+                "font-size": 10.5,
+            },
+            "Source-linked logical authoring · not native editable KiCad wires, ERC or DRC",
+        ),
+    );
+    const [left, upper, width, viewHeight] = info.view_box;
+    const symbolView = svg("svg", {
+        class: "native-pinout-artwork",
+        x: 62,
+        y: top + 58,
+        width: 310,
+        height: height - 92,
+        viewBox: [left, upper, width, viewHeight].join(" "),
+        preserveAspectRatio: "xMidYMid meet",
+        role: "group",
+        "aria-label": "KiCad symbol pin locations for " + component.ref,
+    });
+    symbolView.append(
+        svg("image", {
+            href: "/native-symbol/" + info.id + ".svg",
+            x: left,
+            y: upper,
+            width,
+            height: viewHeight,
+            preserveAspectRatio: "none",
+            "pointer-events": "none",
+            "data-native-symbol": info.id,
+        }),
+    );
+    const sourcePins = new Map(component.pins.map((pin) => [pin.name, pin]));
+    const markerPositions = new Set();
+    const coordsValid = info.matches.every(
+        (match) =>
+            Array.isArray(match.position) &&
+            match.position.length === 2 &&
+            match.position.every(Number.isFinite),
+    );
+    if (!coordsValid) return 0;
+    for (const [index, match] of info.matches.entries()) {
+        const pin = sourcePins.get(match.source_pin);
+        if (!pin) continue;
+        const label =
+            "Pad " +
+            match.pad +
+            ": " +
+            match.source_pin +
+            (match.library_pin === match.source_pin
+                ? ""
+                : " ↔ " + match.library_pin);
+        const rowX = 407 + (index % cols) * 239;
+        const rowY = top + 68 + Math.floor(index / cols) * 30;
+        const row = svg("g", {
+            class: "native-pinout-pad",
+            "data-ref": component.ref,
+            "data-pin": match.source_pin,
+            "data-pad": match.pad,
+            "data-net": pin.net || "",
+            tabindex: 0,
+            role: "button",
+            "aria-label": label + " · choose source logical pin",
+            "aria-pressed": String(
+                state.pinSelection?.ref === component.ref &&
+                    state.pinSelection?.name === match.source_pin,
+            ),
+        });
+        row.append(
+            svg("rect", {
+                x: rowX,
+                y: rowY - 17,
+                width: 230,
+                height: 26,
+                rx: 6,
+                fill:
+                    state.pinSelection?.name === match.source_pin
+                        ? "#2a5b5e"
+                        : "#1a3b46",
+                stroke:
+                    state.pinSelection?.name === match.source_pin
+                        ? "#c0f1dc"
+                        : "#426f7b",
+            }),
+        );
+        row.append(
+            svg(
+                "text",
+                {
+                    x: rowX + 9,
+                    y: rowY,
+                    fill: "#dff3f2",
+                    "font-size": 11,
+                    "font-family": "ui-monospace,Consolas,monospace",
+                },
+                label.slice(0, 30),
+            ),
+        );
+        const choose = (event) => {
+            event.stopPropagation();
+            focusSchematicPin(component.ref, pin);
+        };
+        row.addEventListener("click", choose);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                choose(event);
+            }
+        });
+        root.append(row);
+        const markerId = match.position.join(",") + ":" + match.source_pin;
+        if (markerPositions.has(markerId)) continue;
+        markerPositions.add(markerId);
+        const marker = svg("g", {
+            class: "native-pinout-hotspot",
+            "data-ref": component.ref,
+            "data-pin": match.source_pin,
+            "data-pad": match.pad,
+            "data-net": pin.net || "",
+            role: "button",
+            tabindex: 0,
+            "aria-label": label + " · select pin at real KiCad symbol position",
+        });
+        marker.append(
+            svg("circle", {
+                cx: match.position[0],
+                cy: match.position[1],
+                r: 1.45,
+                fill: netStroke(pin.net || ""),
+                "fill-opacity": 0.85,
+                stroke: "#eaf8fb",
+                "stroke-width": 0.32,
+            }),
+        );
+        marker.append(svg("title", {}, label));
+        marker.addEventListener("click", choose);
+        marker.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                choose(event);
+            }
+        });
+        symbolView.append(marker);
+    }
+    root.append(symbolView);
+    return height;
+}
 function drawCircuit() {
     const root = $("drawing");
     const data = state.data;
@@ -1068,12 +1270,22 @@ function drawCircuit() {
             );
         }
     }
+    let nextTop = layout.height;
+    const selectedComponent = data.components.find(
+        (component) => component.ref === state.selection,
+    );
+    const cacheKey = selectedComponent
+        ? data.source_hash + ":" + selectedComponent.ref
+        : null;
+    const nativeInfo = cacheKey ? state.nativeCache.get(cacheKey) : null;
+    if (nativeInfo?.view_box && nativeInfo.matches.length) {
+        nextTop +=
+            12 +
+            drawNativePinout(root, selectedComponent, nativeInfo, nextTop + 8);
+    }
     state.schematicHeight = selectedNet
-        ? layout.height +
-          16 +
-          drawNetTopology(root, selectedNet, layout.height + 8) +
-          16
-        : layout.height;
+        ? nextTop + 16 + drawNetTopology(root, selectedNet, nextTop + 8) + 16
+        : nextTop;
     const count = selectedNet ? selectedNet.nodes.length : 0;
     title(
         "Live logical schematic",
@@ -1240,7 +1452,7 @@ async function loadNativeInspection(ref, key) {
         state.data?.source_hash + ":" + state.selection === key &&
         $("editor").value === original
     ) {
-        inspector();
+        draw();
     }
 }
 function inspector() {
@@ -1260,6 +1472,16 @@ function inspector() {
     nativePanel.hidden = true;
     const mappings = $("native-pin-mappings");
     mappings.replaceChildren();
+    const jumpToPinout = $("native-pinout-jump");
+    jumpToPinout.hidden = !nativeInfo?.view_box || !nativeInfo.matches?.length;
+    jumpToPinout.onclick = () => {
+        if (!state.data || !state.selection) return;
+        state.view = "circuit";
+        draw();
+        $("drawing")
+            .querySelector(".native-pinout-panel")
+            ?.scrollIntoView({ block: "center", inline: "nearest" });
+    };
     if (
         c &&
         nativeCacheKey &&

@@ -413,6 +413,20 @@
                 line-height: 1.45;
                 font-size: 10px;
             }
+            .native-pinout-jump {
+                width: 100%;
+                margin-top: 9px;
+                padding: 9px 8px;
+                border: 1px solid #6daea6;
+                border-radius: 6px;
+                color: #def5f2;
+                background: #24636a;
+                cursor: pointer;
+                font-weight: 700;
+            }
+            .native-pinout-jump[hidden] {
+                display: none;
+            }
             .native-pin-mappings {
                 margin-top: 8px;
                 display: grid;
@@ -980,6 +994,14 @@
                             Native artwork · source pin mappings are not
                             fabrication proof.
                         </small>
+                        <button
+                            id="native-pinout-jump"
+                            class="native-pinout-jump"
+                            type="button"
+                            hidden
+                        >
+                            Open interactive pins on circuit
+                        </button>
                         <div
                             id="native-pin-mappings"
                             class="native-pin-mappings"

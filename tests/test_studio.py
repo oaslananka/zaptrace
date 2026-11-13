@@ -491,7 +491,7 @@ def test_native_mapping_checks_real_pin_numbers_and_named_aliases() -> None:
         found = native_match("BME280", {"3": "SDA", "4": "SCK"})
         assert found is not None
         assert found["mapped_pads"] == 2
-        assert found["matches"][0] == {"pad": "3", "source_pin": "SDA", "library_pin": "SDI"}
+        assert found["matches"][0] == {"pad": "3", "source_pin": "SDA", "library_pin": "SDI", "position": [4.0, -1.0]}
         assert native_match("BME280", {"3": "SCK", "4": "SDA"}) is None
         assert native_match("BME280", {"3": "SDA", "8": "VDD"}) is None
         assert native_match("BME280", {"3": "SDA", "4": "SCK", "5": "SDO"}) is None
@@ -537,3 +537,43 @@ def test_native_inspector_is_source_backed_and_requires_local_session(tmp_path: 
         server.shutdown()
         server.server_close()
         thread.join(timeout=10)
+
+
+def test_native_esp32_pin_coordinates_match_library_viewbox_and_source() -> None:
+    """Partially modeled native pins are positioned, not fabricated or defaulted."""
+    from zaptrace.studio import native_symbols as module
+    from zaptrace.studio.native_symbols import native_match
+
+    library = (
+        '(kicad_symbol_lib (symbol "ESP32-WROOM-32" '
+        '(symbol "ESP32-WROOM-32_0_1" (rectangle (start -2 -4) (end 2 4))) '
+        '(symbol "ESP32-WROOM-32_1_1" '
+        '(pin input line (at -4 1 0) (length 2) (name "EN") (number "3")) '
+        '(pin bidirectional line (at 4 -1 180) (length 2) (name "IO21") (number "33")) '
+        '(pin bidirectional line (at 4 -3 180) (length 2) (name "IO22") (number "36")))))'
+    )
+    units = module._read_symbol(library, "ESP32-WROOM-32")
+    assert units is not None
+    old = module._installed_units
+    module._installed_units = lambda symbol_id: units if symbol_id == "RF_Module.ESP32-WROOM-32" else None
+    try:
+        matched = native_match("ESP32-WROOM-32", {"3": "EN", "33": "GPIO21"})
+        assert matched is not None
+        assert matched["mapped_pads"] == 2
+        assert matched["library_pins"] == 3
+        box = matched["view_box"]
+        assert len(box) == 4
+        assert box[2] > 0 and box[3] > 0
+        pads = {entry["pad"]: entry for entry in matched["matches"]}
+        assert pads["33"]["source_pin"] == "GPIO21"
+        assert pads["33"]["library_pin"] == "IO21"
+        assert pads["33"]["position"] == [4.0, 1.0]
+        assert pads["3"]["position"] == [-4.0, -1.0]
+        assert all(
+            box[0] <= pos["position"][0] <= box[0] + box[2] and box[1] <= pos["position"][1] <= box[1] + box[3]
+            for pos in matched["matches"]
+        )
+        assert native_match("ESP32-WROOM-32", {"33": "GPIO22"}) is None
+        assert native_match("ESP32-WROOM-32", {"99": "GPIO21"}) is None
+    finally:
+        module._installed_units = old

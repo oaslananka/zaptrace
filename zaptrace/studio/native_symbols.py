@@ -111,6 +111,23 @@ def _pins_from_units(units: list[list[SexpNode]]) -> dict[str, str] | None:
     return pins if 0 < len(pins) <= 64 else None
 
 
+def _native_pin_positions(units: list[list[SexpNode]]) -> dict[str, list[float]] | None:
+    positions: dict[str, list[float]] = {}
+    try:
+        for unit in units:
+            for pin in _entries(unit, "pin"):
+                number, at = _entries(pin, "number"), _entries(pin, "at")
+                if len(number) != 1 or len(at) != 1:
+                    return None
+                pad = number[0][1]
+                if not isinstance(pad, str) or pad in positions:
+                    return None
+                positions[pad] = [_number(at[0][1]), -_number(at[0][2])]
+    except (IndexError, TypeError, ValueError):
+        return None
+    return positions
+
+
 def native_match(component_type: str, mapping: dict[str, str]) -> dict[str, Any] | None:
     """Match every source-assigned package pad to actual local KiCad pin data."""
     symbol = _TYPES.get(component_type)
@@ -120,8 +137,13 @@ def native_match(component_type: str, mapping: dict[str, str]) -> dict[str, Any]
     if units is None:
         return None
     pins = _pins_from_units(units)
-    if pins is None or len(mapping) > len(pins):
+    positions = _native_pin_positions(units)
+    if pins is None or positions is None or len(mapping) > len(pins):
         return None
+    artwork = _native_artwork(units)
+    if artwork is None:
+        return None
+    _, bounds = artwork
     matches = []
     aliases = _ALIASES.get(symbol, {})
     for pad, logical in sorted(mapping.items(), key=lambda item: int(item[0]) if item[0].isdigit() else -1):
@@ -135,7 +157,14 @@ def native_match(component_type: str, mapping: dict[str, str]) -> dict[str, Any]
         invalid_active = symbol not in {"R", "C"} and library_name != expected
         if invalid_passive or invalid_active:
             return None
-        matches.append({"pad": pad, "source_pin": logical, "library_pin": library_name or expected})
+        matches.append(
+            {
+                "pad": pad,
+                "source_pin": logical,
+                "library_pin": library_name or expected,
+                "position": positions[pad],
+            }
+        )
     if symbol in {"R", "C"} and len(matches) != 2:
         return None
     return {
@@ -145,10 +174,13 @@ def native_match(component_type: str, mapping: dict[str, str]) -> dict[str, Any]
         "mapped_pads": len(matches),
         "library_pins": len(pins),
         "matches": matches,
+        "view_box": bounds,
     }
 
 
-def _render_units(units: list[list[SexpNode]]) -> bytes | None:
+def _native_artwork(
+    units: list[list[SexpNode]],
+) -> tuple[bytes, list[float]] | None:
     pins = _pins_from_units(units)
     if pins is None:
         return None
@@ -203,7 +235,12 @@ def _render_units(units: list[list[SexpNode]]) -> bytes | None:
         '<g fill="none" stroke="#000" stroke-width="0.23" '
         'stroke-linecap="round" stroke-linejoin="round">' + "".join(shapes) + "</g></svg>"
     )
-    return svg.encode("utf-8")
+    return svg.encode("utf-8"), [xmin, ymin, xmax - xmin, ymax - ymin]
+
+
+def _render_units(units: list[list[SexpNode]]) -> bytes | None:
+    artwork = _native_artwork(units)
+    return artwork[0] if artwork is not None else None
 
 
 def _render_native_svg(library_source: str, symbol_name: str) -> bytes | None:
