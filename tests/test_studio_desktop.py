@@ -60,8 +60,12 @@ def test_launcher_is_not_installed_until_explicit_browser_action(
         assert installed.startswith("[Desktop Entry]\nType=Application\nName=ZapTrace Studio\n")
         assert "X-ZapTrace-Studio-Managed=true" in installed
         assert "Terminal=false" in installed
-        assert "Exec=" in installed and "python" in installed
-        assert "Path=" in installed
+        launcher, arguments, workdir = desktop._launcher_command()
+        expected_command = desktop._desktop_quote(str(launcher))
+        if arguments:
+            expected_command += " " + arguments
+        assert f"Exec={expected_command}\n" in installed
+        assert f"Path={workdir}\n" in installed
         if validator := shutil.which("desktop-file-validate"):
             subprocess.run([validator, str(desktop_file)], check=True, capture_output=True, timeout=8)
         status, _ = _post(base, "api/desktop/shortcut", {}, studio.session_token)
