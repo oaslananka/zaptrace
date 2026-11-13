@@ -121,10 +121,10 @@ def apply_placement(source: str, *, component_ref: str, x: float, y: float) -> s
         raise StudioInputError("Cannot visually move a routed board without rerouting its copper")
     coordinates = f"[{round(x, 3)}, {round(y, 3)}]"
     source = source.rstrip("\n") + "\n"
-    section = re.search(r"^placement:[ \t]*(?:#.*)?$", source, flags=re.MULTILINE)
+    section = re.search(r"^placement:[ \t]*(?:#.*)?$", source, flags=re.MULTILINE | re.ASCII)
     if section is None:
         return source + f"\nplacement:\n  {component.id}: {coordinates}\n"
-    following = re.search(r"^[A-Za-z_][A-Za-z0-9_]*:", source[section.end() :], flags=re.MULTILINE)
+    following = re.search(r"^[A-Za-z][\w]*:", source[section.end() :], flags=re.MULTILINE | re.ASCII)
     end = section.end() + following.start() if following else len(source)
     placement_block = source[section.end() : end]
     target = re.search(r"(?m)^  " + re.escape(component.id) + r":.*$", placement_block)
@@ -146,19 +146,19 @@ def apply_component_value(source: str, *, component_ref: str, value: str) -> str
     header = re.search(r"(?m)^components:[ \t]*(?:#.*)?$", source)
     if header is None:
         raise StudioInputError("A block-style components section is required")
-    next_top = re.search(r"(?m)^[A-Za-z_][A-Za-z0-9_]*:", source[header.end() :])
+    next_top = re.search(r"(?m)^[A-Za-z][\w]*:", source[header.end() :])
     section_end = header.end() + next_top.start() if next_top else len(source)
     block = source[header.end() : section_end]
     start = re.search(r"(?m)^  " + re.escape(component.id) + r":[ \t]*(?:#.*)?$", block)
     if start is None:
         raise StudioInputError("Only canonical block-style YAML components can be edited")
-    following = re.search(r"(?m)^  [A-Za-z][A-Za-z0-9_-]*:", block[start.end() :])
+    following = re.search(r"(?m)^ {2}[A-Za-z][\w-]*:", block[start.end() :])
     end = start.end() + following.start() if following else len(block)
     entry = block[start.end() : end]
     replacement = f"value: {json.dumps(value, ensure_ascii=False)}"
-    found = re.search(r"(?m)^    value:\s*[^\n]*$", entry)
+    found = re.search(r"(?m)^ {4}value:[ \t]*[^\r\n]*$", entry)
     if found:
-        entry = entry[: found.start()] + "    " + replacement + entry[found.end() :]
+        entry = entry[: found.start()] + " " * 4 + replacement + entry[found.end() :]
     else:
         entry = "\n    " + replacement + entry
     updated_block = block[: start.end()] + entry + block[end:]

@@ -92,8 +92,9 @@ def test_invalid_and_stale_edits_never_write(tmp_path: Path) -> None:
         doc.save(source + "\nbroken: [", expected_hash=hash_before)
     assert doc.read()["source"] == source
     doc.path.write_text(source + "\n# agent externally changed the design\n")
+    changed = source.replace("4.7k", "15k", 1)
     with pytest.raises(StudioConflictError):
-        doc.save(source.replace("4.7k", "15k", 1), expected_hash=hash_before)
+        doc.save(changed, expected_hash=hash_before)
     assert "agent externally" in doc.read()["source"]
 
 
@@ -102,8 +103,9 @@ def test_invalid_and_stale_edits_never_write(tmp_path: Path) -> None:
     [("U99", 5.0, 10.0), ("R1", -1.0, 10.0), ("R1", 1000.0, 10.0), ("R1", float("nan"), 10.0)],
 )
 def test_reject_nonexistent_or_invalid_positions(ref: str, x: float, y: float) -> None:
+    source = FIXTURE.read_text()
     with pytest.raises(StudioInputError):
-        apply_placement(FIXTURE.read_text(), component_ref=ref, x=x, y=y)
+        apply_placement(source, component_ref=ref, x=x, y=y)
 
 
 def test_demo_copy_never_overwrites_existing_design(tmp_path: Path) -> None:
@@ -146,12 +148,14 @@ def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> Non
         status, saved = call(
             "/api/save", {"source": edited, "expected_hash": first["source_hash"]}, server.session_token
         )
-        assert status == 200 and saved["source_hash"] == sha(edited)
+        assert status == 200
+        assert saved["source_hash"] == sha(edited)
         assert file.read_text() == edited
         status, stale = call(
             "/api/save", {"source": first["source"], "expected_hash": first["source_hash"]}, server.session_token
         )
-        assert status == 409 and stale["error"]["code"] == "STALE_SOURCE"
+        assert status == 409
+        assert stale["error"]["code"] == "STALE_SOURCE"
         assert file.read_text() == edited
         status, changed = call(
             "/api/agent/change",
@@ -163,7 +167,8 @@ def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> Non
             },
             server.session_token,
         )
-        assert status == 200 and "22k" in changed["source"]
+        assert status == 200
+        assert "22k" in changed["source"]
         status, disk = call("/api/source")
         assert "22k" in disk["source"]
     finally:

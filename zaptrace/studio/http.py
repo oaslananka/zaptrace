@@ -20,6 +20,8 @@ from zaptrace.studio.engine import (
     preview_design,
 )
 
+PREVIEW_ROUTE = "/api/preview"
+
 
 class StudioHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
@@ -38,9 +40,6 @@ class StudioHandler(BaseHTTPRequestHandler):
     @property
     def studio(self) -> StudioHTTPServer:
         return cast(StudioHTTPServer, self.server)
-
-    def log_message(self, format: str, *args: Any) -> None:
-        del format, args
 
     def _headers(self, size: int, mime: str, status: int = 200) -> None:
         self.send_response(status)
@@ -105,68 +104,73 @@ class StudioHandler(BaseHTTPRequestHandler):
         else:
             self._fail(404, "NOT_FOUND", "No such Studio route")
 
+    def _json_body(self) -> dict[str, Any]:
+        content_type = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        if content_type != "application/json":
+            raise StudioInputError("Studio only accepts JSON requests")
+        length = int(self.headers.get("Content-Length", "0"))
+        if not 0 < length <= MAX_SOURCE_SIZE + 2048:
+            raise StudioInputError("Request exceeds the Studio size limit")
+        payload = json.loads(self.rfile.read(length))
+        if not isinstance(payload, dict):
+            raise StudioInputError("Expected a JSON object")
+        return payload
+
+    @staticmethod
+    def _require_text(payload: dict[str, Any], key: str) -> str:
+        value = payload.get(key)
+        if not isinstance(value, str):
+            raise StudioInputError(f"{key} must be a string")
+        return value
+
+    def _agent_value_change(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if payload.get("operation") != "set_component_value":
+            raise StudioInputError("Only source-backed set_component_value is supported for local agent edits")
+        ref = self._require_text(payload, "component_ref")
+        value = self._require_text(payload, "value")
+        expected_hash = self._require_text(payload, "expected_hash")
+        current = self.studio.document.read()
+        if expected_hash != current["source_hash"]:
+            raise StudioConflictError("The project changed before this agent edit")
+        edited = apply_component_value(current["source"], component_ref=ref, value=value)
+        return self.studio.document.save(edited, expected_hash=expected_hash)
+
+    def _handle_mutation(self, route: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if route == "/api/save":
+            return self.studio.document.save(
+                self._require_text(payload, "source"),
+                expected_hash=self._require_text(payload, "expected_hash"),
+            )
+        if route == "/api/place":
+            source = self._require_text(payload, "source")
+            ref = self._require_text(payload, "component_ref")
+            x_value, y_value = payload.get("x"), payload.get("y")
+            if not isinstance(x_value, (float, int)) or not isinstance(y_value, (float, int)):
+                raise StudioInputError("Component coordinates must be numeric")
+            edited = apply_placement(source, component_ref=ref, x=x_value, y=y_value)
+            return {"source": edited, "preview": preview_design(edited)}
+        return self._agent_value_change(payload)
+
     def do_POST(self) -> None:
         if not self._host_allowed():
             self._fail(403, "BAD_HOST", "Studio is available on local loopback only")
             return
         route = urlsplit(self.path).path
-        if route not in {"/api/preview", "/api/place", "/api/save", "/api/agent/change"}:
+        if route not in {PREVIEW_ROUTE, "/api/place", "/api/save", "/api/agent/change"}:
             self._fail(404, "NOT_FOUND", "No such Studio route")
             return
-        if route != "/api/preview" and not self._authorized_write():
+        if route != PREVIEW_ROUTE and not self._authorized_write():
             self._fail(403, "WRITE_DENIED", "Studio write session is missing or invalid")
             return
-        if self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
-            self._fail(415, "CONTENT_TYPE", "Studio only accepts JSON requests")
-            return
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= MAX_SOURCE_SIZE + 2048:
-                self._fail(413, "REQUEST_SIZE", "Request exceeds the Studio size limit")
-                return
-            payload = json.loads(self.rfile.read(length))
-            if not isinstance(payload, dict):
-                raise StudioInputError("Expected a JSON object")
-            if route == "/api/preview":
-                candidate = payload.get("source")
-                if not isinstance(candidate, str):
-                    raise StudioInputError("Preview source must be a string")
-                self._json(preview_design(candidate))
-                return
-            source = payload.get("source")
-            expected_hash = payload.get("expected_hash")
-            if route == "/api/save":
-                if not isinstance(source, str) or not isinstance(expected_hash, str):
-                    raise StudioInputError("Source and expected hash are required")
-                self._json(self.studio.document.save(source, expected_hash=expected_hash))
-                return
-            if route == "/api/place":
-                ref = payload.get("component_ref")
-                x_value, y_value = payload.get("x"), payload.get("y")
-                if (
-                    not isinstance(source, str)
-                    or not isinstance(ref, str)
-                    or not isinstance(x_value, (float, int))
-                    or not isinstance(y_value, (float, int))
-                ):
-                    raise StudioInputError("Source, component reference and numeric position are required")
-                edited = apply_placement(source, component_ref=ref, x=x_value, y=y_value)
-                self._json({"source": edited, "preview": preview_design(edited)})
-                return
-            if payload.get("operation") != "set_component_value":
-                raise StudioInputError("Only source-backed set_component_value is supported for local agent edits")
-            ref = payload.get("component_ref")
-            value = payload.get("value")
-            if not isinstance(ref, str) or not isinstance(value, str) or not isinstance(expected_hash, str):
-                raise StudioInputError("Agent value edit requires component, value and current source hash")
-            current = self.studio.document.read()
-            if expected_hash != current["source_hash"]:
-                raise StudioConflictError("The project changed before this agent edit")
-            edited = apply_component_value(current["source"], component_ref=ref, value=value)
-            self._json(self.studio.document.save(edited, expected_hash=expected_hash))
+            payload = self._json_body()
+            if route == PREVIEW_ROUTE:
+                self._json(preview_design(self._require_text(payload, "source")))
+            else:
+                self._json(self._handle_mutation(route, payload))
         except StudioConflictError as error:
             self._fail(409, "STALE_SOURCE", str(error))
-        except (StudioInputError, ValueError, KeyError, TypeError) as error:
+        except (ValueError, KeyError, TypeError) as error:
             self._fail(400, "BAD_DESIGN", str(error)[:500])
 
     def do_OPTIONS(self) -> None:
