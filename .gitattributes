@@ -1,0 +1,2 @@
+# Vendored KiCad footprint bytes are SHA-256 pinned: checkout must preserve LF on Windows.
+data/footprints/vendor/*.kicad_mod text eol=lf

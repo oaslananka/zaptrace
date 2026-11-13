@@ -9,7 +9,7 @@ import pytest
 
 from zaptrace.core.exceptions import ParseError
 from zaptrace.core.parser import dump_str, parse_file, parse_str
-from zaptrace.kicad.verified_vendor import _PINNED_FOOTPRINTS, resolve_verified_footprint
+from zaptrace.kicad.verified_vendor import _PINNED_FOOTPRINTS, resolve_verified_footprint, verified_footprint_bytes
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
 
@@ -21,6 +21,17 @@ def _design_yaml(asset_id: str, *, extra: str = "") -> str:
         f"    footprint_asset: {json.dumps(asset_id)}\n{extra}"
         "nets:\n  n1:\n    name: NET\n    nodes: [U1.1]\n"
     )
+
+
+def test_all_digest_pinned_footprints_match_canonical_checkout_bytes() -> None:
+    """Any Windows CRLF rewrite of a pinned KiCad footprint must fail CI."""
+    attributes = Path(__file__).resolve().parents[1] / ".gitattributes"
+    assert "data/footprints/vendor/*.kicad_mod text eol=lf" in attributes.read_text(encoding="utf-8")
+    for asset_id, (_name, digest) in _PINNED_FOOTPRINTS.items():
+        _filename, content = verified_footprint_bytes(asset_id)
+        import hashlib
+
+        assert hashlib.sha256(content).hexdigest() == digest
 
 
 def test_vendored_bindings_have_concrete_pads_and_roundtrip() -> None:
