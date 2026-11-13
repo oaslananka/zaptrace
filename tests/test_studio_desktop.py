@@ -106,7 +106,7 @@ def test_launcher_does_not_overwrite_user_files_or_follow_links(
         assert output.read_text() == "Unrelated desktop entry"
 
 
-def test_windows_shortcut_uses_fixed_script_and_env_not_interpolation(
+def test_windows_shortcut_uses_native_com_without_spawned_processes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -119,23 +119,33 @@ def test_windows_shortcut_uses_fixed_script_and_env_not_interpolation(
     target.write_bytes(b"mock executable")
     cwd = tmp_path / "source"
     cwd.mkdir()
-    captured: list[str] = []
+    observed: list[tuple[Path, Path, str, Path]] = []
 
-    def fake_ps(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        env = kwargs["env"]
-        assert isinstance(env, dict)
-        captured.extend(args)
-        assert env["ZAPTRACE_SHORTCUT_EXE"] == str(target)
-        assert env["ZAPTRACE_SHORTCUT_CWD"] == str(cwd)
-        assert str(tmp_path) not in args[-1]
-        (location / "ZapTrace Studio.lnk").write_text("test-created shortcut")
-        return subprocess.CompletedProcess(args, 0, "", "")
+    def fake_com(link: Path, executable: Path, args: str, workdir: Path) -> None:
+        observed.append((link, executable, args, workdir))
+        assert executable == target
+        assert args == "-m zaptrace.studio.launcher"
+        assert workdir == cwd
+        assert link.parent == location
+        link.write_text("test-created native shortcut")
 
-    monkeypatch.setattr(desktop.subprocess, "run", fake_ps)
+    monkeypatch.setattr(desktop, "_save_windows_shell_link", fake_com)
     assert desktop._install_windows(target, "-m zaptrace.studio.launcher", cwd)["location"] == "Start menu"
-    assert "CreateShortcut" in captured[-1]
+    assert len(observed) == 1
     with pytest.raises(desktop.StudioInputError, match="already exists"):
         desktop._install_windows(target, "-m zaptrace.studio.launcher", cwd)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Requires native Windows ShellLink COM")
+def test_real_windows_shell_link_can_be_created_without_shell(tmp_path: Path) -> None:
+    """Optional Windows runner integration: no extra provider or dependency."""
+    target = Path(sys.executable).with_name("pythonw.exe")
+    if not target.is_file():
+        pytest.skip("Windows GUI interpreter not installed")
+    link = tmp_path / "ZapTrace Studio.lnk"
+    desktop._save_windows_shell_link(link, target, "-m zaptrace.studio.launcher", tmp_path)
+    assert link.is_file()
+    assert link.stat().st_size > 100
 
 
 def test_desktop_studio_can_quit_and_cleanly_stop_server(tmp_path: Path) -> None:
