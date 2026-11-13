@@ -171,6 +171,127 @@ def apply_component_value(source: str, *, component_ref: str, value: str) -> str
     return result
 
 
+def _section_bounds(lines: list[str], name: str) -> tuple[int, int]:
+    headings = [i for i, line in enumerate(lines) if line.rstrip("\r\n") == name + ":"]
+    if len(headings) != 1:
+        raise StudioInputError(f"Canonical {name} section is required")
+    start = headings[0] + 1
+    end = next(
+        (
+            i
+            for i in range(start, len(lines))
+            if lines[i].strip() and not lines[i][0].isspace() and not lines[i].startswith("#")
+        ),
+        len(lines),
+    )
+    return start, end
+
+
+def _pin_line_index(lines: list[str], component_id: str, pin_name: str) -> int:
+    start, end = _section_bounds(lines, "components")
+    headings = [i for i in range(start, end) if lines[i].rstrip("\r\n") == "  " + component_id + ":"]
+    if len(headings) != 1:
+        raise StudioInputError("Canonical component block is required")
+    start = headings[0] + 1
+    end = next(
+        (
+            i
+            for i in range(start, end)
+            if lines[i].startswith("  ") and not lines[i].startswith("    ") and lines[i].strip()
+        ),
+        end,
+    )
+    headings = [i for i in range(start, end) if lines[i].rstrip("\r\n") == "    pins:"]
+    if len(headings) != 1:
+        raise StudioInputError("Canonical pin block is required")
+    start = headings[0] + 1
+    end = next(
+        (
+            i
+            for i in range(start, end)
+            if lines[i].startswith("    ") and not lines[i].startswith("      ") and lines[i].strip()
+        ),
+        end,
+    )
+    matches = [i for i in range(start, end) if lines[i].startswith("      " + pin_name + ":")]
+    if len(matches) != 1:
+        raise StudioInputError("Only canonical inline pin definitions can be visually edited")
+    return matches[0]
+
+
+def _patch_pin_net(lines: list[str], index: int, old_net: str, target_net: str) -> None:
+    original = lines[index]
+    if "{" not in original or "}" not in original:
+        raise StudioInputError("Only canonical inline pin definitions can be visually edited")
+    found = re.search(r'(?<![A-Za-z_])net:[ \t]*"([A-Za-z0-9_-]+)"', original)
+    if not found or found.group(1) != old_net:
+        raise StudioInputError("Unsupported pin net value syntax; edit the YAML directly")
+    lines[index] = original[: found.start(1)] + target_net + original[found.end(1) :]
+
+
+def _patch_net_nodes(lines: list[str], net_name: str, node_id: str, *, remove: bool) -> None:
+    start, end = _section_bounds(lines, "nets")
+    matches = [i for i in range(start, end) if lines[i].startswith("  " + net_name + ":")]
+    if len(matches) != 1:
+        raise StudioInputError("Canonical inline net nodes are required")
+    index = matches[0]
+    original = lines[index]
+    marker = original.find("nodes:")
+    left = original.find("[", marker)
+    right = original.find("]", left)
+    if marker < 0 or left < 0 or right < 0:
+        raise StudioInputError("Only single-line JSON-compatible net nodes can be edited")
+    try:
+        nodes = json.loads(original[left : right + 1])
+    except json.JSONDecodeError as error:
+        raise StudioInputError("Only double-quoted inline net nodes can be edited") from error
+    if not isinstance(nodes, list) or not all(isinstance(node, str) for node in nodes):
+        raise StudioInputError("Expected plain source net node names")
+    if remove:
+        if nodes.count(node_id) != 1:
+            raise StudioInputError("Pin source and old net node list disagree")
+        nodes.remove(node_id)
+    else:
+        if node_id in nodes:
+            raise StudioInputError("Pin already exists in the target net")
+        nodes.append(node_id)
+    lines[index] = original[:left] + json.dumps(nodes) + original[right + 1 :]
+
+
+def apply_pin_connection(source: str, *, component_ref: str, pin_name: str, target_net: str) -> str:
+    """Update a pin declaration and both source net node lists in one draft.
+
+    Reject unsupported YAML instead of rewriting unrelated comments. This is
+    logical connectivity editing, not ERC/DRC or routed-copper verification.
+    """
+    design, component = _verified_component(source, component_ref)
+    if not isinstance(pin_name, str) or not _REF.fullmatch(pin_name) or pin_name not in component.pins:
+        raise StudioInputError("Choose a declared pin on the selected component")
+    if not isinstance(target_net, str) or not _REF.fullmatch(target_net) or target_net not in design.nets:
+        raise StudioInputError("Choose an existing net in this design")
+    old_net = component.pins[pin_name].net
+    if old_net == target_net:
+        return source
+    if old_net not in design.nets:
+        raise StudioInputError("The source pin does not have an existing net")
+    if design.routing and design.routing.traces:
+        raise StudioInputError("Cannot change a routed pin without regenerating its copper")
+
+    lines = source.splitlines(keepends=True)
+    _patch_pin_net(lines, _pin_line_index(lines, component.id, pin_name), old_net, target_net)
+    node_id = component.ref + "." + pin_name
+    _patch_net_nodes(lines, old_net, node_id, remove=True)
+    _patch_net_nodes(lines, target_net, node_id, remove=False)
+    changed = "".join(lines)
+    result = preview_design(changed)
+    if not result["ok"]:
+        raise StudioInputError(f"Logical pin edit failed validation: {result['error']}")
+    selected = next((c for c in result["components"] if c["ref"] == component.ref), None)
+    if not selected or not any(p["name"] == pin_name and p["net"] == target_net for p in selected["pins"]):
+        raise StudioInputError("The changed source did not preserve the requested pin connection")
+    return changed
+
+
 class StudioDocument:
     """In-process serialized compare-and-swap writes to one trusted YAML file."""
 

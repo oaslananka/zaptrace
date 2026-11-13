@@ -16,9 +16,11 @@ from zaptrace.studio.engine import (
     StudioDocument,
     StudioInputError,
     apply_component_value,
+    apply_pin_connection,
     apply_placement,
     demo_project,
     preview_design,
+    source_sha,
 )
 from zaptrace.studio.http import create_studio_server
 
@@ -279,3 +281,95 @@ def test_logical_schematic_ui_has_source_labeled_accessible_net_selection() -> N
     html = files("zaptrace.studio").joinpath("web", "index.html").read_text()
     assert 'role="group"' in html
     assert 'aria-label="Source-linked electronic design workspace"' in html
+
+
+def test_visual_pin_reassignment_updates_both_canonical_source_references() -> None:
+    original = FIXTURE.read_text()
+    changed = apply_pin_connection(original, component_ref="U2", pin_name="SDA", target_net="I2C_SCL")
+    assert "U2.SDA" in changed
+    assert changed.count('SDA:  {type: "bidirectional", net: "I2C_SCL"}') == 1
+    assert "# Bosch BME280 datasheet Table 35" in changed
+    assert "U1.GPIO21" in changed
+    assert len(changed.splitlines()) == len(original.splitlines())
+    assert sum(a != b for a, b in zip(original.splitlines(), changed.splitlines(), strict=True)) == 3
+    result = preview_design(changed)
+    assert result["ok"]
+    pins = {(c["ref"], p["name"]): p["net"] for c in result["components"] for p in c["pins"]}
+    assert pins["U2", "SDA"] == "I2C_SCL"
+    nets = {n["id"]: {(p["ref"], p["pin"]) for p in n["nodes"]} for n in result["nets"]}
+    assert ("U2", "SDA") in nets["I2C_SCL"]
+    assert ("U2", "SDA") not in nets["I2C_SDA"]
+    assert sum(len(n["nodes"]) for n in result["nets"]) == 37
+    assert apply_pin_connection(changed, component_ref="U2", pin_name="SDA", target_net="I2C_SCL") == changed
+
+
+@pytest.mark.parametrize(
+    ("ref", "pin", "net"),
+    [
+        ("U99", "SDA", "I2C_SCL"),
+        ("U2", "BAD", "I2C_SCL"),
+        ("U2", "SDA", "MADE_UP"),
+        ("U2", "SDA", "GND;DROP"),
+    ],
+)
+def test_visual_pin_connection_rejects_unsupported_targets(ref: str, pin: str, net: str) -> None:
+    with pytest.raises(StudioInputError):
+        apply_pin_connection(FIXTURE.read_text(), component_ref=ref, pin_name=pin, target_net=net)
+
+
+def test_visual_pin_edit_rejects_noncanonical_yaml_without_clobbering() -> None:
+    source = FIXTURE.read_text()
+    alternative = source.replace(
+        'SDA:  {type: "bidirectional", net: "I2C_SDA"}', 'SDA:\n        type: "bidirectional"\n        net: "I2C_SDA"'
+    )
+    assert preview_design(alternative)["ok"]
+    with pytest.raises(StudioInputError):
+        apply_pin_connection(alternative, component_ref="U2", pin_name="SDA", target_net="I2C_SCL")
+
+
+def test_http_pin_connection_is_source_draft_only_and_requires_session(tmp_path: Path) -> None:
+    source = FIXTURE.read_text()
+    document = tmp_path / "design.yaml"
+    document.write_text(source, encoding="utf-8")
+    server = create_studio_server(document, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_port}/api/pin/connect"
+    operation = {
+        "source": source,
+        "component_ref": "U2",
+        "pin_name": "SDA",
+        "target_net": "I2C_SCL",
+    }
+    try:
+
+        def request(token: str | None, body: dict) -> tuple[int, dict]:
+            headers = {"Content-Type": "application/json"}
+            if token is not None:
+                headers["X-ZapTrace-Studio-Token"] = token
+            req = Request(url, data=json.dumps(body).encode(), headers=headers, method="POST")
+            try:
+                with urlopen(req, timeout=10) as response:
+                    return response.status, json.load(response)
+            except HTTPError as error:
+                return error.code, json.loads(error.read())
+
+        assert request(None, operation)[0] == 403
+        assert document.read_text() == source
+        status, response = request(server.session_token, operation)
+        assert status == 200
+        assert response["preview"]["ok"]
+        changed = response["source"]
+        assert "U2.SDA" in changed
+        assert document.read_text() == source  # visual change is intentionally unsaved
+        status, bad = request(server.session_token, {**operation, "target_net": "NOT_A_NET"})
+        assert status == 400
+        assert bad["error"]["code"] == "BAD_DESIGN"
+        assert document.read_text() == source
+        saved = server.document.save(changed, expected_hash=source_sha(source))
+        assert document.read_text() == changed
+        assert saved["preview"]["ok"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=10)

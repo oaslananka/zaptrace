@@ -330,6 +330,74 @@
                 margin: 25px 0 9px;
                 color: #a9c2ca;
             }
+            .pin-editor {
+                margin-top: 13px;
+                padding: 12px;
+                border: 1px solid #3c6472;
+                border-radius: 9px;
+                background: #17303c;
+            }
+            .pin-editor[hidden] {
+                display: none;
+            }
+            .pin-editor-title {
+                color: #9ac4ce;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+            }
+            .pin-editor strong {
+                display: block;
+                margin: 7px 0 12px;
+                color: #ecfbfc;
+                font:
+                    13px ui-monospace,
+                    Consolas,
+                    monospace;
+            }
+            .pin-editor label {
+                display: block;
+                color: #afcfd5;
+                font-size: 11px;
+                margin-bottom: 8px;
+            }
+            .pin-editor-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .pin-editor select {
+                width: 100%;
+                background: #0f2430;
+                color: #dcf3f4;
+                border: 1px solid #4b7882;
+                border-radius: 6px;
+                padding: 9px;
+                font:
+                    11px ui-monospace,
+                    Consolas,
+                    monospace;
+            }
+            .pin-editor button {
+                background: #22595d;
+                color: #ecffff;
+                border-color: #438a8a;
+                min-height: 37px;
+            }
+            .pin-editor button:disabled {
+                color: #a9bcc3;
+                background: #2c4048;
+                border-color: #48616b;
+                cursor: not-allowed;
+            }
+            .pin-editor small {
+                display: block;
+                margin-top: 9px;
+                font-size: 10px;
+                line-height: 1.5;
+                color: #a5bec8;
+            }
             .netpill {
                 display: inline-flex;
                 padding: 5px 8px;
@@ -747,6 +815,28 @@
                             /><button id="set-value">Apply</button>
                         </div>
                         <small>Local source-backed edit · saved on Apply</small>
+                    </div>
+                    <div class="pin-editor" id="pin-editor" hidden>
+                        <div class="pin-editor-title">
+                            Selected schematic pin
+                        </div>
+                        <strong id="pin-label" aria-live="polite">—</strong>
+                        <label for="pin-target-net"
+                            >Connect to an existing net</label
+                        >
+                        <div class="pin-editor-actions">
+                            <select
+                                id="pin-target-net"
+                                aria-label="Target electrical net"
+                            ></select>
+                            <button id="pin-connect" type="button">
+                                Connect pin
+                            </button>
+                        </div>
+                        <small
+                            >Source draft only · Save to persist · ERC and DRC
+                            not checked</small
+                        >
                     </div>
                     <div class="row">
                         <span>Footprint</span><b id="fp">—</b>

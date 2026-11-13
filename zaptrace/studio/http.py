@@ -16,6 +16,7 @@ from zaptrace.studio.engine import (
     StudioDocument,
     StudioInputError,
     apply_component_value,
+    apply_pin_connection,
     apply_placement,
     preview_design,
 )
@@ -146,6 +147,14 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._require_text(payload, "source"),
                 expected_hash=self._require_text(payload, "expected_hash"),
             )
+        if route == "/api/pin/connect":
+            changed = apply_pin_connection(
+                self._require_text(payload, "source"),
+                component_ref=self._require_text(payload, "component_ref"),
+                pin_name=self._require_text(payload, "pin_name"),
+                target_net=self._require_text(payload, "target_net"),
+            )
+            return {"source": changed, "preview": preview_design(changed)}
         if route == "/api/place":
             source = self._require_text(payload, "source")
             ref = self._require_text(payload, "component_ref")
@@ -161,7 +170,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             self._fail(403, "BAD_HOST", "Studio is available on local loopback only")
             return
         route = urlsplit(self.path).path
-        if route not in {PREVIEW_ROUTE, "/api/place", "/api/save", "/api/agent/change"}:
+        if route not in {PREVIEW_ROUTE, "/api/place", "/api/save", "/api/agent/change", "/api/pin/connect"}:
             self._fail(404, "NOT_FOUND", "No such Studio route")
             return
         if route != PREVIEW_ROUTE and not self._authorized_write():

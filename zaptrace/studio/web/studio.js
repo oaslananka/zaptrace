@@ -8,6 +8,7 @@ const state = {
     diskHash: "",
     selection: "U1",
     net: null,
+    pinSelection: null,
     view: "circuit",
     zoom: 1,
     ticket: 0,
@@ -60,6 +61,20 @@ async function update() {
         state.data = data;
         if (!data.components.some((c) => c.ref === state.selection)) {
             state.selection = data.components[0]?.ref;
+        }
+        if (state.pinSelection) {
+            const selected = data.components.find(
+                (component) => component.ref === state.pinSelection.ref,
+            );
+            const pin = selected?.pins.find(
+                (candidate) => candidate.name === state.pinSelection.name,
+            );
+            if (pin) {
+                state.pinSelection.net = pin.net;
+                state.net = pin.net || null;
+            } else {
+                state.pinSelection = null;
+            }
         }
         if (state.net && !data.nets.some((net) => net.id === state.net)) {
             state.net = null;
@@ -158,6 +173,7 @@ function focusSource(ref) {
 function select(ref) {
     state.selection = ref;
     state.net = null;
+    state.pinSelection = null;
     draw();
     focusSource(ref);
 }
@@ -383,14 +399,19 @@ function pinSelected(pin) {
 function focusSchematicPin(ref, pin) {
     state.selection = ref;
     state.net = pin.net || null;
+    state.pinSelection = { ref, name: pin.name, net: pin.net };
     draw();
     focusSource(ref);
 }
 function addSchematicPin(group, component, pin, x, y) {
     const active = pinSelected(pin);
+    const chosen =
+        state.pinSelection?.ref === component.ref &&
+        state.pinSelection?.name === pin.name;
     const color = pin.net ? netStroke(pin.net) : "#829ba8";
     const row = svg("g", {
         class: "schematic-pin",
+        "aria-pressed": String(chosen),
         "data-ref": component.ref,
         "data-pin": pin.name,
         "data-net": pin.net || "",
@@ -782,6 +803,26 @@ function inspector() {
         $("value-input").value = c?.value || "";
     $("fp").textContent = c?.footprint || "—";
     $("pins").textContent = c?.pins.length || 0;
+    const chosen = state.pinSelection;
+    const selectedPin =
+        chosen && chosen.ref === c?.ref
+            ? c.pins.find((pin) => pin.name === chosen.name)
+            : null;
+    const pinEditor = $("pin-editor");
+    pinEditor.hidden = !selectedPin || state.view !== "circuit";
+    if (!pinEditor.hidden) {
+        $("pin-label").textContent =
+            c.ref + "." + selectedPin.name + " · " + selectedPin.net;
+        const menu = $("pin-target-net");
+        menu.replaceChildren();
+        for (const net of d.nets) {
+            const choice = node("option", "", net.id);
+            choice.value = net.id;
+            menu.append(choice);
+        }
+        menu.value = selectedPin.net;
+        $("pin-connect").disabled = true;
+    }
     const n = $("nets");
     n.replaceChildren();
     d.nets
@@ -995,6 +1036,68 @@ async function applyValueFromInspector() {
                 "Another local process edited the design; no value was overwritten.",
             );
         else updateStatus(false, error.message);
+    }
+}
+$("pin-target-net").addEventListener("change", () => {
+    const chosen = state.pinSelection;
+    $("pin-connect").disabled =
+        !chosen || state.stale || chosen.net === $("pin-target-net").value;
+});
+$("pin-connect").onclick = () => {
+    void reassignSelectedPin();
+};
+async function reassignSelectedPin() {
+    const selected = state.pinSelection;
+    if (!state.data || !selected || state.stale) return;
+    const target = $("pin-target-net").value;
+    if (selected.net === target) return;
+    try {
+        $("pin-connect").disabled = true;
+        const previous = $("editor").value;
+        const ticket = state.ticket;
+        const changed = await sendMutation("/api/pin/connect", {
+            source: previous,
+            component_ref: selected.ref,
+            pin_name: selected.name,
+            target_net: target,
+        });
+        if (
+            $("editor").value !== previous ||
+            state.ticket !== ticket ||
+            state.pinSelection?.ref !== selected.ref ||
+            state.pinSelection?.name !== selected.name ||
+            state.stale
+        ) {
+            $("activity").textContent =
+                "A newer source edit or selection took precedence. The earlier pin operation was discarded.";
+            return;
+        }
+        clearTimeout(handle);
+        state.ticket += 1;
+        state.history.push(previous);
+        $("editor").value = changed.source;
+        state.data = changed.preview;
+        state.pinSelection = {
+            ref: selected.ref,
+            name: selected.name,
+            net: target,
+        };
+        state.net = target;
+        markDirty();
+        draw();
+        $("status-text").textContent =
+            "Unsaved logical connection · " +
+            selected.ref +
+            "." +
+            selected.name +
+            " → " +
+            target;
+        $("activity").textContent =
+            "Logical source pin and both net node lists updated." +
+            " Save design to persist, or Undo to revert. ERC/DRC not checked.";
+    } catch (error) {
+        updateStatus(false, error.message);
+        $("pin-connect").disabled = false;
     }
 }
 function pointOnSvg(event, root) {

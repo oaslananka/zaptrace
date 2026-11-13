@@ -133,7 +133,7 @@ zaptrace studio
 zaptrace studio --project path/to/design.yaml
 ```
 
-The Studio keeps **one YAML file** as the authoritative design. Edit component values or nets in the code pane and see the corresponding source-linked logical schematic (including actual named pins and net labels) update; select components and highlight nets across code and canvas, explore board placement by dragging unrouted components, and use **Save design** to persist changes. Invalid drafts retain the last valid visual preview. An external agent/editor edit is detected without silently overwriting unsaved work. For the UI workflow and current engineering limitations, see [Studio user guide](docs/studio.md).
+The Studio keeps **one YAML file** as the authoritative design. Edit component values or nets in the code pane and see the corresponding source-linked logical schematic (including actual named pins and net labels) update; select components and highlight nets across code and canvas, reassign an existing logical pin to another source net through Inspector, explore board placement by dragging unrouted components, and use **Save design** to persist changes. Invalid drafts retain the last valid visual preview. An external agent/editor edit is detected without silently overwriting unsaved work. For the UI workflow and current engineering limitations, see [Studio user guide](docs/studio.md).
 
 A local visual preview does **not** replace KiCad-native schematic, ERC, DRC, routing verification or qualified fabrication review.
 
