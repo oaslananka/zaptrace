@@ -268,6 +268,7 @@ def test_strict_native_cli_reports_failed_check_to_ci_log(
     assert "Native boundary verification failed:" in err
     assert "source-clean:" in err
     assert "source tree is dirty" in err
+    assert "pyproject.toml" in err  # diagnostic names the actual modified file
     assert json.loads(report.read_text(encoding="utf-8"))["status"] == "fail"
 
 

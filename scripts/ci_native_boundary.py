@@ -274,9 +274,17 @@ def _process_survival(core: Any) -> dict[str, Any]:
     }
 
 
-def _source_clean(source: dict[str, Any]) -> dict[str, Any]:
+def _source_clean(source: dict[str, Any], source_root: Path) -> dict[str, Any]:
     if source["dirty"]:
-        raise NativeBoundaryError("source tree is dirty; native evidence cannot be bound to the recorded commit")
+        # Show only bounded Git status entries, never file contents or credentials.
+        # This detects build-tool side effects without weakening the source
+        # identity gate or silently ignoring generated files.
+        entries = _git(source_root, "status", "--porcelain", "--untracked-files=all").splitlines()
+        summary = "; ".join(entry[:140] for entry in entries[:12])
+        raise NativeBoundaryError(
+            "source tree is dirty; native evidence cannot be bound to the recorded commit"
+            + (f" (git status: {summary})" if summary else "")
+        )
     return {"commit": source["commit"], "ref": source["ref"]}
 
 
@@ -325,7 +333,7 @@ def build_report(
     versions = _versions(source_root)
     runtime = _runtime(target)
     checks = [
-        _check("source-clean", lambda: _source_clean(source)),
+        _check("source-clean", lambda: _source_clean(source, source_root)),
         _check("module-contract", lambda: _module_contract(core)),
         _check("version-consistency", lambda: _version_consistency(versions)),
         _check("valid-placement", lambda: _valid_placement(core)),
