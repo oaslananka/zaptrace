@@ -1861,11 +1861,15 @@ function draw3D() {
     const thickness = 10; // graphic treatment, NOT an asserted board thickness
     root.append(shape(corners.map((corner) => ({ ...corner, y: corner.y + 18 })),
         "#03171c", { "fill-opacity": 0.55, "pointer-events": "none" }));
-    for (const [a, b] of [[3, 2], [2, 1]]) {
+    const visibleEdges = [
+        [corners[3], corners[2]],
+        [corners[2], corners[1]],
+    ];
+    for (const [from, to] of visibleEdges) {
         root.append(shape([
-            corners[a], corners[b],
-            { x: corners[b].x, y: corners[b].y + thickness },
-            { x: corners[a].x, y: corners[a].y + thickness },
+            from, to,
+            { x: to.x, y: to.y + thickness },
+            { x: from.x, y: from.y + thickness },
         ], "#0a2928", { stroke: "#477c6e", "stroke-width": 1 }));
     }
     root.append(shape(corners, "#194d40", {
