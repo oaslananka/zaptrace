@@ -14,6 +14,23 @@ Choose **Recent projects** to reopen personal copies after a browser reload or a
 
 To **directly edit the original file** instead of a personal copy, start `zaptrace studio --project path/to/design.yaml`; that explicit CLI option edits the selected file, so make a repository commit/backup as appropriate. Studio itself is still initially launched via the CLI; the browser controls remove the need to type file paths for imported projects. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
 
+## Concurrent agent edits — compare and recover safely
+
+Studio checks the local YAML for agent and editor changes. If the file changes
+while you have an unsaved draft, Studio preserves your editor text and disables
+Save to avoid overwriting the agent's work. **Compare versions** opens a
+read-only view of **My current editor draft** and **Latest source on disk**.
+The comparison does not modify or automatically merge the two versions.
+**Download my draft** creates a local YAML download from the current editor
+without saving to the original project. **Keep editing my draft** closes the
+comparison without discarding changes. **Load latest** replaces the draft
+only with explicit user confirmation.
+
+If the source-check or reload response is delayed and the user starts
+typing, the newer editor text takes precedence. With no local draft, Studio
+automatically adopts the changed local file. This is edit and overwrite
+protection, not an automatic semantic merge or verified PCB review.
+
 ## Follow a component from code to circuit, board and 3D concept
 
 The **Following your source component** strip above the live drawing identifies the currently selected real component and value. Select a component by clicking its YAML declaration or moving the editor caret with the arrow keys, then use **Circuit**, **Board** and **3D concept** in the strip to find that same part. The target diagram item receives keyboard focus, and **Source** returns to its exact YAML component key. This also works when a YAML key (component `id`) differs from the visible PCB reference (`ref`). The source editor's focus is not stolen while selecting with arrow keys.

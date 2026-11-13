@@ -1058,6 +1058,54 @@
                 border-color: #dbb07b;
                 background: #6b4428;
             }
+            .warning { flex-wrap: wrap; }
+            .warning-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+            .warning button { min-height: 38px; }
+            #conflict-dialog {
+                width: min(1050px, calc(100% - 24px));
+                max-height: min(800px, 92dvh);
+                background: #102731; color: #e3f3f4;
+                border: 1px solid #749c99;
+                border-radius: 13px; padding: 19px;
+            }
+            #conflict-dialog::backdrop { background: #06151be0; }
+            #conflict-dialog p, #conflict-dialog small { color: #bdd5d8; }
+            #conflict-dialog .conflict-columns {
+                display: grid; grid-template-columns: repeat(2,minmax(0,1fr));
+                gap: 12px; margin: 12px 0;
+            }
+            .conflict-columns label { display: grid; gap: 8px; font-size: 12px; font-weight: 700; min-width: 0; }
+            .conflict-columns textarea {
+                width: 100%; min-height: 300px; height: min(48dvh, 460px);
+                resize: vertical; background: #091c24; color: #e0f6ed;
+                border: 1px solid #50717b; border-radius: 8px; padding: 11px;
+                font: 12px/1.4 ui-monospace, Consolas, monospace;
+            }
+            .conflict-dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+            .conflict-dialog-actions button { min-height: 44px; }
+            body[data-theme="light"] #conflict-dialog { background: #e4f1f3; color: #17333d; }
+            body[data-theme="light"] #conflict-dialog p,
+            body[data-theme="light"] #conflict-dialog small { color: #355864; }
+            body[data-theme="light"] .conflict-columns textarea {
+                background: #fbffff; color: #163744;
+            }
+            @media (max-width: 690px) {
+                .warning {
+                    position: fixed;
+                    top: 12px;
+                    left: 8px;
+                    right: 8px;
+                    z-index: 35;
+                    max-height: min(56dvh, 380px);
+                    overflow-y: auto;
+                    box-shadow: 0 12px 38px #020d16aa;
+                }
+                .warning-actions { width: 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+                .warning-actions button { min-width: 0; min-height: 44px; }
+                .warning-actions #reload { grid-column: 1 / -1; }
+                #conflict-dialog .conflict-columns { grid-template-columns: minmax(0,1fr); }
+                .conflict-columns textarea { height: 170px; min-height: 170px; }
+            }
             .value-editor {
                 border: 1px solid #315765;
                 background: #142e3a;
@@ -1183,6 +1231,26 @@
             </div>
             <button id="desktop-quit" type="button" hidden>Quit desktop Studio</button>
         </dialog>
+        <dialog id="conflict-dialog" aria-labelledby="conflict-dialog-title">
+            <div class="projects-dialog-title">
+                <strong id="conflict-dialog-title">Compare before replacing a draft</strong>
+                <button id="conflict-close" type="button" aria-label="Close source comparison">×</button>
+            </div>
+            <p id="conflict-info" role="status" aria-live="polite">Reading the latest local source…</p>
+            <div class="conflict-columns">
+                <label for="conflict-mine">My current editor draft
+                    <textarea id="conflict-mine" readonly spellcheck="false"></textarea>
+                </label>
+                <label for="conflict-theirs">Latest source on disk (agent/editor)
+                    <textarea id="conflict-theirs" readonly spellcheck="false"></textarea>
+                </label>
+            </div>
+            <div class="conflict-dialog-actions">
+                <button id="conflict-download" type="button">Download my current draft</button>
+                <button id="conflict-keep" type="button">Keep editing my draft</button>
+            </div>
+            <small>Comparison is read-only. No automatic merge or overwrite. Back up your draft before loading the latest version.</small>
+        </dialog>
         <main class="shell">
             <section class="panel">
                 <div class="section">
@@ -1235,9 +1303,13 @@
                         <span id="wire-hint-text">Choose a second pin</span>
                         <button id="wire-cancel" type="button">Cancel</button>
                     </div>
-                    <div class="warning" id="stale" hidden>
-                        Design changed outside Studio. Your draft is preserved.
-                        <button id="reload">Load new version</button>
+                    <div class="warning" id="stale" hidden role="alert">
+                        <span id="stale-summary">Another editor changed the source. Your draft is preserved.</span>
+                        <div class="warning-actions">
+                            <button id="compare-versions" type="button">Compare versions</button>
+                            <button id="download-draft" type="button">Download my draft</button>
+                            <button id="reload" type="button">Load latest</button>
+                        </div>
                     </div>
                     <div id="title" class="canvas-title">
                         Circuit connectivity<small

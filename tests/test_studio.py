@@ -147,6 +147,27 @@ def test_invalid_and_stale_edits_never_write(tmp_path: Path) -> None:
     assert "agent externally" in doc.read()["source"]
 
 
+def test_agent_commit_and_stale_browser_draft_do_not_overwrite_each_other(tmp_path: Path) -> None:
+    """Independent source writers require an exact expected hash."""
+    file = tmp_path / "design.yaml"
+    file.write_text(FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
+    browser = StudioDocument(file)
+    agent = StudioDocument(file)
+    base = browser.read()
+    draft = apply_component_value(base["source"], component_ref="R1", value="9.1k")
+    agent_source = apply_component_value(base["source"], component_ref="R2", value="15k")
+    agent_saved = agent.save(agent_source, expected_hash=base["source_hash"])
+    with pytest.raises(StudioConflictError):
+        browser.save(draft, expected_hash=base["source_hash"])
+    assert browser.read()["source"] == agent_saved["source"] == agent_source
+    assert "9.1k" in draft
+    resolved = apply_component_value(agent_source, component_ref="R1", value="9.1k")
+    saved = browser.save(resolved, expected_hash=agent_saved["source_hash"])
+    components = {item["ref"]: item["value"] for item in saved["preview"]["components"]}
+    assert components["R1"] == "9.1k"
+    assert components["R2"] == "15k"
+
+
 @pytest.mark.parametrize(
     ("ref", "x", "y"),
     [("U99", 5.0, 10.0), ("R1", -1.0, 10.0), ("R1", 1000.0, 10.0), ("R1", float("nan"), 10.0)],
@@ -369,6 +390,18 @@ def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> Non
         for element_id in (b"bridge-part", b"bridge-source"):
             assert b'id="' + element_id + b'"' in html
         assert html.count(b"data-follow-view=") == 3
+        for element_id in (
+            b"stale-summary",
+            b"compare-versions",
+            b"download-draft",
+            b"conflict-dialog",
+            b"conflict-mine",
+            b"conflict-theirs",
+            b"conflict-download",
+            b"conflict-keep",
+        ):
+            assert b'id="' + element_id + b'"' in html
+
         status, first = call("/api/source")
         assert status == 200
         assert first["source_hash"] == sha(file.read_text())

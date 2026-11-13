@@ -423,13 +423,58 @@ $("reload").onclick = () => {
     if (
         state.dirty &&
         !window.confirm(
-            "Discard your unsaved draft and load the latest project source?",
+            "Replace your unsaved YAML draft with the current disk version? " +
+            "Download my draft first if you need it. This cannot be undone.",
         )
-    )
-        return;
+    ) return;
     void loadFromDisk(true).catch((error) => {
         updateStatus(false, error.message);
     });
+};
+function downloadCurrentDraft() {
+    const contents = $("editor").value;
+    const name = $("file-name").textContent.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48);
+    const href = URL.createObjectURL(new Blob([contents], { type: "application/x-yaml" }));
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "zaptrace-unsaved-" + (name || "design") + ".yaml";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+    $("activity").textContent = "Downloaded your current editor YAML. The Studio project was not changed.";
+}
+$("download-draft").onclick = downloadCurrentDraft;
+$("conflict-download").onclick = downloadCurrentDraft;
+$("conflict-close").onclick = () => $("conflict-dialog").close();
+$("conflict-keep").onclick = () => $("conflict-dialog").close();
+$("compare-versions").onclick = async () => {
+    const dialog = $("conflict-dialog");
+    if (dialog.open) return;
+    const sourceAtOpen = $("editor").value;
+    $("conflict-mine").value = sourceAtOpen;
+    $("conflict-theirs").value = "";
+    $("conflict-info").textContent = "Reading the latest source directly from this local project…";
+    dialog.showModal();
+    try {
+        const response = await fetch("/api/source", { cache: "no-store" });
+        if (!response.ok) throw new Error("Latest disk source unavailable");
+        const snapshot = await response.json();
+        if (!dialog.open) return;
+        if ($("editor").value !== sourceAtOpen) {
+            $("conflict-info").textContent =
+                "Your draft changed while comparison loaded. Close and reopen to see the current version.";
+            return;
+        }
+        $("conflict-theirs").value = snapshot.source;
+        $("conflict-info").textContent =
+            "Read-only comparison. My draft: " + sourceAtOpen.split("\n").length +
+            " lines · disk: " + snapshot.source.split("\n").length +
+            " lines. No changes saved or merged.";
+    } catch (error) {
+        if (dialog.open) $("conflict-info").textContent =
+            "Could not read the latest local file. Your draft remains untouched. " + error.message;
+    }
 };
 $("set-value").onclick = () => {
     void applyValueFromInspector();
@@ -2604,10 +2649,14 @@ function showStale(message) {
     state.wireStart = null;
     $("wire-hint").hidden = true;
     $("stale").hidden = false;
+    $("stale-summary").textContent = state.dirty
+        ? "The saved file changed elsewhere. Your unsaved draft is safe."
+        : "The saved file changed elsewhere. Review the latest version.";
     $("activity").textContent =
         message ||
         "The source changed outside this editor; your draft is preserved.";
     markDirty();
+    updateBridge();
 }
 async function sendMutation(route, data) {
     const response = await fetch(route, {
@@ -2646,9 +2695,17 @@ async function useDiskSnapshot(snapshot, activity) {
     if (activity) $("activity").textContent = activity;
 }
 async function loadFromDisk(manual) {
+    // A slow disk request must never replace a draft started after the click.
+    const editorAtRequest = $("editor").value;
+    const hashAtRequest = state.diskHash;
     const response = await fetch("/api/source", { cache: "no-store" });
     if (!response.ok) throw new Error("Could not read current source");
     const snapshot = await response.json();
+    if ($("editor").value !== editorAtRequest || state.diskHash !== hashAtRequest) {
+        $("activity").textContent =
+            "The editor changed while loading. Your latest draft was kept; try again when ready.";
+        return;
+    }
     await useDiskSnapshot(
         snapshot,
         manual
@@ -2657,14 +2714,18 @@ async function loadFromDisk(manual) {
     );
 }
 async function checkExternalChange() {
+    if (state.stale) return;
+    const editorAtRequest = $("editor").value;
+    const hashAtRequest = state.diskHash;
     try {
         const response = await fetch("/api/source", { cache: "no-store" });
         if (!response.ok) return;
         const disk = await response.json();
         if (!state.diskHash || disk.source_hash === state.diskHash) return;
-        if (state.dirty) {
+        if (state.diskHash !== hashAtRequest) return; // A newer save/reload won the race.
+        if (state.dirty || $("editor").value !== editorAtRequest) {
             showStale(
-                "A local agent or another editor changed this file. Your unsaved draft is safe; reload or reconcile.",
+                "A local agent or another editor changed this file. Your draft is preserved; compare or download it before loading the latest source.",
             );
             return;
         }
