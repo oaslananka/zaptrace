@@ -419,30 +419,26 @@ def test_user_connection_then_board_move_is_one_valid_source_transaction(tmp_pat
     assert document.read()["source"] == placed
 
 
-def test_kicad_symbol_svg_only_keeps_native_geometry() -> None:
-    from xml.etree import ElementTree as ET
+def test_kicad_library_symbol_geometry_is_allowlisted_and_source_derived() -> None:
+    from zaptrace.studio.native_symbols import _render_native_svg, native_svg_for
 
-    from zaptrace.studio.native_symbols import _sanitize_cli_svg, native_svg_for
-
-    raw = b"""<?xml version="1.0"?>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 8">
-        <g><path d="M 0 0 L 1 1" stroke="black" /></g>
-        <g class="stroked-text"><path d="M 9 9" /></g>
-        <text x="0">R?</text>
-        <image href="https://unsafe.example/image.svg" />
-        <script>malicious()</script>
-    </svg>"""
-    assert _sanitize_cli_svg(raw) is None
-    assert native_svg_for("malicious") is None
-    valid = raw.replace(b"<script>malicious()</script>", b"")
-    svg = _sanitize_cli_svg(valid)
+    lib = (
+        '(kicad_symbol_lib (symbol "R" '
+        '(symbol "R_0_1" (rectangle (start -1 -2) (end 1 2))) '
+        '(symbol "R_1_1" '
+        '(pin passive line (at 0 3.81 270) (length 1.27) (number "1")) '
+        '(pin passive line (at 0 -3.81 90) (length 1.27) (number "2")))))'
+    )
+    svg = _render_native_svg(lib, "R")
     assert svg is not None
-    root = ET.fromstring(svg)
-    assert root.tag.endswith("svg")
-    assert any(element.tag.endswith("path") for element in root.iter())
-    assert all(not element.tag.endswith(("text", "image", "script")) for element in root.iter())
-    assert b"stroked-text" not in svg
-    assert b"https://" not in svg
+    assert b"<svg " in svg
+    assert b"<rect " in svg
+    assert svg.count(b"<line ") == 2
+    assert b"DOCTYPE" not in svg and b"script" not in svg
+    assert _render_native_svg(lib, "Unknown") is None
+    assert _render_native_svg(lib.replace('(number "2")', '(number "3")'), "R") is None
+    assert _render_native_svg(lib.replace("(start -1 -2)", "(start -999 -2)"), "R") is None
+    assert native_svg_for("Unknown") is None
 
 
 def test_http_installed_kicad_symbol_available_or_fails_cleanly(
