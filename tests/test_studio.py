@@ -417,3 +417,58 @@ def test_user_connection_then_board_move_is_one_valid_source_transaction(tmp_pat
     document.path.write_text(source, encoding="utf-8")
     document.save(placed, expected_hash=source_sha(source))
     assert document.read()["source"] == placed
+
+
+def test_kicad_symbol_svg_only_keeps_native_geometry() -> None:
+    from xml.etree import ElementTree as ET
+
+    from zaptrace.studio.native_symbols import _sanitize_cli_svg, native_svg_for
+
+    raw = b"""<?xml version="1.0"?>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 8">
+        <g><path d="M 0 0 L 1 1" stroke="black" /></g>
+        <g class="stroked-text"><path d="M 9 9" /></g>
+        <text x="0">R?</text>
+        <image href="https://unsafe.example/image.svg" />
+        <script>malicious()</script>
+    </svg>"""
+    assert _sanitize_cli_svg(raw) is None
+    assert native_svg_for("malicious") is None
+    valid = raw.replace(b"<script>malicious()</script>", b"")
+    svg = _sanitize_cli_svg(valid)
+    assert svg is not None
+    root = ET.fromstring(svg)
+    assert root.tag.endswith("svg")
+    assert any(element.tag.endswith("path") for element in root.iter())
+    assert all(not element.tag.endswith(("text", "image", "script")) for element in root.iter())
+    assert b"stroked-text" not in svg
+    assert b"https://" not in svg
+
+
+def test_http_installed_kicad_symbol_available_or_fails_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from zaptrace.studio import http as studio_http
+
+    source = FIXTURE.read_text()
+    document = tmp_path / "design.yaml"
+    document.write_text(source, encoding="utf-8")
+    server = create_studio_server(document, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 10"><rect width="2" height="4"/></svg>'
+    monkeypatch.setattr(studio_http, "native_svg_for", lambda name: svg if name == "R" else None)
+    try:
+        with urlopen(f"http://127.0.0.1:{server.server_port}/native-symbol/R.svg", timeout=5) as response:
+            assert response.headers["Content-Type"].startswith("image/svg+xml")
+            assert response.headers["X-Content-Type-Options"] == "nosniff"
+            assert response.read() == svg
+        for route in ("C.svg", "malicious.svg"):
+            with pytest.raises(HTTPError) as error:
+                urlopen(f"http://127.0.0.1:{server.server_port}/native-symbol/{route}", timeout=5)
+            assert error.value.code == 404
+        assert document.read_text(encoding="utf-8") == source
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=10)

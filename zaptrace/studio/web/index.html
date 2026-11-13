@@ -381,6 +381,38 @@
                 stroke: #f3fafa;
                 stroke-width: 2;
             }
+            .native-symbol {
+                margin: 11px 0;
+                padding: 11px;
+                border: 1px solid #426576;
+                border-radius: 9px;
+                background: #162f3b;
+            }
+            .native-symbol[hidden] {
+                display: none;
+            }
+            .native-symbol-header {
+                color: #91dfd0;
+                font-size: 10px;
+                font-weight: 750;
+                margin-bottom: 8px;
+                letter-spacing: 0.5px;
+            }
+            .native-symbol img {
+                display: block;
+                width: 100%;
+                max-width: 135px;
+                height: 90px;
+                object-fit: contain;
+                filter: invert(90%);
+                margin: 0 auto;
+            }
+            .native-symbol small {
+                display: block;
+                color: #a2c5ce;
+                line-height: 1.45;
+                font-size: 10px;
+            }
             .pin-editor {
                 margin-top: 13px;
                 padding: 12px;
@@ -908,6 +940,23 @@
                             >Source draft only · Save to persist · ERC and DRC
                             not checked</small
                         >
+                    </div>
+                    <div class="native-symbol" id="native-symbol" hidden>
+                        <div
+                            class="native-symbol-header"
+                            id="native-symbol-label"
+                        >
+                            Installed KiCad symbol
+                        </div>
+                        <img
+                            id="native-symbol-preview"
+                            alt="KiCad symbol from locally installed library"
+                        />
+                        <small>
+                            Native KiCad Device library artwork. Pin 1→P1, 2→P2
+                            comes from this YAML design, not independently
+                            verified.
+                        </small>
                     </div>
                     <div class="row">
                         <span>Footprint</span><b id="fp">—</b>

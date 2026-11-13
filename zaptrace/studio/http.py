@@ -20,6 +20,7 @@ from zaptrace.studio.engine import (
     apply_placement,
     preview_design,
 )
+from zaptrace.studio.native_symbols import native_svg_for
 
 PREVIEW_ROUTE = "/api/preview"
 
@@ -107,6 +108,13 @@ class StudioHandler(BaseHTTPRequestHandler):
             self._send((self.studio.asset_dir / "studio.js").read_bytes(), "text/javascript; charset=utf-8")
         elif route == "/api/source":
             self._json(self.studio.document.read())
+        elif route in {"/native-symbol/R.svg", "/native-symbol/C.svg"}:
+            symbol = route.removeprefix("/native-symbol/").removesuffix(".svg")
+            native = native_svg_for(symbol)
+            if native is None:
+                self._fail(404, "NATIVE_SYMBOL_UNAVAILABLE", "Installed KiCad symbol is not available")
+            else:
+                self._send(native, "image/svg+xml; charset=utf-8")
         else:
             self._fail(404, "NOT_FOUND", "No such Studio route")
 

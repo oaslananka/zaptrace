@@ -452,6 +452,54 @@ function isTwoTerminalSymbol(component) {
         )
     );
 }
+function nativeSymbolKey(component) {
+    const kind = symbolKind(component);
+    if (kind !== "resistor" && kind !== "capacitor") return null;
+    if (component.pins.length !== 2) return null;
+    const p1 = component.pins.find((pin) => pin.name === "P1");
+    const p2 = component.pins.find((pin) => pin.name === "P2");
+    if (
+        !p1 ||
+        !p2 ||
+        (p1.source_package_pads || []).join(",") !== "1" ||
+        (p2.source_package_pads || []).join(",") !== "2"
+    )
+        return null;
+    return kind === "resistor" ? "R" : "C";
+}
+function appendSchematicBody(group, component, cx, cy, left, top, width) {
+    if (!isTwoTerminalSymbol(component)) {
+        drawSymbolKind(group, component, left + width - 18, top + 15);
+        return;
+    }
+    const nativeKey = nativeSymbolKey(component);
+    if (!nativeKey) {
+        drawSymbolKind(group, component, cx, cy + 9);
+        return;
+    }
+    const fallback = svg("g", { class: "illustrative-symbol-fallback" });
+    drawSymbolKind(fallback, component, cx, cy + 9);
+    group.append(fallback);
+    const artwork = svg("image", {
+        href: "/native-symbol/" + nativeKey + ".svg",
+        width: 25,
+        height: 46,
+        x: -12.5,
+        y: -23,
+        transform: "translate(" + cx + " " + (cy + 9) + ") rotate(-90)",
+        "data-native-symbol": "Device:" + nativeKey,
+        "aria-label": "Installed KiCad Device:" + nativeKey + " artwork",
+    });
+    artwork.style.filter = "invert(90%)";
+    artwork.addEventListener("load", () => {
+        fallback.setAttribute("visibility", "hidden");
+        group.setAttribute("data-symbol-rendering", "kicad-native");
+    });
+    artwork.addEventListener("error", () => {
+        artwork.remove();
+    });
+    group.append(artwork);
+}
 function schematicSymbolHeight(component) {
     if (isTwoTerminalSymbol(component)) return 94;
     return 52 + Math.ceil(component.pins.length / 2) * 25;
@@ -694,8 +742,7 @@ function drawSchematicComponent(root, component, cx, cy) {
             (component.value || component.type).slice(0, 13),
         ),
     );
-    if (simple) drawSymbolKind(group, component, cx, cy + 9);
-    else drawSymbolKind(group, component, left + width - 18, top + 15);
+    appendSchematicBody(group, component, cx, cy, left, top, width);
     for (const [index, pin] of component.pins.entries()) {
         addSchematicPin(
             group,
@@ -1179,6 +1226,35 @@ function inspector() {
     $("val").textContent = c?.value || "Not set";
     if (document.activeElement !== $("value-input"))
         $("value-input").value = c?.value || "";
+    const nativeKey = c && nativeSymbolKey(c);
+    const nativePanel = $("native-symbol");
+    nativePanel.hidden = true;
+    if (nativeKey) {
+        const preview = $("native-symbol-preview");
+        const nativeUrl = "/native-symbol/" + nativeKey + ".svg";
+        $("native-symbol-label").textContent =
+            "Installed KiCad native symbol · Device:" + nativeKey;
+        preview.onload = () => {
+            const selected = state.data.components.find(
+                (x) => x.ref === state.selection,
+            );
+            if (
+                selected &&
+                nativeSymbolKey(selected) === nativeKey &&
+                state.selection === c.ref
+            ) {
+                nativePanel.hidden = false;
+            }
+        };
+        preview.onerror = () => {
+            nativePanel.hidden = true;
+        };
+        if (!preview.getAttribute("src")?.endsWith(nativeUrl)) {
+            preview.src = nativeUrl;
+        } else if (preview.complete && preview.naturalWidth > 0) {
+            nativePanel.hidden = false;
+        }
+    }
     $("fp").textContent = c?.footprint || "—";
     $("pins").textContent = c?.pins.length || 0;
     const chosen = state.pinSelection;
