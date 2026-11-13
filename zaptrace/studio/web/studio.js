@@ -16,7 +16,6 @@ const state = {
     dirty: false,
     stale: false,
     history: [],
-    suppressClick: false,
 };
 function svg(name, attrs, text) {
     const e = document.createElementNS(NS, name);
@@ -445,12 +444,38 @@ function focusSchematicPin(ref, pin) {
     }
     void connectPinToNet({ ref, name: pin.name, net: pin.net }, source.net);
 }
-function addSchematicPin(group, component, pin, x, y) {
+function isTwoTerminalSymbol(component) {
+    return (
+        component.pins.length <= 2 &&
+        ["resistor", "capacitor", "protection", "testpoint"].includes(
+            symbolKind(component),
+        )
+    );
+}
+function schematicSymbolHeight(component) {
+    if (isTwoTerminalSymbol(component)) return 94;
+    return 52 + Math.ceil(component.pins.length / 2) * 25;
+}
+function schematicPinGeometry(component, index, cx, cy) {
+    const simple = isTwoTerminalSymbol(component);
+    const leftCount = simple ? 1 : Math.ceil(component.pins.length / 2);
+    const side = index < leftCount ? "left" : "right";
+    const slot = side === "left" ? index : index - leftCount;
+    const height = schematicSymbolHeight(component);
+    return {
+        x: cx + (side === "left" ? -100 : 100),
+        y: simple ? cy + 9 : cy - height / 2 + 45 + slot * 25,
+        side,
+    };
+}
+function addSchematicPin(group, component, pin, geometry) {
+    const { x, y, side } = geometry;
     const active = pinSelected(pin);
     const chosen =
         state.pinSelection?.ref === component.ref &&
         state.pinSelection?.name === pin.name;
     const color = pin.net ? netStroke(pin.net) : "#829ba8";
+    const simple = isTwoTerminalSymbol(component);
     const row = svg("g", {
         class: "schematic-pin",
         "aria-pressed": String(chosen),
@@ -463,6 +488,9 @@ function addSchematicPin(group, component, pin, x, y) {
         "data-net": pin.net || "",
         "data-electrical-type": pin.type || "",
         "data-source-package-pads": (pin.source_package_pads || []).join(","),
+        "data-side": side,
+        "data-end-x": x,
+        "data-end-y": y,
         role: "button",
         tabindex: 0,
         "aria-label":
@@ -477,78 +505,104 @@ function addSchematicPin(group, component, pin, x, y) {
                 ? ", source package pads " + pin.source_package_pads.join(", ")
                 : ", no package pad mapping"),
     });
+    const glyphHalfWidth =
+        symbolKind(component) === "resistor"
+            ? 15
+            : symbolKind(component) === "capacitor"
+              ? 12
+              : symbolKind(component) === "protection"
+                ? 9
+                : 6;
+    const innerDistance = simple ? 100 - glyphHalfWidth : 13;
+    const innerX = x + (side === "left" ? innerDistance : -innerDistance);
+    row.append(
+        svg("path", {
+            d: "M " + x + " " + y + " H " + innerX,
+            fill: "none",
+            stroke: color,
+            "stroke-width": active ? 2.6 : 1.8,
+        }),
+    );
+    row.append(svg("circle", { cx: x, cy: y, r: 3.1, fill: color }));
+    const hitX = simple
+        ? side === "left"
+            ? x
+            : x - 86
+        : side === "left"
+          ? x
+          : x - 93;
     row.append(
         svg("rect", {
             class: "pin-hit",
-            x: x + 1,
-            y: y - 11,
-            width: 186,
-            height: 17,
-            rx: 3,
+            x: hitX,
+            y: y - 13,
+            width: simple ? 86 : 93,
+            height: 26,
+            rx: 4,
             fill: "transparent",
         }),
     );
     if (active) {
         row.append(
             svg("rect", {
-                x: x + 4,
-                y: y - 10,
-                width: 177,
-                height: 15,
-                rx: 3,
+                x: hitX + 2,
+                y: y - 12,
+                width: simple ? 82 : 89,
+                height: 24,
+                rx: 4,
                 fill: color,
-                "fill-opacity": 0.2,
+                "fill-opacity": 0.13,
             }),
         );
     }
-    row.append(
-        svg("path", {
-            d: "M " + (x - 14) + " " + (y - 2) + " h14",
-            stroke: color,
-            "stroke-width": active ? 2.5 : 1.4,
-        }),
-    );
-    row.append(svg("circle", { cx: x - 14, cy: y - 2, r: 2.4, fill: color }));
+    const nameX = simple
+        ? x + (side === "left" ? 8 : -8)
+        : x + (side === "left" ? 14 : -14);
+    const textAnchor = side === "left" ? "start" : "end";
     row.append(
         svg(
             "text",
             {
-                x: x + 12,
-                y: y + 1,
-                fill: active ? "#f6fafc" : "#c7d9df",
+                x: nameX,
+                y: y - 2,
+                fill: active ? "#f5fbfc" : "#d5e7e9",
                 "font-size": 10.5,
+                "font-weight": 600,
+                "text-anchor": textAnchor,
                 "font-family": "ui-monospace,Consolas,monospace",
             },
-            pin.name.slice(0, 10),
+            pin.name.slice(0, 9),
         ),
     );
     row.append(
         svg(
             "text",
             {
-                x: x + 86,
-                y: y + 1,
+                x: nameX,
+                y: y + 10,
                 fill: color,
-                "font-size": 10.3,
+                "font-size": 9.1,
+                "text-anchor": textAnchor,
                 "font-family": "ui-monospace,Consolas,monospace",
             },
-            (pin.net || "NC").slice(0, 13),
+            (pin.net || "NC").slice(0, 11),
         ),
     );
-    const details = svg(
-        "title",
-        {},
-        "Pin " +
-            pin.name +
-            " · " +
-            (pin.type || "unknown") +
-            " · Net " +
-            (pin.net || "not connected") +
-            ((pin.source_package_pads || []).length
-                ? " · Source package pads " + pin.source_package_pads.join(", ")
-                : " · No package pad mapping"),
+    const pads = pin.source_package_pads || [];
+    row.append(
+        svg(
+            "title",
+            {},
+            "Pin " +
+                pin.name +
+                " · " +
+                (pin.type || "unknown") +
+                " · Net " +
+                (pin.net || "not connected") +
+                " · Source package pads " +
+                (pads.length ? pads.join(", ") : "none"),
+        ),
     );
-    row.append(details);
     row.addEventListener("click", (ev) => {
         ev.stopPropagation();
         focusSchematicPin(component.ref, pin);
@@ -563,17 +617,20 @@ function addSchematicPin(group, component, pin, x, y) {
     group.append(row);
 }
 function drawSchematicComponent(root, component, cx, cy) {
+    const simple = isTwoTerminalSymbol(component);
     const width = 188;
-    const height = 42 + component.pins.length * 16;
-    const left = cx - width / 2,
-        top = cy - height / 2;
+    const height = schematicSymbolHeight(component);
+    const left = cx - width / 2;
+    const top = cy - height / 2;
     const selected = component.ref === state.selection;
-    const active =
-        state.net && component.pins.some((pin) => pin.net === state.net);
+    const active = Boolean(
+        state.net && component.pins.some((pin) => pin.net === state.net),
+    );
     const group = svg("g", {
         class: "component schematic-symbol",
         "data-ref": component.ref,
         "data-kind": symbolKind(component),
+        "data-layout": simple ? "two-terminal" : "multi-pin",
     });
     a11y(group, component.ref);
     group.append(
@@ -583,7 +640,7 @@ function drawSchematicComponent(root, component, cx, cy) {
             width,
             height,
             rx: 7,
-            fill: selected ? "#203c44" : "#102530",
+            fill: selected ? "#1a3741" : simple ? "#112934" : "#102530",
             stroke: selected
                 ? "#8be5d9"
                 : active
@@ -628,13 +685,24 @@ function drawSchematicComponent(root, component, cx, cy) {
     group.append(
         svg(
             "text",
-            { x: left + 53, y: top + 18, fill: "#a8ced0", "font-size": 10.2 },
+            {
+                x: left + 53,
+                y: top + 18,
+                fill: "#a8ced0",
+                "font-size": 10.2,
+            },
             (component.value || component.type).slice(0, 13),
         ),
     );
-    drawSymbolKind(group, component, left + width - 18, top + 15);
+    if (simple) drawSymbolKind(group, component, cx, cy + 9);
+    else drawSymbolKind(group, component, left + width - 18, top + 15);
     for (const [index, pin] of component.pins.entries()) {
-        addSchematicPin(group, component, pin, left, top + 45 + 16 * index);
+        addSchematicPin(
+            group,
+            component,
+            pin,
+            schematicPinGeometry(component, index, cx, cy),
+        );
     }
     root.append(group);
 }
@@ -771,7 +839,7 @@ function schematicLayout(rows) {
     for (const row of rows) {
         const tallest = Math.max(
             58,
-            ...row.items.map((component) => 42 + component.pins.length * 16),
+            ...row.items.map((component) => schematicSymbolHeight(component)),
         );
         const rowHeight = Math.max(152, 48 + tallest + 24);
         const centers =
@@ -816,13 +884,16 @@ function drawLogicalNetWires(root, layout, net) {
         for (const position of row.positions) {
             for (const [index, pin] of position.component.pins.entries()) {
                 if (pin.net !== net.id) continue;
-                const sourceX = position.x - 94 - 14;
-                const sourceY =
-                    position.y -
-                    (42 + position.component.pins.length * 16) / 2 +
-                    43 +
-                    index * 16;
-                const corridorX = sourceX - 7;
+                const pinPosition = schematicPinGeometry(
+                    position.component,
+                    index,
+                    position.x,
+                    position.y,
+                );
+                const sourceX = pinPosition.x;
+                const sourceY = pinPosition.y;
+                const corridorX =
+                    sourceX + (pinPosition.side === "left" ? -7 : 7);
                 endpoints.push({
                     sourceX,
                     sourceY,
@@ -1020,7 +1091,10 @@ function drawBoard() {
         const x = left + p[0] * scale,
             y = top + p[1] * scale,
             selected = c.ref === state.selection;
-        const group = svg("g", { class: "component", "data-ref": c.ref });
+        const group = svg("g", {
+            class: "component board-component",
+            "data-ref": c.ref,
+        });
         a11y(group, c.ref);
         enableDrag(group, c, { scale });
         group.append(
@@ -1467,56 +1541,69 @@ function pointOnSvg(event, root) {
 function enableDrag(group, component, config) {
     const root = $("drawing");
     let start = null;
-    group.addEventListener(
-        "click",
-        (event) => {
-            if (state.suppressClick) {
-                event.stopImmediatePropagation();
-                event.preventDefault();
-                state.suppressClick = false;
-            }
-        },
-        true,
-    );
-    group.addEventListener("pointerdown", (event) => {
-        if (event.button !== 0) return;
-        const position = pointOnSvg(event, root);
-        start = { position, origin: component.position, moved: false };
-        group.setPointerCapture?.(event.pointerId);
-    });
-    group.addEventListener("pointermove", (event) => {
-        if (!start) return;
-        const position = pointOnSvg(event, root);
-        const dx = position.x - start.position.x,
-            dy = position.y - start.position.y;
-        if (Math.hypot(dx, dy) > 3) start.moved = true;
-        if (start.moved)
-            group.setAttribute("transform", "translate(" + dx + "," + dy + ")");
-    });
-    group.addEventListener("pointercancel", () => {
+    function stopListening() {
+        document.removeEventListener("pointermove", moveDrag, true);
+        document.removeEventListener("pointerup", finishDrag, true);
+        document.removeEventListener("pointercancel", cancelDrag, true);
+        window.removeEventListener("blur", cancelDrag);
+    }
+    function cancelDrag() {
         start = null;
         group.removeAttribute("transform");
-    });
-    group.addEventListener("pointerup", async (event) => {
-        if (!start) return;
+        stopListening();
+    }
+    function moveDrag(event) {
+        if (!start || event.pointerId !== start.pointerId) return;
+        const position = pointOnSvg(event, root);
+        const dx = position.x - start.position.x;
+        const dy = position.y - start.position.y;
+        if (Math.hypot(dx, dy) > 3) start.moved = true;
+        if (start.moved) {
+            group.setAttribute("transform", "translate(" + dx + "," + dy + ")");
+        }
+    }
+    async function finishDrag(event) {
+        if (!start || event.pointerId !== start.pointerId) return;
         const initial = start;
         start = null;
+        stopListening();
+        group.removeAttribute("transform");
         if (!initial.moved) return;
-        state.suppressClick = true;
+        // The release can occur above a different part. Consume only the
+        // click generated by this release, never the next real user click.
+        const suppressReleaseClick = (click) => {
+            click.preventDefault();
+            click.stopImmediatePropagation();
+            document.removeEventListener("click", suppressReleaseClick, true);
+        };
+        document.addEventListener("click", suppressReleaseClick, true);
+        window.setTimeout(() => {
+            document.removeEventListener("click", suppressReleaseClick, true);
+        }, 0);
         const position = pointOnSvg(event, root);
-        const dx = position.x - initial.position.x,
-            dy = position.y - initial.position.y;
+        const dx = position.x - initial.position.x;
+        const dy = position.y - initial.position.y;
         const x = Math.round((initial.origin[0] + dx / config.scale) * 4) / 4;
         const y = Math.round((initial.origin[1] + dy / config.scale) * 4) / 4;
-        group.removeAttribute("transform");
         try {
             const before = $("editor").value;
+            const ticket = state.ticket;
             const changed = await sendMutation("/api/place", {
                 source: before,
                 component_ref: component.ref,
                 x,
                 y,
             });
+            if (
+                $("editor").value !== before ||
+                state.ticket !== ticket ||
+                state.stale
+            ) {
+                $("activity").textContent =
+                    "A newer source edit took precedence. The previous board move was discarded.";
+                return;
+            }
+            state.ticket += 1;
             state.history.push(before);
             $("editor").value = changed.source;
             state.data = changed.preview;
@@ -1535,11 +1622,24 @@ function enableDrag(group, component, config) {
             $("activity").textContent =
                 "Moved " +
                 component.ref +
-                " on the source-derived board. Select Save design to persist this placement.";
+                " on the source-derived board. Save design to persist.";
         } catch (error) {
             updateStatus(false, error.message);
             draw();
         }
+    }
+    group.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0 || start) return;
+        start = {
+            pointerId: event.pointerId,
+            position: pointOnSvg(event, root),
+            origin: component.position,
+            moved: false,
+        };
+        document.addEventListener("pointermove", moveDrag, true);
+        document.addEventListener("pointerup", finishDrag, true);
+        document.addEventListener("pointercancel", cancelDrag, true);
+        window.addEventListener("blur", cancelDrag);
     });
 }
 

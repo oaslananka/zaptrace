@@ -396,3 +396,24 @@ def test_two_sequential_visual_connections_keep_net_membership_consistent() -> N
     assert ("U2", "SDA", "I2C_SCL") in all_pins
     assert "# Bosch BME280 datasheet Table 35" in updated
     assert "# Official Espressif ESP32-WROOM-32 physical module pad numbers." in updated
+
+
+def test_user_connection_then_board_move_is_one_valid_source_transaction(tmp_path: Path) -> None:
+    """A schematic edit and an exploratory board drag must coexist in the same YAML."""
+    source = FIXTURE.read_text()
+    connected = apply_pin_connection(source, component_ref="R2", pin_name="P2", target_net="I2C_SDA")
+    placed = apply_placement(connected, component_ref="R1", x=22.5, y=16.25)
+    preview = preview_design(placed)
+    assert preview["ok"]
+    components = {c["ref"]: c for c in preview["components"]}
+    assert components["R1"]["position"] == [22.5, 16.25]
+    r2 = {p["name"]: p["net"] for p in components["R2"]["pins"]}
+    assert r2["P2"] == "I2C_SDA"
+    nodes = {net["id"]: {(p["ref"], p["pin"]) for p in net["nodes"]} for net in preview["nets"]}
+    assert ("R2", "P2") in nodes["I2C_SDA"]
+    assert ("R2", "P2") not in nodes["I2C_SCL"]
+    assert "# Official Espressif" in placed
+    document = StudioDocument(tmp_path / "design.yaml")
+    document.path.write_text(source, encoding="utf-8")
+    document.save(placed, expected_hash=source_sha(source))
+    assert document.read()["source"] == placed
