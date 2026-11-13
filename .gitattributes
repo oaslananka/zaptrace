@@ -1,2 +1,3 @@
-# Vendored KiCad footprint bytes are SHA-256 pinned: checkout must preserve LF on Windows.
-data/footprints/vendor/*.kicad_mod text eol=lf
+# KiCad footprint assets contain mixed LF/CRLF byte sequences, some SHA-256 pinned.
+# Treat as byte-exact assets: never normalize source bytes on any platform.
+data/footprints/vendor/*.kicad_mod -text

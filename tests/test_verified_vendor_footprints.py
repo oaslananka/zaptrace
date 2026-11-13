@@ -26,7 +26,7 @@ def _design_yaml(asset_id: str, *, extra: str = "") -> str:
 def test_all_digest_pinned_footprints_match_canonical_checkout_bytes() -> None:
     """Any Windows CRLF rewrite of a pinned KiCad footprint must fail CI."""
     attributes = Path(__file__).resolve().parents[1] / ".gitattributes"
-    assert "data/footprints/vendor/*.kicad_mod text eol=lf" in attributes.read_text(encoding="utf-8")
+    assert "data/footprints/vendor/*.kicad_mod -text" in attributes.read_text(encoding="utf-8")
     for asset_id, (_name, digest) in _PINNED_FOOTPRINTS.items():
         _filename, content = verified_footprint_bytes(asset_id)
         import hashlib
