@@ -311,6 +311,173 @@ def test_ground_without_pour_multipad_over_limit_and_narrow_land_fail_closed() -
     assert over_limit.net_count == 1 and over_limit.routed_net_count == 0 and not over_limit.traces
 
 
+def _multi_vbus_footprint_fixture() -> tuple[Design, dict[str, tuple[float, float]]]:
+    """A source-like USB-C four-contact VBUS has two paired physical locations."""
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(1.5, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="A4", position=(-2, 0), size=(0.6, 1.15), layer=LayerSet.TOP)),
+    )
+    footprint = d.components["b"].footprint_def
+    assert footprint is not None
+    footprint.pads.extend(
+        [
+            Pad(id="A9", position=(2, 0), size=(0.6, 1.15), layer=LayerSet.TOP),
+            Pad(id="B4", position=(2, 0), size=(0.6, 1.15), layer=LayerSet.TOP),
+            Pad(id="B9", position=(-2, 0), size=(0.6, 1.15), layer=LayerSet.TOP),
+        ]
+    )
+    d.components["b"].package_pin_map = {"A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS"}
+    _net(d, "VCC_5V", "a", "b")
+    d.nets["VCC_5V"].nodes[1].pin_name = "VBUS"
+    return d, pos
+
+
+def test_power_router_connects_all_four_usb_vbus_contacts() -> None:
+    """A power route must touch all real USB-C contacts, not only logical VBUS."""
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    design, positions = _multi_vbus_footprint_fixture()
+    route = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000).route(design, positions)
+    assert route.net_count == 1
+    assert route.routed_net_count == 1
+    assert route.traces
+    assert all(seg.net_id == "VCC_5V" and seg.width == 0.5 for seg in route.traces)
+    accepted = retain_verified_partial_copper(design, route, positions)
+    assert accepted.routed_net_count == 1
+    assert accepted.traces
+
+
+def test_power_router_rejects_narrow_and_excess_vbus_contacts() -> None:
+    """Never erase or electrically narrow an extra real VBUS pin."""
+    design, positions = _multi_vbus_footprint_fixture()
+    footprint = design.components["b"].footprint_def
+    assert footprint is not None
+    router = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000)
+    footprint.pads[-1].size = (0.4, 0.35)
+    narrow = router.route(design, positions)
+    assert narrow.net_count == 1
+    assert narrow.routed_net_count == 0 and not narrow.traces
+    footprint.pads[-1].size = (0.6, 1.15)
+
+    # A source terminal with more physical contacts than the bounded
+    # router can inspect must remain incomplete, never first-pad routed.
+    for offset in range(5, 13):
+        name = f"P{offset}"
+        footprint.pads.append(
+            Pad(
+                id=name,
+                position=(float((offset - 5) % 4) * 2.0 - 3.0, float((offset - 5) // 4) * 2.5 + 3.0),
+                size=(0.6, 1.15),
+                layer=LayerSet.TOP,
+            )
+        )
+        design.components["b"].package_pin_map[name] = "VBUS"
+    too_many = router.route(design, positions)
+    assert too_many.net_count == 1
+    assert too_many.routed_net_count == 0 and not too_many.traces
+
+
+@pytest.mark.parametrize("hidden_pad", [False, True])
+def test_larger_power_net_rejects_unqualified_narrow_or_repeated_contacts(hidden_pad: bool) -> None:
+    """A larger power MST cannot hide a too-narrow or extra physical pad."""
+    pads = [
+        (ref, (x, 15), Pad(id="1", size=(1.5, 1.5), layer=LayerSet.TOP))
+        for ref, x in (("a", 5), ("b", 11), ("c", 17), ("d", 23), ("e", 29))
+    ]
+    design, positions = _board(*pads)
+    _net(design, "VCC_3V3", "a", "b", "c", "d", "e")
+    footprint = design.components["b"].footprint_def
+    assert footprint is not None
+    if hidden_pad:
+        footprint.pads.append(Pad(id="1", position=(0, 3), size=(1.5, 1.5), layer=LayerSet.TOP))
+    else:
+        footprint.pads[0].size = (0.5, 0.35)
+    route = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=15_000).route(design, positions)
+    assert route.net_count == 1
+    assert route.routed_net_count == 0 and not route.traces
+
+
+def test_real_esp32_power_nets_cannot_bypass_unqualified_source_lands() -> None:
+    """Source VBUS and 3V3 remain physically unrouted until actual land/current review."""
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    connector_footprint = design.components["J1"].footprint_def
+    assert connector_footprint is not None
+    assert design.placement is not None
+    vbus_pads = [
+        pad for pad in connector_footprint.pads if design.components["J1"].package_pin_map.get(pad.id) == "VBUS"
+    ]
+    assert {pad.id for pad in vbus_pads} == {"A4", "A9", "B4", "B9"}
+    assert len({pad.position for pad in vbus_pads}) == 2
+    d1 = design.components["D1"].footprint_def
+    u2 = design.components["U2"].footprint_def
+    assert d1 is not None and u2 is not None
+    assert min(d1.pads[0].size) == 0.45
+    assert min(u2.pads[0].size) == 0.35
+    design.nets = {key: design.nets[key] for key in ("VCC_5V", "VCC_3V3")}
+    route = GridRouter(pad_aware=True, max_iterations=20_000).route(design, design.placement)
+    assert route.net_count == 2
+    assert route.routed_net_count == 0
+    assert not route.traces and not route.vias
+
+
+def test_power_router_native_kicad_connects_all_vbus_contacts_without_new_drc(tmp_path) -> None:
+    """An independent KiCad run measures real VBUS pad continuity."""
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+
+    from zaptrace.core.models import RouteResult
+    from zaptrace.export.kicad import export_kicad
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Native KiCad unavailable")
+    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, check=True, timeout=10)
+    if not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent KiCad 10 required")
+    design, positions = _multi_vbus_footprint_fixture()
+    route = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000).route(design, positions)
+    assert route.routed_net_count == 1
+    reports = []
+    for label, copper in (("unrouted", RouteResult(net_count=1)), ("routed", route)):
+        candidate = design.model_copy(deep=True)
+        candidate.placement = dict(positions)
+        candidate.routing = copper
+        pcb = export_kicad(candidate, tmp_path / label)["pcb"]
+        report_path = tmp_path / f"{label}.json"
+        process = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(report_path),
+                str(pcb),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        assert process.returncode in (0, 5), process.stderr
+        reports.append(json.loads(report_path.read_text(encoding="utf-8")))
+    before, after = reports
+    # Four USB-style VBUS pad IDs occupy two physical land positions.
+    assert len(before["unconnected_items"]) == 2
+    assert len(after["unconnected_items"]) == 0
+    # Test-only library-footprint mismatch notices must not be suppressed.
+    assert Counter(v["type"] for v in before["violations"]) == Counter(v["type"] for v in after["violations"])
+
+
 def test_ground_without_pour_honors_custom_full_width_clearance() -> None:
     """Explicit GND copper must reserve the real configured trace/clearance halo."""
     from zaptrace.ee.constraints.net_classes import NetClass, NetClassRule

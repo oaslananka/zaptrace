@@ -1004,17 +1004,26 @@ class GridRouter:
     ) -> _GridNetPlan:
         net_class = get_net_class(design, net.id)
         layer = self._layer_for_net_class(net_class, context.num_layers)
-        # A logical connector pin can represent more than one real physical
-        # contact. In bounded explicit GND routing, include *every* land in
-        # the A* targets. Never silently replace it with the first pad.
-        ground_targets: list[tuple[str, Pad]] = []
+        # A power or unpoured-ground logical connector pin may represent
+        # several *real* copper lands. Use every physical occurrence as an
+        # independent A* terminal; never silently route only its first pad.
+        # Large power/ground trees still require separately bounded planning.
+        physical_targets: list[tuple[str, Pad]] = []
+        explicit_ground = net_class == NetClass.GROUND and not canonical_board_definition(design).copper_pour_gnd
         if layer < 0:
-            if net_class != NetClass.GROUND or len(net.nodes) < 2 or canonical_board_definition(design).copper_pour_gnd:
-                # A declared copper pour owns the return-path strategy.
+            if not explicit_ground or len(net.nodes) < 2:
                 return _GridNetPlan(False, False, net.id)
             if not self.pad_aware or len(net.nodes) > 4:
                 return _GridNetPlan(True, False, net.id)
-            ground_width = kb.get_rule(net_class).trace_width
+            layer = 0
+
+        verify_power_or_ground = (
+            self.pad_aware
+            and len(net.nodes) >= 2
+            and (explicit_ground or net_class in (NetClass.POWER_LOW, NetClass.POWER_MED, NetClass.POWER_HIGH))
+        )
+        if verify_power_or_ground:
+            full_width = kb.get_rule(net_class).trace_width
             for node in net.nodes:
                 component = context.component_by_ref.get(node.component_ref)
                 if component is None or component.footprint_def is None:
@@ -1031,18 +1040,26 @@ class GridRouter:
                     in aliases
                 ]
                 if not matched or any(
-                    min(pad.size) + 1e-6 < ground_width or not copper_layers(pad, context.num_layers) for pad in matched
+                    min(pad.size) + 1e-6 < full_width or not copper_layers(pad, context.num_layers) for pad in matched
                 ):
                     return _GridNetPlan(True, False, net.id)
-                ground_targets.extend((node.component_ref, pad) for pad in matched)
-                # Keep the route bounded; 11-node ESP32 RF/GND and its
-                # thermal pad array need a qualified return network.
-                if len(ground_targets) > 8:
+                if len(net.nodes) > 4:
+                    # No multi-pad expansion planner for large power trees.
+                    # An ordinary MST must not count only the first of
+                    # several physical lands as connected; nor may a narrow
+                    # land inherit the full net-class track width.
+                    if len(matched) != 1:
+                        return _GridNetPlan(True, False, net.id)
+                    continue
+                physical_targets.extend((node.component_ref, pad) for pad in matched)
+                if len(physical_targets) > 8:
+                    # The ordinary grid route cannot establish a qualified
+                    # full-current, many-land return/power distribution tree.
                     return _GridNetPlan(True, False, net.id)
-            layer = 0
-        if ground_targets:
+
+        if physical_targets:
             route_points = []
-            for component_ref, pad in ground_targets:
+            for component_ref, pad in physical_targets:
                 component_position = context.ref_positions.get(component_ref)
                 if component_position is None:
                     return _GridNetPlan(True, False, net.id)
@@ -1064,20 +1081,20 @@ class GridRouter:
             # Prefer an interior grid anchor when it is genuinely inside the
             # same pad copper. Otherwise defer this terminal to the exact
             # geometric pad-fanout planner instead of silently failing it.
-            if ground_targets:
-                physical_targets = ground_targets
+            if physical_targets:
+                checked_targets = physical_targets
             else:
                 if len(route_points) != len(net.nodes):
                     return _GridNetPlan(True, False, net.id)
-                physical_targets = []
+                checked_targets = []
                 for node in net.nodes:
                     comp = context.component_by_ref.get(node.component_ref)
                     pad = self._pad_for_pin(comp, node.pin_name) if comp else None
                     if pad is None:
                         return _GridNetPlan(True, False, net.id)
-                    physical_targets.append((node.component_ref, pad))
+                    checked_targets.append((node.component_ref, pad))
             accessible: set[int] = set(range(context.num_layers))
-            for (component_ref, pad), exact, grid in zip(physical_targets, route_points, grid_positions, strict=True):
+            for (component_ref, pad), exact, grid in zip(checked_targets, route_points, grid_positions, strict=True):
                 accessible.intersection_update(copper_layers(pad, context.num_layers))
                 snapped = (grid[0] * self.resolution, grid[1] * self.resolution)
                 if not point_in_pad_copper(pad, exact, snapped, context.rotation_by_ref[component_ref]):
@@ -1128,7 +1145,7 @@ class GridRouter:
             edge_paths is None
             and self.pad_aware
             and len(net.nodes) in (2, 3, 4)
-            and len(ground_targets) <= len(net.nodes)
+            and len(physical_targets) <= len(net.nodes)
         ):
             fanout = self._try_pad_fanout(design, net, context, kb, layer, clear_cells, rule)
             if fanout is not None:

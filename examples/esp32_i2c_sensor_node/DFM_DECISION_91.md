@@ -10,6 +10,49 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — bounded source-like USB-C VBUS power pad continuity
+
+The power-class pad-aware A* router now expands **every real physical
+contact** behind a logical VBUS/power node, analogous to the bounded
+no-pour GND fix. Two-to-four-logical-terminal POWER_LOW/MED/HIGH
+nets may use at most eight actual source lands, each with the **full
+unchanged net-class trace width** (nominal 0.50 mm for POWER_MED),
+a common available layer and a legal on-pad route anchor. Larger
+power nets also fail early if **any** real land is narrower than the
+class width or if any logical terminal maps to multiple actual
+contacts the ordinary large-net planner cannot yet handle. These
+are conservative rejection guards, not a substitute for qualified
+local narrow-pad fanout, current/heat analysis or native fab review.
+
+This resolves a genuine prior unsafe graph result: a 5-terminal
+power network with a 0.35-mm physical land had been reported as
+grid-routed at 0.50 mm, and a multi-contact VBUS could be
+graph-routed while leaving real copper contacts disconnected.
+TDD demonstrated the prior failures before the code change.
+
+**Independent native KiCad 10.0.8** verifies a source-like USB-C
+4-contact VBUS (A4, A9, B4, B9 at two overlapping real land
+locations, each 0.60 × 1.15 mm) with a remote full-width power
+pad: **2 -> 0 physical unconnected items**, with two actual
+0.50-mm copper traces. Both pre-existing synthetic test-footprint
+library warnings were unchanged; no new DRC errors were introduced.
+Strict every-pad contact, one-island continuity and local DRC
+preflight accepted the complete test net. New negative tests
+reject a single narrow VBUS land, too many physical contacts,
+and large (>4-node) power nets with narrow or repeated pads.
+
+**Important actual-board boundary:** The example's four-pad
+J1.VBUS is physically represented by two coincident A/B contact
+positions. It is **not** yet fully connected to the actual
+VCC_5V network: D1.IO is still 0.45 mm wide versus the 0.50 mm
+POWER_MED class rule. The real 10-logical-terminal VCC_3V3
+network still contains Bosch U2 VDD/VDDIO/CSB pads only 0.35 mm
+wide and the duplicated U3 output contacts. The real board
+continues to have **four source-bound signal nets / 44 physical
+tracks, 29 native KiCad unconnected items, 16 original mechanical
+DRC defects and 0 ERC**. No global width relaxation, supplier
+footprint edit, unauthorized neckdown or production claim was made.
+
 ## 2026-11-13 — bounded same-net multi-pad ground connections
 
 A logical GND terminal such as a connector may map to several distinct
