@@ -2723,21 +2723,30 @@ function sourceWithOriginalLineEndings(source) {
     if (editorSource(raw) !== baseline) {
         throw new Error("Original source baseline changed; reload before saving.");
     }
-    // Preserve even mixed original line endings outside the user's actual
-    // change, rather than silently rewriting an entire Windows YAML file.
+    // Normal edits (including multiple separated value changes) keep the
+    // same number of lines. Preserve each existing line's original ending,
+    // even when different lines used LF and CRLF in the same YAML file.
+    const oldLines = baseline.split("\n");
+    const newLines = source.split("\n");
+    if (oldLines.length === newLines.length) {
+        const endings = raw.match(/\r\n|\r|\n/g) || [];
+        return newLines.map((line, index) => line + (endings.at(index) || "")).join("");
+    }
+    // An inserted/removed line changes the line count; preserve unaffected
+    // raw prefix/suffix without converting their original line endings.
     let head = 0;
     while (head < baseline.length && head < source.length &&
-        baseline[head] === source[head]) head++;
+        baseline.charAt(head) === source.charAt(head)) head++;
     let oldEnd = baseline.length, newEnd = source.length;
     while (oldEnd > head && newEnd > head &&
-        baseline[oldEnd - 1] === source[newEnd - 1]) {
+        baseline.charAt(oldEnd - 1) === source.charAt(newEnd - 1)) {
         oldEnd--;
         newEnd--;
     }
     function diskOffset(normalizedOffset) {
         let visible = 0, offset = 0;
         while (visible < normalizedOffset && offset < raw.length) {
-            if (raw[offset] === "\r" && raw[offset + 1] === "\n") offset++;
+            if (raw.charAt(offset) === "\r" && raw.charAt(offset + 1) === "\n") offset++;
             offset++;
             visible++;
         }
