@@ -373,3 +373,21 @@ def test_http_pin_connection_is_source_draft_only_and_requires_session(tmp_path:
         server.shutdown()
         server.server_close()
         thread.join(timeout=10)
+
+
+def test_two_sequential_visual_connections_keep_net_membership_consistent() -> None:
+    source = FIXTURE.read_text()
+    updated = apply_pin_connection(source, component_ref="U2", pin_name="SCK", target_net="I2C_SDA")
+    updated = apply_pin_connection(updated, component_ref="U2", pin_name="SDA", target_net="I2C_SCL")
+    verified = preview_design(updated)
+    assert verified["ok"]
+    all_pins = {
+        (component["ref"], pin["name"], pin["net"]) for component in verified["components"] for pin in component["pins"]
+    }
+    all_nodes = {(node["ref"], node["pin"], net["id"]) for net in verified["nets"] for node in net["nodes"]}
+    assert all_pins == all_nodes
+    assert len(all_pins) == 37
+    assert ("U2", "SCK", "I2C_SDA") in all_pins
+    assert ("U2", "SDA", "I2C_SCL") in all_pins
+    assert "# Bosch BME280 datasheet Table 35" in updated
+    assert "# Official Espressif ESP32-WROOM-32 physical module pad numbers." in updated

@@ -9,6 +9,7 @@ const state = {
     selection: "U1",
     net: null,
     pinSelection: null,
+    wireStart: null,
     view: "circuit",
     zoom: 1,
     ticket: 0,
@@ -76,6 +77,17 @@ async function update() {
                 state.pinSelection = null;
             }
         }
+        if (state.wireStart) {
+            const source = data.components.find(
+                (component) => component.ref === state.wireStart.ref,
+            );
+            const pin = source?.pins.find(
+                (candidate) => candidate.name === state.wireStart.name,
+            );
+            if (!pin || pin.net !== state.wireStart.net) {
+                state.wireStart = null;
+            }
+        }
         if (state.net && !data.nets.some((net) => net.id === state.net)) {
             state.net = null;
         }
@@ -120,6 +132,7 @@ $("layout").onclick = () => {
     $("layout").setAttribute("aria-pressed", String(v));
 };
 $("undo").onclick = () => {
+    state.wireStart = null;
     clearTimeout(handle);
     const previous = state.history.pop();
     $("editor").value = previous === undefined ? state.savedSource : previous;
@@ -129,6 +142,16 @@ $("undo").onclick = () => {
 $("save").onclick = () => {
     void saveSource();
 };
+$("wire-cancel").onclick = () => {
+    state.wireStart = null;
+    draw();
+};
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.wireStart) {
+        state.wireStart = null;
+        draw();
+    }
+});
 $("reload").onclick = () => {
     if (
         state.dirty &&
@@ -174,6 +197,7 @@ function select(ref) {
     state.selection = ref;
     state.net = null;
     state.pinSelection = null;
+    state.wireStart = null;
     draw();
     focusSource(ref);
 }
@@ -397,11 +421,29 @@ function pinSelected(pin) {
     return state.net !== null && state.net === pin.net;
 }
 function focusSchematicPin(ref, pin) {
+    const source = state.wireStart;
+    state.wireStart = null;
     state.selection = ref;
     state.net = pin.net || null;
     state.pinSelection = { ref, name: pin.name, net: pin.net };
     draw();
     focusSource(ref);
+    if (!source || (source.ref === ref && source.name === pin.name)) return;
+    if (source.net === pin.net) {
+        $("activity").textContent =
+            source.ref +
+            "." +
+            source.name +
+            " and " +
+            ref +
+            "." +
+            pin.name +
+            " are already on the same source net " +
+            source.net +
+            ". No edit was needed.";
+        return;
+    }
+    void connectPinToNet({ ref, name: pin.name, net: pin.net }, source.net);
 }
 function addSchematicPin(group, component, pin, x, y) {
     const active = pinSelected(pin);
@@ -412,6 +454,10 @@ function addSchematicPin(group, component, pin, x, y) {
     const row = svg("g", {
         class: "schematic-pin",
         "aria-pressed": String(chosen),
+        "data-wire-start": String(
+            state.wireStart?.ref === component.ref &&
+                state.wireStart?.name === pin.name,
+        ),
         "data-ref": component.ref,
         "data-pin": pin.name,
         "data-net": pin.net || "",
@@ -585,6 +631,133 @@ function drawSchematicComponent(root, component, cx, cy) {
     }
     root.append(group);
 }
+function drawNetTopology(root, net, top) {
+    const perRow = 6;
+    const rowCount = Math.ceil(net.nodes.length / perRow);
+    const height = 75 + rowCount * 86;
+    const color = netStroke(net.id);
+    root.append(
+        svg("rect", {
+            x: 14,
+            y: top,
+            width: 892,
+            height,
+            rx: 10,
+            fill: "#102934",
+            stroke: color,
+            "stroke-opacity": 0.65,
+        }),
+    );
+    root.append(
+        svg(
+            "text",
+            {
+                x: 34,
+                y: top + 25,
+                fill: color,
+                "font-size": 13,
+                "font-weight": 750,
+            },
+            net.id + " · " + net.nodes.length + " source connections",
+        ),
+    );
+    root.append(
+        svg(
+            "text",
+            {
+                x: 34,
+                y: top + 43,
+                fill: "#bbd0d8",
+                "font-size": 10.5,
+            },
+            "LOGICAL NET TOPOLOGY · these are source connections, not PCB copper or KiCad wires",
+        ),
+    );
+    for (let row = 0; row < rowCount; row++) {
+        const nodes = net.nodes.slice(row * perRow, (row + 1) * perRow);
+        const railY = top + 61 + row * 86;
+        const startX = 70,
+            endX = 850;
+        root.append(
+            svg("path", {
+                d: "M " + startX + " " + railY + " H " + endX,
+                fill: "none",
+                stroke: color,
+                "stroke-width": 1.8,
+                "stroke-opacity": 0.9,
+            }),
+        );
+        let position = 0;
+        for (const endpoint of nodes) {
+            const x = 77 + (position + 0.5) * (766 / nodes.length);
+            position++;
+            const label = endpoint.ref + "." + endpoint.pin;
+            const component = state.data.components.find(
+                (c) => c.ref === endpoint.ref,
+            );
+            const pin = component?.pins.find((p) => p.name === endpoint.pin);
+            if (!pin) continue;
+            const g = svg("g", {
+                class: "net-topology-endpoint",
+                "data-ref": endpoint.ref,
+                "data-pin": endpoint.pin,
+                "data-net": net.id,
+                tabindex: 0,
+                role: "button",
+                "aria-label": "Show source pin " + label + " on net " + net.id,
+            });
+            g.append(
+                svg("path", {
+                    d: "M " + x + " " + railY + " v11",
+                    stroke: color,
+                    "stroke-width": 1.8,
+                    fill: "none",
+                }),
+            );
+            g.append(svg("circle", { cx: x, cy: railY, r: 3.2, fill: color }));
+            g.append(
+                svg("rect", {
+                    class: "net-node-card",
+                    x: x - 57,
+                    y: railY + 11,
+                    width: 114,
+                    height: 31,
+                    rx: 6,
+                    fill: "#1c3844",
+                    stroke: "#597783",
+                    "stroke-width": 1,
+                }),
+            );
+            g.append(
+                svg(
+                    "text",
+                    {
+                        x,
+                        y: railY + 31,
+                        "text-anchor": "middle",
+                        fill: "#e9f6f7",
+                        "font-size": 10.8,
+                        "font-family": "ui-monospace,Consolas,monospace",
+                    },
+                    label.slice(0, 17),
+                ),
+            );
+            g.addEventListener("click", (e) => {
+                e.stopPropagation();
+                focusSchematicPin(endpoint.ref, pin);
+            });
+            g.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    focusSchematicPin(endpoint.ref, pin);
+                }
+            });
+            root.append(g);
+        }
+    }
+    return height;
+}
 function drawCircuit() {
     const root = $("drawing");
     const data = state.data;
@@ -645,11 +818,16 @@ function drawCircuit() {
             }
         }
     }
-    const height = Math.max(650, rows.length * rowHeight + 78);
-    state.schematicHeight = height;
+    const contentHeight = Math.max(650, rows.length * rowHeight + 78);
     const selectedNet = state.net
         ? data.nets.find((net) => net.id === state.net)
         : null;
+    state.schematicHeight = selectedNet
+        ? contentHeight +
+          16 +
+          drawNetTopology(root, selectedNet, contentHeight + 8) +
+          16
+        : contentHeight;
     const count = selectedNet ? selectedNet.nodes.length : 0;
     title(
         "Live logical schematic",
@@ -810,6 +988,7 @@ function inspector() {
             : null;
     const pinEditor = $("pin-editor");
     pinEditor.hidden = !selectedPin || state.view !== "circuit";
+    $("pin-wire").disabled = !selectedPin || !selectedPin.net || state.stale;
     if (!pinEditor.hidden) {
         $("pin-label").textContent =
             c.ref + "." + selectedPin.name + " · " + selectedPin.net;
@@ -867,6 +1046,29 @@ function draw() {
         "viewBox",
         [(920 - w) / 2, (sourceHeight - h) / 2, w, h].join(" "),
     );
+    const stage = $("canvas-stage");
+    const contentWidth =
+        state.view === "circuit"
+            ? Math.max(760, stage.clientWidth - 24)
+            : Math.max(560, stage.clientWidth - 24);
+    const contentHeight =
+        state.view === "circuit"
+            ? Math.ceil((contentWidth * sourceHeight) / 920)
+            : Math.max(380, stage.clientHeight - 150);
+    $("drawing").style.width = contentWidth + "px";
+    $("drawing").style.height = contentHeight + "px";
+    const wireHint = $("wire-hint");
+    wireHint.hidden = !state.wireStart || state.view !== "circuit";
+    if (!wireHint.hidden) {
+        $("wire-hint-text").textContent =
+            "Connecting from " +
+            state.wireStart.ref +
+            "." +
+            state.wireStart.name +
+            " (" +
+            state.wireStart.net +
+            "). Choose a target pin to change its logical net. Undo available.";
+    }
     inspector();
 }
 for (const b of document.querySelectorAll("[data-view]"))
@@ -876,6 +1078,7 @@ for (const b of document.querySelectorAll("[data-view]"))
             .forEach((x) => x.classList.remove("on"));
         b.classList.add("on");
         state.view = b.dataset.view;
+        state.wireStart = null;
         draw();
     };
 $("plus").onclick = () => {
@@ -890,6 +1093,9 @@ $("fit").onclick = () => {
     state.zoom = 1;
     draw();
 };
+window.addEventListener("resize", () => {
+    if (state.data) draw();
+});
 /* Source ownership and local-agent edits: one YAML file, no duplicate design store. */
 const studioToken = document.querySelector('meta[name="studio-token"]').content;
 function markDirty() {
@@ -902,6 +1108,8 @@ function markDirty() {
 }
 function showStale(message) {
     state.stale = true;
+    state.wireStart = null;
+    $("wire-hint").hidden = true;
     $("stale").hidden = false;
     $("activity").textContent =
         message ||
@@ -928,6 +1136,7 @@ async function sendMutation(route, data) {
     return payload;
 }
 async function useDiskSnapshot(snapshot, activity) {
+    state.wireStart = null;
     clearTimeout(handle);
     state.savedSource = snapshot.source;
     state.original = snapshot.source;
@@ -991,6 +1200,8 @@ async function saveSource() {
         state.diskHash = saved.source_hash;
         state.history = [];
         state.stale = false;
+        state.wireStart = null;
+        $("wire-hint").hidden = true;
         $("stale").hidden = true;
         markDirty();
         $("activity").textContent =
@@ -1043,13 +1254,26 @@ $("pin-target-net").addEventListener("change", () => {
     $("pin-connect").disabled =
         !chosen || state.stale || chosen.net === $("pin-target-net").value;
 });
+$("pin-wire").onclick = () => {
+    const chosen = state.pinSelection;
+    if (!chosen || !chosen.net || state.stale) return;
+    state.wireStart = { ref: chosen.ref, name: chosen.name, net: chosen.net };
+    draw();
+    $("activity").textContent =
+        "Select another pin to connect it logically to " +
+        chosen.net +
+        ". No source file changes until you choose a target.";
+};
 $("pin-connect").onclick = () => {
     void reassignSelectedPin();
 };
-async function reassignSelectedPin() {
+function reassignSelectedPin() {
     const selected = state.pinSelection;
+    if (!selected) return;
+    return connectPinToNet(selected, $("pin-target-net").value);
+}
+async function connectPinToNet(selected, target) {
     if (!state.data || !selected || state.stale) return;
-    const target = $("pin-target-net").value;
     if (selected.net === target) return;
     try {
         $("pin-connect").disabled = true;
@@ -1101,14 +1325,12 @@ async function reassignSelectedPin() {
     }
 }
 function pointOnSvg(event, root) {
-    const rect = root.getBoundingClientRect();
-    const bounds = root.viewBox.baseVal;
-    return {
-        x: bounds.x + ((event.clientX - rect.left) * bounds.width) / rect.width,
-        y:
-            bounds.y +
-            ((event.clientY - rect.top) * bounds.height) / rect.height,
-    };
+    const transform = root.getScreenCTM();
+    if (!transform) throw new Error("SVG view is not currently available");
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(
+        transform.inverse(),
+    );
+    return { x: point.x, y: point.y };
 }
 function enableDrag(group, component, config) {
     const root = $("drawing");
