@@ -22,7 +22,7 @@ from zaptrace.algo.placer import place_components
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.exceptions import ParseError
 from zaptrace.core.parser import parse_str
-from zaptrace.export.kicad import _build_schematic
+from zaptrace.export.kicad import _build_schematic, _verified_schematic_wires
 from zaptrace.studio.native_symbols import native_match
 from zaptrace.viewer.interactive import _extract_viewer_data
 
@@ -56,6 +56,11 @@ def preview_design(source: str) -> dict[str, Any]:
     try:
         design = _parse(source)
         viewer = _extract_viewer_data(design)
+        _verified_schematic_wires(design)
+        if design.schematic_wires:
+            # Reject physical KiCad segment overlap with a foreign source net
+            # before allowing Save, not only when a user downloads the export.
+            _build_schematic(design)
         board = canonical_board_definition(design)
         calculated = place_components(design)
         source_positions = design.placement or {}
@@ -91,6 +96,7 @@ def preview_design(source: str) -> dict[str, Any]:
             "board": {"width": float(board.width), "height": float(board.height)},
             "components": parts,
             "nets": [net.model_dump(mode="json") for net in viewer.nets],
+            "schematic_wires": [wire.model_dump(mode="json") for wire in design.schematic_wires],
             "routed": bool(design.routing and design.routing.traces),
             "generated_placement": any(not item["source_placed"] for item in parts),
             "engineering": {
@@ -100,7 +106,7 @@ def preview_design(source: str) -> dict[str, Any]:
             },
             "parse_ms": round((time.perf_counter() - started) * 1000, 1),
         }
-    except StudioInputError as error:
+    except (StudioInputError, ValueError) as error:
         return {"ok": False, "error": str(error)}
 
 
@@ -263,6 +269,120 @@ def _patch_net_nodes(lines: list[str], net_name: str, node_id: str, *, remove: b
             raise StudioInputError("Pin already exists in the target net")
         nodes.append(node_id)
     lines[index] = original[:left] + json.dumps(nodes) + original[right + 1 :]
+
+
+def apply_schematic_wire(source: str, *, start: str, end: str, bend: float = 0.5) -> str:
+    """Persist a pin-anchored KiCad schematic elbow path in canonical YAML.
+
+    A different-net target first adopts the starting pin's net; only Save
+    writes to disk. This is schematic geometry, never routed PCB copper.
+    """
+    endpoint_pattern = r"[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z][A-Za-z0-9_-]*"
+    if (
+        not isinstance(start, str)
+        or not isinstance(end, str)
+        or re.fullmatch(endpoint_pattern, start) is None
+        or re.fullmatch(endpoint_pattern, end) is None
+    ):
+        raise StudioInputError("Choose two real source component pins")
+    if isinstance(bend, bool) or not isinstance(bend, (float, int)) or not math.isfinite(bend):
+        raise StudioInputError("Wire bend must be a finite number")
+    bend = round(float(bend), 3)
+    if not 0.1 <= abs(bend) <= 0.9:
+        raise StudioInputError("Wire bend must be between 0.1 and 0.9 on either channel")
+    start_ref, start_pin = start.split(".", 1)
+    end_ref, end_pin = end.split(".", 1)
+    if start_ref == end_ref:
+        raise StudioInputError("Wires between pins of the same symbol are not supported")
+    design, source_component = _verified_component(source, start_ref)
+    _, target_component = _verified_component(source, end_ref)
+    if start_pin not in source_component.pins or end_pin not in target_component.pins:
+        raise StudioInputError("A selected pin does not exist in the source")
+    target_net = source_component.pins[start_pin].net
+    if not target_net or target_net not in design.nets:
+        raise StudioInputError("The source pin must have an existing electrical net")
+    if target_component.pins[end_pin].net != target_net:
+        source = apply_pin_connection(source, component_ref=end_ref, pin_name=end_pin, target_net=target_net)
+
+    validated = preview_design(source)
+    if not validated["ok"]:
+        raise StudioInputError(validated["error"])
+    existing = validated["schematic_wires"]
+    endpoints = frozenset((start, end))
+    if len(existing) >= 64 and not any(frozenset((route["start"], route["end"])) == endpoints for route in existing):
+        raise StudioInputError("The Studio wire limit of 64 has been reached")
+    entry = f"  - {{start: {json.dumps(start)}, end: {json.dumps(end)}, bend: {bend}}}\n"
+    lines = source.splitlines(keepends=True)
+    if not any(line.rstrip("\r\n") == "schematic_wires:" for line in lines):
+        edited = source.rstrip("\n") + "\nschematic_wires:\n" + entry
+    else:
+        first, last = _section_bounds(lines, "schematic_wires")
+        match_line = None
+        for i in range(first, last):
+            stripped = lines[i]
+            if not stripped.strip() or stripped.lstrip().startswith("#"):
+                continue
+            match = re.fullmatch(
+                r'  - \{start: "([^"]+)", end: "([^"]+)", bend: (-?0\.[0-9]+)\}\r?\n?',
+                stripped,
+            )
+            if not match:
+                raise StudioInputError("Only Studio-authored wire rows can be moved on canvas")
+            if frozenset((match.group(1), match.group(2))) == endpoints:
+                match_line = i
+        if match_line is not None:
+            lines[match_line] = entry
+        else:
+            lines.insert(last, entry)
+        edited = "".join(lines)
+    final = preview_design(edited)
+    if not final["ok"] and bend > 0 and "crosses another net" in final["error"]:
+        # Choose the other side of the symbol row when the first corridor
+        # would short a distinct net; still validate the native geometry.
+        alternate = entry.replace(f"bend: {bend}", f"bend: {-bend}")
+        proposed = edited.replace(entry, alternate, 1)
+        alternate_preview = preview_design(proposed)
+        if alternate_preview["ok"]:
+            return proposed
+    if not final["ok"]:
+        raise StudioInputError(final["error"])
+    return edited
+
+
+def remove_schematic_wire(source: str, *, start: str, end: str) -> str:
+    """Remove a stored schematic path without changing its electrical net."""
+    valid = preview_design(source)
+    if not valid["ok"]:
+        raise StudioInputError(valid["error"])
+    wanted = frozenset((start, end))
+    if not any(frozenset((wire["start"], wire["end"])) == wanted for wire in valid["schematic_wires"]):
+        raise StudioInputError("Selected source wire path does not exist")
+    lines = source.splitlines(keepends=True)
+    first, last = _section_bounds(lines, "schematic_wires")
+    index = next(
+        (
+            i
+            for i in range(first, last)
+            if (
+                match := re.fullmatch(
+                    r'  - \{start: "([^"]+)", end: "([^"]+)", bend: (-?0\.[0-9]+)\}\r?\n?',
+                    lines[i],
+                )
+            )
+            is not None
+            and frozenset((match.group(1), match.group(2))) == wanted
+        ),
+        None,
+    )
+    if index is None:
+        raise StudioInputError("Only Studio-authored wire paths can be removed on canvas")
+    del lines[index]
+    if len(valid["schematic_wires"]) == 1:
+        del lines[first - 1]  # Remove empty optional section; no YAML null.
+    edited = "".join(lines)
+    if not preview_design(edited)["ok"]:
+        raise StudioInputError("Removing this wire did not preserve a valid design")
+    return edited
 
 
 def export_native_kicad_schematic(source: str) -> dict[str, str]:

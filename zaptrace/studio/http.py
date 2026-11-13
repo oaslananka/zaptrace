@@ -18,9 +18,11 @@ from zaptrace.studio.engine import (
     apply_component_value,
     apply_pin_connection,
     apply_placement,
+    apply_schematic_wire,
     export_native_kicad_schematic,
     inspect_native_symbol,
     preview_design,
+    remove_schematic_wire,
 )
 from zaptrace.studio.native_symbols import KNOWN_NATIVE_SYMBOLS, native_svg_for
 
@@ -168,6 +170,21 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._require_text(payload, "source"),
                 expected_hash=self._require_text(payload, "expected_hash"),
             )
+        if route == "/api/schematic/wire" and payload.get("remove") is True:
+            changed = remove_schematic_wire(
+                self._require_text(payload, "source"),
+                start=self._require_text(payload, "start"),
+                end=self._require_text(payload, "end"),
+            )
+            return {"source": changed, "preview": preview_design(changed)}
+        if route == "/api/schematic/wire":
+            changed = apply_schematic_wire(
+                self._require_text(payload, "source"),
+                start=self._require_text(payload, "start"),
+                end=self._require_text(payload, "end"),
+                bend=payload.get("bend", 0.5),
+            )
+            return {"source": changed, "preview": preview_design(changed)}
         if route == "/api/pin/connect":
             changed = apply_pin_connection(
                 self._require_text(payload, "source"),
@@ -197,6 +214,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             "/api/save",
             "/api/agent/change",
             "/api/pin/connect",
+            "/api/schematic/wire",
             "/api/native/inspect",
             "/api/kicad/schematic",
         }:

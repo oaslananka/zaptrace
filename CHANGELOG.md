@@ -4,6 +4,8 @@
 
 ### Added
 
+- Add bounded, optional source-backed schematic wire paths: create them by dragging between separate symbol pins, persist their bend in canonical YAML, edit the route handle or delete the path without rewiring its net, and export real orthogonal KiCad wire segments. Reject foreign-net crossings and preserve Undo/Save/reopen without adding dependencies or claiming PCB copper/ERC/DRC.
+
 - Make live schematic connectivity discoverable on first open: auto-highlight a real source-connected signal net and provide keyboard-accessible, horizontally scrollable per-net tracing with live endpoint counts and an explicit Overview reset. Logical wire paths remain unverified source topology, not KiCad-native routed geometry.
 
 - Add a separate source-verified, bounded hypothetical NPN inductive J2 turn-off review: native KiCad 10 flyback 1N4148 D2 cathode/anode proof and four real ngspice transient cases for user-entered series R/L; publish exact model/evidence hashes without treating unknown real parts, diode pulse ratings or physical behavior as qualified.

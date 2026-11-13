@@ -18,8 +18,11 @@ from zaptrace.studio.engine import (
     apply_component_value,
     apply_pin_connection,
     apply_placement,
+    apply_schematic_wire,
     demo_project,
+    export_native_kicad_schematic,
     preview_design,
+    remove_schematic_wire,
     source_sha,
 )
 from zaptrace.studio.http import create_studio_server
@@ -675,3 +678,195 @@ def test_visual_drag_connection_roundtrip_matches_native_kicad_wiring(tmp_path: 
     document.save(edited, expected_hash=sha(original))
     assert document.read()["source"] == edited
     assert original == FIXTURE.read_text()  # no implicit changes before Save.
+
+
+def test_schematic_wire_source_roundtrip_and_bend_edit(tmp_path: Path) -> None:
+    """A real pin-anchored KiCad path survives canonical YAML save/reopen."""
+    from zaptrace.core.parser import dump_str, parse_str
+
+    original = FIXTURE.read_text()
+    wired = apply_schematic_wire(original, start="U1.GPIO21", end="U2.SDA")
+    assert original == FIXTURE.read_text()
+    assert "schematic_wires:" not in original
+    assert '  - {start: "U1.GPIO21", end: "U2.SDA", bend: 0.5}' in wired
+    preview = preview_design(wired)
+    assert preview["ok"] is True
+    assert preview["schematic_wires"] == [{"start": "U1.GPIO21", "end": "U2.SDA", "bend": 0.5}]
+    parsed = parse_str("kind: zaptrace.design\nschema_version: 1\n" + wired, strict=True)
+    assert len(parsed.schematic_wires) == 1
+    assert parse_str(dump_str(parsed)).schematic_wires == parsed.schematic_wires
+
+    edited = apply_schematic_wire(wired, start="U1.GPIO21", end="U2.SDA", bend=0.7)
+    assert edited.count("schematic_wires:") == 1
+    assert edited.count("  - {start:") == 1
+    assert preview_design(edited)["schematic_wires"][0]["bend"] == 0.7
+    assert apply_schematic_wire(wired, start="U1.GPIO21", end="U2.SDA") == wired
+    assert source_sha(original) != source_sha(wired)
+    assert original == FIXTURE.read_text()
+    assert remove_schematic_wire(edited, start="U1.GPIO21", end="U2.SDA") == original
+    with pytest.raises(StudioInputError, match="does not exist"):
+        remove_schematic_wire(original, start="U1.GPIO21", end="U2.SDA")
+
+    document = StudioDocument(tmp_path / "design.yaml")
+    document.path.write_text(original)
+    saved = document.save(edited, expected_hash=sha(original))
+    assert saved["source"] == edited
+    assert document.read()["preview"]["schematic_wires"][0]["bend"] == 0.7
+    with pytest.raises(StudioConflictError):
+        document.save(original, expected_hash=sha(original))
+
+
+def test_schematic_wire_guards_and_connected_net_reassignment() -> None:
+    original = FIXTURE.read_text()
+    from zaptrace.core.parser import parse_str
+
+    with pytest.raises(StudioInputError, match="same symbol"):
+        apply_schematic_wire(original, start="U1.GPIO21", end="U1.GPIO22")
+    with pytest.raises(StudioInputError, match="does not exist"):
+        apply_schematic_wire(original, start="U1.BAD", end="U2.SDA")
+    with pytest.raises(StudioInputError, match="bend"):
+        apply_schematic_wire(original, start="U1.GPIO21", end="U2.SDA", bend=2)
+    with pytest.raises(StudioInputError, match="bend"):
+        apply_schematic_wire(original, start="U1.GPIO21", end="U2.SDA", bend=float("nan"))
+    with pytest.raises(StudioInputError, match="bend"):
+        apply_schematic_wire(original, start="U1.GPIO21", end="U2.SDA", bend=True)
+
+    routed = apply_schematic_wire(original, start="U1.GPIO21", end="U2.SCK")
+    parsed = parse_str(routed)
+    assert parsed.components["U2"].pins["SCK"].net == "I2C_SDA"
+    assert any(node.pin_name == "SCK" and node.component_ref == "U2" for node in parsed.nets["I2C_SDA"].nodes)
+    assert not any(node.pin_name == "SCK" and node.component_ref == "U2" for node in parsed.nets["I2C_SCL"].nodes)
+    assert preview_design(routed)["schematic_wires"][0]["end"] == "U2.SCK"
+
+    stale = routed.replace(
+        'GPIO21: {type: "bidirectional", net: "I2C_SDA"}', 'GPIO21: {type: "bidirectional", net: "I2C_SCL"}'
+    )
+    assert stale != routed
+    result = preview_design(stale)
+    assert not result["ok"]
+    assert "wire" in result["error"].lower()
+
+
+def test_kicad_source_wire_segments_retain_every_original_net(tmp_path: Path) -> None:
+    """Native KiCad output must not accidentally short SCL into SDA."""
+    import re
+    import shutil
+    import subprocess
+
+    source = FIXTURE.read_text()
+    edited = apply_schematic_wire(source, start="U1.GPIO21", end="U2.SDA", bend=0.5)
+    expected = export_native_kicad_schematic(source)["schematic"]
+    rendered = export_native_kicad_schematic(edited)["schematic"]
+    assert expected.count("\n  (wire ") == 41
+    assert rendered.count("\n  (wire ") == 46
+    assert export_native_kicad_schematic(edited)["schematic"] == rendered
+    assert rendered != expected
+    both = apply_schematic_wire(edited, start="U1.GPIO22", end="U2.SCK", bend=0.5)
+    two_routes = preview_design(both)
+    assert two_routes["ok"]
+    assert [item["bend"] for item in two_routes["schematic_wires"]] == [0.5, -0.5]
+    assert export_native_kicad_schematic(both)["schematic"].count("\n  (wire ") == 51
+
+    if not shutil.which("kicad-cli"):
+        return  # Structural assertions above remain active on no-KiCad CI machines.
+
+    def actual_nets(native_source: str, name: str) -> dict[str, set[tuple[str, str]]]:
+        schematic = tmp_path / (name + ".kicad_sch")
+        netfile = tmp_path / (name + ".net")
+        schematic.write_text(native_source)
+        subprocess.run(
+            ["kicad-cli", "sch", "export", "netlist", "--output", str(netfile), str(schematic)],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=25,
+        )
+        nets: dict[str, set[tuple[str, str]]] = {}
+        for block in netfile.read_text().split("\n\t\t(net\n")[1:]:
+            segment = block.split("\n\t\t)\n", 1)[0]
+            match = re.search(r'\(name "([^"]+)"\)', segment)
+            if match:
+                nets[match.group(1)] = set(
+                    re.findall(
+                        r'\(node\s+\(ref "([^"]+)"\)\s+\(pin "([^"]+)"\)',
+                        segment,
+                    )
+                )
+        return nets
+
+    before = actual_nets(expected, "before")
+    assert len(before) == 7
+    for bend in (0.1, 0.5, 0.9):
+        current = apply_schematic_wire(source, start="U1.GPIO21", end="U2.SDA", bend=bend)
+        after = actual_nets(export_native_kicad_schematic(current)["schematic"], f"after-{bend}")
+        assert after == before  # KiCad, not the source parser, is the oracle.
+    assert actual_nets(export_native_kicad_schematic(both)["schematic"], "two-routes") == before
+
+
+def test_schematic_wire_http_authorization_and_unsaved_draft(tmp_path: Path) -> None:
+    original = FIXTURE.read_text()
+    path = tmp_path / "design.yaml"
+    path.write_text(original)
+    server = create_studio_server(path, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_port}/api/schematic/wire"
+    payload = json.dumps(
+        {
+            "source": original,
+            "start": "U1.GPIO21",
+            "end": "U2.SDA",
+            "bend": 0.5,
+        }
+    ).encode()
+
+    def post(token: str | None = None) -> tuple[int, dict]:
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["X-ZapTrace-Studio-Token"] = token
+        request = Request(url, data=payload, headers=headers, method="POST")
+        try:
+            with urlopen(request, timeout=15) as response:
+                return response.status, json.load(response)
+        except HTTPError as error:
+            return error.code, json.loads(error.read())
+
+    try:
+        code, blocked = post()
+        assert code == 403
+        assert blocked["error"]["code"] == "WRITE_DENIED"
+        code, updated = post(server.session_token)
+        assert code == 200
+        assert updated["preview"]["schematic_wires"][0]["start"] == "U1.GPIO21"
+        assert updated["source"] != original
+        assert path.read_text() == original  # Explicit Save required.
+        assert server.document.save(updated["source"], expected_hash=sha(original))["source"] == updated["source"]
+        assert server.document.read()["preview"]["schematic_wires"][0]["end"] == "U2.SDA"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=10)
+
+
+def test_schematic_wire_geometry_collision_checks_are_conservative() -> None:
+    from zaptrace.export.kicad import _orthogonal_segments_touch
+
+    assert _orthogonal_segments_touch((0, 0), (10, 0), (5, -1), (5, 1))
+    assert _orthogonal_segments_touch((0, 0), (10, 0), (8, 0), (14, 0))
+    assert not _orthogonal_segments_touch((0, 0), (10, 0), (11, -1), (11, 1))
+    assert not _orthogonal_segments_touch((0, 0), (10, 0), (0, 1), (10, 1))
+
+
+def test_schematic_wire_rejects_foreign_net_collision_and_keeps_source() -> None:
+    """A route cannot serialize a wrong-net connection silently."""
+    from zaptrace.core.models import SchematicWire
+    from zaptrace.core.parser import dump_str, parse_str
+
+    source = FIXTURE.read_text()
+    model = parse_str(source)
+    model.schematic_wires = [SchematicWire(start="U1.GPIO21", end="U2.SCK", bend=0.5)]
+    invalid = dump_str(model)
+    result = preview_design(invalid)
+    assert not result["ok"]
+    assert "source net" in result["error"] or "share one" in result["error"]
+    assert source == FIXTURE.read_text()

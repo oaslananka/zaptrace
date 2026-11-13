@@ -698,6 +698,16 @@
                 touch-action: none;
                 cursor: grab;
             }
+            svg .wire-bend-handle {
+                cursor: ns-resize;
+                touch-action: none;
+                outline: none;
+            }
+            svg .wire-bend-handle:hover,
+            svg .wire-bend-handle:focus-visible {
+                stroke-width: 3;
+                fill: #255668;
+            }
             svg .schematic-pin {
                 cursor: pointer;
             }

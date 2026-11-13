@@ -450,6 +450,10 @@ function focusSchematicPin(ref, pin) {
     draw();
     focusSource(ref);
     if (!source || (source.ref === ref && source.name === pin.name)) return;
+    if (source.ref !== ref) {
+        void updateAuthoredWire(source.ref + "." + source.name, ref + "." + pin.name, 0.5);
+        return;
+    }
     if (source.net === pin.net) {
         $("activity").textContent =
             source.ref +
@@ -594,14 +598,17 @@ function startNativeWireDrag(event, ref, pin) {
                 "Same pin; no logical connection changed.";
             return;
         }
-        if (targetPin.net === source.net) {
-            $("activity").textContent =
-                targetRef +
-                "." +
-                targetName +
-                " already belongs to " +
-                source.net +
-                ". No edit needed.";
+        if (ref === targetRef) {
+            if (targetPin.net === source.net) {
+                $("activity").textContent =
+                    "Same symbol and net; no schematic wire was changed.";
+                return;
+            }
+            state.wireStart = null;
+            state.selection = targetRef;
+            state.pinSelection = {ref: targetRef, name: targetName, net: targetPin.net};
+            state.net = source.net;
+            void connectPinToNet(state.pinSelection, source.net);
             return;
         }
         state.wireStart = null;
@@ -612,7 +619,7 @@ function startNativeWireDrag(event, ref, pin) {
             net: targetPin.net,
         };
         state.net = source.net;
-        void connectPinToNet(state.pinSelection, source.net);
+        void updateAuthoredWire(source.ref + "." + source.name, targetRef + "." + targetName, 0.5);
     }
     document.addEventListener("pointermove", move, true);
     document.addEventListener("pointerup", release, true);
@@ -1092,6 +1099,152 @@ function schematicLayout(rows) {
     }
     return { rows: laidOut, height: Math.max(650, top + 16) };
 }
+function authoredWireShape(start, end, bend) {
+    // Match the KiCad export's outward stub and separate vertical corridor.
+    // Canvas units are layout-relative; native export uses the source pins'
+    // exact KiCad coordinates and 1.27 mm grid rather than these pixels.
+    const startEscape = start.x + (start.side === "left" ? -26 : 26);
+    const endEscape = end.x + (end.side === "left" ? -26 : 26);
+    const channelDistance = 22 + 30 * Math.abs(bend);
+    const corridor = bend > 0
+        ? Math.max(start.y, end.y) + channelDistance
+        : Math.min(start.y, end.y) - channelDistance;
+    return {
+        d: "M " + start.x + " " + start.y +
+            " H " + startEscape + " V " + corridor +
+            " H " + endEscape + " V " + end.y + " H " + end.x,
+        x: (startEscape + endEscape) / 2,
+        y: corridor,
+    };
+}
+function drawAuthoredWires(root, layout) {
+    const endpoints = new Map();
+    for (const row of layout.rows) {
+        for (const position of row.positions) {
+            for (const [index, pin] of position.component.pins.entries()) {
+                endpoints.set(
+                    position.component.ref + "." + pin.name,
+                    schematicPinGeometry(position.component, index, position.x, position.y),
+                );
+            }
+        }
+    }
+    for (const wire of state.data.schematic_wires || []) {
+        const start = endpoints.get(wire.start);
+        const end = endpoints.get(wire.end);
+        if (!start || !end) continue;
+        const firstPart = state.data.components.find(c => wire.start.startsWith(c.ref + "."));
+        const name = firstPart?.pins.find(p => wire.start === firstPart.ref + "." + p.name)?.net;
+        const color = netStroke(name || "");
+        const group = svg("g", {
+            class: "authored-wire-group",
+            "data-start": wire.start,
+            "data-end": wire.end,
+            "aria-label": "Source-authored KiCad wire " + wire.start + " to " + wire.end,
+        });
+        const initial = authoredWireShape(start, end, wire.bend);
+        const path = svg("path", {
+            class: "authored-wire",
+            "data-net": name || "",
+            stroke: color,
+            "stroke-width": 2.6,
+            fill: "none",
+            "stroke-linejoin": "round",
+            "pointer-events": "none",
+            d: initial.d,
+        });
+        const handle = svg("circle", {
+            class: "wire-bend-handle",
+            cx: initial.x,
+            cy: initial.y,
+            r: 8,
+            fill: "#152c38",
+            stroke: color,
+            "stroke-width": 2.2,
+            tabindex: 0,
+            role: "slider",
+            "aria-label": "Move wire bend " + wire.start + " to " + wire.end +
+                ". Up/down adjusts distance; left/right swaps channel; Delete removes the path only",
+            "aria-valuemin": -90,
+            "aria-valuemax": 90,
+            "aria-orientation": "vertical",
+            "aria-valuenow": Math.round(wire.bend * 100),
+        });
+        handle.addEventListener("keydown", e => {
+            if (e.key === "Delete" || e.key === "Backspace") {
+                e.preventDefault();
+                void updateAuthoredWire(wire.start, wire.end, wire.bend, true);
+                return;
+            }
+            if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+            e.preventDefault();
+            const next = e.key === "ArrowLeft" ? -Math.abs(wire.bend)
+                : e.key === "ArrowRight" ? Math.abs(wire.bend)
+                : Math.sign(wire.bend) * Math.max(0.1, Math.min(0.9,
+                    Math.round((Math.abs(wire.bend) +
+                        (e.key === "ArrowDown" ? 0.05 : -0.05)) * 100) / 100));
+            void updateAuthoredWire(wire.start, wire.end, next);
+        });
+        handle.addEventListener("pointerdown", e => {
+            if (e.button !== 0 || e.isPrimary === false) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const pointerId = e.pointerId;
+            const previous = $("editor").value;
+            let proposed = wire.bend;
+            const move = next => {
+                if (next.pointerId !== pointerId) return;
+                if ($("editor").value !== previous || state.stale) {
+                    cancel();
+                    return;
+                }
+                const coord = pointOnSvg(next, root);
+                const highest = Math.min(start.y, end.y);
+                const lowest = Math.max(start.y, end.y);
+                const lane = coord.y < highest ? -1
+                    : coord.y > lowest ? 1 : Math.sign(wire.bend);
+                const distance = lane < 0 ? highest - 22 - coord.y
+                    : coord.y - lowest - 22;
+                proposed = lane * Math.max(0.1, Math.min(0.9,
+                    Math.round((distance / 30) * 100) / 100));
+                const route = authoredWireShape(start, end, proposed);
+                path.setAttribute("d", route.d);
+                handle.setAttribute("cy", String(route.y));
+                handle.setAttribute("aria-valuenow", String(Math.round(proposed * 100)));
+            };
+            const cleanup = () => {
+                document.removeEventListener("pointermove", move, true);
+                document.removeEventListener("pointerup", up, true);
+                document.removeEventListener("pointercancel", cancel, true);
+                document.removeEventListener("keydown", esc, true);
+                window.removeEventListener("blur", cancel);
+            };
+            const cancel = () => {
+                cleanup();
+                path.setAttribute("d", initial.d);
+                handle.setAttribute("cy", String(initial.y));
+            };
+            const esc = event => { if (event.key === "Escape") cancel(); };
+            const up = event => {
+                if (event.pointerId !== pointerId) return;
+                cleanup();
+                if ($("editor").value === previous && !state.stale &&
+                    Math.abs(proposed - wire.bend) >= 0.01) {
+                    void updateAuthoredWire(wire.start, wire.end, proposed);
+                } else {
+                    cancel();
+                }
+            };
+            document.addEventListener("pointermove", move, true);
+            document.addEventListener("pointerup", up, true);
+            document.addEventListener("pointercancel", cancel, true);
+            document.addEventListener("keydown", esc, true);
+            window.addEventListener("blur", cancel);
+        });
+        group.append(path, handle);
+        root.append(group);
+    }
+}
 function drawLogicalNetWires(root, layout, net) {
     if (!net || net.nodes.length < 2) return;
     const color = netStroke(net.id);
@@ -1443,6 +1596,7 @@ function drawCircuit() {
         ? data.nets.find((net) => net.id === state.net)
         : null;
     drawLogicalNetWires(root, layout, selectedNet);
+    drawAuthoredWires(root, layout);
     for (const row of layout.rows) {
         for (const position of row.positions) {
             drawSchematicComponent(
@@ -1480,7 +1634,7 @@ function drawCircuit() {
                   " labeled nets",
     );
     $("note").textContent =
-        "Drag from a source pin to another pin to change its logical net · Undo reverses · no native KiCad wire routing";
+        "Drag between different symbols to author a KiCad wire path in YAML · adjust the round bend handle · Save or Undo · ERC/DRC not checked";
 }
 function drawBoard() {
     const root = $("drawing"),
@@ -2174,6 +2328,62 @@ async function connectPinToNet(selected, target) {
     } catch (error) {
         updateStatus(false, error.message);
         $("pin-connect").disabled = false;
+    }
+}
+async function updateAuthoredWire(start, end, bend, remove = false) {
+    if (!state.data || state.stale) return;
+    const previous = $("editor").value;
+    const ticket = state.ticket;
+    try {
+        const changed = await sendMutation("/api/schematic/wire", {
+            source: previous, start, end, bend, remove,
+        });
+        if ($("editor").value !== previous || state.ticket !== ticket || state.stale) {
+            $("activity").textContent =
+                "Newer source work took precedence. The previous route edit was discarded.";
+            return;
+        }
+        clearTimeout(handle);
+        state.ticket += 1;
+        if (changed.source !== previous) state.history.push(previous);
+        $("editor").value = changed.source;
+        state.data = changed.preview;
+        const target = end.split(".");
+        state.selection = target[0];
+        state.pinSelection = null;
+        const first = start.split(".");
+        const component = state.data.components.find(c => c.ref === first[0]);
+        state.net = component?.pins.find(p => p.name === first.slice(1).join("."))?.net || null;
+        state.wireStart = null;
+        markDirty();
+        draw();
+        if (!remove) {
+            const group = [...document.querySelectorAll(".authored-wire-group")].find(
+                element => element.dataset.start === start && element.dataset.end === end,
+            );
+            const knob = group?.querySelector(".wire-bend-handle");
+            if (knob) {
+                const stage = $("canvas-stage");
+                const frame = stage.getBoundingClientRect();
+                const bounds = knob.getBoundingClientRect();
+                if (bounds.bottom > frame.bottom - 40) {
+                    stage.scrollTop += bounds.bottom - frame.bottom + 72;
+                }
+                if (bounds.top < frame.top + 50) {
+                    stage.scrollTop += bounds.top - frame.top - 72;
+                }
+            }
+        }
+        $("status-text").textContent =
+            (remove ? "Unsaved KiCad wire path removal · " : "Unsaved KiCad wire path · ") +
+            start + " → " + end;
+        $("activity").textContent = remove
+            ? "Only the authored wire geometry was removed. Source nets are unchanged." +
+              " Save persists or Undo reverts."
+            : "KiCad wire path stored in the YAML draft. Drag its round bend handle," +
+              " use Up/Down arrows or Delete to edit. Save or Undo. ERC/DRC not checked.";
+    } catch (error) {
+        updateStatus(false, error.message);
     }
 }
 function pointOnSvg(event, root) {

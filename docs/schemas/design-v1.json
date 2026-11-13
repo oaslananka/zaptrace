@@ -2613,6 +2613,39 @@
       "title": "RoutingIntent",
       "type": "object"
     },
+    "SchematicWire": {
+      "additionalProperties": false,
+      "description": "Source-authored orthogonal KiCad schematic path between two real pins.\n\nA signed bend selects an above (negative) or below (positive) channel;\nit is presentation geometry only, never electrical evidence or PCB copper.",
+      "properties": {
+        "start": {
+          "maxLength": 140,
+          "minLength": 3,
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*\\.[A-Za-z][A-Za-z0-9_-]*$",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 140,
+          "minLength": 3,
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*\\.[A-Za-z][A-Za-z0-9_-]*$",
+          "title": "End",
+          "type": "string"
+        },
+        "bend": {
+          "default": 0.5,
+          "maximum": 0.9,
+          "minimum": -0.9,
+          "title": "Bend",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "SchematicWire",
+      "type": "object"
+    },
     "SupplyRecord": {
       "description": "Supply-chain data for a single part, used by the supply graph.",
       "properties": {
@@ -3065,6 +3098,14 @@
       "description": "Net dictionary, keyed by net ID",
       "title": "Nets",
       "type": "object"
+    },
+    "schematic_wires": {
+      "description": "Optional source-backed KiCad schematic wire geometry (not PCB copper)",
+      "items": {
+        "$ref": "#/$defs/SchematicWire"
+      },
+      "title": "Schematic Wires",
+      "type": "array"
     },
     "blocks": {
       "description": "Functional block groupings of components",
