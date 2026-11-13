@@ -58,6 +58,23 @@ def test_real_source_preview_and_invalid_recovery(tmp_path: Path) -> None:
     assert document.read()["source"] == source
 
 
+def test_source_component_id_is_distinct_from_visual_reference() -> None:
+    """YAML key drives source focus; the actual ref drives schematic/board/3D."""
+    source = FIXTURE.read_text().replace("  R2:\n", "  pullup_scl:\n", 1)
+    preview = preview_design(source)
+    assert preview["ok"], preview
+    resistor = next(item for item in preview["components"] if item["ref"] == "R2")
+    assert resistor["id"] == "pullup_scl"
+    assert resistor["value"] == "4.7k"
+    updated = apply_component_value(source, component_ref="R2", value="6.8k")
+    assert "  pullup_scl:" in updated
+    after = preview_design(updated)
+    assert after["ok"]
+    changed = next(item for item in after["components"] if item["ref"] == "R2")
+    assert changed["id"] == "pullup_scl"
+    assert changed["value"] == "6.8k"
+
+
 def test_isometric_concept_uses_actual_board_and_source_saved_position() -> None:
     """3D concept is fed only by source board/footprint placement data."""
     source = FIXTURE.read_text()
@@ -347,7 +364,11 @@ def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> Non
             return error.code, json.loads(error.read())
 
     try:
-        assert b"ZapTrace Studio" in urlopen(base + "/", timeout=10).read()
+        html = urlopen(base + "/", timeout=10).read()
+        assert b"ZapTrace Studio" in html
+        for element_id in (b"bridge-part", b"bridge-source"):
+            assert b'id="' + element_id + b'"' in html
+        assert html.count(b"data-follow-view=") == 3
         status, first = call("/api/source")
         assert status == 200
         assert first["source_hash"] == sha(file.read_text())

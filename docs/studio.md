@@ -14,6 +14,12 @@ Choose **Recent projects** to reopen personal copies after a browser reload or a
 
 To **directly edit the original file** instead of a personal copy, start `zaptrace studio --project path/to/design.yaml`; that explicit CLI option edits the selected file, so make a repository commit/backup as appropriate. Studio itself is still initially launched via the CLI; the browser controls remove the need to type file paths for imported projects. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
 
+## Follow a component from code to circuit, board and 3D concept
+
+The **Following your source component** strip above the live drawing identifies the currently selected real component and value. Select a component by clicking its YAML declaration or moving the editor caret with the arrow keys, then use **Circuit**, **Board** and **3D concept** in the strip to find that same part. The target diagram item receives keyboard focus, and **Source** returns to its exact YAML component key. This also works when a YAML key (component `id`) differs from the visible PCB reference (`ref`). The source editor's focus is not stolen while selecting with arrow keys.
+
+This navigation never changes or saves the YAML; edits still require explicit action. The strip labels an *unsaved preview* and *last valid preview* truthfully. A Board item with generated coordinates is not saved placement or routed copper; the 3D concept is an illustrative courtyard-based view, not a validated native 3D model. Use Save to persist an actual value or placement edit, then reload and trace that exact part again.
+
 ## The first three real actions
 
 When the initial live sample opens, the small **Start here** guide provides three executable choices. **Edit a real component** highlights a component in the circuit and focuses its exact YAML declaration without changing the source. **Trace a source signal** selects a real multi-component net and focuses its accessible net control (the initial highlighted signal is reused when available). **Open my YAML file** uses the same validated personal-copy import described above, and refuses to switch while an unsaved/stale draft exists. No guided button pretends to create copper, solve routing or save without an explicit edit.

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Let Studio users follow the same actual YAML source component into Circuit, Board, and illustrative 3D concept with keyboard-focused objects and a return-to-source button; keep source caret selection synchronized even when YAML key and visible reference differ, and label invalid drafts as last-valid previews.
 - Give new Studio users a compact, dismissible **Start here** guide wired to real source selection, electrical net tracing, and isolated YAML import, while keeping the preview visible; preserve mobile viewport, keyboard focus, draft protection and imported-project independence.
 - Add an opt-in, browser-triggered ZapTrace Studio application-menu launcher (XDG Linux or Windows Start menu), reusing the installed Python runtime and existing local server, plus an explicit desktop-mode Quit action. Preserve CLI launch/stop semantics, user-owned shortcuts and project files; no Electron/Tauri or automatic desktop installation.
 - Let Studio users pick an existing YAML design from the browser and open an isolated, editable personal project copy, then return to saved imports from **Recent projects**. Validate source and restrict file selection before writing; preserve the selected original, existing project, separate session tokens and Undo/Save semantics without any cloud or new dependency.

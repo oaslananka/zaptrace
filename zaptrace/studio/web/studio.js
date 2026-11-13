@@ -17,6 +17,7 @@ const state = {
     ticket: 0,
     dirty: false,
     stale: false,
+    previewValid: true,
     history: [],
     nativeCache: new Map(),
     nativePending: new Set(),
@@ -82,9 +83,12 @@ async function update() {
         $("lines").textContent =
             $("editor").value.split("\n").length + " lines";
         if (!data.ok) {
+            state.previewValid = false;
             updateStatus(false, data.error.split("\n")[0]);
+            updateBridge();
             return;
         }
+        state.previewValid = true;
         state.data = data;
         if (!state.netInitialized) {
             // On first open, show one real multi-component logical connection
@@ -438,7 +442,8 @@ $("editor").addEventListener("keydown", (event) => {
 });
 function focusSource(ref) {
     const editor = $("editor");
-    const declaration = "  " + ref + ":";
+    const key = state.data?.components.find((part) => part.ref === ref)?.id || ref;
+    const declaration = "  " + key + ":";
     let offset = 0;
     let insideComponents = false;
     for (const line of editor.value.split("\n")) {
@@ -464,22 +469,42 @@ function select(ref) {
     draw();
     focusSource(ref);
 }
-$("editor").addEventListener("click", () => {
+function syncSelectionFromSourceCaret() {
+    if (!state.data) return;
     const editor = $("editor");
-    const previousLines = editor.value
-        .slice(0, editor.selectionStart)
-        .split("\n");
-    const refs = new Set(
-        (state.data?.components ?? []).map((component) => component.ref),
+    const beforeCaret = editor.value.slice(0, editor.selectionStart);
+    const rowStart = beforeCaret.lastIndexOf("\n") + 1;
+    const rowEnd = editor.value.indexOf("\n", editor.selectionStart);
+    const lines = editor.value.slice(0, rowStart).split("\n");
+    lines.push(editor.value.slice(rowStart, rowEnd < 0 ? editor.value.length : rowEnd));
+    const refById = new Map(
+        state.data.components.map((component) => [component.id, component.ref])
     );
-    for (const line of previousLines.reverse()) {
-        const match = /^ {2}([\w-]+):/.exec(line);
-        if (match && refs.has(match[1])) {
-            state.selection = match[1];
-            state.net = null;
-            draw();
-            break;
+    let insideComponents = false;
+    let componentRef = null;
+    for (const line of lines) {
+        if (line.startsWith("components:")) {
+            insideComponents = true;
+            componentRef = null;
+        } else if (insideComponents && /^[A-Za-z][\w-]*:/.test(line)) {
+            insideComponents = false;
+            componentRef = null;
+        } else if (insideComponents) {
+            const match = /^ {2}([A-Za-z][\w-]*):/.exec(line);
+            if (match) componentRef = refById.get(match[1]) || null;
         }
+    }
+    if (componentRef && componentRef !== state.selection) {
+        state.selection = componentRef;
+        state.pinSelection = null;
+        state.wireStart = null;
+        draw(); // Do not steal source-editor focus or change YAML.
+    }
+}
+$("editor").addEventListener("click", syncSelectionFromSourceCaret);
+$("editor").addEventListener("keyup", (event) => {
+    if (/^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|PageDown)$/.test(event.key)) {
+        syncSelectionFromSourceCaret();
     }
 });
 function xy(index) {
@@ -2451,6 +2476,7 @@ function drawNetExplorer() {
 }
 function draw() {
     if (!state.data) return;
+    updateBridge();
     drawNetExplorer();
     if (state.view === "circuit") drawCircuit();
     else if (state.view === "board") drawBoard();
@@ -2488,16 +2514,66 @@ function draw() {
     }
     inspector();
 }
-for (const b of document.querySelectorAll("[data-view]"))
-    b.onclick = () => {
-        document
-            .querySelectorAll("[data-view]")
-            .forEach((x) => x.classList.remove("on"));
-        b.classList.add("on");
-        state.view = b.dataset.view;
-        state.wireStart = null;
-        draw();
+function updateBridge() {
+    const component = state.data?.components.find((item) => item.ref === state.selection);
+    const buttons = [...document.querySelectorAll("[data-follow-view]")];
+    $("bridge-source").disabled = !component;
+    for (const button of buttons) {
+        button.disabled = !component;
+        button.setAttribute("aria-current", String(button.dataset.followView === state.view));
+    }
+    if (!component) {
+        $("bridge-part").textContent = "Choose a component";
+        return;
+    }
+    const evidence = !state.previewValid ? "last valid preview"
+        : state.stale ? "source changed externally"
+        : state.dirty ? "unsaved preview" : "local source";
+    $("bridge-part").textContent =
+        component.ref + " · " + (component.value || component.type) + " · " + evidence;
+}
+function activateView(view) {
+    const target = [...document.querySelectorAll("[data-view]")].find(
+        (button) => button.dataset.view === view
+    );
+    if (!target || !state.data) return;
+    for (const button of document.querySelectorAll("[data-view]")) {
+        const selected = button === target;
+        button.classList.toggle("on", selected);
+        button.setAttribute("aria-pressed", String(selected));
+    }
+    state.view = view;
+    state.wireStart = null;
+    draw();
+}
+for (const button of document.querySelectorAll("[data-view]")) {
+    button.onclick = () => activateView(button.dataset.view);
+}
+for (const button of document.querySelectorAll("[data-follow-view]")) {
+    button.onclick = () => {
+        if (!state.data?.components.some((item) => item.ref === state.selection)) return;
+        activateView(button.dataset.followView);
+        const part = [...$("drawing").querySelectorAll(".component")].find(
+            (item) => item.dataset.ref === state.selection
+        );
+        if (part) {
+            part.focus({ preventScroll: true });
+            part.scrollIntoView({ block: "nearest", inline: "nearest" });
+        }
+        const details = button.dataset.followView === "board"
+            ? "Source placement; generated positions are not saved or routed copper."
+            : button.dataset.followView === "3d"
+              ? "Illustrative source placement, not native supplier 3D."
+              : "Logical source connectivity; ERC/DRC not checked.";
+        $("activity").textContent = state.selection + " located. " + details;
     };
+}
+$("bridge-source").onclick = () => {
+    if (!state.data?.components.some((item) => item.ref === state.selection)) return;
+    focusSource(state.selection);
+    $("activity").textContent = "Focused " + state.selection +
+        " in the real YAML source. Save design to persist any edits.";
+};
 $("plus").onclick = () => {
     state.zoom = Math.min(2.6, state.zoom * 1.2);
     draw();
