@@ -36,7 +36,7 @@ from zaptrace.algo.pad_copper import (
     rotated_offset,
 )
 from zaptrace.core.board import canonical_board_definition
-from zaptrace.core.models import Component, Design, Net, NetClass, Pad, RouteResult, TraceSegment, Via
+from zaptrace.core.models import Component, Design, Net, NetClass, NetNode, Pad, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import classify_design, get_net_class
 from zaptrace.ee.knowledge import KnowledgeBase
 from zaptrace.ee.routing.defaults import DEFAULT_VIA_SPECS
@@ -753,6 +753,7 @@ class GridRouter:
         *,
         max_distance_mm: float = 2.5,
         max_candidates: int = 12,
+        physical_pad: Pad | None = None,
     ) -> list[tuple[int, int]]:
         """Find grid anchors reached by a real, clearance-checked pad fan-out.
 
@@ -764,7 +765,7 @@ class GridRouter:
         component = context.component_by_ref.get(node.component_ref)
         if component is None:
             return []
-        own_pad = self._pad_for_pin(component, node.pin_name)
+        own_pad = physical_pad if physical_pad is not None else self._pad_for_pin(component, node.pin_name)
         own_fp = component.footprint_def
         own_pos = context.ref_positions.get(component.ref)
         if own_pad is None or own_fp is None or own_pos is None:
@@ -905,52 +906,80 @@ class GridRouter:
         layer: int,
         clear_cells: int,
         rule: Any,
+        *,
+        physical_targets: list[tuple[NetNode, Pad]] | None = None,
+        route_points: list[tuple[float, float]] | None = None,
     ) -> tuple[list[list[GridPos]], list[tuple[tuple[float, float], tuple[float, float]]]] | None:
-        """Try exact geometric pad stubs before continuing A* between anchors."""
+        """Try real per-pad geometric fanouts before routing grid anchors."""
         if len(net.nodes) < 2 or len(net.nodes) > 4:
             return None
-        exact_points = self._collect_net_route_points(net, context)
-        if len(exact_points) != len(net.nodes):
+        if physical_targets:
+            # Multiple physical pads may belong to the SAME logical node.
+            # Never look up its first pad when placing another pad's stub.
+            targets = physical_targets
+            exact_points = route_points if route_points is not None else []
+        else:
+            targets = [
+                (node, self._pad_for_pin(context.component_by_ref[node.component_ref], node.pin_name))
+                for node in net.nodes
+            ]
+            exact_points = self._collect_net_route_points(net, context)
+        if not 2 <= len(targets) <= 8 or len(exact_points) != len(targets):
             return None
         candidate_sets: list[list[tuple[int, int]]] = []
-        max_anchors = 12 if len(net.nodes) == 2 else 1
-        for node, exact in zip(net.nodes, exact_points, strict=True):
+        max_anchors = 12 if len(targets) == 2 else 1
+        for (node, own_pad), exact in zip(targets, exact_points, strict=True):
+            if own_pad is None:
+                return None
             candidates: list[tuple[int, int]] = []
             direct = self._to_grid_point(exact, context)
-            direct_pad = self._pad_for_pin(context.component_by_ref[node.component_ref], node.pin_name)
             snapped = (direct[0] * self.resolution, direct[1] * self.resolution)
-            if len(net.nodes) == 2 and (
-                direct_pad is not None
-                and point_in_pad_copper(
-                    direct_pad,
-                    exact,
-                    snapped,
-                    context.rotation_by_ref[node.component_ref],
-                )
+            if (
+                (physical_targets or len(net.nodes) == 2)
+                and point_in_pad_copper(own_pad, exact, snapped, context.rotation_by_ref[node.component_ref])
                 and context.obstacles.is_free(GridPos(*direct, layer), net.id)
             ):
                 candidates.append(direct)
-            candidates.extend(
-                self._pad_escape_candidates(
-                    design,
-                    net,
-                    node,
-                    exact,
-                    context,
-                    kb,
-                    layer,
-                    max_candidates=max(1, max_anchors - 1),
+            if physical_targets:
+                # A repeated contact already located inside its own copper
+                # needs no geometric escape search.
+                if len(candidates) < max_anchors:
+                    candidates.extend(
+                        self._pad_escape_candidates(
+                            design,
+                            net,
+                            node,
+                            exact,
+                            context,
+                            kb,
+                            layer,
+                            max_candidates=max_anchors - len(candidates),
+                            physical_pad=own_pad,
+                        )
+                    )
+            else:
+                # Keep the prior signal/one-pad-net anchor selection, including
+                # the bounded multi-node escape policy, bit-for-bit.
+                candidates.extend(
+                    self._pad_escape_candidates(
+                        design,
+                        net,
+                        node,
+                        exact,
+                        context,
+                        kb,
+                        layer,
+                        max_candidates=max(1, max_anchors - 1),
+                    )
                 )
-            )
             candidate_sets.append(list(dict.fromkeys(candidates[:max_anchors])))
         if any(not candidates for candidates in candidate_sets):
             return None
 
-        # Two-terminal nets retain the wider bounded escape search. For
-        # three/four terminals, use only the nearest legal anchor per pad
-        # and exactly one deterministic MST attempt; do not run a Cartesian
-        # Steiner search in the routing hot path.
-        selections = product(*candidate_sets) if len(net.nodes) == 2 else [tuple(x[0] for x in candidate_sets)]
+        # Only genuine two-pad nets use a bounded paired-anchor search.
+        # Physical multi-contact nets use one deterministic choice per pad
+        # rather than a combinatorial Steiner search.
+        selections = product(*candidate_sets) if len(targets) == 2 else [tuple(x[0] for x in candidate_sets)]
         for selected in selections:
             staged = context.obstacles.clone()
             anchors = [GridPos(*point, layer) for point in selected]
@@ -986,11 +1015,27 @@ class GridRouter:
                 max_vias=rule.max_vias,
             )
             if paths is not None:
-                stubs = [
-                    (exact, (point[0] * self.resolution, point[1] * self.resolution))
-                    for exact, point in zip(exact_points, selected, strict=True)
-                    if math.dist(exact, (point[0] * self.resolution, point[1] * self.resolution)) > 1e-6
-                ]
+                if physical_targets:
+                    # A grid anchor already contained by this same physical
+                    # pad is a real copper connection without an acid-trap
+                    # centre-to-anchor microstub.
+                    stubs = [
+                        (exact, (point[0] * self.resolution, point[1] * self.resolution))
+                        for (node, pad), exact, point in zip(targets, exact_points, selected, strict=True)
+                        if not point_in_pad_copper(
+                            pad,
+                            exact,
+                            (point[0] * self.resolution, point[1] * self.resolution),
+                            context.rotation_by_ref[node.component_ref],
+                        )
+                    ]
+                else:
+                    # Preserve legacy signal/one-pad-net output unchanged.
+                    stubs = [
+                        (exact, (point[0] * self.resolution, point[1] * self.resolution))
+                        for exact, point in zip(exact_points, selected, strict=True)
+                        if math.dist(exact, (point[0] * self.resolution, point[1] * self.resolution)) > 1e-6
+                    ]
                 context.obstacles = staged_context.obstacles
                 return paths, stubs
         return None
@@ -1008,7 +1053,7 @@ class GridRouter:
         # several *real* copper lands. Use every physical occurrence as an
         # independent A* terminal; never silently route only its first pad.
         # Large power/ground trees still require separately bounded planning.
-        physical_targets: list[tuple[str, Pad]] = []
+        physical_targets: list[tuple[NetNode, Pad]] = []
         explicit_ground = net_class == NetClass.GROUND and not canonical_board_definition(design).copper_pour_gnd
         if layer < 0:
             if not explicit_ground or len(net.nodes) < 2:
@@ -1051,7 +1096,7 @@ class GridRouter:
                     if len(matched) != 1:
                         return _GridNetPlan(True, False, net.id)
                     continue
-                physical_targets.extend((node.component_ref, pad) for pad in matched)
+                physical_targets.extend((node, pad) for pad in matched)
                 if len(physical_targets) > 8:
                     # The ordinary grid route cannot establish a qualified
                     # full-current, many-land return/power distribution tree.
@@ -1059,7 +1104,8 @@ class GridRouter:
 
         if physical_targets:
             route_points = []
-            for component_ref, pad in physical_targets:
+            for node, pad in physical_targets:
+                component_ref = node.component_ref
                 component_position = context.ref_positions.get(component_ref)
                 if component_position is None:
                     return _GridNetPlan(True, False, net.id)
@@ -1082,7 +1128,7 @@ class GridRouter:
             # same pad copper. Otherwise defer this terminal to the exact
             # geometric pad-fanout planner instead of silently failing it.
             if physical_targets:
-                checked_targets = physical_targets
+                checked_targets = [(node.component_ref, pad) for node, pad in physical_targets]
             else:
                 if len(route_points) != len(net.nodes):
                     return _GridNetPlan(True, False, net.id)
@@ -1141,13 +1187,18 @@ class GridRouter:
             )
             if edge_paths is not None:
                 context.obstacles = staged
-        if (
-            edge_paths is None
-            and self.pad_aware
-            and len(net.nodes) in (2, 3, 4)
-            and len(physical_targets) <= len(net.nodes)
-        ):
-            fanout = self._try_pad_fanout(design, net, context, kb, layer, clear_cells, rule)
+        if edge_paths is None and self.pad_aware and len(net.nodes) in (2, 3, 4) and len(physical_targets) <= 8:
+            fanout = self._try_pad_fanout(
+                design,
+                net,
+                context,
+                kb,
+                layer,
+                clear_cells,
+                rule,
+                physical_targets=physical_targets if len(physical_targets) > len(net.nodes) else None,
+                route_points=route_points if len(physical_targets) > len(net.nodes) else None,
+            )
             if fanout is not None:
                 edge_paths, pad_stubs = fanout
         return _GridNetPlan(

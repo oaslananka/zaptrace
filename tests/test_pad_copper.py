@@ -347,6 +347,24 @@ def test_power_router_connects_all_four_usb_vbus_contacts() -> None:
     assert accepted.traces
 
 
+def test_power_router_connects_off_grid_repeated_vbus_contacts_without_neckdown() -> None:
+    """All real connector contacts require a legal geometric fanout, even off-grid."""
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    design, positions = _multi_vbus_footprint_fixture()
+    # With this grid pitch the 0.6 mm USB contacts sit between legal grid
+    # points. First-pad-only routing or silently dropped contacts is invalid.
+    positions["b"] = (25.375, 10)
+    route = GridRouter(resolution_mm=0.75, pad_aware=True, max_iterations=20_000).route(design, positions)
+    assert route.net_count == 1
+    assert route.routed_net_count == 1
+    assert route.traces
+    assert all(trace.net_id == "VCC_5V" and trace.width == 0.5 for trace in route.traces)
+    accepted = retain_verified_partial_copper(design, route, positions)
+    assert accepted.routed_net_count == 1
+    assert accepted.traces
+
+
 def test_power_router_rejects_narrow_and_excess_vbus_contacts() -> None:
     """Never erase or electrically narrow an extra real VBUS pin."""
     design, positions = _multi_vbus_footprint_fixture()
@@ -425,8 +443,11 @@ def test_real_esp32_power_nets_cannot_bypass_unqualified_source_lands() -> None:
     assert not route.traces and not route.vias
 
 
-def test_power_router_native_kicad_connects_all_vbus_contacts_without_new_drc(tmp_path) -> None:
-    """An independent KiCad run measures real VBUS pad continuity."""
+@pytest.mark.parametrize("offset,resolution", [(0.0, 0.25), (0.375, 0.75)])
+def test_power_router_native_kicad_connects_all_vbus_contacts_without_new_drc(
+    tmp_path, offset: float, resolution: float
+) -> None:
+    """Independent KiCad verifies all VBUS pads, including real off-grid fanout."""
     import json
     import shutil
     import subprocess
@@ -441,7 +462,8 @@ def test_power_router_native_kicad_connects_all_vbus_contacts_without_new_drc(tm
     if not version.stdout.strip().startswith("10."):
         pytest.skip("Independent KiCad 10 required")
     design, positions = _multi_vbus_footprint_fixture()
-    route = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000).route(design, positions)
+    positions["b"] = (25 + offset, 10)
+    route = GridRouter(resolution_mm=resolution, pad_aware=True, max_iterations=25_000).route(design, positions)
     assert route.routed_net_count == 1
     reports = []
     for label, copper in (("unrouted", RouteResult(net_count=1)), ("routed", route)):

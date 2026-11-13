@@ -10,6 +10,34 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — off-grid multi-contact USB-C full-width power escape
+
+For bounded 2–4-terminal power (or no-pour GND) networks with no more
+than eight **actual** physical pads, geometric escape now selects the
+**specific pad occurrence** behind each logical connector pin, rather
+than falling back to the first pad or failing when one source land has
+no grid-centre anchor. The router first checks real pad copper, retains
+the unchanged 0.50 mm power-class width, tests foreign-pad/NPTH
+clearance, and stages a bounded A* tree. A trace stub is emitted **only
+if the anchor lies outside that pad's real copper**; this avoids
+spurious acid-trap microsegments from inside-pad centres. Full
+per-pad, single-island and whole-board DRC checks still determine
+whether a candidate is retained.
+
+TDD reproduced the previously failing USB-style A4/A9/B4/B9 case
+at an off-grid connector position and 0.75 mm grid pitch (0 routed
+net despite all 0.60 mm contact lands); after correction the complete
+bounded fixture retains its five real power contacts with 0.50 mm
+traces. Independent KiCad CLI 10.0.8 verifies **2 -> 0 native
+unconnected items** for both regular and off-grid source-like
+fixtures with **zero added native PCB DRC violations**. No source
+ESP32 board copper, widths, vendor geometry, net classification or
+manufacturing rules were changed. The actual VCC_5V still contains
+the unqualified 0.45 mm D1 land and remains unrouted; VCC_3V3,
+RF GND and all 16 original mechanical DRC blockers remain open.
+This is a bounded routing capability, **not** electrical/current,
+USB/thermal, layout or fabrication approval.
+
 ## 2026-11-13 — bounded source-like USB-C VBUS power pad continuity
 
 The power-class pad-aware A* router now expands **every real physical
