@@ -5,6 +5,7 @@ const state = {
     data: null,
     original: "",
     savedSource: "",
+    savedRawSource: "",
     diskHash: "",
     documentId: null,
     recoveryBaseHash: null,
@@ -2710,6 +2711,45 @@ function readTabDraft(documentId) {
         return null;
     }
 }
+function editorSource(source) {
+    // HTML textareas normalize all line endings to LF, including Windows
+    // CRLF files. Treat display normalization as no edit, not a dirty draft.
+    return source.replace(/\r\n?/g, "\n");
+}
+function sourceWithOriginalLineEndings(source) {
+    const raw = state.savedRawSource;
+    const baseline = state.savedSource;
+    if (!raw || raw === baseline) return source;
+    if (editorSource(raw) !== baseline) {
+        throw new Error("Original source baseline changed; reload before saving.");
+    }
+    // Preserve even mixed original line endings outside the user's actual
+    // change, rather than silently rewriting an entire Windows YAML file.
+    let head = 0;
+    while (head < baseline.length && head < source.length &&
+        baseline[head] === source[head]) head++;
+    let oldEnd = baseline.length, newEnd = source.length;
+    while (oldEnd > head && newEnd > head &&
+        baseline[oldEnd - 1] === source[newEnd - 1]) {
+        oldEnd--;
+        newEnd--;
+    }
+    function diskOffset(normalizedOffset) {
+        let visible = 0, offset = 0;
+        while (visible < normalizedOffset && offset < raw.length) {
+            if (raw[offset] === "\r" && raw[offset + 1] === "\n") offset++;
+            offset++;
+            visible++;
+        }
+        return offset;
+    }
+    const left = diskOffset(head), right = diskOffset(oldEnd);
+    const following = raw.slice(left).match(/\r\n|\r|\n/);
+    const preceding = raw.slice(0, left).match(/\r\n|\r|\n/g);
+    const ending = following?.[0] || preceding?.at(-1) || "\n";
+    const changed = source.slice(head, newEnd).replace(/\n/g, ending);
+    return raw.slice(0, left) + changed + raw.slice(right);
+}
 function syncTabDraft() {
     if (!state.documentId) return;
     try {
@@ -2792,13 +2832,14 @@ async function useDiskSnapshot(snapshot, activity) {
         state.documentId = snapshot.document_id;
     }
     state.recoveryBaseHash = null;
-    state.savedSource = snapshot.source;
-    state.original = snapshot.source;
+    state.savedRawSource = snapshot.source;
+    state.savedSource = editorSource(snapshot.source);
+    state.original = state.savedSource;
     state.diskHash = snapshot.source_hash;
     state.history = [];
     state.stale = false;
     $("stale").hidden = true;
-    $("editor").value = snapshot.source;
+    $("editor").value = state.savedSource;
     $("project-name").textContent = snapshot.preview?.name || "Local project";
     markDirty();
     await update();
@@ -2823,7 +2864,7 @@ async function loadFromDisk(manual) {
             ? "Loaded latest saved project source."
             : "Project loaded from local YAML. Edit, view and save within this workspace.",
     );
-    if (recovered && recovered.source !== snapshot.source && !state.dirty) {
+    if (recovered && recovered.source !== editorSource(snapshot.source) && !state.dirty) {
         $("editor").value = recovered.source;
         state.recoveryBaseHash = recovered.baseHash;
         markDirty();
@@ -2916,10 +2957,11 @@ async function saveSource() {
     try {
         $("status").setAttribute("aria-busy", "true");
         const saved = await sendMutation("/api/save", {
-            source: $("editor").value,
+            source: sourceWithOriginalLineEndings($("editor").value),
             expected_hash: state.diskHash,
         });
-        state.savedSource = saved.source;
+        state.savedRawSource = saved.source;
+        state.savedSource = editorSource(saved.source);
         state.diskHash = saved.source_hash;
         state.history = [];
         state.stale = false;

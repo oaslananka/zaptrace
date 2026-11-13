@@ -133,6 +133,28 @@ def test_value_edit_preserves_vendor_comments_and_reopens(tmp_path: Path) -> Non
     assert doc.read()["source"] == changed
 
 
+@pytest.mark.parametrize("newlines", ["crlf", "mixed"])
+def test_windows_source_line_endings_are_preserved_on_value_save(tmp_path: Path, newlines: str) -> None:
+    """Editing one component must not rewrite every untouched Windows YAML line."""
+    raw = FIXTURE.read_bytes()
+    assert b"\r\n" not in raw
+    if newlines == "crlf":
+        original = raw.replace(b"\n", b"\r\n")
+    else:
+        original = b"".join(
+            line.replace(b"\n", b"\r\n") if i % 2 else line for i, line in enumerate(raw.splitlines(keepends=True))
+        )
+    file = tmp_path / "design.yaml"
+    file.write_bytes(original)
+    doc = StudioDocument(file)
+    snapshot = doc.read()
+    assert snapshot["source"].encode("utf-8") == original
+    edited = snapshot["source"].replace('value: "4.7k"', 'value: "9.1k"', 1)
+    saved = doc.save(edited, expected_hash=snapshot["source_hash"])
+    assert saved["source_hash"] == sha(edited)
+    assert file.read_bytes() == original.replace(b'value: "4.7k"', b'value: "9.1k"', 1)
+
+
 def test_invalid_and_stale_edits_never_write(tmp_path: Path) -> None:
     source = FIXTURE.read_text()
     doc = StudioDocument(tmp_path / "design.yaml")
@@ -182,6 +204,7 @@ def test_reject_nonexistent_or_invalid_positions(ref: str, x: float, y: float) -
 def test_demo_copy_never_overwrites_existing_design(tmp_path: Path) -> None:
     dest = demo_project(tmp_path)
     assert dest.is_file()
+    assert b"\r\n" not in dest.read_bytes()  # New Windows demos are not implicitly rewritten to CRLF.
     assert len(preview_design(dest.read_text())["components"]) == 14
     dest.write_text("my personal edits\n")
     assert demo_project(tmp_path).read_text() == "my personal edits\n"

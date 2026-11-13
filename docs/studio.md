@@ -14,6 +14,15 @@ Choose **Recent projects** to reopen personal copies after a browser reload or a
 
 To **directly edit the original file** instead of a personal copy, start `zaptrace studio --project path/to/design.yaml`; that explicit CLI option edits the selected file, so make a repository commit/backup as appropriate. Studio itself is still initially launched via the CLI; the browser controls remove the need to type file paths for imported projects. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
 
+**Windows and existing YAML line endings:** On a clean Windows install, the
+personal ESP32 sample is created with consistent LF line endings. Existing
+YAML files with CRLF or mixed LF/CRLF remain usable: the browser editor
+shows its normal LF text without incorrectly reporting an unsaved draft.
+When you actually change and Save the source, untouched portions of the
+original file retain their exact line endings instead of having the entire
+design rewritten. A real edit still uses the saved source hash to prevent
+concurrent agent overwrite.
+
 ## Recover an unsaved draft after refreshing the tab
 
 Studio keeps a bounded **temporary draft in the browser tab's session storage**

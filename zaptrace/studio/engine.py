@@ -516,6 +516,6 @@ def demo_project(base_directory: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         example = files("zaptrace.studio.assets").joinpath("esp32_demo.yaml").read_text(encoding="utf-8")
-        with path.open("x", encoding="utf-8") as stream:
+        with path.open("x", encoding="utf-8", newline="\n") as stream:
             stream.write(example)
     return path
