@@ -315,6 +315,11 @@
                 height: 100%;
                 position: relative;
             }
+            #drawing .concept-component { cursor: pointer; }
+            #drawing .concept-component:focus-visible {
+                outline: none;
+                filter: drop-shadow(0 0 7px #ffe3af);
+            }
             .canvas-title {
                 position: absolute;
                 left: 20px;
@@ -981,7 +986,7 @@
                     <div class="tabs">
                         <button data-view="circuit" class="on">Circuit</button
                         ><button data-view="board">Board</button
-                        ><button data-view="3d">3D</button>
+                        ><button data-view="3d" title="Source-based isometric placement concept; no native board 3D model">3D concept</button>
                     </div>
                 </div>
                 <div class="canvas">

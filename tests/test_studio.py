@@ -58,6 +58,27 @@ def test_real_source_preview_and_invalid_recovery(tmp_path: Path) -> None:
     assert document.read()["source"] == source
 
 
+def test_isometric_concept_uses_actual_board_and_source_saved_position() -> None:
+    """3D concept is fed only by source board/footprint placement data."""
+    source = FIXTURE.read_text()
+    initial = preview_design(source)
+    assert initial["ok"]
+    assert initial["board"] == {"width": 50.0, "height": 40.0}
+    assert len(initial["components"]) == 14
+    assert all(not item["source_placed"] for item in initial["components"])
+    assert all(item["position"] is not None for item in initial["components"])
+    assert all(len(item["size"]) == 2 for item in initial["components"])
+
+    updated = apply_placement(source, component_ref="R1", x=36.75, y=14.5)
+    after = preview_design(updated)
+    assert after["ok"]
+    position = next(part for part in after["components"] if part["ref"] == "R1")
+    assert position["source_placed"] is True
+    assert position["position"] == [36.75, 14.5]
+    assert sum(part["source_placed"] for part in after["components"]) == 1
+    assert source == FIXTURE.read_text()
+
+
 def test_placement_edit_roundtrip_preserves_rest_of_yaml(tmp_path: Path) -> None:
     source = FIXTURE.read_text()
     before = sha(source)

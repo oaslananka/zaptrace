@@ -1839,37 +1839,139 @@ function drawBoard() {
         : "Source placement preview · ERC / DRC not checked";
 }
 function draw3D() {
+    // Source-linked, deliberately illustrative isometric *placement* sketch.
+    // Actual Z, pad shapes, holes, copper, packages and native 3D assemblies
+    // are NOT present in the source preview; never imply manufacturing proof.
     const root = $("drawing");
+    const data = state.data;
+    const W = data.board.width;
+    const H = data.board.height;
     root.replaceChildren();
-    root.append(
-        svg(
-            "text",
-            {
-                x: 460,
-                y: 300,
-                fill: "#c2d7da",
-                "text-anchor": "middle",
-                "font-size": 23,
-            },
-            "3D preview not generated",
-        ),
+    const step = Math.min(8.5, 560 / (W + 0.78 * H), 335 / (0.46 * W + 0.7 * H));
+    const project = (x, y, elevation = 0) => ({
+        x: 460 + (x - W / 2) * step - (y - H / 2) * 0.78 * step,
+        y: 329 + (x - W / 2) * 0.46 * step + (y - H / 2) * 0.7 * step - elevation,
+    });
+    const outline = (points) => points.map((point) => point.x + "," + point.y).join(" ");
+    const shape = (points, fill, attrs = {}) =>
+        svg("polygon", { points: outline(points), fill, ...attrs });
+    const corners = [
+        project(0, 0), project(W, 0), project(W, H), project(0, H),
+    ];
+    const thickness = 10; // graphic treatment, NOT an asserted board thickness
+    root.append(shape(corners.map((corner) => ({ ...corner, y: corner.y + 18 })),
+        "#03171c", { "fill-opacity": 0.55, "pointer-events": "none" }));
+    for (const [a, b] of [[3, 2], [2, 1]]) {
+        root.append(shape([
+            corners[a], corners[b],
+            { x: corners[b].x, y: corners[b].y + thickness },
+            { x: corners[a].x, y: corners[a].y + thickness },
+        ], "#0a2928", { stroke: "#477c6e", "stroke-width": 1 }));
+    }
+    root.append(shape(corners, "#194d40", {
+        stroke: "#86d7bd", "stroke-width": 2.2, "stroke-linejoin": "round",
+    }));
+    for (let x = 5; x < W; x += 5) {
+        root.append(svg("line", {
+            x1: project(x, 0).x, y1: project(x, 0).y,
+            x2: project(x, H).x, y2: project(x, H).y,
+            stroke: "#77b19f", "stroke-width": 0.75,
+            "stroke-opacity": 0.24, "pointer-events": "none",
+        }));
+    }
+    for (let y = 5; y < H; y += 5) {
+        root.append(svg("line", {
+            x1: project(0, y).x, y1: project(0, y).y,
+            x2: project(W, y).x, y2: project(W, y).y,
+            stroke: "#77b19f", "stroke-width": 0.75,
+            "stroke-opacity": 0.24, "pointer-events": "none",
+        }));
+    }
+    const components = data.components.filter((item) => item.position).sort(
+        (a, b) => project(...a.position).y - project(...b.position).y,
     );
-    root.append(
-        svg(
-            "text",
-            {
-                x: 460,
-                y: 330,
-                fill: "#88a0ae",
-                "text-anchor": "middle",
-                "font-size": 13,
-            },
-            "Generate and verify physical placement before native board 3D.",
-        ),
-    );
-    title("3D board view", "Not checked · no fabricated geometry");
-    $("note").textContent = "No manufactured board or 3D model asserted";
+    for (const component of components) {
+        const [x, y] = component.position;
+        // These are the source footprint courtyard extents, NOT a supplier 3D
+        // mesh. The height/color are only visual shorthand for component roles.
+        const halfW = Math.min(W, Math.max(1.1, component.size[0])) / 2;
+        const halfH = Math.min(H, Math.max(1.1, component.size[1])) / 2;
+        const base = [
+            project(x - halfW, y - halfH),
+            project(x + halfW, y - halfH),
+            project(x + halfW, y + halfH),
+            project(x - halfW, y + halfH),
+        ];
+        const elevation = component.ref.startsWith("U") ? 18
+            : component.ref.startsWith("J") ? 14 : 9;
+        const top = base.map((point) => ({ ...point, y: point.y - elevation }));
+        const selected = component.ref === state.selection;
+        const saved = component.source_placed;
+        const role = component.ref.startsWith("U") ? "IC"
+            : component.ref.startsWith("J") ? "connector" : "passive";
+        const group = svg("g", {
+            class: "component concept-component",
+            "data-ref": component.ref,
+            "data-role": role,
+            "data-placement": saved ? "source" : "generated",
+            "aria-pressed": String(selected),
+        });
+        a11y(group, component.ref);
+        group.setAttribute("aria-label",
+            "Select " + component.ref + " " + role + ", " +
+            (saved ? "source saved" : "automatically suggested") + " placement, " +
+            x.toFixed(2) + " by " + y.toFixed(2) +
+            " millimeters; illustrative board assembly sketch");
+        const surface = role === "IC" ? "#25404a"
+            : role === "connector" ? "#7296a1" : "#c2a984";
+        group.append(shape([base[3], base[2], top[2], top[3]], "#203d43", {
+            stroke: selected ? "#ffdfad" : "#61847c", "stroke-width": 0.8,
+        }));
+        group.append(shape([base[2], base[1], top[1], top[2]], "#172f37", {
+            stroke: selected ? "#ffdfad" : "#527e78", "stroke-width": 0.8,
+        }));
+        group.append(shape(top, selected ? "#47666a" : surface, {
+            stroke: selected ? "#ffe2ad" : saved ? "#acd9c9" : "#9daca7",
+            "stroke-width": selected ? 2.5 : 1.15,
+            "stroke-dasharray": saved ? "none" : "3 2",
+            "stroke-linejoin": "round",
+        }));
+        const center = project(x, y, elevation);
+        // Keep small footprints selectable without altering their drawn size.
+        group.append(svg("circle", {
+            cx: center.x, cy: center.y, r: 16,
+            fill: "transparent", stroke: "none",
+        }));
+        group.append(svg("text", {
+            x: center.x, y: center.y - 13,
+            fill: selected ? "#ffe4b8" : "#eaf7f6",
+            "font-size": selected ? 13 : 11.5,
+            "font-weight": 750, "text-anchor": "middle",
+            "paint-order": "stroke", stroke: "#0b252e",
+            "stroke-width": 3, "stroke-linejoin": "round",
+            "pointer-events": "none",
+        }, component.ref));
+        group.append(svg("title", {},
+            component.ref + " · " + component.value + " · " +
+            (saved ? "saved source position" : "suggested, unsaved position") +
+            " · body heights illustrative; no native 3D mesh"));
+        root.append(group);
+    }
+    root.append(svg("text", {
+        x: 35, y: 63, fill: "#a6d8cd", "font-size": 13, "font-weight": 750,
+    }, "SOURCE-LINKED PLACEMENT"));
+    root.append(svg("text", {
+        x: 35, y: 82, fill: "#9dbdc5", "font-size": 10.5,
+    }, W + " × " + H + " mm board outline · " + components.length + " source components"));
+    root.append(svg("text", {
+        x: 35, y: 104, fill: "#83aab4", "font-size": 10,
+    }, "Dashed = proposed position  ·  Solid = saved in YAML"));
+    title("Isometric placement concept",
+        W + " × " + H + " mm source outline · selectable components");
+    $("note").textContent = "Illustrative bodies, not real 3D models or routed copper. " +
+        "Select a part to locate YAML; move it in Board, then return here.";
 }
+
 async function loadNativeInspection(ref, key) {
     state.nativePending.add(key);
     const original = $("editor").value;
