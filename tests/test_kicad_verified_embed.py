@@ -13,7 +13,7 @@ from zaptrace.io.sexp import SexpNode, parse
 from zaptrace.kicad.verified_vendor import verified_footprint_bytes
 
 _ROOT = Path(__file__).resolve().parents[1]
-_SOURCE = _ROOT / "build" / "source-reference-readonly" / "issue91-design.yaml"
+_SOURCE = _ROOT / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
 
 
 def _child(node: SexpNode, kind: str) -> list[SexpNode]:
@@ -126,4 +126,4 @@ def test_heatsink_pad_enum_is_unquoted_for_native_kicad_parser(tmp_path: Path) -
     assert board_text.count("(property pad_prop_heatsink)") == vendor_count
     assert '(property "pad_prop_heatsink")' not in board_text
     assert board_text.count('(property "Reference" "U1"') == 1
-    assert board_text.count('(property "Value" "ESP32-WROOM-32"') == 1
+    assert board_text.count('(property "Value" "ESP32-WROOM-32E"') == 1

@@ -1,11 +1,11 @@
 schema_version: '2.0'
 id: esp32-wroom-32
-name: ESP32-WROOM-32
+name: ESP32-WROOM-32E-N16
 category: mcu
 manufacturer: Espressif Systems
-mpn: ESP32-WROOM-32(16MB)
-description: Dual-core 32-bit Wi-Fi+BT MCU module, 240MHz, 16MB flash
-datasheet: https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf
+mpn: ESP32-WROOM-32E-N16
+description: ESP32-WROOM-32E module with PCB antenna, dual-core 240MHz Wi-Fi/Bluetooth and 16MB Quad SPI flash
+datasheet: https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html
 package: SMD-module-38pin
 footprint: ESP32-WROOM-32
 lifecycle: active
@@ -111,7 +111,7 @@ electrical_limits:
   frequency_mhz: 240
   voltage_supply: '3.3'
 sourcing:
-  mpn: ESP32-WROOM-32(16MB)
+  mpn: ESP32-WROOM-32E-N16
   manufacturer: Espressif Systems
   status: starter-library-entry
   production_note: confirm exact orderable MPN and authorized distributor before production
@@ -127,19 +127,19 @@ provenance:
 trust_tier: heuristic
 field_provenance:
   mpn:
-    source_type: internal_manifest
-    source_locator: zaptrace curated starter component library
-    source_identity: component:esp32-wroom-32:mpn
-    source_version: legacy-library-v1
-    extraction_method: deterministic-schema-v2-migration
-    confidence: low
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html
+    source_identity: Table 1, ESP32-WROOM-32E Series Comparison
+    source_version: ESP32-WROOM-32E-WROOM-32UE-Datasheet-v2.1
+    extraction_method: manufacturer-ordering-table-review
+    confidence: medium
   datasheet:
-    source_type: manufacturer_web
-    source_locator: https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf
-    source_identity: component:esp32-wroom-32:datasheet
-    source_version: legacy-library-v1
-    extraction_method: deterministic-schema-v2-migration
-    confidence: low
+    source_type: manufacturer_document
+    source_locator: https://documentation.espressif.com/esp32-wroom-32e_esp32-wroom-32ue_datasheet_en.html
+    source_identity: ESP32-WROOM-32E / ESP32-WROOM-32UE Datasheet v2.1
+    source_version: v2.1
+    extraction_method: manufacturer-datasheet-review
+    confidence: high
   pin_map:
     source_type: internal_manifest
     source_locator: zaptrace curated starter component library

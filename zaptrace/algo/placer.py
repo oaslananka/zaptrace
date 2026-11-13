@@ -14,6 +14,25 @@ def place_components(design: Design) -> dict[str, tuple[float, float]]:
     used only if it reduces that overlap count. Designs without resolved footprint
     geometry keep the established placement behavior.
     """
+    if design.placement:
+        # Never silently discard user-authored physical layout in a pipeline.
+        # A partial, overlapping or off-board layout is unsafe to assume
+        # finished: fail closed rather than mixing it with auto-placed parts.
+        selected = dict(design.placement)
+        if set(selected) != set(design.components):
+            raise ValueError("Explicit placement must contain exactly all component IDs")
+        board = canonical_board_definition(design)
+        if any(
+            not (math.isfinite(x) and math.isfinite(y) and 0 <= x <= board.width and 0 <= y <= board.height)
+            for x, y in selected.values()
+        ):
+            raise ValueError("Explicit placement has invalid or off-board coordinates")
+        if not _placement_within_board(design, selected):
+            raise ValueError("Explicit placement has a courtyard outside the board")
+        if _placement_overlap_count(design, selected):
+            raise ValueError("Explicit placement has overlapping component courtyards")
+        return selected
+
     try:
         from zaptrace._core import place_components as _rust_place
 

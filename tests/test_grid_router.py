@@ -844,3 +844,154 @@ def test_ripup_reordering_accepts_a_strictly_better_complete_net_set(monkeypatch
     assert result.routed_net_count == 2
     assert len(result.traces) == 2
     assert orders == ["a", "b", "b", "a"]
+
+
+def test_pad_aware_two_layer_detour_emits_named_clearance_checked_vias() -> None:
+    """A top-layer barrier forces two actual, same-XY via transitions."""
+    from zaptrace.algo.grid_router import _GridNetPlan, _GridRouteContext, _GridRouteState
+
+    router = GridRouter(pad_aware=True, resolution_mm=0.5, max_iterations=100_000)
+    obstacles = ObstacleMap(50, 40, layers=2)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.block_rect(24, 0, 24, 39, layer=0)
+    ctx = _GridRouteContext(
+        obstacles=obstacles,
+        grid_w=50,
+        grid_h=40,
+        num_layers=2,
+        ref_positions={},
+        component_by_ref={},
+        via_pad=0.7,
+        via_hole=0.3,
+    )
+    points = [(7, 20), (43, 20)]
+    paths = router._route_mst_paths(ctx, points, 0, 1, "SIGNAL", max_vias=2)
+    assert paths is not None
+    transitions = [
+        (first, second)
+        for path in paths
+        for first, second in zip(path, path[1:], strict=False)
+        if first.layer != second.layer
+    ]
+    assert len(transitions) == 2
+    assert all(a.x == b.x and a.y == b.y for a, b in transitions)
+
+    result = _GridRouteState(traces=[], vias=[], layers_used=set())
+    router._append_grid_net_output(result, ctx, _GridNetPlan(True, True, "SIGNAL", width_mm=0.2, edge_paths=paths))
+    assert len(result.vias) == 2
+    assert {v[-1] for v in result.vias} == {"SIGNAL"}
+    assert all(v[2:4] == (0.7, 0.3) for v in result.vias)
+    assert all(t.start != t.end for t in result.traces)
+    assert {"layer_0", "layer_1"} <= result.layers_used
+
+
+def test_pad_aware_via_limit_does_not_claim_an_unfinished_net() -> None:
+    from zaptrace.algo.grid_router import _GridRouteContext
+
+    router = GridRouter(pad_aware=True, resolution_mm=0.5, max_iterations=100_000)
+    obs = ObstacleMap(50, 40, layers=2)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    obs.block_rect(24, 0, 24, 39, layer=0)
+    ctx = _GridRouteContext(
+        obstacles=obs,
+        grid_w=50,
+        grid_h=40,
+        num_layers=2,
+        ref_positions={},
+        component_by_ref={},
+        via_pad=0.7,
+        via_hole=0.3,
+    )
+    before = obs._copper.copy()
+    assert router._route_mst_paths(ctx, [(7, 20), (43, 20)], 0, 1, "SIGNAL", max_vias=1) is None
+    assert obs._copper == before
+
+
+def test_pad_aware_via_aperture_respects_foreign_layer_and_hole_keepouts() -> None:
+    obs = ObstacleMap(20, 20, layers=2)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    obs.mark_pad(GridPos(11, 10, 1), "FOREIGN")
+    assert not obs.can_place_through_via(GridPos(10, 10, 0), "SIGNAL", 3)
+    obs.block(GridPos(10, 10, 1))
+    assert not obs.can_place_through_via(GridPos(10, 10, 0), "SIGNAL", 3)
+
+
+def test_astar_does_not_explore_via_transitions_when_disabled() -> None:
+    router = GridRouter(pad_aware=True, resolution_mm=0.5, max_iterations=100_000)
+    obstacles = ObstacleMap(50, 40, layers=2)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.block_rect(24, 0, 24, 39, layer=0)
+
+    calls = 0
+    original = router._push_via_neighbors
+
+    def observe_vias(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    router._push_via_neighbors = observe_vias
+    without_vias = router._astar(
+        obstacles,
+        GridPos(7, 20, 0),
+        GridPos(43, 20, 0),
+        net_id="SIGNAL",
+        clear_cells=1,
+        via_radius_cells=3,
+        allow_vias=False,
+    )
+    assert without_vias is None
+    assert calls == 0
+
+    with_vias = router._astar(
+        obstacles,
+        GridPos(7, 20, 0),
+        GridPos(43, 20, 0),
+        net_id="SIGNAL",
+        clear_cells=1,
+        via_radius_cells=3,
+        allow_vias=True,
+    )
+    assert with_vias is not None
+    assert any(a.layer != b.layer for a, b in zip(with_vias, with_vias[1:], strict=False))
+    assert calls > 0
+
+
+def test_mst_router_never_searches_vias_for_zero_via_net() -> None:
+    from zaptrace.algo.grid_router import _GridRouteContext
+
+    router = GridRouter(pad_aware=True, resolution_mm=0.5, max_iterations=100_000)
+    obstacles = ObstacleMap(50, 40, layers=2)
+    obstacles.enforce_static_clearance = True
+    obstacles.preexpanded_static_clearance = True
+    obstacles.block_rect(24, 0, 24, 39, layer=0)
+    context = _GridRouteContext(
+        obstacles=obstacles,
+        grid_w=50,
+        grid_h=40,
+        num_layers=2,
+        ref_positions={},
+        component_by_ref={},
+        via_pad=0.7,
+        via_hole=0.3,
+    )
+
+    def unexpected_via_search(*args, **kwargs):
+        raise AssertionError("zero-via net must not explore a via transition")
+
+    router._push_via_neighbors = unexpected_via_search
+    assert (
+        router._route_mst_paths(
+            context,
+            [(7, 20), (43, 20)],
+            0,
+            1,
+            "USB_DIFF",
+            max_vias=0,
+        )
+        is None
+    )

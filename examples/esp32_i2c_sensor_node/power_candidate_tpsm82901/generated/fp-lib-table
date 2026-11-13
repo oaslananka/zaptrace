@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name "zaptrace")(type "KiCad")(uri "${KIPRJMOD}/zaptrace_exact.pretty")(options "")(descr "Review-only exact generated candidate footprints"))
+  (lib (name "ZapTrace")(type "KiCad")(uri "${KIPRJMOD}/ZapTrace.pretty")(options "")(descr "SHA-256 verified ZapTrace footprints"))
+)
