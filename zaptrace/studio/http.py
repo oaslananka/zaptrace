@@ -7,6 +7,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -160,6 +161,11 @@ class StudioHTTPServer(ThreadingHTTPServer):
 
 
 class StudioHandler(BaseHTTPRequestHandler):
+    def log_message(self, format: str, *args: object) -> None:
+        """Keep CLI request logging; GUI pythonw.exe has no stderr stream."""
+        if sys.stderr is not None:
+            super().log_message(format, *args)
+
     protocol_version = "HTTP/1.1"
 
     @property

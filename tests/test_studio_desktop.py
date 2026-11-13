@@ -148,6 +148,38 @@ def test_real_windows_shell_link_can_be_created_without_shell(tmp_path: Path) ->
     assert link.stat().st_size > 100
 
 
+def test_pythonw_without_standard_streams_can_serve_source_and_static_ui(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows GUI pythonw.exe has no stderr; every HTTP route must still respond."""
+    source = tmp_path / "design.yaml"
+    source.write_bytes(FIXTURE.read_bytes())
+    server = create_studio_server(source, desktop_mode=True)
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    base = f"http://127.0.0.1:{server.server_port}/"
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(sys, "stdout", None)
+            patch.setattr(sys, "stderr", None)
+            with urlopen(base, timeout=10) as response:
+                assert response.status == 200
+                assert b"ZapTrace" in response.read()
+            with urlopen(base + "studio.js", timeout=10) as response:
+                assert response.status == 200
+                assert b"recent-projects" in response.read()
+            with urlopen(base + "api/source", timeout=10) as response:
+                result = json.load(response)
+                assert result["desktop_mode"] is True
+                assert result["source"] == source.read_text(encoding="utf-8")
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=5)
+        assert not worker.is_alive()
+
+
 def test_desktop_studio_can_quit_and_cleanly_stop_server(tmp_path: Path) -> None:
     source = tmp_path / "original.yaml"
     source.write_bytes(FIXTURE.read_bytes())
