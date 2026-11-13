@@ -51,6 +51,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 
 - **A Python SDK** for programmatic electronics design — parse, validate, place, route, export.
 - **A CLI** (`zaptrace`) for quick design iteration from the terminal.
+- **A local-first visual Studio** (`zaptrace studio`) for source-driven circuit exploration, linked component selection, preliminary board placement and safe YAML editing; not yet a full professional PCB CAD editor.
 - **An MCP server** (`zaptrace-mcp`) whose default `expert` surface exposes 93 design tools plus 3 session-administration tools, with smaller task-oriented `inspect`, `design`, `verify`, `repair`, and `release` surfaces for bounded workflows.
 - **A REST API** for web-based design workflows.
 - **A verification engine** — Electrical Rule Checking (ERC) + Design Rule Checking (DRC) baked in.
@@ -59,7 +60,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 
 ## What ZapTrace Is Not
 
-- ❌ **Not a replacement for KiCad, Altium, or Eagle** — ZapTrace is a *backend engine*, not a full PCB editor GUI.
+- ❌ **Not a full replacement for KiCad, Altium, or Eagle** — the initial Studio provides a live source and provisional-placement workspace, not full native CAD editing or manufacturing approval.
 - ❌ **Not a general-purpose SPICE simulator or solver-grade sign-off tool** — ZapTrace can export SPICE and run bounded ngspice-backed evidence gates, but these do not replace full analog verification or qualified engineering review.
 - ❌ **Not a replacement for human engineering judgment** — all outputs require review before fabrication.
 - ❌ **Not fabrication-proven** — ZapTrace is pre-1.0. Manufacturing outputs are experimental.
@@ -103,6 +104,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 | Proof-pack system | ✅ Implemented — evidence/sign-off foundation; not a correctness guarantee |
 | Plugin system | 🚧 Experimental — signed runtime policy documented; production sandboxing still required |
 | Review Studio | ✅ Implemented — human-review panels, proof-pack evidence, benchmark readiness |
+| Live Code-to-Circuit Studio | 🧪 Initial local browser workspace — real YAML editing, source-linked connectivity/placement preview, save/undo and agent-aware revision tracking; native schematic editing and production CAD not yet supported |
 | SPICE netlist export | ✅ Implemented foundation — DC gate is evidence/skip aware, not full analog sign-off |
 | DFM (Design for Manufacturing) | ✅ Implemented foundation — fab profiles, manufacturing evidence, current/thermal/SI risk reports |
 | Multi-board design | 🔮 Planned — post-0.3.0 |
@@ -117,6 +119,23 @@ ZapTrace 0.3.0 is an evidence-hardening release. It adds bounded autonomous sign
 This release still makes no fabrication-readiness claim. A pass means the configured evidence gates did not block; it does **not** mean the design is manufacturer-approved, production-ready, or safe to fabricate without human engineering review.
 
 ---
+
+## Live Code-to-Circuit Studio
+
+Open a real, editable ESP32 design example in a local browser workspace without manually exporting a static viewer:
+
+**Development builds only for now:** the previously published PyPI 0.3.5 package does not include Studio.
+
+```bash
+zaptrace studio
+
+# Or open an existing design.yaml directly (edits affect this file):
+zaptrace studio --project path/to/design.yaml
+```
+
+The Studio keeps **one YAML file** as the authoritative design. Edit component values or nets in the code pane and see the corresponding source-linked connectivity view update; select components across code and canvas, explore board placement by dragging unrouted components, and use **Save design** to persist changes. Invalid drafts retain the last valid visual preview. An external agent/editor edit is detected without silently overwriting unsaved work. For the UI workflow and current engineering limitations, see [Studio user guide](docs/studio.md).
+
+A local visual preview does **not** replace KiCad-native schematic, ERC, DRC, routing verification or qualified fabrication review.
 
 ## Quickstart
 

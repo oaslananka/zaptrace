@@ -1255,6 +1255,51 @@ def init_project(name: str, template: str, target_dir: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Live local-first design Studio
+# ---------------------------------------------------------------------------
+
+
+@cli.command(name="studio")
+@click.option(
+    "--project",
+    "-p",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="Open an existing local design.yaml; omitted: editable personal ESP32 demo copy.",
+)
+@click.option("--port", type=click.IntRange(0, 65535), default=0, help="Loopback port (0 selects a free port).")
+@click.option("--no-browser", is_flag=True, default=False, help="Only print the local Studio URL.")
+def studio(project: Path | None, port: int, no_browser: bool) -> None:
+    """Open a live visual code-to-circuit editing workspace in your browser."""
+    from zaptrace.studio.engine import StudioInputError, demo_project, preview_design
+    from zaptrace.studio.http import create_studio_server
+
+    try:
+        document = project if project is not None else demo_project(Path.home() / "ZapTrace Studio Projects")
+        design = preview_design(document.read_text(encoding="utf-8"))
+        if not design["ok"]:
+            raise StudioInputError(design["error"])
+        server = create_studio_server(document, port=port)
+    except (OSError, StudioInputError) as error:
+        raise click.ClickException(str(error)) from error
+
+    url = f"http://127.0.0.1:{server.server_port}/"
+    console.print(f"[green]ZapTrace Studio ready[/] · [bold cyan]{url}[/]")
+    console.print(f"[dim]Project:[/] {escape(str(document.resolve()))}")
+    console.print("[dim]Source edits and local agent changes use one YAML file; Ctrl+C closes Studio.[/]")
+    if not no_browser:
+        import webbrowser
+
+        webbrowser.open(url)
+    try:
+        server.serve_forever(poll_interval=0.2)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,37 @@
+# ZapTrace Studio — Live Code-to-Circuit (early access)
+
+**Availability:** this Studio feature is part of the current development work and is **not present in the previously published PyPI 0.3.5 build**. Use a checkout/build that includes Studio until a release ships it.
+
+ZapTrace Studio is a **local-first visual authoring workspace** for engineers and hardware teams who want to change circuit source and see the result immediately. It does not claim a finished KiCad editor, an electrically verified routed PCB, manufacturing approval, or an external AI service connection.
+
+## Open a design
+
+Run `zaptrace studio` to open an editable, **personal copy** of the bundled ESP32 sensor example in the browser. Your changes are stored under `~/ZapTrace Studio Projects/`; first-run setup never overwrites an existing saved demo.
+
+To open your own design, run `zaptrace studio --project path/to/design.yaml`. This option intentionally edits the selected file: make a repository commit/backup as appropriate. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
+
+## Design in one workspace
+
+The source pane is the real ZapTrace YAML file, not a simulated second model. Edit component values, net membership or other supported fields. After a short pause, the **Circuit** view refreshes the parsed component/net connectivity. Select a component in Circuit or Inspector to jump to its source definition; click within a component's source definition to select the corresponding visual item.
+
+The **Board** tab uses source positions where supplied; any missing positions are filled using a *deterministic exploratory placement*, not validated board geometry. Drag an unrouted component to propose coordinates (0.25 mm steps) in source YAML. The change is initially **unsaved**. Press **Save design** or `Ctrl+S` to save the same original design file; **Undo** returns to the previous draft or saved version. Reopen the design to confirm that the saved position/value persisted. Studio refuses to reposition an already routed design without rerouting copper.
+
+The **Inspector** can update a component value through a limited source-backed local transaction; this operation is explicitly saved when **Apply** is pressed. Other local agents can use the same guarded API or edit the file through existing authorized means. Studio monitors external source changes and shows them live when there are no pending user edits. If another process changes the file during an unsaved draft, Studio warns and **preserves that draft** rather than overwriting it. Loading the external version is an explicit choice.
+
+The **Focus canvas** control expands the circuit/board workspace. The design remains usable in light and dark themes; components are keyboard-selectable, and zoom controls work without requiring a mouse wheel.
+
+## Engineering truth and first-release limitations
+
+- Circuit is the **source-derived connectivity view**, not yet a symbol-complete native KiCad schematic. The same source can still be exported for independent engineering review through existing ZapTrace/KiCad tools.
+- The Board tab shows the board dimensions and exploratory component position, **not** confirmed copper routing, manufacturing clearance or electrical connectivity.
+- 3D indicates when it has **not** been generated. No fake 3D board is presented.
+- ERC, DRC and fabrication statuses are not inferred from a valid YAML parse. **Not checked** is never displayed as a pass.
+- The first release deliberately does not add a new DSL, full PCB CAD parity, remote/cloud account handling, or a bundled AI model. Existing CLI/MCP/API workflows remain available.
+
+## Local session boundary
+
+Studio listens only on loopback and uses a browser session token for saved mutations. It does not upload your design to a cloud service, call a paid AI provider, or add new project credentials. Browser previews are provisional drafts; saved writes require the disk version to match the revision opened by the user and preserve the original YAML text outside supported edits.
+
+If a conflict warning appears, do not assume your draft was saved. Decide whether to load the external version or preserve your changes separately before continuing.
+
+The first user milestone is tracked in [issue #199](https://github.com/oaslananka/zaptrace/issues/199). Real user task acceptance, full schematic integration and broader CAD capabilities remain distinct gates; this local editor alone is not a declaration that the entire milestone is complete.
