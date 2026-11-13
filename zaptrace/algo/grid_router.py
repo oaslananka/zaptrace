@@ -823,9 +823,11 @@ class GridRouter:
                     else 0.0
                 )
                 clearance = max(board.constraints.min_clearance, route_rule.clearance, pad_class_clearance)
+                # For NPTH, the distance check below already subtracts
+                # the drill radius. Re-adding it here would exclude a legal
+                # trace by *two* drill radii rather than one. Keep the true
+                # trace half-width and copper-to-hole clearance unchanged.
                 required = route_rule.trace_width / 2 + clearance
-                if is_npth and other_pad.drill is not None:
-                    required += float(other_pad.drill) / 2
                 # Pads outside this reach cannot intersect any candidate stub;
                 # avoid testing every board footprint for every sampled point.
                 pad_radius = math.hypot(float(other_pad.size[0]), float(other_pad.size[1])) / 2

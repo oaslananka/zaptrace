@@ -10,6 +10,31 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — correct NPTH physical edge clearance in geometric pad escape
+
+The pad-aware off-grid escape enumerator previously subtracted the **NPTH
+hole radius** from centre distance and then incorrectly added that
+**same radius a second time** to the minimum clearance. This could
+reject a geometrically legal 0.50 mm POWER_MED trace near an unplated
+hole; it did not establish a valid alternative route through the actual
+USB-C connector. The correction retains 0.50 mm trace width and the
+configured 0.20 mm copper-to-hole separation: a 0.60 mm drill needs
+0.25+0.20+0.30=**0.75 mm** from centre to copper centreline. This is
+not a clearance waiver and does not alter the full-board NPTH raster.
+
+TDD demonstrated the old false rejection before changing the code.
+Independent native KiCad 10.0.8 exported source-like fixtures with
+an explicit 0.60 mm NPTH and 0.50 mm trace: at 1.00 mm normal
+centreline separation, native KiCad finds **0 added hole-clearance
+violations** and the single copper net is connected; at 0.65 mm,
+it reports **1 genuine new hole-clearance violation** and the router's
+escape candidate is rejected. Other pre-existing fixture violations
+remain visible. Real-source routing retries still report J1–C3,
+J1–U3 and complete 5V **UNROUTED**; actual D1 pad 0.45 mm and
+nearby actual NPTH/pad obstacles, GND/RF constraints and the existing
+16 manufacturing DRC errors are **NOT** solved. No manufacturer,
+electrical or fabrication approval is implied.
+
 ## 2026-11-13 — off-grid multi-contact USB-C full-width power escape
 
 For bounded 2–4-terminal power (or no-pour GND) networks with no more

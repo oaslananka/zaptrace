@@ -56,6 +56,125 @@ def _net(design: Design, name: str, *refs: str) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("hole_y", "safe"),
+    [(11.0, True), (10.65, False)],
+)
+def test_pad_escape_npth_clearance_counts_drill_radius_once(hole_y: float, safe: bool) -> None:
+    """A trace is legal at the specified NPTH edge clearance, not an extra hole radius."""
+    from zaptrace.ee.classifier import classify_design
+
+    d, pos = _board(
+        ("a", (10.0, 10.0), Pad(id="1", size=(1.0, 1.0), layer=LayerSet.TOP)),
+        ("b", (30.0, 10.0), Pad(id="1", size=(1.5, 1.5), layer=LayerSet.TOP)),
+        (
+            "hole",
+            (11.5, hole_y),
+            Pad(
+                id="",
+                drill=0.6,
+                plated=False,
+                shape=PadShape.CIRCLE,
+                size=(0.6, 0.6),
+                layer=LayerSet.TOP,
+            ),
+        ),
+    )
+    _net(d, "VCC_5V", "a", "b")
+    classify_design(d)
+    router = GridRouter(resolution_mm=0.25, pad_aware=True)
+    context = router._prepare_route_context(d, pos)
+    source = d.nets["VCC_5V"].nodes[0]
+    anchors = router._pad_escape_candidates(
+        d,
+        d.nets["VCC_5V"],
+        source,
+        (10.0, 10.0),
+        context,
+        KnowledgeBase(),
+        0,
+        max_candidates=1000,
+    )
+    # 0.5 mm trace + 0.2 mm clearance + 0.6 mm NPTH drill:
+    # A valid 1.0 mm normal gap to a 0.6 mm drilled hole needs
+    # 0.25 + 0.20 + 0.30 = 0.75 mm centre separation.
+    # A 0.65 mm normal gap is genuinely unsafe, with no waiver.
+    assert ((48, 40) in anchors) is safe
+
+
+@pytest.mark.parametrize(("hole_y", "safe"), [(11.0, True), (10.65, False)])
+def test_pad_escape_npth_native_kicad_hole_clearance(tmp_path, hole_y: float, safe: bool) -> None:
+    """Native KiCad must confirm the legal power width and reject the short drill gap."""
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+
+    from zaptrace.core.models import RouteResult, TraceSegment
+    from zaptrace.export.kicad import export_kicad
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Native KiCad unavailable")
+    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, check=True, timeout=10)
+    if not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent KiCad 10 required")
+
+    design, positions = _board(
+        ("a", (10, 10), Pad(id="1", size=(1.0, 1.0), layer=LayerSet.TOP)),
+        ("b", (30, 10), Pad(id="1", size=(1.5, 1.5), layer=LayerSet.TOP)),
+        (
+            "hole",
+            (11.5, hole_y),
+            Pad(id="", drill=0.6, plated=False, shape=PadShape.CIRCLE, size=(0.6, 0.6), layer=LayerSet.TOP),
+        ),
+    )
+    _net(design, "VCC_5V", "a", "b")
+    results = []
+    for name, routed in (
+        ("before", RouteResult(net_count=1)),
+        (
+            "routed",
+            RouteResult(
+                net_count=1,
+                routed_net_count=1,
+                traces=[TraceSegment(layer="layer_0", start=(10, 10), end=(30, 10), width=0.5, net_id="VCC_5V")],
+            ),
+        ),
+    ):
+        board = design.model_copy(deep=True)
+        board.placement = dict(positions)
+        board.routing = routed
+        pcb = export_kicad(board, tmp_path / name)["pcb"]
+        output = tmp_path / f"{name}.json"
+        command = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(output),
+                str(pcb),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        assert command.returncode in (0, 5), command.stderr
+        results.append(json.loads(output.read_text(encoding="utf-8")))
+    before, after = results
+    prior = Counter(item["type"] for item in before["violations"])
+    current = Counter(item["type"] for item in after["violations"])
+    assert prior["hole_clearance"] == 0
+    assert current - prior == (Counter() if safe else Counter({"hole_clearance": 1}))
+    assert len(before["unconnected_items"]) == 1
+    assert len(after["unconnected_items"]) == 0
+
+
 def test_smd_top_only_does_not_reserve_bottom_layer() -> None:
     design, positions = _board(
         (
