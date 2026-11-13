@@ -875,6 +875,26 @@ def test_visual_drag_connection_roundtrip_matches_native_kicad_wiring(tmp_path: 
     assert original == FIXTURE.read_text()  # no implicit changes before Save.
 
 
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("U1." + "A" * 10000, "U2.SDA"),
+        ("A" * 10000 + ".GPIO21", "U2.SDA"),
+        ("U1.GPIO21", "U2." + "A" * 10000),
+        ("U1..GPIO21", "U2.SDA"),
+        ("U1.GPIO21", "U2.SDA.EXTRA"),
+        ("U1.ΣDA", "U2.SDA"),
+        ("U1.GPIO21", "U2.SDA" + chr(0)),
+    ],
+)
+def test_schematic_wire_rejects_invalid_or_huge_endpoints_without_regex_backtracking(
+    start: str,
+    end: str,
+) -> None:
+    with pytest.raises(StudioInputError, match="Choose two real source component pins"):
+        apply_schematic_wire(FIXTURE.read_text(), start=start, end=end)
+
+
 def test_schematic_wire_source_roundtrip_and_bend_edit(tmp_path: Path) -> None:
     """A real pin-anchored KiCad path survives canonical YAML save/reopen."""
     from zaptrace.core.parser import dump_str, parse_str

@@ -271,27 +271,41 @@ def _patch_net_nodes(lines: list[str], net_name: str, node_id: str, *, remove: b
     lines[index] = original[:left] + json.dumps(nodes) + original[right + 1 :]
 
 
+def _wire_endpoint_parts(value: object) -> tuple[str, str] | None:
+    """Parse bounded ASCII pin references without data-dependent regex backtracking."""
+    if not isinstance(value, str) or len(value) > 192:
+        return None
+    component, dot, pin = value.partition(".")
+    if not dot or "." in pin:
+        return None
+    for part in (component, pin):
+        if (
+            not part
+            or not part[0].isascii()
+            or not part[0].isalpha()
+            or any(not ((char.isascii() and char.isalnum()) or char in "_-") for char in part[1:])
+        ):
+            return None
+    return component, pin
+
+
 def apply_schematic_wire(source: str, *, start: str, end: str, bend: float = 0.5) -> str:
     """Persist a pin-anchored KiCad schematic elbow path in canonical YAML.
 
     A different-net target first adopts the starting pin's net; only Save
     writes to disk. This is schematic geometry, never routed PCB copper.
     """
-    endpoint_pattern = r"[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z][A-Za-z0-9_-]*"
-    if (
-        not isinstance(start, str)
-        or not isinstance(end, str)
-        or re.fullmatch(endpoint_pattern, start) is None
-        or re.fullmatch(endpoint_pattern, end) is None
-    ):
+    start_parts = _wire_endpoint_parts(start)
+    end_parts = _wire_endpoint_parts(end)
+    if start_parts is None or end_parts is None:
         raise StudioInputError("Choose two real source component pins")
     if isinstance(bend, bool) or not isinstance(bend, (float, int)) or not math.isfinite(bend):
         raise StudioInputError("Wire bend must be a finite number")
     bend = round(float(bend), 3)
     if not 0.1 <= abs(bend) <= 0.9:
         raise StudioInputError("Wire bend must be between 0.1 and 0.9 on either channel")
-    start_ref, start_pin = start.split(".", 1)
-    end_ref, end_pin = end.split(".", 1)
+    start_ref, start_pin = start_parts
+    end_ref, end_pin = end_parts
     if start_ref == end_ref:
         raise StudioInputError("Wires between pins of the same symbol are not supported")
     design, source_component = _verified_component(source, start_ref)

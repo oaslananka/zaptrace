@@ -11,6 +11,7 @@ import math
 import os
 import platform
 import subprocess
+import sys
 import sysconfig
 import tomllib
 from collections.abc import Callable
@@ -436,6 +437,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.markdown:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         args.markdown.write_text(render_markdown(report), encoding="utf-8")
+    if report["status"] != "pass":
+        # CI must fail closed AND identify the failed check, even when the
+        # evidence artifact cannot be uploaded because an earlier step failed.
+        print("Native boundary verification failed:", file=sys.stderr)
+        if error := report.get("error"):
+            print(f"- initialization: {error}", file=sys.stderr)
+        for check in report.get("checks", []):
+            if check["status"] == "fail":
+                print(f"- {check['name']}: {check['detail']}", file=sys.stderr)
     return exit_code(report, args.strict)
 
 

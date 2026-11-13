@@ -237,6 +237,40 @@ def test_cli_writes_json_and_markdown(tmp_path: Path, monkeypatch) -> None:
     assert "Native Boundary Evidence" in markdown.read_text(encoding="utf-8")
 
 
+def test_strict_native_cli_reports_failed_check_to_ci_log(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_root = _source_root(tmp_path)
+    wheel = tmp_path / "native.whl"
+    wheel.write_bytes(b"wheel")
+    metadata_file = source_root / "pyproject.toml"
+    metadata_file.write_text(metadata_file.read_text(encoding="utf-8") + "# unexpectedly dirty" + chr(10))
+    monkeypatch.setattr(ci_native_boundary, "load_native_core", lambda: _FakeCore())
+    monkeypatch.setattr(ci_native_boundary.metadata, "version", lambda _name: "0.3.1.dev0")
+    report = tmp_path / "evidence.json"
+    assert (
+        ci_native_boundary.main(
+            [
+                "--wheel",
+                str(wheel),
+                "--source-root",
+                str(source_root),
+                "--output",
+                str(report),
+                "--strict",
+            ]
+        )
+        == 1
+    )
+    err = capsys.readouterr().err
+    assert "Native boundary verification failed:" in err
+    assert "source-clean:" in err
+    assert "source tree is dirty" in err
+    assert json.loads(report.read_text(encoding="utf-8"))["status"] == "fail"
+
+
 def test_strict_exit_fails_closed() -> None:
     assert ci_native_boundary.exit_code({"status": "pass"}, strict=True) == 0
     assert ci_native_boundary.exit_code({"status": "fail"}, strict=True) == 1

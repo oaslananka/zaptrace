@@ -161,10 +161,10 @@ class StudioHTTPServer(ThreadingHTTPServer):
 
 
 class StudioHandler(BaseHTTPRequestHandler):
-    def log_message(self, format: str, *args: object) -> None:
+    def log_message(self, *args: Any, **kwargs: Any) -> None:
         """Keep CLI request logging; GUI pythonw.exe has no stderr stream."""
         if sys.stderr is not None:
-            super().log_message(format, *args)
+            super().log_message(*args, **kwargs)
 
     protocol_version = "HTTP/1.1"
 
