@@ -14,6 +14,12 @@ Choose **Recent projects** to reopen personal copies after a browser reload or a
 
 To **directly edit the original file** instead of a personal copy, start `zaptrace studio --project path/to/design.yaml`; that explicit CLI option edits the selected file, so make a repository commit/backup as appropriate. Studio itself is still initially launched via the CLI; the browser controls remove the need to type file paths for imported projects. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
 
+## The first three real actions
+
+When the initial live sample opens, the small **Start here** guide provides three executable choices. **Edit a real component** highlights a component in the circuit and focuses its exact YAML declaration without changing the source. **Trace a source signal** selects a real multi-component net and focuses its accessible net control (the initial highlighted signal is reused when available). **Open my YAML file** uses the same validated personal-copy import described above, and refuses to switch while an unsaved/stale draft exists. No guided button pretends to create copper, solve routing or save without an explicit edit.
+
+The card sits within the main circuit on desktop and remains in the viewport on narrow screens. Dismiss it with **×** and reopen it through **Start here** in the header; after dismissal it stays closed for the current browser-tab session. An imported personal YAML project opens **without automatically displaying** the sample guide, but can opt in. The guide does not modify YAML or contact a service.
+
 ## Open Studio from your application menu
 
 After opening Studio once with `zaptrace studio`, select **Recent projects → Add Studio to your apps**. This is an **explicit, opt-in user action**: the source/package installation itself never changes desktop settings. On Linux this adds a per-user XDG Applications entry; on Windows it creates a per-user Start menu shortcut. Choose **ZapTrace Studio** from the operating-system application menu on your next visit — no terminal command is needed for repeated launches.

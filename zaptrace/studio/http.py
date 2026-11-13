@@ -50,6 +50,7 @@ class StudioHTTPServer(ThreadingHTTPServer):
     ) -> None:
         self.document = StudioDocument(path)
         self.desktop_mode = parent.desktop_mode if parent is not None else desktop_mode
+        self.is_imported_project = parent is not None
         self.session_token = secrets.token_urlsafe(32)
         self.asset_dir = Path(__file__).with_name("web")
         self.root_server = parent.root_server if parent is not None else self
@@ -236,7 +237,13 @@ class StudioHandler(BaseHTTPRequestHandler):
         elif route == "/studio.js":
             self._send((self.studio.asset_dir / "studio.js").read_bytes(), "text/javascript; charset=utf-8")
         elif route == "/api/source":
-            self._json({**self.studio.document.read(), "desktop_mode": self.studio.desktop_mode})
+            self._json(
+                {
+                    **self.studio.document.read(),
+                    "desktop_mode": self.studio.desktop_mode,
+                    "imported_project": self.studio.is_imported_project,
+                }
+            )
         elif route == "/api/projects":
             self._json({"projects": self.studio.list_personal_imports()})
         elif (

@@ -6,6 +6,7 @@ const state = {
     original: "",
     savedSource: "",
     diskHash: "",
+    importedProject: false,
     selection: "U1",
     net: null,
     netInitialized: false,
@@ -186,6 +187,85 @@ $("save").onclick = () => {
 };
 $("export-kicad").onclick = () => {
     void downloadKicadSchematic();
+};
+// First-user path: actionable, non-modal and safe for current source state.
+// The user can always reopen the guide; dismissal persists only in this tab.
+function setStarterVisible(visible) {
+    $("starter").hidden = !visible;
+    $("starter-open").setAttribute("aria-expanded", String(visible));
+}
+function dismissStarter() {
+    setStarterVisible(false);
+    try {
+        window.sessionStorage.setItem("zaptrace-studio-guide-dismissed", "1");
+    } catch {
+        // Private browser storage may be unavailable; editing still works.
+    }
+}
+$("starter-close").onclick = () => {
+    dismissStarter();
+    $("starter-open").focus();
+};
+$("starter-open").onclick = () => {
+    if (!state.data) {
+        $("activity").textContent = "Loading the live design. The first actions will be available shortly.";
+        return;
+    }
+    if ($("starter").hidden) {
+        setStarterVisible(true);
+        $("starter-close").focus();
+    } else {
+        dismissStarter();
+        $("starter-open").focus();
+    }
+};
+$("starter-edit").onclick = () => {
+    if (!state.data) return;
+    const part = state.data.components.find((component) => component.ref === "R1") ??
+        state.data.components.find((component) => component.value) ??
+        state.data.components[0];
+    if (!part) return;
+    dismissStarter();
+    document.querySelector('[data-view="circuit"]').click();
+    select(part.ref); // Focus the actual source declaration, never mutate it.
+    $("activity").textContent =
+        "Selected " + part.ref + " in the real YAML source and live circuit. " +
+        "Change its value in Source or the Inspector, then Save design.";
+};
+$("starter-trace").onclick = () => {
+    if (!state.data) return;
+    const connected = state.data.nets.filter((net) =>
+        new Set(net.nodes.map((pin) => pin.ref)).size > 1
+    );
+    const signal = connected.filter((net) =>
+        !/^(GND|VCC|VBUS|PWR|POWER|3V3|5V)(?:$|_)/i.test(net.id)
+    );
+    const candidates = [...(signal.length ? signal : connected)].sort(
+        (left, right) => right.nodes.length - left.nodes.length
+    );
+    const chosen = candidates.find((net) => net.id === state.net) ?? candidates[0];
+    if (!chosen) {
+        $("activity").textContent = "This design has no multi-component net to trace.";
+        return;
+    }
+    dismissStarter();
+    document.querySelector('[data-view="circuit"]').click();
+    state.net = chosen.id;
+    state.pinSelection = null;
+    draw(); // Electrical source membership, not fabricated PCB copper.
+    $("net-choices").querySelector(".net-choice.on")?.focus();
+    $("activity").textContent =
+        "Tracing " + chosen.id + " from " + chosen.nodes.length +
+        " source pins. Select a pin to inspect its exact connection.";
+};
+$("starter-import").onclick = () => {
+    if (state.dirty || state.stale) {
+        $("activity").textContent =
+            "Save or Undo the current draft before opening another YAML file.";
+        return;
+    }
+    dismissStarter();
+    $("import-project").click(); // Existing validated, isolated-copy import.
 };
 $("projects-close").onclick = () => $("projects-dialog").close();
 $("desktop-install").onclick = async () => {
@@ -2476,6 +2556,7 @@ async function useDiskSnapshot(snapshot, activity) {
     state.wireStart = null;
     clearTimeout(handle);
     $("desktop-quit").hidden = !snapshot.desktop_mode;
+    state.importedProject = snapshot.imported_project === true;
     state.savedSource = snapshot.source;
     state.original = snapshot.source;
     state.diskHash = snapshot.source_hash;
@@ -2878,6 +2959,21 @@ async function initializeStudio() {
         await loadFromDisk(false);
         $("activity").textContent =
             "Live project loaded. Change an electrical value, select its component, or drag an unrouted PCB placement.";
+        if (state.data) {
+            $("starter-summary").textContent =
+                state.data.components.length + " real components · " +
+                state.data.nets.length + " source nets · one editable local YAML. " +
+                "Choose a working action, not a tutorial.";
+            let dismissed = false;
+            try {
+                dismissed = window.sessionStorage.getItem(
+                    "zaptrace-studio-guide-dismissed"
+                ) === "1";
+            } catch {
+                // The guide remains optional when storage is unavailable.
+            }
+            if (!dismissed && !state.importedProject) setStarterVisible(true);
+        }
         window.setInterval(() => {
             void checkExternalChange();
         }, 2500);

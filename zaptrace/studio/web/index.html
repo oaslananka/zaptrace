@@ -899,6 +899,62 @@
                 color: #f2cfbb;
                 min-height: 40px;
             }
+            .starter {
+                position: absolute;
+                z-index: 6;
+                right: 18px;
+                bottom: 68px;
+                width: min(342px, calc(100% - 36px));
+                padding: 20px;
+                background: radial-gradient(circle at 100% 0%, #286d6c48, transparent 55%),
+                    linear-gradient(155deg, #18313a, #0d1b25 90%);
+                border: 1px solid #5a9291;
+                border-radius: 16px;
+                box-shadow: 0 22px 52px #020d16b8, inset 0 1px 0 #8adbd521;
+            }
+            .starter[hidden] { display: none; }
+            .starter-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+            .starter-kicker { font-size: 10px; font-weight: 750; letter-spacing: 1.5px; color: #88e0d7; }
+            .starter h2 { font-size: 20px; line-height: 1.22; letter-spacing: -0.5px; color: #f0f9f6; margin: 8px 0; }
+            .starter p { font-size: 12px; line-height: 1.5; color: #b6d0d7; margin: 0 0 14px; }
+            #starter-close { width: 36px; height: 36px; padding: 0; flex: none; font-size: 17px; }
+            .starter-actions { display: grid; gap: 7px; }
+            .starter-actions button {
+                min-height: 44px; padding: 10px 12px; text-align: left;
+                border: 1px solid #446570; background: #213d48;
+                display: flex; align-items: center; gap: 12px;
+                color: #eaf8f6; font-weight: 650;
+            }
+            .starter-actions button:first-child {
+                border-color: #66bcb2; background: linear-gradient(115deg, #216d66, #23504f);
+            }
+            .starter-actions button > span:first-child {
+                font: 750 11px ui-monospace, Consolas, monospace; color: #9bece2;
+            }
+            .starter small { display: block; margin-top: 13px; color: #9ab7c4; font-size: 10px; line-height: 1.45; }
+            body[data-theme="light"] .starter {
+                background: linear-gradient(150deg, #e4f6f2, #cde7ed); border-color: #428d87;
+                box-shadow: 0 12px 35px #315a6a40;
+            }
+            body[data-theme="light"] .starter h2,
+            body[data-theme="light"] .starter-actions button { color: #133d47; }
+            body[data-theme="light"] .starter p, body[data-theme="light"] .starter small { color: #315864; }
+            body[data-theme="light"] .starter-actions button { background: #c0e2e2; border-color: #6fa4a4; }
+            body[data-theme="light"] .starter-actions button:first-child { background: #93d1c8; }
+            body[data-theme="light"] .starter-kicker,
+            body[data-theme="light"] .starter-actions button > span:first-child { color: #14544e; }
+            @media (max-width: 690px) {
+                .starter {
+                    position: fixed;
+                    right: 12px;
+                    bottom: 16px;
+                    z-index: 30;
+                    padding: 16px;
+                    width: min(342px, calc(100% - 24px));
+                    max-height: calc(100dvh - 32px);
+                    overflow-y: auto;
+                }
+            }
             .actions .primary {
                 background: linear-gradient(130deg, #1e706f, #185454);
                 border: 1px solid #4cbeb0;
@@ -1021,6 +1077,13 @@
                     aria-label="Select local YAML design to open as a personal copy"
                     hidden
                 /><button
+                    id="starter-open"
+                    type="button"
+                    aria-controls="starter"
+                    aria-expanded="false"
+                    title="Show the first useful actions in your live design"
+                >✦ Start here</button
+                ><button
                     id="layout"
                     aria-pressed="false"
                     title="Give the live canvas more space"
@@ -1124,6 +1187,28 @@
                             aria-label="Source-linked electronic design workspace"
                         ></svg>
                     </div>
+                    <section
+                        id="starter"
+                        class="starter"
+                        role="region"
+                        aria-labelledby="starter-title"
+                        hidden
+                    >
+                        <div class="starter-heading">
+                            <div>
+                                <div class="starter-kicker">YOUR LIVE CIRCUIT</div>
+                                <h2 id="starter-title">Make your first change.</h2>
+                            </div>
+                            <button id="starter-close" type="button" aria-label="Dismiss getting started guide">×</button>
+                        </div>
+                        <p id="starter-summary">Loading your real design…</p>
+                        <div class="starter-actions">
+                            <button id="starter-edit" type="button"><span>01</span> Edit a real component</button>
+                            <button id="starter-trace" type="button"><span>02</span> Trace a source signal</button>
+                            <button id="starter-import" type="button"><span>03</span> Open my YAML file</button>
+                        </div>
+                        <small>Local source · actual net membership · PCB copper and ERC/DRC not verified</small>
+                    </section>
                     <div class="canvas-note" id="note">
                         Select a component to inspect its real pins
                     </div>

@@ -208,8 +208,12 @@ def test_browser_yaml_import_creates_isolated_personal_copy_without_switching_pa
         assert child.session_token != server.session_token
         assert child.document.path.parent.parent == imports
         assert child.document.path.read_text(encoding="utf-8") == source
-        assert json.load(urlopen(child_base + "api/source", timeout=15))["source"] == source
-        assert json.load(urlopen(base + "api/source", timeout=15))["source"] == source
+        child_snapshot = json.load(urlopen(child_base + "api/source", timeout=15))
+        root_snapshot = json.load(urlopen(base + "api/source", timeout=15))
+        assert child_snapshot["source"] == source
+        assert root_snapshot["source"] == source
+        assert child_snapshot["imported_project"] is True
+        assert root_snapshot["imported_project"] is False
 
         changed = apply_component_value(source, component_ref="R1", value="15k")
         stale_token_req = Request(
