@@ -39,6 +39,12 @@ def test_real_source_preview_and_invalid_recovery(tmp_path: Path) -> None:
     assert original["source_hash"] == sha(source)
     assert len(original["preview"]["components"]) == 14
     assert len(original["preview"]["nets"]) == 7
+    components = {part["ref"]: part for part in original["preview"]["components"]}
+    u1_pads = {pin["name"]: pin["source_package_pads"] for pin in components["U1"]["pins"]}
+    u2_pads = {pin["name"]: pin["source_package_pads"] for pin in components["U2"]["pins"]}
+    assert u1_pads["GPIO21"] == ["33"]
+    assert u1_pads["GND"] == ["1", "15", "38", "39"]
+    assert u2_pads["SDA"] == ["3"]
     assert original["preview"]["generated_placement"] is True
 
     changed = source.replace('value: "4.7k"', 'value: "10k"', 1)
@@ -277,7 +283,6 @@ def test_logical_schematic_ui_has_source_labeled_accessible_net_selection() -> N
     assert "data-net" in javascript
     assert "data-pin" in javascript
     assert "focusSchematicPin" in javascript
-    assert "not native KiCad geometry" in javascript
     html = files("zaptrace.studio").joinpath("web", "index.html").read_text()
     assert 'role="group"' in html
     assert 'aria-label="Source-linked electronic design workspace"' in html

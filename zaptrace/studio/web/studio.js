@@ -462,6 +462,7 @@ function addSchematicPin(group, component, pin, x, y) {
         "data-pin": pin.name,
         "data-net": pin.net || "",
         "data-electrical-type": pin.type || "",
+        "data-source-package-pads": (pin.source_package_pads || []).join(","),
         role: "button",
         tabindex: 0,
         "aria-label":
@@ -471,7 +472,10 @@ function addSchematicPin(group, component, pin, x, y) {
             " (" +
             (pin.type || "unknown") +
             ") net " +
-            (pin.net || "not connected"),
+            (pin.net || "not connected") +
+            ((pin.source_package_pads || []).length
+                ? ", source package pads " + pin.source_package_pads.join(", ")
+                : ", no package pad mapping"),
     });
     row.append(
         svg("rect", {
@@ -539,7 +543,10 @@ function addSchematicPin(group, component, pin, x, y) {
             " · " +
             (pin.type || "unknown") +
             " · Net " +
-            (pin.net || "not connected"),
+            (pin.net || "not connected") +
+            ((pin.source_package_pads || []).length
+                ? " · Source package pads " + pin.source_package_pads.join(", ")
+                : " · No package pad mapping"),
     );
     row.append(details);
     row.addEventListener("click", (ev) => {
@@ -758,24 +765,153 @@ function drawNetTopology(root, net, top) {
     }
     return height;
 }
+function schematicLayout(rows) {
+    const laidOut = [];
+    let top = 76;
+    for (const row of rows) {
+        const tallest = Math.max(
+            58,
+            ...row.items.map((component) => 42 + component.pins.length * 16),
+        );
+        const rowHeight = Math.max(152, 48 + tallest + 24);
+        const centers =
+            row.items.length === 2
+                ? [248, 680]
+                : row.items.length === 3
+                  ? [230, 460, 690]
+                  : row.items.length === 1
+                    ? [460]
+                    : [120, 343, 566, 789];
+        const positions = [];
+        const coordinates = centers.values();
+        for (const component of row.items) {
+            const coordinate = coordinates.next();
+            if (coordinate.done) break;
+            positions.push({
+                component,
+                x: coordinate.value,
+                y: top + 48 + tallest / 2,
+            });
+        }
+        laidOut.push({ top, rowHeight, caption: row.caption, positions });
+        top += rowHeight + 12;
+    }
+    return { rows: laidOut, height: Math.max(650, top + 16) };
+}
+function drawLogicalNetWires(root, layout, net) {
+    if (!net || net.nodes.length < 2) return;
+    const color = netStroke(net.id);
+    const railX = 6;
+    const wireGroup = svg("g", {
+        class: "logical-wire-overlay",
+        "data-net": net.id,
+        "aria-label":
+            "Source-derived net " + net.id + " (not KiCad native wires)",
+        "pointer-events": "none",
+    });
+    const joinedRows = [];
+    for (const row of layout.rows) {
+        const railY = row.top + 37;
+        const endpoints = [];
+        for (const position of row.positions) {
+            for (const [index, pin] of position.component.pins.entries()) {
+                if (pin.net !== net.id) continue;
+                const sourceX = position.x - 94 - 14;
+                const sourceY =
+                    position.y -
+                    (42 + position.component.pins.length * 16) / 2 +
+                    43 +
+                    index * 16;
+                const corridorX = sourceX - 7;
+                endpoints.push({
+                    sourceX,
+                    sourceY,
+                    corridorX,
+                    ref: position.component.ref,
+                    pin: pin.name,
+                });
+            }
+        }
+        if (!endpoints.length) continue;
+        joinedRows.push(railY);
+        const endX = Math.max(...endpoints.map((point) => point.corridorX));
+        wireGroup.append(
+            svg("path", {
+                class: "logical-wire-rail",
+                "data-net": net.id,
+                d: "M " + railX + " " + railY + " H " + endX,
+                stroke: color,
+                "stroke-width": 1.6,
+                fill: "none",
+            }),
+        );
+        for (const point of endpoints) {
+            wireGroup.append(
+                svg("path", {
+                    class: "logical-wire-stub",
+                    "data-ref": point.ref,
+                    "data-pin": point.pin,
+                    "data-net": net.id,
+                    d:
+                        "M " +
+                        point.sourceX +
+                        " " +
+                        point.sourceY +
+                        " H " +
+                        point.corridorX +
+                        " V " +
+                        railY,
+                    stroke: color,
+                    "stroke-width": 1.7,
+                    fill: "none",
+                    "stroke-linejoin": "round",
+                }),
+            );
+            wireGroup.append(
+                svg("circle", {
+                    cx: point.corridorX,
+                    cy: railY,
+                    r: 2.5,
+                    fill: color,
+                }),
+            );
+        }
+    }
+    if (joinedRows.length > 1) {
+        wireGroup.insertBefore(
+            svg("path", {
+                class: "logical-wire-bus",
+                "data-net": net.id,
+                d:
+                    "M " +
+                    railX +
+                    " " +
+                    Math.min(...joinedRows) +
+                    " V " +
+                    Math.max(...joinedRows),
+                stroke: color,
+                "stroke-width": 1.7,
+                fill: "none",
+            }),
+            wireGroup.firstChild,
+        );
+    }
+    root.append(wireGroup);
+}
 function drawCircuit() {
     const root = $("drawing");
     const data = state.data;
-    const rows = schematicRows(data.components);
+    const layout = schematicLayout(schematicRows(data.components));
     root.replaceChildren();
-    const xs = [120, 343, 566, 789];
-    const rowHeight = 147;
-    for (const [rowIndex, row] of rows.entries()) {
-        const centerY = 151 + rowIndex * rowHeight;
-        const top = centerY - 73;
+    for (const [index, row] of layout.rows.entries()) {
         root.append(
             svg("rect", {
                 x: 14,
-                y: top,
+                y: row.top,
                 width: 892,
-                height: 143,
+                height: row.rowHeight,
                 rx: 10,
-                fill: rowIndex % 2 === 0 ? "#12232e" : "#0c1d28",
+                fill: index % 2 === 0 ? "#12232e" : "#0c1d28",
                 "fill-opacity": 0.66,
                 stroke: "#2d4b58",
                 "stroke-opacity": 0.55,
@@ -787,7 +923,7 @@ function drawCircuit() {
                     "text",
                     {
                         x: 30,
-                        y: top + 15,
+                        y: row.top + 17,
                         fill: "#88b6bc",
                         "font-size": 9.5,
                         "font-weight": 700,
@@ -797,49 +933,39 @@ function drawCircuit() {
                 ),
             );
         }
-        const centers =
-            row.items.length === 2
-                ? [248, 680]
-                : row.items.length === 3
-                  ? [230, 460, 690]
-                  : row.items.length === 1
-                    ? [460]
-                    : xs;
-        const coordinates = centers.values();
-        for (const component of row.items) {
-            const coordinate = coordinates.next();
-            if (!coordinate.done) {
-                drawSchematicComponent(
-                    root,
-                    component,
-                    coordinate.value,
-                    centerY + 12,
-                );
-            }
-        }
     }
-    const contentHeight = Math.max(650, rows.length * rowHeight + 78);
     const selectedNet = state.net
         ? data.nets.find((net) => net.id === state.net)
         : null;
+    drawLogicalNetWires(root, layout, selectedNet);
+    for (const row of layout.rows) {
+        for (const position of row.positions) {
+            drawSchematicComponent(
+                root,
+                position.component,
+                position.x,
+                position.y,
+            );
+        }
+    }
     state.schematicHeight = selectedNet
-        ? contentHeight +
+        ? layout.height +
           16 +
-          drawNetTopology(root, selectedNet, contentHeight + 8) +
+          drawNetTopology(root, selectedNet, layout.height + 8) +
           16
-        : contentHeight;
+        : layout.height;
     const count = selectedNet ? selectedNet.nodes.length : 0;
     title(
         "Live logical schematic",
         selectedNet
-            ? selectedNet.id + " · " + count + " mapped pin connections"
+            ? selectedNet.id + " · " + count + " exact source pin connections"
             : data.components.length +
                   " source components · " +
                   data.nets.length +
                   " labeled nets",
     );
     $("note").textContent =
-        "Exact source pin/net labels · select a pin to trace its net · not native KiCad geometry";
+        "Selected net shows source-derived logical links, not native KiCad wires or PCB copper";
 }
 function drawBoard() {
     const root = $("drawing"),
@@ -992,6 +1118,12 @@ function inspector() {
     if (!pinEditor.hidden) {
         $("pin-label").textContent =
             c.ref + "." + selectedPin.name + " · " + selectedPin.net;
+        const sourcePads = selectedPin.source_package_pads || [];
+        $("pin-source-pads").textContent = sourcePads.length
+            ? "Source package pads: " +
+              sourcePads.join(", ") +
+              " · not verified by Studio"
+            : "No package pad mapping in the source";
         const menu = $("pin-target-net");
         menu.replaceChildren();
         for (const net of d.nets) {

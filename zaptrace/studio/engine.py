@@ -64,6 +64,9 @@ def preview_design(source: str) -> dict[str, Any]:
             pos = calculated.get(component.id) or calculated.get(component.ref)
             footprint = model.footprint_def
             size = footprint.courtyard if footprint and footprint.courtyard else (3.0, 3.0)
+            pad_numbers: dict[str, list[str]] = {}
+            for physical_pad, logical_name in model.package_pin_map.items():
+                pad_numbers.setdefault(logical_name, []).append(physical_pad)
             parts.append(
                 {
                     "ref": component.ref,
@@ -71,7 +74,9 @@ def preview_design(source: str) -> dict[str, Any]:
                     "type": component.type,
                     "value": component.value,
                     "footprint": component.footprint,
-                    "pins": component.pins,
+                    "pins": [
+                        {**pin, "source_package_pads": pad_numbers.get(pin["name"], [])} for pin in component.pins
+                    ],
                     "position": [float(pos[0]), float(pos[1])] if pos else None,
                     "size": [float(size[0]), float(size[1])],
                     "source_placed": component.id in source_positions or component.ref in source_positions,
