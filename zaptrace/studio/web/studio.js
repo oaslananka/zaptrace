@@ -223,21 +223,26 @@ function symbolStage(component) {
     return 2;
 }
 function schematicRows(components) {
-    const staged = [[], [], []];
-    for (const component of components)
-        staged[symbolStage(component)].push(component);
-    const rows = [];
-    const captions = [
-        "POWER & INTERFACES",
-        "CONTROL & SENSING",
-        "SUPPORT & TEST POINTS",
+    const power = [];
+    const active = [];
+    const support = [];
+    for (const component of components) {
+        const stage = symbolStage(component);
+        if (stage === 0) power.push(component);
+        else if (stage === 1) active.push(component);
+        else support.push(component);
+    }
+    const sections = [
+        { caption: "POWER & INTERFACES", items: power },
+        { caption: "CONTROL & SENSING", items: active },
+        { caption: "SUPPORT & TEST POINTS", items: support },
     ];
-    for (let stage = 0; stage < staged.length; stage++) {
-        const group = staged[stage];
-        for (let i = 0; i < group.length; i += 4) {
+    const rows = [];
+    for (const section of sections) {
+        for (let i = 0; i < section.items.length; i += 4) {
             rows.push({
-                caption: i === 0 ? captions[stage] : "",
-                items: group.slice(i, i + 4),
+                caption: i === 0 ? section.caption : "",
+                items: section.items.slice(i, i + 4),
             });
         }
     }
@@ -606,13 +611,17 @@ function drawCircuit() {
                   : row.items.length === 1
                     ? [460]
                     : xs;
-        for (const [index, component] of row.items.entries()) {
-            drawSchematicComponent(
-                root,
-                component,
-                centers[index],
-                centerY + 12,
-            );
+        const coordinates = centers.values();
+        for (const component of row.items) {
+            const coordinate = coordinates.next();
+            if (!coordinate.done) {
+                drawSchematicComponent(
+                    root,
+                    component,
+                    coordinate.value,
+                    centerY + 12,
+                );
+            }
         }
     }
     const height = Math.max(650, rows.length * rowHeight + 78);
@@ -791,9 +800,11 @@ function inspector() {
     list.replaceChildren();
     for (const c of d.components) {
         const e = node(
-            "div",
+            "button",
             "item" + (c.ref === state.selection ? " sel" : ""),
         );
+        e.type = "button";
+        e.setAttribute("aria-pressed", String(c.ref === state.selection));
         e.append(
             node("b", "", c.ref),
             node("em", "", c.value || c.type.slice(0, 13)),

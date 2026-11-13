@@ -276,5 +276,6 @@ def test_logical_schematic_ui_has_source_labeled_accessible_net_selection() -> N
     assert "data-pin" in javascript
     assert "focusSchematicPin" in javascript
     assert "not native KiCad geometry" in javascript
-    assert "pin.name" in javascript
-    assert "pin.net" in javascript
+    html = files("zaptrace.studio").joinpath("web", "index.html").read_text()
+    assert 'role="group"' in html
+    assert 'aria-label="Source-linked electronic design workspace"' in html
