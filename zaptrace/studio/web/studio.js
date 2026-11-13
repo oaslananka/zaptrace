@@ -187,6 +187,107 @@ $("save").onclick = () => {
 $("export-kicad").onclick = () => {
     void downloadKicadSchematic();
 };
+$("projects-close").onclick = () => $("projects-dialog").close();
+$("recent-projects").onclick = async () => {
+    if (state.dirty || state.stale) {
+        $("activity").textContent =
+            "Save or Undo your draft before switching projects. Your current source stays untouched.";
+        return;
+    }
+    const dialog = $("projects-dialog");
+    const list = $("projects-list");
+    list.replaceChildren(node("p", "", "Finding saved personal projects…"));
+    dialog.showModal();
+    try {
+        const response = await fetch("/api/projects", { cache: "no-store" });
+        if (!response.ok) throw new Error("Could not open the personal project list");
+        const { projects } = await response.json();
+        if (!dialog.open) return;
+        list.replaceChildren();
+        if (!projects.length) {
+            list.append(node("p", "", "No saved copies yet. Use + Open YAML copy to get started."));
+        }
+        for (const project of projects) {
+            const button = node("button", "", project.label);
+            button.type = "button";
+            button.setAttribute("aria-label", "Open personal project " + project.label);
+            button.append(node("small", "", "Open ↗"));
+            button.onclick = async () => {
+                if (state.dirty || state.stale) {
+                    dialog.close();
+                    $("activity").textContent =
+                        "Save or Undo current draft before opening another project.";
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    const next = await sendMutation("/api/project/open", {
+                        project_id: project.id,
+                    });
+                    window.location.assign(next.url);
+                } catch (error) {
+                    $("activity").textContent = error.message;
+                    button.disabled = false;
+                }
+            };
+            list.append(button);
+        }
+    } catch (error) {
+        list.replaceChildren(node("p", "", error.message));
+    }
+};
+$("import-project").onclick = () => {
+    if (state.dirty || state.stale) {
+        $("activity").textContent =
+            "Save or Undo your current draft before opening a different YAML project. Nothing was replaced.";
+        return;
+    }
+    $("import-file").click();
+};
+$("import-file").addEventListener("change", async () => {
+    const picker = $("import-file");
+    const file = picker.files?.[0];
+    picker.value = "";
+    if (!file) return;
+    if (state.dirty || state.stale) {
+        $("activity").textContent =
+            "Your current draft is not saved. Save or Undo first; no project was opened.";
+        return;
+    }
+    if (!/\.ya?ml$/i.test(file.name) || file.size > 200000 || file.size === 0) {
+        updateStatus(false, "Choose a YAML design file smaller than 200 KB.");
+        return;
+    }
+    const button = $("import-project");
+    const expectedHash = state.diskHash;
+    button.disabled = true;
+    $("activity").textContent = "Validating " + file.name + " as a separate personal project…";
+    try {
+        const source = await file.text();
+        if (state.dirty || state.stale || expectedHash !== state.diskHash) {
+            $("activity").textContent =
+                "The current design changed during import. Nothing was replaced; try again after saving.";
+            return;
+        }
+        const result = await sendMutation("/api/project/import", {
+            source, filename: file.name,
+        });
+        if (state.dirty || state.stale || expectedHash !== state.diskHash) {
+            $("activity").textContent =
+                "Current source changed during import; this tab keeps your draft.";
+            return;
+        }
+        // Separate port => separate StudioDocument and session token.
+        // Browser navigation never overwrites the source opened in this tab.
+        window.location.assign(result.url);
+    } catch (error) {
+        updateStatus(false, error.message);
+        $("activity").textContent =
+            "The original project was not modified. Correct the YAML and choose the file again.";
+    } finally {
+        button.disabled = false;
+    }
+});
 $("wire-cancel").onclick = () => {
     state.wireStart = null;
     draw();

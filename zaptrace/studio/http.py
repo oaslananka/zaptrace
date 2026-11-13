@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import html
 import json
+import os
+import re
 import secrets
+import tempfile
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, cast
@@ -33,11 +37,123 @@ class StudioHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, path: Path, port: int = 0) -> None:
+    def __init__(
+        self,
+        path: Path,
+        port: int = 0,
+        *,
+        import_directory: Path | None = None,
+        parent: StudioHTTPServer | None = None,
+    ) -> None:
         self.document = StudioDocument(path)
         self.session_token = secrets.token_urlsafe(32)
         self.asset_dir = Path(__file__).with_name("web")
+        self.root_server = parent.root_server if parent is not None else self
+        if parent is None:
+            self.import_directory = (
+                import_directory
+                if import_directory is not None
+                else Path.home() / "ZapTrace Studio Projects" / "zaptrace-studio" / "imports"
+            )
+            self._import_lock = threading.Lock()
+            self._imported_servers: list[StudioHTTPServer] = []
         super().__init__(("127.0.0.1", port), StudioHandler)
+
+    def list_personal_imports(self) -> list[dict[str, str]]:
+        """Browse only Studio-managed copies, never arbitrary local files."""
+        directory = self.root_server.import_directory
+        if not directory.is_dir() or directory.is_symlink():
+            return []
+        entries = []
+        for folder in directory.iterdir():
+            if not folder.is_dir() or folder.is_symlink():
+                continue
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,63}", folder.name):
+                continue
+            design = folder / "design.yaml"
+            if design.is_file() and not design.is_symlink():
+                entries.append((design.stat().st_mtime_ns, folder.name))
+        entries.sort(reverse=True)
+        return [{"id": name, "label": name.rsplit("-", 1)[0].replace("-", " ")} for _, name in entries[:40]]
+
+    def _launch_personal_session(self, path: Path) -> dict[str, Any]:
+        root = self.root_server
+        if len(root._imported_servers) >= 8:
+            raise StudioInputError("Eight imported projects are open; restart Studio to open another")
+        child = create_studio_server(path, parent=root)
+        try:
+            threading.Thread(
+                target=child.serve_forever,
+                kwargs={"poll_interval": 0.2},
+                daemon=True,
+                name="zaptrace-studio-import",
+            ).start()
+        except RuntimeError:
+            child.server_close()
+            raise
+        root._imported_servers.append(child)
+        return {"url": f"http://127.0.0.1:{child.server_port}/"}
+
+    def open_personal_import(self, project_id: str) -> dict[str, str]:
+        """Open only a previously imported personal copy, on an isolated port."""
+        if not isinstance(project_id, str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,63}", project_id):
+            raise StudioInputError("Choose a recent Studio project")
+        root = self.root_server
+        with root._import_lock:
+            directory = root.import_directory
+            if directory.is_symlink():
+                raise StudioInputError("Personal project directory is not available")
+            path = directory / project_id / "design.yaml"
+            if path.is_symlink() or path.parent.is_symlink() or not path.is_file():
+                raise StudioInputError("Personal project copy is missing")
+            if path.resolve().parent.parent != directory.resolve():
+                raise StudioInputError("Personal project must remain inside Studio's project folder")
+            return self._launch_personal_session(path)
+
+    def create_personal_import(self, source: str, filename: str) -> dict[str, Any]:
+        """Validate, copy and open a standalone local Studio design on a NEW port.
+
+        Existing browser tabs, agent writers and original project paths retain
+        their original document and independent session token.
+        """
+        if not isinstance(filename, str) or not re.fullmatch(r"[^/\\\x00]{1,120}\.ya?ml", filename, re.I):
+            raise StudioInputError("Choose a YAML (.yaml or .yml) design file")
+        preview = preview_design(source)
+        if not preview["ok"]:
+            raise StudioInputError(preview["error"])
+        root = self.root_server
+        name = re.sub(r"[^a-z0-9-]+", "-", Path(filename).stem.lower()).strip("-")[:36] or "design"
+        with root._import_lock:
+            if len(root._imported_servers) >= 8:
+                raise StudioInputError("Eight imported projects are open; restart Studio to open another")
+            root.import_directory.mkdir(parents=True, exist_ok=True)
+            directory = Path(tempfile.mkdtemp(prefix=name + "-", dir=root.import_directory))
+            path = directory / "design.yaml"
+            try:
+                with path.open("x", encoding="utf-8") as stream:
+                    stream.write(source)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                session = self._launch_personal_session(path)
+            except (OSError, RuntimeError):
+                path.unlink(missing_ok=True)
+                directory.rmdir()
+                raise
+        return {
+            **session,
+            "name": preview["name"],
+            "source_hash": preview["source_hash"],
+        }
+
+    def server_close(self) -> None:
+        if self is self.root_server:
+            with self._import_lock:
+                children = list(self._imported_servers)
+                self._imported_servers.clear()
+            for child in children:
+                child.shutdown()
+                child.server_close()
+        super().server_close()
 
 
 class StudioHandler(BaseHTTPRequestHandler):
@@ -112,6 +228,8 @@ class StudioHandler(BaseHTTPRequestHandler):
             self._send((self.studio.asset_dir / "studio.js").read_bytes(), "text/javascript; charset=utf-8")
         elif route == "/api/source":
             self._json(self.studio.document.read())
+        elif route == "/api/projects":
+            self._json({"projects": self.studio.list_personal_imports()})
         elif (
             route.startswith("/native-symbol/")
             and route.endswith(".svg")
@@ -158,6 +276,15 @@ class StudioHandler(BaseHTTPRequestHandler):
         return self.studio.document.save(edited, expected_hash=expected_hash)
 
     def _handle_mutation(self, route: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if route == "/api/project/open":
+            return self.studio.open_personal_import(
+                self._require_text(payload, "project_id"),
+            )
+        if route == "/api/project/import":
+            return self.studio.create_personal_import(
+                self._require_text(payload, "source"),
+                self._require_text(payload, "filename"),
+            )
         if route == "/api/kicad/schematic":
             return export_native_kicad_schematic(self._require_text(payload, "source"))
         if route == "/api/native/inspect":
@@ -212,6 +339,8 @@ class StudioHandler(BaseHTTPRequestHandler):
             PREVIEW_ROUTE,
             "/api/place",
             "/api/save",
+            "/api/project/import",
+            "/api/project/open",
             "/api/agent/change",
             "/api/pin/connect",
             "/api/schematic/wire",
@@ -238,9 +367,15 @@ class StudioHandler(BaseHTTPRequestHandler):
         self._fail(403, "NOT_ALLOWED", "Cross-origin Studio requests are not supported")
 
 
-def create_studio_server(path: Path, *, port: int = 0) -> StudioHTTPServer:
-    """Serve one explicitly selected design file, never a remote network path."""
+def create_studio_server(
+    path: Path,
+    *,
+    port: int = 0,
+    import_directory: Path | None = None,
+    parent: StudioHTTPServer | None = None,
+) -> StudioHTTPServer:
+    """Serve one local design per session, never silently switch its file."""
     path = Path(path).expanduser().resolve()
     if not path.is_file() or path.suffix.lower() not in {".yaml", ".yml"}:
         raise StudioInputError("Open an existing local YAML design file")
-    return StudioHTTPServer(path, port)
+    return StudioHTTPServer(path, port, import_directory=import_directory, parent=parent)

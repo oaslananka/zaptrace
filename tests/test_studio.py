@@ -148,6 +148,180 @@ def test_demo_copy_never_overwrites_existing_design(tmp_path: Path) -> None:
     assert demo_project(tmp_path).read_text() == "my personal edits\n"
 
 
+def test_browser_yaml_import_creates_isolated_personal_copy_without_switching_parent(tmp_path: Path) -> None:
+    """Imported projects have their own URL, document, token and source file."""
+    original = tmp_path / "existing" / "design.yaml"
+    original.parent.mkdir()
+    original.write_text(FIXTURE.read_text(), encoding="utf-8")
+    imports = tmp_path / "personal-imports"
+    server = create_studio_server(original, port=0, import_directory=imports)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_port}/"
+
+    def post(url: str, payload: dict, token: str | None = None) -> tuple[int, dict]:
+        headers = {"Content-Type": "application/json", "Origin": url.rstrip("/")}
+        if token:
+            headers["X-ZapTrace-Studio-Token"] = token
+        req = Request(
+            url + "api/project/import",
+            data=json.dumps(payload).encode(),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urlopen(req, timeout=15) as response:
+                return response.status, json.load(response)
+        except HTTPError as error:
+            return error.code, json.loads(error.read())
+
+    try:
+        source = original.read_text(encoding="utf-8")
+        first = {"source": source, "filename": "esp32.yaml"}
+        status, denied = post(base, first)
+        assert status == 403
+        assert denied["error"]["code"] == "WRITE_DENIED"
+        assert not imports.exists()
+
+        for filename in ("../../oops.yaml", "other.txt", "nested\\design.yaml", "../design.yml", ".yaml"):
+            status, denied = post(base, {**first, "filename": filename}, server.session_token)
+            assert status == 400, filename
+
+        status, bad = post(
+            base,
+            {"source": source + "\nbroken: [", "filename": "broken.yaml"},
+            server.session_token,
+        )
+        assert status == 400
+        assert bad["error"]["code"] == "BAD_DESIGN"
+        assert not imports.exists()
+
+        status, imported = post(base, first, server.session_token)
+        assert status == 200
+        assert imported["source_hash"] == sha(source)
+        child_base = imported["url"]
+        assert child_base.startswith("http://127.0.0.1:")
+        assert child_base != base
+        assert len(server._imported_servers) == 1
+        child = server._imported_servers[0]
+        assert child.document.path != server.document.path
+        assert child.session_token != server.session_token
+        assert child.document.path.parent.parent == imports
+        assert child.document.path.read_text(encoding="utf-8") == source
+        assert json.load(urlopen(child_base + "api/source", timeout=15))["source"] == source
+        assert json.load(urlopen(base + "api/source", timeout=15))["source"] == source
+
+        changed = apply_component_value(source, component_ref="R1", value="15k")
+        stale_token_req = Request(
+            child_base + "api/save",
+            data=json.dumps({"source": changed, "expected_hash": sha(source)}).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": child_base.rstrip("/"),
+                "X-ZapTrace-Studio-Token": server.session_token,
+            },
+            method="POST",
+        )
+        with pytest.raises(HTTPError) as unauthorized:
+            urlopen(stale_token_req, timeout=15)
+        assert unauthorized.value.code == 403
+        assert child.document.read()["source"] == source
+
+        child_save = Request(
+            child_base + "api/save",
+            data=json.dumps({"source": changed, "expected_hash": sha(source)}).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": child_base.rstrip("/"),
+                "X-ZapTrace-Studio-Token": child.session_token,
+            },
+            method="POST",
+        )
+        with urlopen(child_save, timeout=15) as result:
+            assert json.load(result)["source_hash"] == sha(changed)
+        assert child.document.read()["source"] == changed
+        assert original.read_text(encoding="utf-8") == source
+
+        # Every imported window can import again without switching either
+        # original document or leaving a service running after root shutdown.
+        status, another = post(child_base, first, child.session_token)
+        assert status == 200
+        assert another["url"] not in {base, child_base}
+        assert len(server._imported_servers) == 2
+        assert original.read_text(encoding="utf-8") == source
+        assert child.document.read()["source"] == changed
+
+        listing = json.load(urlopen(base + "api/projects", timeout=15))
+        assert len(listing["projects"]) == 2
+        assert all(item["label"] == "esp32" for item in listing["projects"])
+        assert all("/" not in item["id"] and "\\" not in item["id"] for item in listing["projects"])
+        saved_id = child.document.path.parent.name
+
+        def reopen(project_id: str, token: str) -> tuple[int, dict]:
+            req = Request(
+                base + "api/project/open",
+                data=json.dumps({"project_id": project_id}).encode(),
+                headers={
+                    "Content-Type": "application/json",
+                    "Origin": base.rstrip("/"),
+                    "X-ZapTrace-Studio-Token": token,
+                },
+                method="POST",
+            )
+            try:
+                with urlopen(req, timeout=15) as result:
+                    return result.status, json.load(result)
+            except HTTPError as error:
+                return error.code, json.loads(error.read())
+
+        status, no_permission = reopen(saved_id, "invalid-token")
+        assert status == 403
+        assert no_permission["error"]["code"] == "WRITE_DENIED"
+        for bad_id in ("../" + saved_id, saved_id + "/design.yaml", "missing-project", ""):
+            status, denied = reopen(bad_id, server.session_token)
+            assert status == 400, bad_id
+            assert denied["error"]["code"] == "BAD_DESIGN"
+
+        status, reopened = reopen(saved_id, server.session_token)
+        assert status == 200
+        assert reopened["url"] not in {base, child_base, another["url"]}
+        assert json.load(urlopen(reopened["url"] + "api/source", timeout=15))["source"] == changed
+        assert original.read_text(encoding="utf-8") == source
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+
+    # Studio restart still finds and opens the saved personal YAML copy.
+    restarted = create_studio_server(original, import_directory=imports)
+    try:
+        projects = restarted.list_personal_imports()
+        assert len(projects) == 2
+        assert all(item["label"] == "esp32" for item in projects)
+        saved_id = child.document.path.parent.name
+        reopened = restarted.open_personal_import(saved_id)
+        assert reopened["url"].startswith("http://127.0.0.1:")
+        assert restarted._imported_servers[0].document.read()["source"] == changed
+    finally:
+        restarted.server_close()
+
+
+def test_browser_yaml_import_rejects_invalid_input_before_creating_copy(tmp_path: Path) -> None:
+    original = tmp_path / "design.yaml"
+    original.write_text(FIXTURE.read_text())
+    server = create_studio_server(original, import_directory=tmp_path / "new-projects")
+    try:
+        with pytest.raises(StudioInputError):
+            server.create_personal_import("bad yaml: [", "bad.yaml")
+        with pytest.raises(StudioInputError):
+            server.create_personal_import(FIXTURE.read_text(), "outside/../design.yaml")
+        assert not (tmp_path / "new-projects").exists()
+        assert original.read_text() == FIXTURE.read_text()
+    finally:
+        server.server_close()
+
+
 def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> None:
     file = tmp_path / "design.yaml"
     file.write_text(FIXTURE.read_text())

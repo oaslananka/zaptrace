@@ -832,6 +832,50 @@
                 }
             }
 
+            #projects-dialog {
+                width: min(460px, calc(100% - 32px));
+                max-height: min(640px, 85vh);
+                border: 1px solid #587d84;
+                border-radius: 14px;
+                background: #102731;
+                color: #e3f3f4;
+                padding: 20px;
+                box-shadow: 0 22px 55px #03141bcc;
+            }
+            #projects-dialog::backdrop {
+                background: #06151bc4;
+            }
+            .projects-dialog-title {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                font-size: 17px;
+            }
+            #projects-dialog p {
+                color: #accbd0;
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            .projects-list {
+                display: grid;
+                gap: 8px;
+                margin-top: 14px;
+                overflow-y: auto;
+                max-height: 55vh;
+            }
+            .projects-list button {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                min-height: 44px;
+                width: 100%;
+                padding: 11px;
+                background: #1a3843;
+                text-align: left;
+            }
+            .projects-list small { color: #95c4c6; }
             .actions .primary {
                 background: linear-gradient(130deg, #1e706f, #185454);
                 border: 1px solid #4cbeb0;
@@ -938,6 +982,22 @@
                 <span>PROJECT</span
                 ><strong id="project-name">Loading project…</strong
                 ><button
+                    id="import-project"
+                    type="button"
+                    title="Select a local YAML design; Studio opens a separate editable personal copy"
+                >+ Open YAML copy</button
+                ><button
+                    id="recent-projects"
+                    type="button"
+                    title="Open a saved personal Studio project copy"
+                >Recent projects</button
+                ><input
+                    id="import-file"
+                    type="file"
+                    accept=".yaml,.yml"
+                    aria-label="Select local YAML design to open as a personal copy"
+                    hidden
+                /><button
                     id="layout"
                     aria-pressed="false"
                     title="Give the live canvas more space"
@@ -960,6 +1020,14 @@
                 </button>
             </div>
         </header>
+        <dialog id="projects-dialog" aria-labelledby="projects-dialog-title">
+            <div class="projects-dialog-title">
+                <strong id="projects-dialog-title">Your Studio projects</strong>
+                <button id="projects-close" type="button" aria-label="Close projects">×</button>
+            </div>
+            <p>Saved personal YAML copies. Your originally selected files are never overwritten by importing.</p>
+            <div id="projects-list" class="projects-list" aria-live="polite"></div>
+        </dialog>
         <main class="shell">
             <section class="panel">
                 <div class="section">
