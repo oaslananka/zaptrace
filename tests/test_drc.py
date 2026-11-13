@@ -232,6 +232,33 @@ class TestRightAngle:
         assert len(drc003) >= 1, "Should detect 90° corner"
         assert "90" in drc003[0].message or "Right" in drc003[0].message
 
+    @pytest.mark.parametrize(
+        ("pad_is_connected", "pad_on_route_layer", "expected_corners"),
+        [(True, True, 0), (False, True, 1), (True, False, 1)],
+    )
+    def test_physical_same_net_pad_junction_is_not_a_bare_right_angle(
+        self, pad_is_connected: bool, pad_on_route_layer: bool, expected_corners: int
+    ) -> None:
+        """Real same-net copper at the junction replaces the sharp unsupported trace corner."""
+        from zaptrace.core.models import FootprintDef, LayerSet, Pad
+
+        d = _simple_design()
+        comp = d.components["r1"]
+        comp.footprint_def = FootprintDef(
+            pads=[Pad(id="1", size=(1.0, 1.0), layer=LayerSet.TOP if pad_on_route_layer else LayerSet.BOTTOM)],
+            courtyard=(2.0, 2.0),
+        )
+        comp.package_pin_map = {"1": "p1" if pad_is_connected else "p2"}
+        d.placement = {"r1": (10.0, 0.0)}
+        d.routing = RouteResult(
+            traces=[
+                TraceSegment(layer="top", start=(0, 0), end=(10, 0), width=0.2, net_id="vcc"),
+                TraceSegment(layer="top", start=(10, 0), end=(10, 10), width=0.2, net_id="vcc"),
+            ]
+        )
+        result = DRCEngine(enabled_rules={"DRC-003"}).run(d)
+        assert len([v for v in result.violations if v.rule_id == "DRC-003"]) == expected_corners
+
     def test_45_degree_ok(self) -> None:
         d = _simple_design()
         d.routing = RouteResult(

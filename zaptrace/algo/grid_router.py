@@ -362,9 +362,15 @@ class ObstacleMap:
                         if geometric_pad_escape
                         else not self.is_free(point, net_id)
                     )
+                    # A geometrically verified pad escape crosses no hard
+                    # cell at its centreline. Hard static NPTH/outline masks
+                    # already contain the trace half-width and uncertainty;
+                    # testing their radius again excludes genuinely legal
+                    # copper. The foreign *dynamic* copper radius stays.
+                    or self._cells[point.layer][point.y][point.x]
                     or any(
                         not self.in_bounds(probe)
-                        or self._cells[probe.layer][probe.y][probe.x]
+                        or (not geometric_pad_escape and self._cells[probe.layer][probe.y][probe.x])
                         or self.owner(probe) not in (None, net_id)
                         for dy in range(-radius, radius + 1)
                         for dx in range(-radius, radius + 1)
@@ -929,7 +935,11 @@ class GridRouter:
         if not 2 <= len(targets) <= 8 or len(exact_points) != len(targets):
             return None
         candidate_sets: list[list[tuple[int, int]]] = []
-        max_anchors = 12 if len(targets) == 2 else 1
+        # In multi-contact nets, preserve the proven no-stub interior
+        # anchor as the first attempt, but permit one alternate legal escape
+        # when an interior anchor cannot leave its crowded connector pad.
+        # This is bounded at TWO whole-net attempts, never 2**N paths.
+        max_anchors = 12 if len(targets) == 2 else 2 if physical_targets else 1
         for (node, own_pad), exact in zip(targets, exact_points, strict=True):
             if own_pad is None:
                 return None
@@ -979,9 +989,17 @@ class GridRouter:
             return None
 
         # Only genuine two-pad nets use a bounded paired-anchor search.
-        # Physical multi-contact nets use one deterministic choice per pad
-        # rather than a combinatorial Steiner search.
-        selections = product(*candidate_sets) if len(targets) == 2 else [tuple(x[0] for x in candidate_sets)]
+        # Physical multi-contact nets try the original interior anchors,
+        # then one collective fallback to legal escape anchors (at most
+        # TWO full-tree routes; no exponential Steiner combinations).
+        if len(targets) == 2:
+            selections = product(*candidate_sets)
+        elif physical_targets:
+            original = tuple(x[0] for x in candidate_sets)
+            alternate = tuple(x[-1] for x in candidate_sets)
+            selections = [original] if alternate == original else [original, alternate]
+        else:
+            selections = [tuple(x[0] for x in candidate_sets)]
         for selected in selections:
             staged = context.obstacles.clone()
             anchors = [GridPos(*point, layer) for point in selected]
@@ -1039,6 +1057,10 @@ class GridRouter:
                         if math.dist(exact, (point[0] * self.resolution, point[1] * self.resolution)) > 1e-6
                     ]
                 context.obstacles = staged_context.obstacles
+                # Keep the per-physical-pad candidate representation intact
+                # until the strict continuity/local DRC gate has validated
+                # all connector contacts; post hoc removal of identical
+                # geometric stubs can expose a genuine sharp-angle junction.
                 return paths, stubs
         return None
 

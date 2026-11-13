@@ -10,6 +10,62 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — native-proven upper USB-C power escape; preserve the working default
+
+The real unchanged ESP32 source's supplier-pinned GCT USB4105 J1 A4/B9
+and A9/B4 VBUS lands have a **0.50 mm F.Cu exit above the connector**:
+from the two physical pad centres at (77.60,63.32) and (82.40,63.32),
+the legal upper corridor at y=62.00 avoids the CC contacts, actual NPTH
+holes and shell slots. Unlike the earlier **0.20 mm** lower two-via
+review path, the new path keeps the original POWER_MED width **0.50 mm**,
+uses **zero vias**, leaves all source footprints/rules unchanged and is
+independently checked with **KiCad 10.0.8 on the actual source footprint**.
+
+The fixed geometric fan-out now recognizes that the NPTH/profile raster
+already contains track half-width, clearance and cell uncertainty.
+Its pad-stub reservation no longer adds a second hard-obstacle radius;
+it **still rejects any hard centreline cell or foreign dynamically
+reserved copper within the full track radius**. If a snapped on-pad
+anchor has no legal track corridor, bounded full-width pad escapes are
+considered instead. Repeated coincident USB-C A/B contacts remain
+represented individually until continuity/DRC verifies every pad ID;
+any identical emitted source stubs still require a separate geometric
+deduplication algorithm that cannot invalidate sharp-angle checks.
+
+Two bounded **actual source** physical subnets, tested separately:
+J1.VBUS–C3.P1 (9 unique 0.50 mm segments) and J1.VBUS–U3.INPUT
+(10 segments). Each achieves **37 → 35 native unconnected** on the
+complete, unchanged real source KiCad board, with **zero additional
+native DRC records**. This proves each local route is geometrically
+possible. The preflight intentionally **rejects both as complete
+VCC_5V**, since the original source's other 5V loads remain open.
+
+A strictly temporary native what-if on the original source also
+combined two independently safe J1 branches with a full-width
+vertical D1.IO branch (37 → 33 unconnected, no added KiCad DRC).
+The 0.60 × 0.45 mm D1 pad can geometrically contact a **vertical**
+0.50 mm trace across its 0.60 mm horizontal dimension, so its
+0.45 mm short side alone is **not a mathematical impossibility
+proof**. It is still **unqualified for the default source's current,
+ESD/thermal load and routing topology**: the conservative original
+minimum-pad-dimension gate remains and the example's power net is
+still marked incomplete.
+
+CRITICAL integration negative: combining isolated full-width 5V
+and all four existing source signal-net routes created **3 actual
+KiCad shorts, 6 crossing findings and 1 new clearance violation**.
+Swapping the route order instead traded one CC signal net for 5V;
+it did **not** increase the number of accepted entire nets. Neither
+unsafe/incomplete candidate was promoted. The **default source
+remains 4 complete signal nets / 44 tracks, 29 actual native
+unconnected, 16 original mechanical DRC, ERC 0**. The GND/3V3
+power-tree, USB/ESD/thermal/RF/DFM and qualified human acceptance
+gates remain open. In the internal DRC, a verified same-net,
+same-layer *physical pad copper junction* is now distinguished from
+a bare unsupported 90-degree trace corner; foreign/missing/wrong-
+layer pads and real off-pad corners still produce DRC-003. Native
+KiCad DRC remains independent and authoritative.
+
 ## 2026-11-13 — correct NPTH physical edge clearance in geometric pad escape
 
 The pad-aware off-grid escape enumerator previously subtracted the **NPTH
@@ -29,8 +85,10 @@ centreline separation, native KiCad finds **0 added hole-clearance
 violations** and the single copper net is connected; at 0.65 mm,
 it reports **1 genuine new hole-clearance violation** and the router's
 escape candidate is rejected. Other pre-existing fixture violations
-remain visible. Real-source routing retries still report J1–C3,
-J1–U3 and complete 5V **UNROUTED**; actual D1 pad 0.45 mm and
+remain visible. At the earlier
+46fb0a8 checkpoint, J1–C3, J1–U3 and complete 5V were **UNROUTED**;
+the later upper-corridor result above supersedes those two bounded
+subnet failures only. The actual D1 pad 0.45 mm and
 nearby actual NPTH/pad obstacles, GND/RF constraints and the existing
 16 manufacturing DRC errors are **NOT** solved. No manufacturer,
 electrical or fabrication approval is implied.
@@ -402,8 +460,8 @@ a missing grid anchor.
 | Net / endpoint | Physical pad copper | POWER_MED trace | Consequence |
 |---|---:|---:|---|
 | VCC_3V3 / U2 BME280 VDD, VDDIO, CSB | 0.50 × 0.35 mm | 0.50 mm | No constant-width pad escape is geometrically valid |
-| VCC_5V / D1 IO | 0.60 × 0.45 mm | 0.50 mm | No constant-width pad escape is geometrically valid |
-| VCC_5V / J1 VBUS | 0.60 × 1.15 mm | 0.50 mm | Pad width itself is sufficient; complete net still fails because D1 and board-wide obstacles remain |
+| VCC_5V / D1 IO | 0.60 × 0.45 mm | 0.50 mm | Source's conservative short-side width gate remains; an isolated VERTICAL 0.50 mm native route is geometrically possible, but current/ESD/thermal and combined-net routing remain unqualified |
+| VCC_5V / J1 VBUS | 0.60 × 1.15 mm | 0.50 mm | Actual full-width upper J1 pad fanout is now native DRC proven for two local subnets; full source 5V + four signal-net coexistence remains blocked |
 
 The BME280 manufacturer's datasheet lists typical consumption up to
 3.6 µA at 1 Hz for humidity, pressure and temperature. That supports
@@ -421,8 +479,10 @@ ambient temperature. The current schematic does not contain a verified
 thermal calculation or exact production-grade regulator qualification;
 the regulator/power tree remains an independent electrical/thermal blocker.
 
-Decision: do not reduce the 0.50 mm POWER_MED width globally, do not route a
-0.50 mm line into a 0.35/0.45 mm pad, and do not add a blind via-in-pad.
+Decision: do not reduce the 0.50 mm POWER_MED width globally, do not
+generalize the isolated D1 vertical entry into unqualified short-side pad
+launches (especially the 0.35 mm Bosch U2 lands), and do not add a blind
+via-in-pad.
 The next legitimate implementation is a topology-aware power tree: preserve
 a qualified wide trunk for the high-current path; allow a narrower branch
 only where its branch current is bounded by the connected loads; represent

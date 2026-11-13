@@ -1190,6 +1190,137 @@ def test_geometric_pad_escape_only_skips_preexpanded_pad_halo_not_dynamic_copper
         )
 
 
+def test_real_usb_vbus_pad_escape_does_not_double_expand_npth_raster() -> None:
+    """A native-safe, full-width pad escape must survive an already enlarged NPTH mask."""
+    from pathlib import Path
+
+    from zaptrace.core.parser import parse_file
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    design = parse_file(source)
+    router = GridRouter(resolution_mm=0.25, pad_aware=True)
+    context = router._prepare_route_context(design, design.placement or {})
+    node = next(node for node in design.nets["VCC_5V"].nodes if node.component_ref == "J1")
+    pad = next(p for p in design.components["J1"].footprint_def.pads if p.id == "A4")
+    # Vendor-true USB4105 pad at (77.60, 63.32), and legal top escape
+    # at (77.50, 62.25); no footprint, drill, copper width or rule change.
+    candidates = router._pad_escape_candidates(
+        design,
+        design.nets["VCC_5V"],
+        node,
+        (77.6, 63.32),
+        context,
+        KnowledgeBase(),
+        0,
+        physical_pad=pad,
+        max_candidates=12,
+    )
+    assert (310, 249) in candidates
+
+    source_grid = GridPos(310, 253)
+    anchor = GridPos(310, 249)
+    assert not context.obstacles.is_corridor_free(source_grid, "VCC_5V", 1)
+    # The NPTH raster is already expanded by trace half-width + clearance
+    # and grid uncertainty. A radius-1 second expansion was a false reject.
+    staged = context.obstacles.clone()
+    staged.block_line(
+        source_grid,
+        anchor,
+        radius=1,
+        net_id="VCC_5V",
+        geometric_pad_escape=True,
+    )
+    assert staged.owner(source_grid) == "VCC_5V"
+    assert staged.owner(anchor) == "VCC_5V"
+
+    # Actual hard centreline obstacles and foreign dynamic copper are NEVER
+    # permitted, even with the exact-shape pad escape enabled.
+    blocked = context.obstacles.clone()
+    blocked.block(GridPos(310, 251))
+    with pytest.raises(ValueError, match="Copper clearance"):
+        blocked.block_line(
+            source_grid,
+            anchor,
+            radius=1,
+            net_id="VCC_5V",
+            geometric_pad_escape=True,
+        )
+
+
+@pytest.mark.parametrize("remote_ref", ["C3", "U3"])
+def test_real_source_usb_vbus_full_width_fanout_is_native_proven_but_partial(tmp_path, remote_ref: str) -> None:
+    """Real USB-C J1 pads can escape on F.Cu without a narrow power trace or waiver."""
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+    from pathlib import Path
+
+    from zaptrace.core.models import RouteResult
+    from zaptrace.core.parser import parse_file
+    from zaptrace.export.kicad import export_kicad
+    from zaptrace.pipeline.physical_route_preflight import (
+        _physical_net_continuity,
+        _physical_pad_terminal_coverage,
+        retain_verified_partial_copper,
+    )
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Real KiCad required for physical routing acceptance")
+    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, timeout=10, check=True)
+    if not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent KiCad 10 required")
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
+    original = parse_file(source)
+    assert original.placement is not None
+    subset = original.model_copy(deep=True)
+    power = subset.nets["VCC_5V"]
+    power.nodes = [node for node in power.nodes if node.component_ref in {"J1", remote_ref}]
+    subset.nets = {"VCC_5V": power}
+
+    candidate = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=20_000).route(subset, original.placement)
+    assert candidate.routed_net_count == candidate.net_count == 1
+    assert candidate.traces and not candidate.vias
+    assert all(trace.net_id == "VCC_5V" and trace.width == 0.5 for trace in candidate.traces)
+    assert _physical_pad_terminal_coverage(subset, candidate, original.placement)
+    assert _physical_net_continuity(subset, candidate, original.placement)
+    # The *full* source also contains the other VCC_5V loads, so this
+    # experimental two-terminal subtree must not be promoted as a complete
+    # source net merely because KiCad confirms its local copper.
+    assert retain_verified_partial_copper(original, candidate, original.placement).routed_net_count == 0
+
+    reports = []
+    for label, routed in (("before", RouteResult(net_count=7)), ("after", candidate)):
+        native_design = original.model_copy(deep=True)
+        native_design.routing = routed
+        pcb = export_kicad(native_design, tmp_path / label)["pcb"]
+        report = tmp_path / f"{label}.json"
+        result = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(report),
+                str(pcb),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert result.returncode in (0, 5), result.stderr
+        reports.append(json.loads(report.read_text(encoding="utf-8")))
+    before, after = reports
+    assert Counter(v["type"] for v in before["violations"]) == Counter(v["type"] for v in after["violations"])
+    assert len(after["unconnected_items"]) == len(before["unconnected_items"]) - 2
+
+
 def test_real_esp32_i2c_sda_uses_bounded_four_terminal_geometric_fanout() -> None:
     from pathlib import Path
 
