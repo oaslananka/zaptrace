@@ -106,8 +106,8 @@
                 height: calc(100vh - 65px);
                 display: grid;
                 grid-template-columns:
-                    minmax(310px, 32%) minmax(400px, 1fr)
-                    246px;
+                    minmax(270px, 25%) minmax(450px, 1fr)
+                    230px;
                 grid-template-rows: minmax(0, 1fr) 110px;
             }
             .panel {
@@ -344,6 +344,11 @@
             .netpill:hover {
                 background: #24505b;
             }
+            .netpill[aria-pressed="true"] {
+                background: #235b62;
+                border-color: #8ae0d5;
+                color: #f0fffc;
+            }
             .item {
                 display: flex;
                 justify-content: space-between;
@@ -418,6 +423,19 @@
             }
             svg .component:hover {
                 filter: drop-shadow(0px 0px 8px #7ad8cf55);
+            }
+            svg .schematic-pin {
+                cursor: pointer;
+            }
+            svg .schematic-pin:hover .pin-hit {
+                fill: #6ebdb6;
+                fill-opacity: 0.19;
+            }
+            svg .schematic-pin:focus-visible .pin-hit {
+                fill: #86e2dd;
+                fill-opacity: 0.27;
+                stroke: #b2f5ed;
+                stroke-width: 1;
             }
             svg text {
                 user-select: none;

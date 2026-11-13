@@ -238,3 +238,43 @@ def test_studio_json_html_delimiters_are_escaped_without_losing_source(tmp_path:
         server.shutdown()
         server.server_close()
         thread.join(timeout=10)
+
+
+def test_live_logical_schematic_uses_exact_source_pin_and_net_membership() -> None:
+    """Every rendered logical pin is derived from real source pin/net membership."""
+    source = FIXTURE.read_text()
+    preview = preview_design(source)
+    assert preview["ok"]
+    assert len(preview["components"]) == 14
+    assert len(preview["nets"]) == 7
+
+    actual = {
+        (component["ref"], pin["name"], pin["net"]) for component in preview["components"] for pin in component["pins"]
+    }
+    expected = {(node["ref"], node["pin"], net["id"]) for net in preview["nets"] for node in net["nodes"]}
+    assert actual == expected
+    assert len(actual) == 37
+
+    changed = preview_design(source.replace("I2C_SDA", "SENSOR_DATA"))
+    assert changed["ok"]
+    renamed = {
+        (component["ref"], pin["name"], pin["net"]) for component in changed["components"] for pin in component["pins"]
+    }
+    assert ("U1", "GPIO21", "SENSOR_DATA") in renamed
+    assert ("TP1", "P1", "SENSOR_DATA") in renamed
+    assert ("U1", "GPIO21", "I2C_SDA") not in renamed
+    assert len(renamed) == len(actual)
+
+
+def test_logical_schematic_ui_has_source_labeled_accessible_net_selection() -> None:
+    from importlib.resources import files
+
+    javascript = files("zaptrace.studio").joinpath("web", "studio.js").read_text()
+    assert "drawSchematicComponent" in javascript
+    assert "data-electrical-type" in javascript
+    assert "data-net" in javascript
+    assert "data-pin" in javascript
+    assert "focusSchematicPin" in javascript
+    assert "not native KiCad geometry" in javascript
+    assert "pin.name" in javascript
+    assert "pin.net" in javascript

@@ -61,6 +61,9 @@ async function update() {
         if (!data.components.some((c) => c.ref === state.selection)) {
             state.selection = data.components[0]?.ref;
         }
+        if (state.net && !data.nets.some((net) => net.id === state.net)) {
+            state.net = null;
+        }
         $("elapsed").textContent =
             "Parsed " +
             data.parse_ms +
@@ -197,82 +200,348 @@ function title(t, sub) {
     e.append(node("small", "", sub));
 }
 function netStroke(netId) {
-    if (netId.includes("GND")) return "#6b92b0";
-    if (netId.includes("VCC")) return "#edb97e";
-    if (netId.includes("I2C")) return "#6ed2cc";
-    return "#c2ade5";
+    if (netId === "GND") return "#91b6cb";
+    if (netId.startsWith("VCC") || netId.startsWith("VBUS")) return "#f3b982";
+    if (netId.startsWith("I2C")) return "#80d8d0";
+    if (netId.startsWith("USB")) return "#c2afff";
+    return "#a4cce2";
 }
-function circuitAccent(ref) {
-    if (ref.startsWith("U")) return "#76d2d2";
-    if (ref.startsWith("J")) return "#edb77b";
-    return "#b9afe9";
+function symbolKind(component) {
+    const type = component.type.toUpperCase();
+    if (type === "RES" || type.startsWith("RESISTOR")) return "resistor";
+    if (type === "CAP" || type.startsWith("CAPACITOR")) return "capacitor";
+    if (type.includes("TESTPOINT")) return "testpoint";
+    if (type.includes("USB") || component.ref.startsWith("J"))
+        return "connector";
+    if (type.startsWith("PESD") || type.includes("TVS")) return "protection";
+    return "device";
 }
-function drawCircuitConnections(root, nets, points) {
-    for (const net of nets) {
-        const refs = [...new Set(net.nodes.map((n) => n.ref))].filter((ref) =>
-            points.has(ref),
-        );
-        if (refs.length < 2) continue;
-        const positions = refs.map((ref) => points.get(ref));
-        const hub = {
-            x: positions.reduce((sum, p) => sum + p.x, 0) / positions.length,
-            y: positions.reduce((sum, p) => sum + p.y, 0) / positions.length,
-        };
-        const active =
-            state.net === net.id ||
-            (!state.net && refs.includes(state.selection));
-        for (const point of positions) {
-            root.append(
-                svg("line", {
-                    x1: point.x,
-                    y1: point.y,
-                    x2: hub.x,
-                    y2: hub.y,
-                    stroke: netStroke(net.id),
-                    "stroke-width": active ? 2.6 : 1,
-                    "stroke-opacity": active ? 0.85 : 0.2,
-                }),
-            );
+function symbolStage(component) {
+    const nets = new Set(component.pins.map((pin) => pin.net));
+    if (nets.has("VCC_5V") || symbolKind(component) === "connector") return 0;
+    if (component.ref.startsWith("U")) return 1;
+    return 2;
+}
+function schematicRows(components) {
+    const staged = [[], [], []];
+    for (const component of components)
+        staged[symbolStage(component)].push(component);
+    const rows = [];
+    const captions = [
+        "POWER & INTERFACES",
+        "CONTROL & SENSING",
+        "SUPPORT & TEST POINTS",
+    ];
+    for (let stage = 0; stage < staged.length; stage++) {
+        const group = staged[stage];
+        for (let i = 0; i < group.length; i += 4) {
+            rows.push({
+                caption: i === 0 ? captions[stage] : "",
+                items: group.slice(i, i + 4),
+            });
         }
     }
+    return rows;
 }
-function drawCircuitComponent(root, component, position) {
-    const left = position.x - 86,
-        top = position.y - 35,
-        selected = component.ref === state.selection;
-    const group = svg("g", { class: "component", "data-ref": component.ref });
+function drawSymbolKind(group, component, x, y) {
+    const kind = symbolKind(component);
+    const stroke = "#c5dce4";
+    if (kind === "resistor") {
+        group.append(
+            svg("path", {
+                d:
+                    "M " +
+                    (x - 15) +
+                    " " +
+                    y +
+                    " h5 l4 -5 l6 10 l6 -10 l6 10 l4 -5 h4",
+                fill: "none",
+                stroke,
+                "stroke-width": 1.8,
+                "stroke-linejoin": "round",
+            }),
+        );
+    } else if (kind === "capacitor") {
+        group.append(
+            svg("path", {
+                d:
+                    "M " +
+                    (x - 12) +
+                    " " +
+                    y +
+                    " h9 M " +
+                    (x - 3) +
+                    " " +
+                    (y - 8) +
+                    " v16 M " +
+                    (x + 3) +
+                    " " +
+                    (y - 8) +
+                    " v16 M " +
+                    (x + 3) +
+                    " " +
+                    y +
+                    " h9",
+                fill: "none",
+                stroke,
+                "stroke-width": 1.8,
+            }),
+        );
+    } else if (kind === "testpoint") {
+        group.append(
+            svg("circle", {
+                cx: x,
+                cy: y,
+                r: 6,
+                fill: "none",
+                stroke,
+                "stroke-width": 2,
+            }),
+        );
+        group.append(
+            svg("line", {
+                x1: x,
+                y1: y + 6,
+                x2: x,
+                y2: y + 12,
+                stroke,
+                "stroke-width": 1.6,
+            }),
+        );
+    } else if (kind === "connector") {
+        group.append(
+            svg("path", {
+                d:
+                    "M " +
+                    (x - 9) +
+                    " " +
+                    (y - 7) +
+                    " h15 v14 h-15 z M " +
+                    (x - 6) +
+                    " " +
+                    (y - 3) +
+                    " h8 M " +
+                    (x - 6) +
+                    " " +
+                    (y + 2) +
+                    " h8",
+                fill: "none",
+                stroke,
+                "stroke-width": 1.6,
+            }),
+        );
+    } else if (kind === "protection") {
+        group.append(
+            svg("path", {
+                d: "M " + x + " " + (y - 9) + " l9 5 v7 l-9 8 l-9 -8 v-7 z",
+                fill: "none",
+                stroke,
+                "stroke-width": 1.5,
+            }),
+        );
+    } else {
+        group.append(
+            svg("rect", {
+                x: x - 8,
+                y: y - 8,
+                width: 16,
+                height: 16,
+                rx: 3,
+                fill: "none",
+                stroke,
+                "stroke-width": 1.7,
+            }),
+        );
+        group.append(
+            svg("line", {
+                x1: x - 12,
+                y1: y - 3,
+                x2: x - 8,
+                y2: y - 3,
+                stroke,
+            }),
+        );
+        group.append(
+            svg("line", {
+                x1: x + 8,
+                y1: y + 3,
+                x2: x + 12,
+                y2: y + 3,
+                stroke,
+            }),
+        );
+    }
+}
+function pinSelected(pin) {
+    return state.net !== null && state.net === pin.net;
+}
+function focusSchematicPin(ref, pin) {
+    state.selection = ref;
+    state.net = pin.net || null;
+    draw();
+    focusSource(ref);
+}
+function addSchematicPin(group, component, pin, x, y) {
+    const active = pinSelected(pin);
+    const color = pin.net ? netStroke(pin.net) : "#829ba8";
+    const row = svg("g", {
+        class: "schematic-pin",
+        "data-ref": component.ref,
+        "data-pin": pin.name,
+        "data-net": pin.net || "",
+        "data-electrical-type": pin.type || "",
+        role: "button",
+        tabindex: 0,
+        "aria-label":
+            component.ref +
+            " " +
+            pin.name +
+            " (" +
+            (pin.type || "unknown") +
+            ") net " +
+            (pin.net || "not connected"),
+    });
+    row.append(
+        svg("rect", {
+            class: "pin-hit",
+            x: x + 1,
+            y: y - 11,
+            width: 186,
+            height: 17,
+            rx: 3,
+            fill: "transparent",
+        }),
+    );
+    if (active) {
+        row.append(
+            svg("rect", {
+                x: x + 4,
+                y: y - 10,
+                width: 177,
+                height: 15,
+                rx: 3,
+                fill: color,
+                "fill-opacity": 0.2,
+            }),
+        );
+    }
+    row.append(
+        svg("path", {
+            d: "M " + (x - 14) + " " + (y - 2) + " h14",
+            stroke: color,
+            "stroke-width": active ? 2.5 : 1.4,
+        }),
+    );
+    row.append(svg("circle", { cx: x - 14, cy: y - 2, r: 2.4, fill: color }));
+    row.append(
+        svg(
+            "text",
+            {
+                x: x + 12,
+                y: y + 1,
+                fill: active ? "#f6fafc" : "#c7d9df",
+                "font-size": 10.5,
+                "font-family": "ui-monospace,Consolas,monospace",
+            },
+            pin.name.slice(0, 10),
+        ),
+    );
+    row.append(
+        svg(
+            "text",
+            {
+                x: x + 86,
+                y: y + 1,
+                fill: color,
+                "font-size": 10.3,
+                "font-family": "ui-monospace,Consolas,monospace",
+            },
+            (pin.net || "NC").slice(0, 13),
+        ),
+    );
+    const details = svg(
+        "title",
+        {},
+        "Pin " +
+            pin.name +
+            " · " +
+            (pin.type || "unknown") +
+            " · Net " +
+            (pin.net || "not connected"),
+    );
+    row.append(details);
+    row.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        focusSchematicPin(component.ref, pin);
+    });
+    row.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            focusSchematicPin(component.ref, pin);
+        }
+    });
+    group.append(row);
+}
+function drawSchematicComponent(root, component, cx, cy) {
+    const width = 188;
+    const height = 42 + component.pins.length * 16;
+    const left = cx - width / 2,
+        top = cy - height / 2;
+    const selected = component.ref === state.selection;
+    const active =
+        state.net && component.pins.some((pin) => pin.net === state.net);
+    const group = svg("g", {
+        class: "component schematic-symbol",
+        "data-ref": component.ref,
+        "data-kind": symbolKind(component),
+    });
     a11y(group, component.ref);
     group.append(
         svg("rect", {
             x: left,
             y: top,
-            width: 172,
-            height: 70,
-            rx: 10,
-            fill: selected ? "#29454e" : "#142532",
-            stroke: selected ? "#86e2dd" : "#425f71",
-            "stroke-width": selected ? 2 : 1,
+            width,
+            height,
+            rx: 7,
+            fill: selected ? "#203c44" : "#102530",
+            stroke: selected
+                ? "#8be5d9"
+                : active
+                  ? netStroke(state.net)
+                  : "#476675",
+            "stroke-width": selected ? 2.5 : active ? 2 : 1.2,
         }),
     );
     group.append(
         svg("rect", {
-            x: left,
-            y: top,
-            width: 4,
-            height: 70,
-            rx: 2,
-            fill: circuitAccent(component.ref),
+            x: left + 1,
+            y: top + 1,
+            width: width - 2,
+            height: 29,
+            rx: 6,
+            fill: selected ? "#24454c" : "#19323d",
+        }),
+    );
+    group.append(
+        svg("line", {
+            x1: left + 1,
+            y1: top + 30,
+            x2: left + width - 1,
+            y2: top + 30,
+            stroke: "#3b5964",
+            "stroke-width": 0.8,
         }),
     );
     group.append(
         svg(
             "text",
             {
-                x: left + 16,
-                y: position.y - 11,
-                fill: "#f4f7f9",
-                "font-weight": 760,
-                "font-size": 15,
+                x: left + 13,
+                y: top + 18,
+                fill: "#f4f8f8",
+                "font-size": 12.4,
+                "font-weight": 700,
             },
             component.ref,
         ),
@@ -280,47 +549,89 @@ function drawCircuitComponent(root, component, position) {
     group.append(
         svg(
             "text",
-            {
-                x: left + 16,
-                y: position.y + 9,
-                fill: "#b0c5cc",
-                "font-size": 11,
-            },
-            component.type.slice(0, 20),
+            { x: left + 53, y: top + 18, fill: "#a8ced0", "font-size": 10.2 },
+            (component.value || component.type).slice(0, 13),
         ),
     );
-    group.append(
-        svg(
-            "text",
-            {
-                x: left + 16,
-                y: position.y + 26,
-                fill: "#92c8c2",
-                "font-size": 10,
-            },
-            component.value || component.pins.length + " pins",
-        ),
-    );
+    drawSymbolKind(group, component, left + width - 18, top + 15);
+    for (const [index, pin] of component.pins.entries()) {
+        addSchematicPin(group, component, pin, left, top + 45 + 16 * index);
+    }
     root.append(group);
 }
 function drawCircuit() {
-    const root = $("drawing"),
-        data = state.data;
+    const root = $("drawing");
+    const data = state.data;
+    const rows = schematicRows(data.components);
     root.replaceChildren();
-    const points = new Map(data.components.map((c, i) => [c.ref, xy(i)]));
-    drawCircuitConnections(root, data.nets, points);
-    for (const component of data.components) {
-        drawCircuitComponent(root, component, points.get(component.ref));
+    const xs = [120, 343, 566, 789];
+    const rowHeight = 147;
+    for (const [rowIndex, row] of rows.entries()) {
+        const centerY = 151 + rowIndex * rowHeight;
+        const top = centerY - 73;
+        root.append(
+            svg("rect", {
+                x: 14,
+                y: top,
+                width: 892,
+                height: 143,
+                rx: 10,
+                fill: rowIndex % 2 === 0 ? "#12232e" : "#0c1d28",
+                "fill-opacity": 0.66,
+                stroke: "#2d4b58",
+                "stroke-opacity": 0.55,
+            }),
+        );
+        if (row.caption) {
+            root.append(
+                svg(
+                    "text",
+                    {
+                        x: 30,
+                        y: top + 15,
+                        fill: "#88b6bc",
+                        "font-size": 9.5,
+                        "font-weight": 700,
+                        "letter-spacing": 1.2,
+                    },
+                    row.caption,
+                ),
+            );
+        }
+        const centers =
+            row.items.length === 2
+                ? [248, 680]
+                : row.items.length === 3
+                  ? [230, 460, 690]
+                  : row.items.length === 1
+                    ? [460]
+                    : xs;
+        for (const [index, component] of row.items.entries()) {
+            drawSchematicComponent(
+                root,
+                component,
+                centers[index],
+                centerY + 12,
+            );
+        }
     }
+    const height = Math.max(650, rows.length * rowHeight + 78);
+    state.schematicHeight = height;
+    const selectedNet = state.net
+        ? data.nets.find((net) => net.id === state.net)
+        : null;
+    const count = selectedNet ? selectedNet.nodes.length : 0;
     title(
-        "Circuit connectivity",
-        data.components.length +
-            " actual components · " +
-            data.nets.length +
-            " nets · not a native KiCad schematic",
+        "Live logical schematic",
+        selectedNet
+            ? selectedNet.id + " · " + count + " mapped pin connections"
+            : data.components.length +
+                  " source components · " +
+                  data.nets.length +
+                  " labeled nets",
     );
     $("note").textContent =
-        "Live linked net graph · select a component to locate its YAML source";
+        "Exact source pin/net labels · select a pin to trace its net · not native KiCad geometry";
 }
 function drawBoard() {
     const root = $("drawing"),
@@ -468,8 +779,10 @@ function inspector() {
         .filter((x) => x.nodes.some((p) => p.ref === c?.ref))
         .forEach((net) => {
             const b = node("button", "netpill", net.id);
+            b.setAttribute("aria-pressed", String(state.net === net.id));
+            b.title = net.nodes.length + " source pin connection(s)";
             b.onclick = () => {
-                state.net = net.id;
+                state.net = state.net === net.id ? null : net.id;
                 draw();
             };
             n.append(b);
@@ -494,11 +807,13 @@ function draw() {
     if (state.view === "circuit") drawCircuit();
     else if (state.view === "board") drawBoard();
     else draw3D();
+    const sourceHeight =
+        state.view === "circuit" ? state.schematicHeight || 650 : 650;
     const w = 920 / state.zoom,
-        h = 650 / state.zoom;
+        h = sourceHeight / state.zoom;
     $("drawing").setAttribute(
         "viewBox",
-        [(920 - w) / 2, (650 - h) / 2, w, h].join(" "),
+        [(920 - w) / 2, (sourceHeight - h) / 2, w, h].join(" "),
     );
     inspector();
 }

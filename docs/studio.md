@@ -12,7 +12,7 @@ To open your own design, run `zaptrace studio --project path/to/design.yaml`. Th
 
 ## Design in one workspace
 
-The source pane is the real ZapTrace YAML file, not a simulated second model. Edit component values, net membership or other supported fields. After a short pause, the **Circuit** view refreshes the parsed component/net connectivity. Select a component in Circuit or Inspector to jump to its source definition; click within a component's source definition to select the corresponding visual item.
+The source pane is the real ZapTrace YAML file, not a simulated second model. Edit component values, net membership or other supported fields. After a short pause, the **Circuit** tab refreshes the **live logical schematic** from the real parsed source: symbols are grouped by their source-derived roles, resistors/capacitors/connectors/test points have distinct visual identifiers, and **each named logical pin shows its actual source net**. This uses labeled electrical membership rather than drawing speculative component-centre wires. Select a pin (mouse or keyboard Enter/Space) to highlight **all source pins on that net** and jump to its parent component in YAML; the Inspector also offers net selection. Edit a net name in YAML and its associated labels update across the schematic immediately. Undo reverts an unsaved source edit. Select a component in Circuit or Inspector to jump to its source definition; click within a component's source definition to select the corresponding visual item.
 
 The **Board** tab uses source positions where supplied; any missing positions are filled using a *deterministic exploratory placement*, not validated board geometry. Drag an unrouted component to propose coordinates (0.25 mm steps) in source YAML. The change is initially **unsaved**. Press **Save design** or `Ctrl+S` to save the same original design file; **Undo** returns to the previous draft or saved version. Reopen the design to confirm that the saved position/value persisted. Studio refuses to reposition an already routed design without rerouting copper.
 
@@ -22,7 +22,7 @@ The **Focus canvas** control expands the circuit/board workspace. The design rem
 
 ## Engineering truth and first-release limitations
 
-- Circuit is the **source-derived connectivity view**, not yet a symbol-complete native KiCad schematic. The same source can still be exported for independent engineering review through existing ZapTrace/KiCad tools.
+- Circuit is a **source-derived logical schematic with real pin/net labels**, but the icons are illustrative, *not* library-qualified KiCad schematic symbols or physical package-pin numbering. Same-name net labels indicate the same electrical net; visual grouping is not proof of physical layout. The same source can still be exported for independent engineering review through existing ZapTrace/KiCad tools.
 - The Board tab shows the board dimensions and exploratory component position, **not** confirmed copper routing, manufacturing clearance or electrical connectivity.
 - 3D indicates when it has **not** been generated. No fake 3D board is presented.
 - ERC, DRC and fabrication statuses are not inferred from a valid YAML parse. **Not checked** is never displayed as a pass.
