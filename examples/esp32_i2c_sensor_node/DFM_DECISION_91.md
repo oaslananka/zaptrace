@@ -10,14 +10,45 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — bounded same-net multi-pad ground connections
+
+A logical GND terminal such as a connector may map to several distinct
+physical copper contacts. Previously the small-net router used only the
+first pad and could not connect all physical ground contacts; the strict
+every-pad continuity proof correctly rejected that apparent route.
+
+Now, for the already bounded **two-to-four-logical-terminal** no-pour GND
+case, the pad-aware planner expands every mapped real land (including
+repeated physical pad numbers) into its own electrical routing target.
+The total is limited to **eight physical contacts** per attempted net.
+Every mapped land must support the existing full 0.50 mm ground-class
+width, have a real accessible copper layer, and admit a pad-contained
+grid anchor. Any off-grid/nonqualified fanout, too-narrow pad or
+over-limit net remains unrouted. An enabled source GND pour and the
+legacy graph-only router are unchanged. Physical every-pad coverage,
+single copper-island continuity and independent native DRC are still
+required; no current/clearance waiver or manufacturer claim is implied.
+
+Independent KiCad 10.0.8 tests route one logical GND connector terminal
+with three **distinct** physical contacts to a separate real GND pad.
+Both unique-numbered and repeated-numbered land cases reach **3 -> 0
+native unconnected items**, using three real 0.50 mm copper segments,
+with no new PCB DRC defects. The three synthetic fixture findings
+(two library-footprint issues and one silkscreen-over-copper issue)
+remain unchanged before and after; none were suppressed or cleared. A narrow land in
+the repeated-contact group and physical nets with more than eight pads
+are intentionally rejected. The source ESP32 11-terminal/many-land
+GND network, its RF return current path and its actual manufacturing
+blockers remain **unresolved**; this test does not fabricate any
+on-board connection.
+
 ## 2026-11-13 — native-checked explicit ground routing without a pour
 
 A missing GND copper pour is **not** proof that every ground net is
 unroutable. The pad-aware router now attempts bounded ground traces
 for small networks of **two to four logical terminals**, only when
-each terminal maps to precisely one physically present, unambiguous
-land whose minimum dimension supports the existing, unmodified GND
-trace width. It selects a real shared copper layer and keeps each
+every routed physical land supports the existing, unmodified GND
+trace width, subject to the bounded multi-land expansion above. It selects a real shared copper layer and keeps each
 candidate subject to the existing every-pad contact, single-island,
 full-board local DRC and independent KiCad checks. Ground keepout
 projection now accounts for any wider per-class rule when this
@@ -29,9 +60,10 @@ Independent KiCad 10.0.8 PCB DRC verified test-only source models with
 two actual ground pads (**1 -> 0 unconnected**) and three pads
 (**2 -> 0 unconnected**) after trace export. The fixture's existing
 library-footprint warnings were unchanged, not waived. Adversarial
-regression tests reject too-narrow GND lands and repeated real pads
-behind one logical terminal, as well as missing physical routing
-credentials. These cases prove a **bounded functional improvement**,
+regression tests reject too-narrow GND lands (including a narrow land
+behind a repeated pad ID) and missing physical routing credentials;
+bounded, sufficiently wide repeated pads receive the separate independent
+KiCad acceptance described above. These cases prove a **bounded functional improvement**,
 not a generic RF return-path or fabrication signoff.
 
 **The ESP32 example is unchanged**: its GND has 11 logical terminals,

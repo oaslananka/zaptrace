@@ -196,6 +196,121 @@ def test_ground_without_pour_routes_two_real_ground_lands() -> None:
     assert safe.traces
 
 
+def _multipad_ground_fixture(*, repeated_id: bool = False) -> tuple[Design, dict[str, tuple[float, float]]]:
+    """One logical connector GND terminal with three distinct physical lands."""
+    d, pos = _board(
+        ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+        ("b", (25, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
+    )
+    fp = d.components["b"].footprint_def
+    assert fp is not None
+    fp.pads.extend(
+        [
+            Pad(id="1" if repeated_id else "2", position=(0, 3), size=(2.0, 1.5), layer=LayerSet.TOP),
+            Pad(id="1" if repeated_id else "3", position=(0, -3), size=(2.0, 1.5), layer=LayerSet.TOP),
+        ]
+    )
+    d.components["b"].package_pin_map = {"1": "GND", "2": "GND", "3": "GND"}
+    _net(d, "GND", "a", "b")
+    d.nets["GND"].nodes[1].pin_name = "GND"
+    d.board.copper_pour_gnd = False
+    return d, pos
+
+
+@pytest.mark.parametrize("repeated_id", [False, True])
+def test_ground_without_pour_connects_every_real_land_on_same_terminal(repeated_id: bool) -> None:
+    """No logical terminal may hide extra disconnected physical ground contacts."""
+    from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+    design, positions = _multipad_ground_fixture(repeated_id=repeated_id)
+    router = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000)
+    candidate = router.route(design, positions)
+    assert candidate.net_count == 1
+    assert candidate.routed_net_count == 1
+    assert candidate.traces
+    assert all(trace.net_id == "GND" and trace.width == 0.5 for trace in candidate.traces)
+    accepted = retain_verified_partial_copper(design, candidate, positions)
+    assert accepted.routed_net_count == 1
+    assert accepted.traces
+
+
+@pytest.mark.parametrize("repeated_id", [False, True])
+def test_ground_without_pour_multipad_kicad_real_unconnected(tmp_path, repeated_id: bool) -> None:
+    """Independent KiCad 10 must confirm ALL ground contacts, not only the first one."""
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+
+    from zaptrace.core.models import RouteResult
+    from zaptrace.export.kicad import export_kicad
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("KiCad native CLI unavailable")
+    version = subprocess.run(["kicad-cli", "version"], capture_output=True, text=True, timeout=10, check=True)
+    if not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent KiCad 10 required")
+    design, positions = _multipad_ground_fixture(repeated_id=repeated_id)
+    routed = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000).route(design, positions)
+    assert routed.routed_net_count == 1
+    native = []
+    for label, traces in (("before", RouteResult(net_count=1)), ("routed", routed)):
+        candidate = design.model_copy(deep=True)
+        candidate.placement = dict(positions)
+        candidate.routing = traces
+        pcb = export_kicad(candidate, tmp_path / label)["pcb"]
+        report = tmp_path / f"{label}.json"
+        result = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(report),
+                str(pcb),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        assert result.returncode in (0, 5), result.stderr
+        native.append(json.loads(report.read_text(encoding="utf-8")))
+    before, after = native
+    assert len(before["unconnected_items"]) > 0
+    assert len(after["unconnected_items"]) == 0
+    assert Counter(v["type"] for v in before["violations"]) == Counter(v["type"] for v in after["violations"])
+
+
+def test_ground_without_pour_multipad_over_limit_and_narrow_land_fail_closed() -> None:
+    """Resource bounds and physical current geometry are not bypassed."""
+    d, pos = _multipad_ground_fixture()
+    fp = d.components["b"].footprint_def
+    assert fp is not None
+    router = GridRouter(resolution_mm=0.25, pad_aware=True, max_iterations=25_000)
+    fp.pads[1].size = (0.45, 0.35)
+    rejected = router.route(d, pos)
+    assert rejected.net_count == 1 and rejected.routed_net_count == 0 and not rejected.traces
+    fp.pads[1].size = (2.0, 1.5)
+    # Ten distinct contacts behind one logical pin are not a small-net case.
+    for index in range(4, 11):
+        fp.pads.append(
+            Pad(
+                id=str(index),
+                position=(float((index - 4) % 4) * 2.5 - 4.0, float((index - 4) // 4) * 3.0 + 4.0),
+                size=(2.0, 1.5),
+                layer=LayerSet.TOP,
+            )
+        )
+        d.components["b"].package_pin_map[str(index)] = "GND"
+    over_limit = router.route(d, pos)
+    assert over_limit.net_count == 1 and over_limit.routed_net_count == 0 and not over_limit.traces
+
+
 def test_ground_without_pour_honors_custom_full_width_clearance() -> None:
     """Explicit GND copper must reserve the real configured trace/clearance halo."""
     from zaptrace.ee.constraints.net_classes import NetClass, NetClassRule
@@ -218,7 +333,7 @@ def test_ground_without_pour_honors_custom_full_width_clearance() -> None:
     assert len(wider.obstacles._pad_clearance) > len(standard.obstacles._pad_clearance)
 
 
-def test_ground_without_pour_rejects_narrow_and_repeated_physical_lands() -> None:
+def test_ground_without_pour_rejects_narrow_physical_land_even_when_repeated() -> None:
     """Never solve a small ground net by dropping real contacts or narrowing copper."""
     d, pos = _board(
         ("a", (10, 10), Pad(id="1", size=(2.0, 1.5), layer=LayerSet.TOP)),
@@ -238,7 +353,7 @@ def test_ground_without_pour_rejects_narrow_and_repeated_physical_lands() -> Non
 
     footprint.pads[0].size = (2.0, 1.5)
     # Duplicate actual copper occurrence, despite a single logical GND pin.
-    footprint.pads.append(Pad(id="1", position=(2.0, 0), size=(2.0, 1.5), layer=LayerSet.TOP))
+    footprint.pads.append(Pad(id="1", position=(2.0, 0), size=(0.5, 0.35), layer=LayerSet.TOP))
     repeated = router.route(d, pos)
     assert repeated.net_count == 1
     assert repeated.routed_net_count == 0 and not repeated.traces

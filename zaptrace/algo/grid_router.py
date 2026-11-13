@@ -36,7 +36,7 @@ from zaptrace.algo.pad_copper import (
     rotated_offset,
 )
 from zaptrace.core.board import canonical_board_definition
-from zaptrace.core.models import Component, Design, Net, NetClass, RouteResult, TraceSegment, Via
+from zaptrace.core.models import Component, Design, Net, NetClass, Pad, RouteResult, TraceSegment, Via
 from zaptrace.ee.classifier import classify_design, get_net_class
 from zaptrace.ee.knowledge import KnowledgeBase
 from zaptrace.ee.routing.defaults import DEFAULT_VIA_SPECS
@@ -1004,16 +1004,14 @@ class GridRouter:
     ) -> _GridNetPlan:
         net_class = get_net_class(design, net.id)
         layer = self._layer_for_net_class(net_class, context.num_layers)
+        # A logical connector pin can represent more than one real physical
+        # contact. In bounded explicit GND routing, include *every* land in
+        # the A* targets. Never silently replace it with the first pad.
+        ground_targets: list[tuple[str, Pad]] = []
         if layer < 0:
             if net_class != NetClass.GROUND or len(net.nodes) < 2 or canonical_board_definition(design).copper_pour_gnd:
                 # A declared copper pour owns the return-path strategy.
                 return _GridNetPlan(False, False, net.id)
-            # Without a pour, permit a bounded explicit top-copper route
-            # only where every logical endpoint maps to precisely ONE real
-            # pad that can carry the existing full-width ground trace.
-            # Multi-pad grounds (USB-C, ESP32 thermal matrix), missing pad
-            # geometry, and large return trees need independent engineering
-            # planning; never mark them as successfully routed by analogy.
             if not self.pad_aware or len(net.nodes) > 4:
                 return _GridNetPlan(True, False, net.id)
             ground_width = kb.get_rule(net_class).trace_width
@@ -1032,10 +1030,26 @@ class GridRouter:
                     .lower()
                     in aliases
                 ]
-                if len(matched) != 1 or min(matched[0].size) + 1e-6 < ground_width:
+                if not matched or any(
+                    min(pad.size) + 1e-6 < ground_width or not copper_layers(pad, context.num_layers) for pad in matched
+                ):
+                    return _GridNetPlan(True, False, net.id)
+                ground_targets.extend((node.component_ref, pad) for pad in matched)
+                # Keep the route bounded; 11-node ESP32 RF/GND and its
+                # thermal pad array need a qualified return network.
+                if len(ground_targets) > 8:
                     return _GridNetPlan(True, False, net.id)
             layer = 0
-        route_points = self._collect_net_route_points(net, context)
+        if ground_targets:
+            route_points = []
+            for component_ref, pad in ground_targets:
+                component_position = context.ref_positions.get(component_ref)
+                if component_position is None:
+                    return _GridNetPlan(True, False, net.id)
+                dx, dy = rotated_offset(*pad.position, context.rotation_by_ref[component_ref])
+                route_points.append((component_position[0] + dx, component_position[1] + dy))
+        else:
+            route_points = self._collect_net_route_points(net, context)
         if len(route_points) < 2:
             # Missing physical geometry for a real multi-pad net is unrouted,
             # not silently excluded from the routing completeness denominator.
@@ -1050,17 +1064,23 @@ class GridRouter:
             # Prefer an interior grid anchor when it is genuinely inside the
             # same pad copper. Otherwise defer this terminal to the exact
             # geometric pad-fanout planner instead of silently failing it.
-            if len(route_points) != len(net.nodes):
-                return _GridNetPlan(True, False, net.id)
-            accessible: set[int] = set(range(context.num_layers))
-            for node, exact, grid in zip(net.nodes, route_points, grid_positions, strict=True):
-                comp = context.component_by_ref.get(node.component_ref)
-                pad = self._pad_for_pin(comp, node.pin_name) if comp else None
-                if pad is None:
+            if ground_targets:
+                physical_targets = ground_targets
+            else:
+                if len(route_points) != len(net.nodes):
                     return _GridNetPlan(True, False, net.id)
+                physical_targets = []
+                for node in net.nodes:
+                    comp = context.component_by_ref.get(node.component_ref)
+                    pad = self._pad_for_pin(comp, node.pin_name) if comp else None
+                    if pad is None:
+                        return _GridNetPlan(True, False, net.id)
+                    physical_targets.append((node.component_ref, pad))
+            accessible: set[int] = set(range(context.num_layers))
+            for (component_ref, pad), exact, grid in zip(physical_targets, route_points, grid_positions, strict=True):
                 accessible.intersection_update(copper_layers(pad, context.num_layers))
                 snapped = (grid[0] * self.resolution, grid[1] * self.resolution)
-                if not point_in_pad_copper(pad, exact, snapped, context.rotation_by_ref[node.component_ref]):
+                if not point_in_pad_copper(pad, exact, snapped, context.rotation_by_ref[component_ref]):
                     requires_geometric_fanout = True
                     continue
                 if not context.obstacles.is_free(GridPos(*grid, layer), net_id=net.id):
@@ -1104,7 +1124,12 @@ class GridRouter:
             )
             if edge_paths is not None:
                 context.obstacles = staged
-        if edge_paths is None and self.pad_aware and len(net.nodes) in (2, 3, 4):
+        if (
+            edge_paths is None
+            and self.pad_aware
+            and len(net.nodes) in (2, 3, 4)
+            and len(ground_targets) <= len(net.nodes)
+        ):
             fanout = self._try_pad_fanout(design, net, context, kb, layer, clear_cells, rule)
             if fanout is not None:
                 edge_paths, pad_stubs = fanout
