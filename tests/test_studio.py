@@ -216,7 +216,7 @@ def test_studio_json_html_delimiters_are_escaped_without_losing_source(tmp_path:
     """Untrusted source may contain markup; JSON must remain data, not HTML."""
     source = FIXTURE.read_text().replace(
         'name: "ESP32 I2C Sensor Board"',
-        'name: "<svg onload=alert(1)> ESP32"',
+        'name: "<svg onload=alert(1)> & ESP32"',
     )
     document = tmp_path / "design.yaml"
     document.write_text(source, encoding="utf-8")
@@ -230,9 +230,10 @@ def test_studio_json_html_delimiters_are_escaped_without_losing_source(tmp_path:
             wire = response.read()
         assert b"<svg" not in wire
         assert b"\\u003csvg" in wire
+        assert b"\\u0026" in wire
         decoded = json.loads(wire)
         assert decoded["source"] == source
-        assert decoded["preview"]["name"] == "<svg onload=alert(1)> ESP32"
+        assert decoded["preview"]["name"] == "<svg onload=alert(1)> & ESP32"
     finally:
         server.shutdown()
         server.server_close()

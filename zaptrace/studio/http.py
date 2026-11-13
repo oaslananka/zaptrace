@@ -63,9 +63,8 @@ class StudioHandler(BaseHTTPRequestHandler):
         # JSON is served with nosniff, and unsafe HTML delimiters are encoded
         # as JSON Unicode escapes so source content cannot become executable
         # markup if a client accidentally places the response into an HTML page.
-        safe_json = (
-            json.dumps(data, ensure_ascii=True).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
-        )
+        escaped_html = html.escape(json.dumps(data, ensure_ascii=True), quote=False)
+        safe_json = escaped_html.replace("&lt;", "\\u003c").replace("&gt;", "\\u003e").replace("&amp;", "\\u0026")
         self._send(safe_json.encode("utf-8"), "application/json; charset=utf-8", status)
 
     def _fail(self, status: int, code: str, message: str) -> None:
