@@ -25,6 +25,18 @@ regression includes an adjacent, already-expanded static blocked cell,
 a centreline-blocked negative, other-net dynamic copper and a separate
 copper layer.
 
+GitHub Python 3.13/3.14 full compatibility lanes caught a related
+post-search defect missed by the initial selected regression modules:
+a board cutout detour had a valid **zero-via A*** path but was rejected
+when copper was committed because `block_line` applied the expanded
+physical profile keepout's radius again. The reservation now uses the
+same verified preexpanded-hard-cell exemption as A* while still
+enforcing full spacing to ordinary hard obstacles and actual dynamic
+foreign-net copper. The original board-cutout no-via fixture and
+independent explicit hard-blocker/centreline negative regressions must
+pass before any production-facing routing acceptance. This is a
+routing-algorithm safety correction, **not** a manufacturer approval.
+
 The more open search exposed a separate **native KiCad via-size
 incompatibility** that the previous graph result had concealed. The
 grid router's old 0.46 mm copper / 0.20 mm drill through-via does

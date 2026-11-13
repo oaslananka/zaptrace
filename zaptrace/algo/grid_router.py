@@ -395,7 +395,16 @@ class ObstacleMap:
                     or self._cells[point.layer][point.y][point.x]
                     or any(
                         not self.in_bounds(probe)
-                        or (not geometric_pad_escape and self._cells[probe.layer][probe.y][probe.x])
+                        # The NPTH/outline mask is already expanded by
+                        # trace width, copper clearance and grid uncertainty.
+                        # Retain full radius for genuinely hard *unexpanded*
+                        # obstacles and other-net dynamic copper, matching
+                        # is_corridor_free's validated A* envelope.
+                        or (
+                            not geometric_pad_escape
+                            and self._cells[probe.layer][probe.y][probe.x]
+                            and probe not in self._preexpanded_hard_cells
+                        )
                         or self.owner(probe) not in (None, net_id)
                         for dy in range(-radius, radius + 1)
                         for dx in range(-radius, radius + 1)

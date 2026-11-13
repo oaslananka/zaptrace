@@ -1280,6 +1280,42 @@ def test_native_kicad_rejects_undersized_vias_and_accepts_export_matched_vias(tm
     assert qualified[0] - before[0] == Counter()
 
 
+def test_preexpanded_route_reservation_preserves_real_static_blockers() -> None:
+    """Committing a legal A* corridor must not reapply physical NPTH clearance."""
+    obs = ObstacleMap(24, 24, layers=1)
+    obs.enforce_static_clearance = True
+    obs.preexpanded_static_clearance = True
+    src = GridPos(12, 12, 0)
+    dst = GridPos(12, 14, 0)
+
+    # This static NPTH cell ALREADY excludes its full trace margin.
+    obs.block_preexpanded(GridPos(13, 13, 0))
+    assert obs.is_corridor_free(GridPos(12, 13, 0), "POWER", 1)
+    obs.block_line(src, dst, radius=1, net_id="POWER")
+    assert obs.owner(src) == obs.owner(dst) == "POWER"
+
+    # An ordinary unexpanded hard cell beside the next route must remain
+    # an actual clearance obstacle; no partially reserved dynamic copper.
+    hard = ObstacleMap(24, 24, layers=1)
+    hard.enforce_static_clearance = True
+    hard.preexpanded_static_clearance = True
+    hard.block(GridPos(13, 13, 0))
+    hard.block_preexpanded(GridPos(13, 13, 0))
+    before = hard._copper.copy()
+    with pytest.raises(ValueError, match="Copper clearance"):
+        hard.block_line(src, dst, radius=1, net_id="POWER")
+    assert hard._copper == before
+
+    # Hard geometry exactly under the trace is always rejected, regardless
+    # of whether that hard mask was preexpanded.
+    inside = ObstacleMap(24, 24, layers=1)
+    inside.enforce_static_clearance = True
+    inside.preexpanded_static_clearance = True
+    inside.block_preexpanded(GridPos(12, 13, 0))
+    with pytest.raises(ValueError, match="Copper clearance"):
+        inside.block_line(src, dst, radius=1, net_id="POWER")
+
+
 def test_preexpanded_static_corridor_applies_full_clearance_only_once() -> None:
     """A rasterized NPTH hard mask already excludes the full physical track envelope."""
     m = ObstacleMap(24, 24, layers=2)
