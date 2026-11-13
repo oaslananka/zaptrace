@@ -210,3 +210,30 @@ def test_web_assets_are_packaged_and_no_remote_scripts() -> None:
     assert '<script src="https://' not in index
     for action in ("saveSource", "enableDrag", "checkExternalChange", "applyValueFromInspector"):
         assert action in script
+
+
+def test_studio_json_html_delimiters_are_escaped_without_losing_source(tmp_path: Path) -> None:
+    """Untrusted source may contain markup; JSON must remain data, not HTML."""
+    source = FIXTURE.read_text().replace(
+        'name: "ESP32 I2C Sensor Board"',
+        'name: "<svg onload=alert(1)> ESP32"',
+    )
+    document = tmp_path / "design.yaml"
+    document.write_text(source, encoding="utf-8")
+    server = create_studio_server(document, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with urlopen(f"http://127.0.0.1:{server.server_port}/api/source", timeout=10) as response:
+            assert response.headers.get("X-Content-Type-Options") == "nosniff"
+            assert response.headers.get_content_type() == "application/json"
+            wire = response.read()
+        assert b"<svg" not in wire
+        assert b"\\u003csvg" in wire
+        decoded = json.loads(wire)
+        assert decoded["source"] == source
+        assert decoded["preview"]["name"] == "<svg onload=alert(1)> ESP32"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=10)

@@ -60,7 +60,13 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _json(self, data: dict[str, Any], status: int = 200) -> None:
-        self._send(json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", status)
+        # JSON is served with nosniff, and unsafe HTML delimiters are encoded
+        # as JSON Unicode escapes so source content cannot become executable
+        # markup if a client accidentally places the response into an HTML page.
+        safe_json = (
+            json.dumps(data, ensure_ascii=True).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+        )
+        self._send(safe_json.encode("utf-8"), "application/json; charset=utf-8", status)
 
     def _fail(self, status: int, code: str, message: str) -> None:
         self._json({"ok": False, "error": {"code": code, "message": message}}, status)

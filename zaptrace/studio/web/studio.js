@@ -760,15 +760,16 @@ function enableDrag(group, component, config) {
     });
 }
 
-void loadFromDisk(false)
-    .then(() => {
-        $("activity").textContent =
-            "Live project loaded. Change an electrical value, select its component, or drag an unrouted PCB placement.";
-        window.setInterval(() => {
-            void checkExternalChange();
-        }, 2500);
-    })
-    .catch((error) => {
-        console.error("Could not open Studio project:", error);
-        updateStatus(false, "Could not read the real design");
-    });
+async function initializeStudio() {
+    await loadFromDisk(false);
+    $("activity").textContent =
+        "Live project loaded. Change an electrical value, select its component, or drag an unrouted PCB placement.";
+    window.setInterval(() => {
+        void checkExternalChange();
+    }, 2500);
+}
+
+void initializeStudio().catch((error) => {
+    console.error("Could not open Studio project:", error);
+    updateStatus(false, "Could not read the real design");
+});

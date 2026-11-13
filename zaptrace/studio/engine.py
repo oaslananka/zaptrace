@@ -156,11 +156,14 @@ def apply_component_value(source: str, *, component_ref: str, value: str) -> str
     end = start.end() + following.start() if following else len(block)
     entry = block[start.end() : end]
     replacement = f"value: {json.dumps(value, ensure_ascii=False)}"
-    found = re.search(r"(?m)^ {4}value:[ \t]*[^\r\n]*$", entry)
-    if found:
-        entry = entry[: found.start()] + " " * 4 + replacement + entry[found.end() :]
+    lines = entry.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.startswith("    value:"):
+            lines[index] = "    " + replacement + ("\n" if line.endswith("\n") else "")
+            break
     else:
-        entry = "\n    " + replacement + entry
+        lines.insert(0, "\n    " + replacement)
+    entry = "".join(lines)
     updated_block = block[: start.end()] + entry + block[end:]
     result = source[: header.end()] + updated_block + source[section_end:]
     if not preview_design(result)["ok"]:
