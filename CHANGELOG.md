@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Let Studio users double-click a real Circuit, Board or conceptual 3D component (or press F2) to edit its source value directly, with Enter/Apply to persist and Escape to cancel; preserve unsaved-draft and concurrent-agent conflict safeguards without changing YAML merely to open the editor.
 - Recover an unsaved Studio YAML draft on tab refresh or session restoration where browser tab storage survives, without overwriting disk; bind recovery to the exact project identity and block unsafe save when another tab/agent edited the source.
 - Let Studio compare unsaved YAML against an agent's concurrent local change without overwriting either, download the current draft for recovery, and avoid delayed source polling/reload responses replacing new input.
 - Let Studio users follow the same actual YAML source component into Circuit, Board, and illustrative 3D concept with keyboard-focused objects and a return-to-source button; keep source caret selection synchronized even when YAML key and visible reference differ, and label invalid drafts as last-valid previews.

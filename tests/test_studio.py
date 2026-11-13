@@ -411,6 +411,9 @@ def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> Non
         for element_id in (b"bridge-part", b"bridge-source"):
             assert b'id="' + element_id + b'"' in html
         assert html.count(b"data-follow-view=") == 3
+        assert b"Double-click a part or press F2 to edit" in html
+        for element_id in (b"value-input", b"set-value"):
+            assert b'id="' + element_id + b'"' in html
         for element_id in (
             b"stale-summary",
             b"compare-versions",

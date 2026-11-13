@@ -57,6 +57,26 @@ The **Following your source component** strip above the live drawing identifies 
 
 This navigation never changes or saves the YAML; edits still require explicit action. The strip labels an *unsaved preview* and *last valid preview* truthfully. A Board item with generated coordinates is not saved placement or routed copper; the 3D concept is an illustrative courtyard-based view, not a validated native 3D model. Use Save to persist an actual value or placement edit, then reload and trace that exact part again.
 
+## Change a component value directly from its visual
+
+Double-click a component on **Circuit**, **Board**, or **3D concept** to jump
+straight to its **Change selected value** field in Inspector. The component
+remains selected and its actual parsed YAML value is highlighted; the first
+click can redraw the source-linked diagram without losing the double-click.
+For a keyboard-only flow, select the source component and press **F2**. At
+320px mobile width the value field is brought into the visible central area.
+The same field is available from Inspector; you can also select a part in
+its component list and press **F2**.
+
+Opening the editor **does not modify the YAML**. Enter a new value and press
+**Enter** or choose **Apply** to commit it to the canonical local YAML file;
+**Escape** restores the existing value without saving. A pending Apply
+disables the field until the write finishes. Studio refuses a direct value
+commit while another YAML draft is unsaved or when an external editor/agent
+changed the source; resolve or back up the draft first. This is a
+source-backed value edit, not proof of correct electrical behavior, copper,
+ERC/DRC or fabrication readiness.
+
 ## The first three real actions
 
 When the initial live sample opens, the small **Start here** guide provides three executable choices. **Edit a real component** highlights a component in the circuit and focuses its exact YAML declaration without changing the source. **Trace a source signal** selects a real multi-component net and focuses its accessible net control (the initial highlighted signal is reused when available). **Open my YAML file** uses the same validated personal-copy import described above, and refuses to switch while an unsaved/stale draft exists. No guided button pretends to create copper, solve routing or save without an explicit edit.

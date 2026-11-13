@@ -20,6 +20,7 @@ const state = {
     ticket: 0,
     dirty: false,
     stale: false,
+    valuePending: false,
     previewValid: true,
     history: [],
     nativeCache: new Map(),
@@ -482,6 +483,19 @@ $("compare-versions").onclick = async () => {
 $("set-value").onclick = () => {
     void applyValueFromInspector();
 };
+$("value-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.repeat) {
+        event.preventDefault();
+        void applyValueFromInspector();
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        $("value-input").value = state.data?.components.find(
+            (component) => component.ref === state.selection,
+        )?.value || "";
+        $("value-input").blur();
+        $("activity").textContent = "Value edit cancelled. The local YAML was not changed.";
+    }
+});
 $("editor").addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -517,6 +531,34 @@ function select(ref) {
     draw();
     focusSource(ref);
 }
+function editComponentValue(ref) {
+    if (!state.data?.components.some((item) => item.ref === ref)) return;
+    if (state.stale || state.dirty) {
+        $("activity").textContent = state.stale
+            ? "Another editor changed the source. Compare versions before editing a component value."
+            : "Save or Undo your current YAML draft before changing a component value.";
+        return;
+    }
+    select(ref);
+    const input = $("value-input");
+    input.focus({ preventScroll: true });
+    // Keep the field away from the mobile viewport edge and virtual keyboard.
+    input.scrollIntoView({ block: "center", inline: "nearest" });
+    input.select();
+    $("activity").textContent =
+        "Editing " + ref + " · change the value, then choose Apply to save it to your local YAML.";
+}
+document.addEventListener("keydown", (event) => {
+    if (
+        event.key === "F2" &&
+        !event.altKey && !event.ctrlKey && !event.metaKey &&
+        !["INPUT", "SELECT"].includes(event.target.tagName) &&
+        state.selection
+    ) {
+        event.preventDefault();
+        editComponentValue(state.selection);
+    }
+});
 function syncSelectionFromSourceCaret() {
     if (!state.data) return;
     const editor = $("editor");
@@ -558,11 +600,22 @@ $("editor").addEventListener("keyup", (event) => {
 function xy(index) {
     return { x: 128 + (index % 4) * 220, y: 156 + Math.floor(index / 4) * 125 };
 }
+let lastComponentClick = null;
+function handleCanvasClick(ref) {
+    // The SVG is rebuilt after selection. Recognize two fast clicks on
+    // the same real part even though the original node was removed.
+    const now = performance.now();
+    const repeated = lastComponentClick?.ref === ref &&
+        now - lastComponentClick.at < 550;
+    lastComponentClick = repeated ? null : { ref, at: now };
+    if (repeated) editComponentValue(ref);
+    else select(ref);
+}
 function a11y(group, ref) {
     group.setAttribute("tabindex", "0");
     group.setAttribute("role", "button");
-    group.setAttribute("aria-label", "Select " + ref);
-    group.addEventListener("click", () => select(ref));
+    group.setAttribute("aria-label", "Select " + ref + "; double-click or press F2 to edit its value");
+    group.addEventListener("click", () => handleCanvasClick(ref));
     group.addEventListener("keydown", (ev) => {
         if (ev.key === "Enter" || ev.key === " ") {
             ev.preventDefault();
@@ -2482,6 +2535,7 @@ function inspector() {
             node("em", "", c.value || c.type.slice(0, 13)),
         );
         e.onclick = () => select(c.ref);
+        e.title = "Select part · press F2 to edit its value";
         list.append(e);
     }
 }
@@ -2892,14 +2946,20 @@ async function saveSource() {
     }
 }
 async function applyValueFromInspector() {
-    if (!state.data || !state.selection) return;
-    if (state.dirty) {
-        $("activity").textContent =
-            "Save or undo your existing source draft before applying an Inspector value.";
+    if (!state.data || !state.selection || state.valuePending) return;
+    if (state.stale || state.dirty) {
+        $("activity").textContent = state.stale
+            ? "Another editor changed the source. Compare versions before applying a value."
+            : "Save or Undo your YAML draft before applying an Inspector value.";
         return;
     }
+    const field = $("value-input");
+    const button = $("set-value");
+    const value = field.value;
+    state.valuePending = true;
+    field.disabled = true;
+    button.disabled = true;
     try {
-        const value = $("value-input").value;
         const change = await sendMutation("/api/agent/change", {
             operation: "set_component_value",
             component_ref: state.selection,
@@ -2916,6 +2976,10 @@ async function applyValueFromInspector() {
                 "Another local process edited the design; no value was overwritten.",
             );
         else updateStatus(false, error.message);
+    } finally {
+        state.valuePending = false;
+        field.disabled = false;
+        button.disabled = false;
     }
 }
 $("pin-target-net").addEventListener("change", () => {
