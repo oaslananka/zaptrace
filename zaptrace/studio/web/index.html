@@ -427,6 +427,17 @@
             .native-pinout-jump[hidden] {
                 display: none;
             }
+            .schematic-pin,
+            .native-pinout-hotspot,
+            .native-pinout-pad {
+                cursor: crosshair;
+                touch-action: none;
+            }
+            .native-pinout-hotspot:focus-visible circle,
+            .native-pinout-pad:focus-visible rect {
+                stroke: #ffd99a;
+                stroke-width: 2;
+            }
             .native-pin-mappings {
                 margin-top: 8px;
                 display: grid;
@@ -858,7 +869,8 @@
                     id="export-kicad"
                     title="Download a genuine editable KiCad schematic from the current YAML draft"
                     type="button"
-                >↓ KiCad schematic</button
+                >
+                    ↓ KiCad schematic</button
                 ><button id="theme">☼ Theme</button
                 ><button
                     id="undo"

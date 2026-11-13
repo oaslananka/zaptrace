@@ -449,6 +449,160 @@ function focusSchematicPin(ref, pin) {
     }
     void connectPinToNet({ ref, name: pin.name, net: pin.net }, source.net);
 }
+function startNativeWireDrag(event, ref, pin) {
+    if (
+        event.button !== 0 ||
+        event.isPrimary === false ||
+        !pin.net ||
+        state.stale ||
+        state.view !== "circuit"
+    )
+        return;
+    const root = $("drawing");
+    const origin = pointOnSvg(event, root);
+    const start = { x: event.clientX, y: event.clientY };
+    const pointerId = event.pointerId;
+    const sourceSnapshot = $("editor").value;
+    const previewTicket = state.ticket;
+    const source = { ref, name: pin.name, net: pin.net };
+    let preview = null;
+    let dragged = false;
+    function stop() {
+        document.removeEventListener("pointermove", move, true);
+        document.removeEventListener("pointerup", release, true);
+        document.removeEventListener("pointercancel", cancel, true);
+        document.removeEventListener("keydown", onKey, true);
+        window.removeEventListener("blur", cancel);
+        preview?.remove();
+    }
+    function cancel() {
+        stop();
+    }
+    function onKey(keyEvent) {
+        if (keyEvent.key === "Escape") cancel();
+    }
+    function move(next) {
+        if (next.pointerId !== pointerId) return;
+        if (
+            sourceSnapshot !== $("editor").value ||
+            state.ticket !== previewTicket ||
+            state.stale ||
+            state.view !== "circuit"
+        ) {
+            cancel();
+            return;
+        }
+        if (
+            !dragged &&
+            Math.hypot(next.clientX - start.x, next.clientY - start.y) >= 7
+        ) {
+            dragged = true;
+            preview = svg("path", {
+                class: "wire-gesture-preview",
+                "pointer-events": "none",
+                stroke: netStroke(source.net),
+                "stroke-width": 3,
+                "stroke-dasharray": "7 5",
+                fill: "none",
+                "aria-label": "Draft logical source connection, not PCB copper",
+            });
+            root.append(preview);
+            $("activity").textContent =
+                "Drag to a source pin to connect it to " +
+                source.net +
+                ". Release on empty space or press Escape to cancel.";
+        }
+        if (!dragged) return;
+        const target = pointOnSvg(next, root);
+        const elbow = (origin.x + target.x) / 2;
+        preview.setAttribute(
+            "d",
+            "M " +
+                origin.x +
+                " " +
+                origin.y +
+                " H " +
+                elbow +
+                " V " +
+                target.y +
+                " H " +
+                target.x,
+        );
+    }
+    function suppressReleaseClick(click) {
+        click.preventDefault();
+        click.stopImmediatePropagation();
+        document.removeEventListener("click", suppressReleaseClick, true);
+    }
+    function release(end) {
+        if (end.pointerId !== pointerId) return;
+        stop();
+        if (!dragged) return; // A normal click still selects the source pin.
+        end.preventDefault();
+        // Consume only the click synthesized by this pointer release,
+        // never the next intentional click.
+        document.addEventListener("click", suppressReleaseClick, true);
+        window.setTimeout(() => {
+            document.removeEventListener("click", suppressReleaseClick, true);
+        }, 0);
+        if (
+            sourceSnapshot !== $("editor").value ||
+            state.ticket !== previewTicket ||
+            state.stale ||
+            state.view !== "circuit"
+        ) {
+            $("activity").textContent =
+                "Source changed while dragging. No connection was edited.";
+            return;
+        }
+        const underneath = document.elementFromPoint(end.clientX, end.clientY);
+        const endpoint = underneath?.closest(
+            ".native-pinout-hotspot, .native-pinout-pad, .schematic-pin",
+        );
+        const targetRef = endpoint?.dataset.ref;
+        const targetName = endpoint?.dataset.pin;
+        const targetComponent = state.data.components.find(
+            (c) => c.ref === targetRef,
+        );
+        const targetPin = targetComponent?.pins.find(
+            (p) => p.name === targetName,
+        );
+        if (!targetPin) {
+            $("activity").textContent =
+                "No pin at the drop location. Source unchanged; try dropping on a labeled pin.";
+            return;
+        }
+        if (ref === targetRef && pin.name === targetName) {
+            $("activity").textContent =
+                "Same pin; no logical connection changed.";
+            return;
+        }
+        if (targetPin.net === source.net) {
+            $("activity").textContent =
+                targetRef +
+                "." +
+                targetName +
+                " already belongs to " +
+                source.net +
+                ". No edit needed.";
+            return;
+        }
+        state.wireStart = null;
+        state.selection = targetRef;
+        state.pinSelection = {
+            ref: targetRef,
+            name: targetName,
+            net: targetPin.net,
+        };
+        state.net = source.net;
+        void connectPinToNet(state.pinSelection, source.net);
+    }
+    document.addEventListener("pointermove", move, true);
+    document.addEventListener("pointerup", release, true);
+    document.addEventListener("pointercancel", cancel, true);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("blur", cancel);
+}
 function isTwoTerminalSymbol(component) {
     return (
         component.pins.length <= 2 &&
@@ -666,6 +820,9 @@ function addSchematicPin(group, component, pin, geometry) {
             ev.stopPropagation();
             focusSchematicPin(component.ref, pin);
         }
+    });
+    row.addEventListener("pointerdown", (event) => {
+        startNativeWireDrag(event, component.ref, pin);
     });
     group.append(row);
 }
@@ -1081,7 +1238,7 @@ function drawNativePinout(root, component, info, top) {
                 fill: "#87b3bb",
                 "font-size": 10.5,
             },
-            "Source-linked logical authoring · not native editable KiCad wires, ERC or DRC",
+            "Drag a pin to another pin · drop on blank or press Escape to cancel · logical nets only",
         ),
     );
     const [left, upper, width, viewHeight] = info.view_box;
@@ -1179,6 +1336,9 @@ function drawNativePinout(root, component, info, top) {
             focusSchematicPin(component.ref, pin);
         };
         row.addEventListener("click", choose);
+        row.addEventListener("pointerdown", (event) => {
+            startNativeWireDrag(event, component.ref, pin);
+        });
         row.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
@@ -1212,6 +1372,9 @@ function drawNativePinout(root, component, info, top) {
         );
         marker.append(svg("title", {}, label));
         marker.addEventListener("click", choose);
+        marker.addEventListener("pointerdown", (event) => {
+            startNativeWireDrag(event, component.ref, pin);
+        });
         marker.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
@@ -1300,7 +1463,7 @@ function drawCircuit() {
                   " labeled nets",
     );
     $("note").textContent =
-        "Selected net shows source-derived logical links, not native KiCad wires or PCB copper";
+        "Drag from a source pin to another pin to change its logical net · Undo reverses · no native KiCad wire routing";
 }
 function drawBoard() {
     const root = $("drawing"),
@@ -1785,7 +1948,7 @@ async function downloadKicadSchematic() {
     button.disabled = true;
     try {
         // This POST creates no server-side file and never saves the YAML draft.
-        const exported = await sendMutation("/api/kicad/schematic", {source});
+        const exported = await sendMutation("/api/kicad/schematic", { source });
         if (source !== $("editor").value) {
             $("activity").textContent =
                 "Source changed during export; the outdated download was discarded.";
@@ -1803,14 +1966,15 @@ async function downloadKicadSchematic() {
         link.remove();
         setTimeout(() => URL.revokeObjectURL(href), 60000);
         $("activity").textContent =
-            "Downloaded real KiCad schematic wires and global net labels from "
-            + (state.dirty ? "the unsaved source draft" : "the current source")
-            + ". Generated rectangular symbols are not qualified native KiCad library symbols."
-            + " No ERC, DRC or fabrication claim.";
+            "Downloaded real KiCad schematic wires and global net labels from " +
+            (state.dirty ? "the unsaved source draft" : "the current source") +
+            ". Generated rectangular symbols are not qualified native KiCad library symbols." +
+            " No ERC, DRC or fabrication claim.";
         $("status-text").textContent =
             "KiCad .kicad_sch downloaded · original YAML unchanged";
     } catch (error) {
-        $("activity").textContent = "KiCad export failed; source not changed. " + error.message;
+        $("activity").textContent =
+            "KiCad export failed; source not changed. " + error.message;
     } finally {
         button.disabled = false;
     }

@@ -647,3 +647,31 @@ def test_http_kicad_export_requires_local_session_and_keeps_draft_unsaved(tmp_pa
         server.shutdown()
         server.server_close()
         thread.join(timeout=10)
+
+
+def test_visual_drag_connection_roundtrip_matches_native_kicad_wiring(tmp_path: Path) -> None:
+    """Pin-to-pin gesture uses one source net edit and yields real KiCad wires."""
+    from zaptrace.studio.engine import export_native_kicad_schematic
+
+    original = FIXTURE.read_text()
+    # This is the same edit performed by dragging U1.GPIO21 -> U1.GPIO22
+    # in the real browser. The destination adopts the source's I2C_SDA net.
+    edited = apply_pin_connection(original, component_ref="U1", pin_name="GPIO22", target_net="I2C_SDA")
+    before, after = preview_design(original), preview_design(edited)
+    assert before["ok"] and after["ok"]
+    before_nodes = {net["id"]: len(net["nodes"]) for net in before["nets"]}
+    after_nodes = {net["id"]: len(net["nodes"]) for net in after["nets"]}
+    assert (before_nodes["I2C_SDA"], before_nodes["I2C_SCL"]) == (4, 4)
+    assert (after_nodes["I2C_SDA"], after_nodes["I2C_SCL"]) == (5, 3)
+    assert all(before_nodes[net] == after_nodes[net] for net in before_nodes if net not in {"I2C_SDA", "I2C_SCL"})
+    exported = export_native_kicad_schematic(edited)
+    assert exported["source_hash"] == sha(edited)
+    assert exported["schematic"].count("\n  (wire ") == 41
+    assert exported["schematic"].count("\n  (global_label ") == 41
+    assert '("I2C_SDA"' not in exported["schematic"]  # KiCad S-expr uses attribute format.
+    document = StudioDocument(tmp_path / "design.yaml")
+    document.path.write_text(original)
+    assert document.read()["source"] == original
+    document.save(edited, expected_hash=sha(original))
+    assert document.read()["source"] == edited
+    assert original == FIXTURE.read_text()  # no implicit changes before Save.
