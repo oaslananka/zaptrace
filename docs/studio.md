@@ -14,6 +14,26 @@ Choose **Recent projects** to reopen personal copies after a browser reload or a
 
 To **directly edit the original file** instead of a personal copy, start `zaptrace studio --project path/to/design.yaml`; that explicit CLI option edits the selected file, so make a repository commit/backup as appropriate. Studio itself is still initially launched via the CLI; the browser controls remove the need to type file paths for imported projects. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
 
+## Recover an unsaved draft after refreshing the tab
+
+Studio keeps a bounded **temporary draft in the browser tab's session storage**
+while the YAML editor has unsaved changes. If you refresh that same tab or
+restore a browser session that retains tab storage, Studio restores the
+unsaved source **without writing to the project file** and tells you it was
+recovered. Save design explicitly to make the change permanent. Saving or
+Undo back to the saved file clears the temporary recovery copy.
+
+The recovery is tied to an opaque identifier for the exact local YAML
+project, not merely the reused localhost port or design name. If an agent or
+another Studio tab saved a newer version during your absence, your recovered
+draft remains visible but **Save is blocked**; compare the recovered draft
+against the latest disk source or download it first. There is no automatic
+merge. Browser session storage may be cleared when you close a tab or end
+a browsing session, and private mode, quota limits or storage restrictions
+can disable it. Use **Save design** or **Download my draft** for durable
+copies. This temporary browser copy is not a second authoritative design
+store or a cloud backup.
+
 ## Concurrent agent edits — compare and recover safely
 
 Studio checks the local YAML for agent and editor changes. If the file changes

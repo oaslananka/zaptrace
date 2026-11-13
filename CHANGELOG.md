@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Recover an unsaved Studio YAML draft on tab refresh or session restoration where browser tab storage survives, without overwriting disk; bind recovery to the exact project identity and block unsafe save when another tab/agent edited the source.
 - Let Studio compare unsaved YAML against an agent's concurrent local change without overwriting either, download the current draft for recovery, and avoid delayed source polling/reload responses replacing new input.
 - Let Studio users follow the same actual YAML source component into Circuit, Board, and illustrative 3D concept with keyboard-focused objects and a return-to-source button; keep source caret selection synchronized even when YAML key and visible reference differ, and label invalid drafts as last-valid previews.
 - Give new Studio users a compact, dismissible **Start here** guide wired to real source selection, electrical net tracing, and isolated YAML import, while keeping the preview visible; preserve mobile viewport, keyboard focus, draft protection and imported-project independence.

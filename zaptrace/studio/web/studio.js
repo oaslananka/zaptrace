@@ -6,6 +6,9 @@ const state = {
     original: "",
     savedSource: "",
     diskHash: "",
+    documentId: null,
+    recoveryBaseHash: null,
+    recoveryWarningShown: false,
     importedProject: false,
     selection: "U1",
     net: null,
@@ -2636,6 +2639,48 @@ window.addEventListener("resize", () => {
 });
 /* Source ownership and local-agent edits: one YAML file, no duplicate design store. */
 const studioToken = document.querySelector('meta[name="studio-token"]').content;
+const DRAFT_RECOVERY_KEY = "zaptrace-studio-tab-draft-v1";
+function readTabDraft(documentId) {
+    try {
+        const raw = window.sessionStorage.getItem(DRAFT_RECOVERY_KEY);
+        if (!raw) return null;
+        const value = JSON.parse(raw);
+        if (
+            value?.documentId !== documentId ||
+            typeof value.source !== "string" ||
+            value.source.length > 200000 ||
+            !/^[a-f0-9]{64}$/.test(value.baseHash)
+        ) return null;
+        return value;
+    } catch {
+        return null;
+    }
+}
+function syncTabDraft() {
+    if (!state.documentId) return;
+    try {
+        if (!state.dirty || $("editor").value.length > 200000) {
+            window.sessionStorage.removeItem(DRAFT_RECOVERY_KEY);
+            if (state.dirty && !state.recoveryWarningShown) {
+                state.recoveryWarningShown = true;
+                $("activity").textContent =
+                    "This draft is too large for tab recovery. Download your YAML before refreshing.";
+            }
+        } else {
+            window.sessionStorage.setItem(DRAFT_RECOVERY_KEY, JSON.stringify({
+                documentId: state.documentId,
+                baseHash: state.recoveryBaseHash || state.diskHash,
+                source: $("editor").value,
+            }));
+        }
+    } catch {
+        if (!state.recoveryWarningShown) {
+            state.recoveryWarningShown = true;
+            $("activity").textContent =
+                "This browser cannot keep a tab-recovery draft. Download your unsaved YAML before refreshing.";
+        }
+    }
+}
 function markDirty() {
     state.dirty = $("editor").value !== state.savedSource;
     $("source-status").textContent = state.dirty
@@ -2643,6 +2688,7 @@ function markDirty() {
         : "YAML · Saved locally";
     $("source-status").dataset.dirty = state.dirty ? "true" : "false";
     $("save").disabled = !state.dirty || state.stale;
+    syncTabDraft();
 }
 function showStale(message) {
     state.stale = true;
@@ -2680,8 +2726,18 @@ async function sendMutation(route, data) {
 async function useDiskSnapshot(snapshot, activity) {
     state.wireStart = null;
     clearTimeout(handle);
-    $("desktop-quit").hidden = !snapshot.desktop_mode;
-    state.importedProject = snapshot.imported_project === true;
+    // Source GET includes session identity; mutation results intentionally do not.
+    // Preserve the current project identity across Inspector/agent writes.
+    if (typeof snapshot.desktop_mode === "boolean") {
+        $("desktop-quit").hidden = !snapshot.desktop_mode;
+    }
+    if (typeof snapshot.imported_project === "boolean") {
+        state.importedProject = snapshot.imported_project;
+    }
+    if (typeof snapshot.document_id === "string") {
+        state.documentId = snapshot.document_id;
+    }
+    state.recoveryBaseHash = null;
     state.savedSource = snapshot.source;
     state.original = snapshot.source;
     state.diskHash = snapshot.source_hash;
@@ -2706,12 +2762,27 @@ async function loadFromDisk(manual) {
             "The editor changed while loading. Your latest draft was kept; try again when ready.";
         return;
     }
+    const recovered = !manual ? readTabDraft(snapshot.document_id) : null;
     await useDiskSnapshot(
         snapshot,
         manual
             ? "Loaded latest saved project source."
             : "Project loaded from local YAML. Edit, view and save within this workspace.",
     );
+    if (recovered && recovered.source !== snapshot.source && !state.dirty) {
+        $("editor").value = recovered.source;
+        state.recoveryBaseHash = recovered.baseHash;
+        markDirty();
+        await update();
+        if (recovered.baseHash !== snapshot.source_hash) {
+            showStale(
+                "Restored your tab draft, but another editor changed the saved file. Compare versions or download your draft before loading the latest.",
+            );
+        } else {
+            $("activity").textContent =
+                "Restored your unsaved YAML from this browser tab. Review and Save design to keep it.";
+        }
+    }
 }
 async function checkExternalChange() {
     if (state.stale) return;
@@ -3094,8 +3165,10 @@ function enableDrag(group, component, config) {
 async function initializeStudio() {
     try {
         await loadFromDisk(false);
-        $("activity").textContent =
-            "Live project loaded. Change an electrical value, select its component, or drag an unrouted PCB placement.";
+        if (!state.dirty && !state.stale) {
+            $("activity").textContent =
+                "Live project loaded. Change an electrical value, select its component, or drag an unrouted PCB placement.";
+        }
         if (state.data) {
             $("starter-summary").textContent =
                 state.data.components.length + " real components · " +
@@ -3109,7 +3182,9 @@ async function initializeStudio() {
             } catch {
                 // The guide remains optional when storage is unavailable.
             }
-            if (!dismissed && !state.importedProject) setStarterVisible(true);
+            if (!dismissed && !state.importedProject && !state.dirty && !state.stale) {
+                setStarterVisible(true);
+            }
         }
         window.setInterval(() => {
             void checkExternalChange();

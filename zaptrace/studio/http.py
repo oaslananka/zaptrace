@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -242,6 +243,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     **self.studio.document.read(),
                     "desktop_mode": self.studio.desktop_mode,
                     "imported_project": self.studio.is_imported_project,
+                    "document_id": hashlib.sha256(os.fsencode(self.studio.document.path)).hexdigest(),
                 }
             )
         elif route == "/api/projects":

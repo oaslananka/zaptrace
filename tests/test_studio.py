@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 from pathlib import Path
 from urllib.error import HTTPError
@@ -349,6 +350,26 @@ def test_browser_yaml_import_creates_isolated_personal_copy_without_switching_pa
         restarted.server_close()
 
 
+def test_distinct_studio_project_paths_get_distinct_recovery_id(tmp_path: Path) -> None:
+    """Reused loopback ports must never restore the wrong project's tab draft."""
+    source = FIXTURE.read_text(encoding="utf-8")
+    a = tmp_path / "first.yaml"
+    b = tmp_path / "second.yaml"
+    a.write_text(source, encoding="utf-8")
+    b.write_text(source, encoding="utf-8")
+    first = create_studio_server(a)
+    second = create_studio_server(b)
+    try:
+        assert first.document.path != second.document.path
+        first_id = hashlib.sha256(os.fsencode(first.document.path)).hexdigest()
+        second_id = hashlib.sha256(os.fsencode(second.document.path)).hexdigest()
+        assert first_id != second_id
+        assert first.document.read()["source_hash"] == second.document.read()["source_hash"]
+    finally:
+        first.server_close()
+        second.server_close()
+
+
 def test_browser_yaml_import_rejects_invalid_input_before_creating_copy(tmp_path: Path) -> None:
     original = tmp_path / "design.yaml"
     original.write_text(FIXTURE.read_text())
@@ -405,6 +426,9 @@ def test_http_studio_roundtrip_and_local_write_protection(tmp_path: Path) -> Non
         status, first = call("/api/source")
         assert status == 200
         assert first["source_hash"] == sha(file.read_text())
+        assert first["document_id"] == hashlib.sha256(os.fsencode(file.resolve())).hexdigest()
+        assert first["document_id"] != first["source_hash"]
+        assert str(file.resolve()) not in json.dumps(first)
         edited = first["source"].replace('value: "4.7k"', 'value: "10k"', 1)
         status, _ = call("/api/save", {"source": edited, "expected_hash": first["source_hash"]})
         assert status == 403
