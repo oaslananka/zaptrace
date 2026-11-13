@@ -165,6 +165,9 @@ class ObstacleMap:
         # clearance halos may coexist without proving two pads short.
         self._pad_clearance: dict[GridPos, set[str | None]] = {}
         self._pad_conflicts: set[GridPos] = set()
+        # Distinguish expanded NPTH/profile masks from ordinary hard cells:
+        # only verified preexpanded cells may bypass a second radius test.
+        self._preexpanded_hard_cells: set[GridPos] = set()
         self.enforce_static_clearance = False
         # Set only after pads/holes are rasterized with the largest required
         # trace half-width + copper clearance.
@@ -178,6 +181,7 @@ class ObstacleMap:
         other._pads = self._pads.copy()
         other._pad_clearance = {point: owners.copy() for point, owners in self._pad_clearance.items()}
         other._pad_conflicts = self._pad_conflicts.copy()
+        other._preexpanded_hard_cells = self._preexpanded_hard_cells.copy()
         other.enforce_static_clearance = self.enforce_static_clearance
         other.preexpanded_static_clearance = self.preexpanded_static_clearance
         return other
@@ -220,7 +224,16 @@ class ObstacleMap:
             for dy in range(-radius, radius + 1):
                 for dx in range(-radius, radius + 1):
                     probe = GridPos(pos.x + dx, pos.y + dy, pos.layer)
-                    if not self.in_bounds(probe) or self._cells[probe.layer][probe.y][probe.x]:
+                    # The immutable NPTH/outline/pad masks are already
+                    # expanded by trace half-width, physical clearance and
+                    # grid uncertainty. Check that mask only at the actual
+                    # centreline (is_free above), never again at every
+                    # dynamic-copper envelope cell. Foreign *routed* copper
+                    # has no preexpanded mask, so its complete radius still
+                    # applies on the correct copper layer.
+                    if not self.in_bounds(probe) or (
+                        self._cells[probe.layer][probe.y][probe.x] and probe not in self._preexpanded_hard_cells
+                    ):
                         return False
                     owner = self._copper.get(probe)
                     if owner is not None and owner != net_id:
@@ -278,11 +291,22 @@ class ObstacleMap:
 
     def block(self, pos: GridPos) -> None:
         if self.in_bounds(pos):
+            # An explicitly added ordinary hard blocker is never treated as
+            # an already clearance-dilated physical pad/profile cell.
+            self._preexpanded_hard_cells.discard(pos)
+            self._cells[pos.layer][pos.y][pos.x] = 1
+
+    def block_preexpanded(self, pos: GridPos) -> None:
+        """Mark an already half-width/clearance-expanded physical mask cell."""
+        if self.in_bounds(pos):
+            if not self._cells[pos.layer][pos.y][pos.x]:
+                self._preexpanded_hard_cells.add(pos)
             self._cells[pos.layer][pos.y][pos.x] = 1
 
     def unblock(self, pos: GridPos) -> None:
         """Mark a single cell as free."""
         if self.in_bounds(pos):
+            self._preexpanded_hard_cells.discard(pos)
             self._cells[pos.layer][pos.y][pos.x] = 0
 
     def block_rect(
@@ -300,6 +324,7 @@ class ObstacleMap:
         for y in range(y0c, y1c + 1):
             row = self._cells[layer][y]
             for x in range(x0c, x1c + 1):
+                self._preexpanded_hard_cells.discard(GridPos(x, y, layer))
                 row[x] = 1
 
     def block_line(
@@ -515,7 +540,7 @@ class GridRouter:
             self._block_pad_copper(obstacles, design, positions, kb or KnowledgeBase())
             for gx, gy in blocked_profile_cells(canonical_board_definition(design), self.resolution, grid_w, grid_h):
                 for layer in range(num_layers):
-                    obstacles.block(GridPos(gx, gy, layer))
+                    obstacles.block_preexpanded(GridPos(gx, gy, layer))
         else:
             self._block_components(obstacles, design, positions, self.resolution)
 
@@ -532,14 +557,22 @@ class GridRouter:
                 ref_positions[component.ref] = positions[component.ref]
             if component.position is not None and component.ref not in ref_positions:
                 ref_positions[component.ref] = component.position
+        # KiCad exporter currently emits ordinary via_size=0.60 mm and
+        # via_drill=0.30 mm in the board setup. Small library/grid defaults
+        # (.45/.20 mm) are not physical authorization for exported vias:
+        # native KiCad 10 rejects them against the generated board rules.
+        # Honor stricter explicit board/fab constraints as well.
         via_hole_mm = max(
+            0.30,
             DEFAULT_VIA_SPECS.get("hole_diameter", 0.2),
             board.constraints.via_hole,
             board.constraints.min_hole,
         )
         via_pad_mm = max(
+            0.60,
             DEFAULT_VIA_SPECS.get("pad_diameter", 0.45),
             board.constraints.via_pad,
+            design.board.min_via_diameter_mm if design.board_def is None else 0.0,
             via_hole_mm + 2 * board.constraints.min_annular_ring,
         )
         return _GridRouteContext(
@@ -640,7 +673,7 @@ class GridRouter:
                         pad, pos, rotation, self.resolution, obstacles.width, obstacles.height, keepout
                     ):
                         for layer in range(obstacles.layers):
-                            obstacles.block(GridPos(gx, gy, layer))
+                            obstacles.block_preexpanded(GridPos(gx, gy, layer))
                     continue
                 layers = copper_layers(pad, obstacles.layers)
                 if not layers:

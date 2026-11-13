@@ -1163,6 +1163,158 @@ def test_real_esp32_pad_fanout_improves_only_physically_proven_nets() -> None:
     assert not verified_route_candidate_safe(design, result, design.placement or {})
 
 
+def test_pad_aware_via_dimensions_never_undercut_native_kicad_setup() -> None:
+    """A* must not emit .46/.20 vias rejected by the existing KiCad board setup."""
+    from zaptrace.core.models import BoardConstraints, BoardDefinition
+
+    design, positions = _board(
+        ("a", (10, 10), Pad(id="1", size=(1, 1), layer=LayerSet.TOP)),
+        ("b", (30, 10), Pad(id="1", size=(1, 1), layer=LayerSet.TOP)),
+    )
+    router = GridRouter(resolution_mm=0.25, pad_aware=True)
+    original = router._prepare_route_context(design, positions)
+    assert original.via_pad >= 0.60
+    assert original.via_hole >= 0.30
+    assert original.via_pad >= original.via_hole + 2 * canonical_board_definition(design).constraints.min_annular_ring
+
+    design.board.min_via_diameter_mm = 0.9
+    legacy = router._prepare_route_context(design, positions)
+    assert legacy.via_pad >= 0.9
+
+    design.board_def = BoardDefinition(
+        width=40,
+        height=30,
+        layers=2,
+        constraints=BoardConstraints(
+            via_pad=0.8,
+            via_hole=0.35,
+            min_hole=0.32,
+            min_annular_ring=0.2,
+        ),
+    )
+    custom = router._prepare_route_context(design, positions)
+    assert custom.via_hole >= 0.35
+    assert custom.via_pad >= 0.80
+
+
+def test_native_kicad_rejects_undersized_vias_and_accepts_export_matched_vias(tmp_path) -> None:
+    """Actual exported two-layer copper must honor the native via diameter and drill rules."""
+    import json
+    import shutil
+    import subprocess
+    from collections import Counter
+
+    from zaptrace.core.models import RouteResult, TraceSegment
+    from zaptrace.export.kicad import export_kicad
+
+    if not shutil.which("kicad-cli"):
+        pytest.skip("Independent native KiCad CLI required")
+    version = subprocess.run(["kicad-cli", "version"], text=True, capture_output=True, timeout=10, check=True)
+    if not version.stdout.strip().startswith("10."):
+        pytest.skip("Independent native KiCad 10 required")
+
+    design, positions = _board(
+        ("a", (10, 10), Pad(id="1", size=(1.5, 1.5), layer=LayerSet.TOP)),
+        ("b", (30, 10), Pad(id="1", size=(1.5, 1.5), layer=LayerSet.TOP)),
+    )
+    _net(design, "DATA", "a", "b")
+    traces = [
+        TraceSegment(layer="layer_0", start=(10, 10), end=(10, 12), width=0.2, net_id="DATA"),
+        TraceSegment(layer="layer_1", start=(10, 12), end=(30, 12), width=0.2, net_id="DATA"),
+        TraceSegment(layer="layer_0", start=(30, 12), end=(30, 10), width=0.2, net_id="DATA"),
+    ]
+    reports = []
+    for label, route in (
+        ("before", RouteResult(net_count=1)),
+        (
+            "undersized",
+            RouteResult(
+                traces=traces,
+                vias=[(10, 12, 0.46, 0.20, "DATA"), (30, 12, 0.46, 0.20, "DATA")],
+                net_count=1,
+                routed_net_count=1,
+            ),
+        ),
+        (
+            "qualified",
+            RouteResult(
+                traces=traces,
+                vias=[(10, 12, 0.60, 0.30, "DATA"), (30, 12, 0.60, 0.30, "DATA")],
+                net_count=1,
+                routed_net_count=1,
+            ),
+        ),
+    ):
+        candidate = design.model_copy(deep=True)
+        candidate.placement = dict(positions)
+        candidate.routing = route
+        pcb = export_kicad(candidate, tmp_path / label)["pcb"]
+        output = tmp_path / f"{label}.json"
+        command = subprocess.run(
+            [
+                "kicad-cli",
+                "pcb",
+                "drc",
+                "--exit-code-violations",
+                "--severity-all",
+                "--format",
+                "json",
+                "--output",
+                str(output),
+                str(pcb),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert command.returncode in (0, 5), command.stderr
+        result = json.loads(output.read_text(encoding="utf-8"))
+        reports.append((Counter(item["type"] for item in result["violations"]), len(result["unconnected_items"])))
+
+    before, undersized, qualified = reports
+    assert before[1] == 1
+    assert undersized[1] == qualified[1] == 0
+    assert undersized[0]["via_diameter"] == 2
+    assert undersized[0]["drill_out_of_range"] == 2
+    assert qualified[0] - before[0] == Counter()
+
+
+def test_preexpanded_static_corridor_applies_full_clearance_only_once() -> None:
+    """A rasterized NPTH hard mask already excludes the full physical track envelope."""
+    m = ObstacleMap(24, 24, layers=2)
+    m.enforce_static_clearance = True
+    m.preexpanded_static_clearance = True
+    target = GridPos(12, 12, 0)
+    # A hard blocked cell is *adjacent* to the legal target. It represents
+    # an NPTH/edge already dilated by trace half-width, clearance and
+    # grid-cell uncertainty. A second A* radius is not physical clearance.
+    m.block_preexpanded(GridPos(13, 12, 0))
+    assert m.is_free(target, net_id="VCC_5V")
+    assert m.is_corridor_free(target, net_id="VCC_5V", radius=1)
+    # An ordinary hard blocker retains its full radius even when a
+    # preexpanded NPTH/profile mask overlaps it afterwards.
+    m.block(GridPos(12, 13, 0))
+    m.block_preexpanded(GridPos(12, 13, 0))
+    assert not m.is_corridor_free(target, net_id="VCC_5V", radius=1)
+    m.unblock(GridPos(12, 13, 0))
+    assert m.is_corridor_free(target, net_id="VCC_5V", radius=1)
+    # Real hard centreline exclusion is never bypassed.
+    assert not m.is_corridor_free(GridPos(13, 12, 0), net_id="VCC_5V", radius=1)
+
+    # Dynamically routed other-net copper does NOT have preexpanded padding.
+    # It must continue to reserve the full trace radius around the centreline.
+    m.block_line(GridPos(11, 12, 0), GridPos(11, 12, 0), radius=0, net_id="USB_CC1")
+    assert not m.is_corridor_free(target, net_id="VCC_5V", radius=1)
+    assert m.is_corridor_free(target, net_id="VCC_5V", radius=0)
+
+    # A hard obstacle on B.Cu cannot exclude a legal F.Cu trace, but it
+    # still blocks a B.Cu corridor within the actual track radius.
+    m.block(GridPos(12, 11, 1))
+    assert m.is_corridor_free(target, net_id="VCC_5V", radius=0)
+    assert not m.is_corridor_free(GridPos(12, 12, 1), net_id="VCC_5V", radius=1)
+
+
 def test_geometric_pad_escape_only_skips_preexpanded_pad_halo_not_dynamic_copper() -> None:
     obstacles = ObstacleMap(24, 24, layers=1)
     obstacles.enforce_static_clearance = True
@@ -1219,7 +1371,7 @@ def test_real_usb_vbus_pad_escape_does_not_double_expand_npth_raster() -> None:
 
     source_grid = GridPos(310, 253)
     anchor = GridPos(310, 249)
-    assert not context.obstacles.is_corridor_free(source_grid, "VCC_5V", 1)
+    assert context.obstacles.is_corridor_free(source_grid, "VCC_5V", 1)
     # The NPTH raster is already expanded by trace half-width + clearance
     # and grid uncertainty. A radius-1 second expansion was a false reject.
     staged = context.obstacles.clone()

@@ -10,6 +10,50 @@ and board-layout alternatives without weakening native DRC or source proofs.
 An internal clean DRC is necessary engineering evidence, not fabrication or
 RF/electrical sign-off.
 
+## 2026-11-13 — shared A* obstacle envelope / native via dimensional gate
+
+A real source routing audit reproduced a second *different* clearance
+double-count in the ordinary pad-aware A* path search, not just the
+previously fixed J1 pad escape. Physical pad, NPTH, board-profile and
+other static obstacle masks are already projected with track half-width,
+copper separation and grid half-diagonal uncertainty. Applying the full
+**dynamic** track radius to those immutable masks again rejected legal
+centreline cells. The corrected A* predicate still requires a clear
+physical centreline and preserves the *full radius* to foreign **routed
+copper**, layer boundaries and real hard obstacles. A red/green
+regression includes an adjacent, already-expanded static blocked cell,
+a centreline-blocked negative, other-net dynamic copper and a separate
+copper layer.
+
+The more open search exposed a separate **native KiCad via-size
+incompatibility** that the previous graph result had concealed. The
+grid router's old 0.46 mm copper / 0.20 mm drill through-via does
+not meet the KiCad board setup. On exported 2-layer test copper,
+independent KiCad CLI 10.0.8 found **two via_diameter** and
+**two drill_out_of_range** findings for those two old vias, despite
+0 unconnected. The unchanged KiCad exporter specifies standard
+0.60 mm diameter / 0.30 mm drill: using those dimensions produces
+**zero new native DRC** on the same two-via copper. Routing now
+starts at those conservative dimensions and honors any larger
+explicit canonical-board or legacy minimum pad / hole constraints.
+Actual NPTH clearance, annular ring and all-layer via keepouts are
+still enforced, without a DRC waiver.
+
+Bounded *unmodified-source-footprint* native KiCad comparisons
+confirm the safe limits of the improvement: a signal-only experimental
+four-net router run with **44 segments, two 0.60/0.30 mm vias**
+has 37→29 native unconnected and **no new native DRC** beyond
+the original 12 U1 drill + 4 J1 pad/peg findings. A combined test
+with a *truncated* J1–C3 5V net had 37→28 native unconnected
+and no added DRC, **but one USB_CC2 network was lost** and the
+original 5V still omits U3 and D1. That truncated net is NOT
+promoted into the real design and cannot be described as five
+completed source nets. The real original seven-net ESP32 default
+continues its safety-preserving **four signals / 44 segments / 0 vias**,
+29 native unconnected and 16 mechanical DRC, ERC 0. Safe
+current-limited 5V, complete 3V3 and RF GND, and the source's
+physical/fabrication approval are all **OPEN**.
+
 ## 2026-11-13 — native-proven upper USB-C power escape; preserve the working default
 
 The real unchanged ESP32 source's supplier-pinned GCT USB4105 J1 A4/B9
