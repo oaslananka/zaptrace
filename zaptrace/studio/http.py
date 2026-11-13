@@ -18,9 +18,10 @@ from zaptrace.studio.engine import (
     apply_component_value,
     apply_pin_connection,
     apply_placement,
+    inspect_native_symbol,
     preview_design,
 )
-from zaptrace.studio.native_symbols import native_svg_for
+from zaptrace.studio.native_symbols import KNOWN_NATIVE_SYMBOLS, native_svg_for
 
 PREVIEW_ROUTE = "/api/preview"
 
@@ -108,8 +109,12 @@ class StudioHandler(BaseHTTPRequestHandler):
             self._send((self.studio.asset_dir / "studio.js").read_bytes(), "text/javascript; charset=utf-8")
         elif route == "/api/source":
             self._json(self.studio.document.read())
-        elif route in {"/native-symbol/R.svg", "/native-symbol/C.svg"}:
-            symbol = route.removeprefix("/native-symbol/").removesuffix(".svg")
+        elif (
+            route.startswith("/native-symbol/")
+            and route.endswith(".svg")
+            and route[len("/native-symbol/") : -len(".svg")] in KNOWN_NATIVE_SYMBOLS
+        ):
+            symbol = route[len("/native-symbol/") : -len(".svg")]
             native = native_svg_for(symbol)
             if native is None:
                 self._fail(404, "NATIVE_SYMBOL_UNAVAILABLE", "Installed KiCad symbol is not available")
@@ -150,6 +155,11 @@ class StudioHandler(BaseHTTPRequestHandler):
         return self.studio.document.save(edited, expected_hash=expected_hash)
 
     def _handle_mutation(self, route: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if route == "/api/native/inspect":
+            return inspect_native_symbol(
+                self._require_text(payload, "source"),
+                component_ref=self._require_text(payload, "component_ref"),
+            )
         if route == "/api/save":
             return self.studio.document.save(
                 self._require_text(payload, "source"),
@@ -178,7 +188,14 @@ class StudioHandler(BaseHTTPRequestHandler):
             self._fail(403, "BAD_HOST", "Studio is available on local loopback only")
             return
         route = urlsplit(self.path).path
-        if route not in {PREVIEW_ROUTE, "/api/place", "/api/save", "/api/agent/change", "/api/pin/connect"}:
+        if route not in {
+            PREVIEW_ROUTE,
+            "/api/place",
+            "/api/save",
+            "/api/agent/change",
+            "/api/pin/connect",
+            "/api/native/inspect",
+        }:
             self._fail(404, "NOT_FOUND", "No such Studio route")
             return
         if route != PREVIEW_ROUTE and not self._authorized_write():

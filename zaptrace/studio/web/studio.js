@@ -16,6 +16,8 @@ const state = {
     dirty: false,
     stale: false,
     history: [],
+    nativeCache: new Map(),
+    nativePending: new Set(),
 };
 function svg(name, attrs, text) {
     const e = document.createElementNS(NS, name);
@@ -1218,6 +1220,29 @@ function draw3D() {
     title("3D board view", "Not checked · no fabricated geometry");
     $("note").textContent = "No manufactured board or 3D model asserted";
 }
+async function loadNativeInspection(ref, key) {
+    state.nativePending.add(key);
+    const original = $("editor").value;
+    try {
+        const response = await sendMutation("/api/native/inspect", {
+            source: original,
+            component_ref: ref,
+        });
+        state.nativeCache.set(key, response.native || null);
+        if (state.nativeCache.size > 40) state.nativeCache.clear();
+    } catch (error) {
+        state.nativeCache.set(key, null);
+        console.warn("Native library reference not available:", error.message);
+    } finally {
+        state.nativePending.delete(key);
+    }
+    if (
+        state.data?.source_hash + ":" + state.selection === key &&
+        $("editor").value === original
+    ) {
+        inspector();
+    }
+}
 function inspector() {
     const d = state.data,
         c = d.components.find((x) => x.ref === state.selection);
@@ -1226,22 +1251,82 @@ function inspector() {
     $("val").textContent = c?.value || "Not set";
     if (document.activeElement !== $("value-input"))
         $("value-input").value = c?.value || "";
-    const nativeKey = c && nativeSymbolKey(c);
+    const nativeCacheKey = c ? d.source_hash + ":" + c.ref : null;
+    const nativeInfo = nativeCacheKey
+        ? state.nativeCache.get(nativeCacheKey)
+        : null;
+    const nativeKey = nativeInfo?.id || (c && nativeSymbolKey(c));
     const nativePanel = $("native-symbol");
     nativePanel.hidden = true;
+    const mappings = $("native-pin-mappings");
+    mappings.replaceChildren();
+    if (
+        c &&
+        nativeCacheKey &&
+        ["ESP32-WROOM-32", "BME280", "AMS1117-3.3"].includes(c.type) &&
+        !state.nativeCache.has(nativeCacheKey) &&
+        !state.nativePending.has(nativeCacheKey)
+    ) {
+        void loadNativeInspection(c.ref, nativeCacheKey);
+    }
     if (nativeKey) {
         const preview = $("native-symbol-preview");
         const nativeUrl = "/native-symbol/" + nativeKey + ".svg";
+        const title = nativeInfo
+            ? nativeInfo.library + ":" + nativeInfo.symbol
+            : "Device:" + nativeKey;
         $("native-symbol-label").textContent =
-            "Installed KiCad native symbol · Device:" + nativeKey;
+            "Installed KiCad library · " + title;
+        const count = nativeInfo?.mapped_pads;
+        const total = nativeInfo?.library_pins;
+        $("native-symbol-coverage").textContent = nativeInfo
+            ? count +
+              " / " +
+              total +
+              " KiCad pads matched to source · " +
+              (total - count) +
+              " unmodeled. Schematic artwork is a reference," +
+              " not KiCad-editable wiring or ERC/DRC proof."
+            : "Locally installed KiCad Device symbol · only declared source" +
+              " pad 1→P1, 2→P2; no electrical or PCB verification.";
+        if (nativeInfo) {
+            for (const match of nativeInfo.matches) {
+                const label =
+                    "Pad " +
+                    match.pad +
+                    ": " +
+                    match.source_pin +
+                    (match.library_pin === match.source_pin
+                        ? ""
+                        : " ↔ KiCad " + match.library_pin);
+                const row = node("button", "native-pin-row", label);
+                row.type = "button";
+                row.setAttribute("aria-label", label + " — locate source pin");
+                row.onclick = () => {
+                    const selected = state.data.components.find(
+                        (component) => component.ref === c.ref,
+                    );
+                    const pin = selected?.pins.find(
+                        (candidate) => candidate.name === match.source_pin,
+                    );
+                    if (pin) {
+                        state.view = "circuit";
+                        focusSchematicPin(c.ref, pin);
+                    }
+                };
+                mappings.append(row);
+            }
+        }
         preview.onload = () => {
             const selected = state.data.components.find(
-                (x) => x.ref === state.selection,
+                (component) => component.ref === state.selection,
             );
             if (
                 selected &&
-                nativeSymbolKey(selected) === nativeKey &&
-                state.selection === c.ref
+                state.data.source_hash === d.source_hash &&
+                (nativeSymbolKey(selected) === nativeKey ||
+                    state.nativeCache.get(d.source_hash + ":" + selected.ref)
+                        ?.id === nativeKey)
             ) {
                 nativePanel.hidden = false;
             }

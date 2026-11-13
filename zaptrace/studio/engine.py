@@ -22,6 +22,7 @@ from zaptrace.algo.placer import place_components
 from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.exceptions import ParseError
 from zaptrace.core.parser import parse_str
+from zaptrace.studio.native_symbols import native_match
 from zaptrace.viewer.interactive import _extract_viewer_data
 
 MAX_SOURCE_SIZE = 200_000
@@ -261,6 +262,12 @@ def _patch_net_nodes(lines: list[str], net_name: str, node_id: str, *, remove: b
             raise StudioInputError("Pin already exists in the target net")
         nodes.append(node_id)
     lines[index] = original[:left] + json.dumps(nodes) + original[right + 1 :]
+
+
+def inspect_native_symbol(source: str, *, component_ref: str) -> dict[str, Any]:
+    """Resolve an optional local KiCad symbol against the current source draft."""
+    _, component = _verified_component(source, component_ref)
+    return {"native": native_match(component.type, component.package_pin_map)}
 
 
 def apply_pin_connection(source: str, *, component_ref: str, pin_name: str, target_net: str) -> str:

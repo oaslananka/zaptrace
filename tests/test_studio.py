@@ -468,3 +468,72 @@ def test_http_installed_kicad_symbol_available_or_fails_cleanly(
         server.shutdown()
         server.server_close()
         thread.join(timeout=10)
+
+
+def test_native_mapping_checks_real_pin_numbers_and_named_aliases() -> None:
+    from zaptrace.studio.native_symbols import _pins_from_units, _read_symbol, native_match
+
+    source = (
+        '(kicad_symbol_lib (symbol "BME280" '
+        '(symbol "BME280_0_1" (rectangle (start -2 -3) (end 2 3))) '
+        '(symbol "BME280_1_1" '
+        '(pin input line (at 4 1 180) (length 2) (name "SDI") (number "3")) '
+        '(pin input line (at 4 2 180) (length 2) (name "SCK") (number "4")))))'
+    )
+    units = _read_symbol(source, "BME280")
+    assert units is not None
+    assert _pins_from_units(units) == {"3": "SDI", "4": "SCK"}
+    from zaptrace.studio import native_symbols as native_module
+
+    original_loader = native_module._installed_units
+    native_module._installed_units = lambda symbol_id: units if symbol_id == "Sensor.BME280" else None
+    try:
+        found = native_match("BME280", {"3": "SDA", "4": "SCK"})
+        assert found is not None
+        assert found["mapped_pads"] == 2
+        assert found["matches"][0] == {"pad": "3", "source_pin": "SDA", "library_pin": "SDI"}
+        assert native_match("BME280", {"3": "SCK", "4": "SDA"}) is None
+        assert native_match("BME280", {"3": "SDA", "8": "VDD"}) is None
+        assert native_match("BME280", {"3": "SDA", "4": "SCK", "5": "SDO"}) is None
+        assert native_match("unknown", {"3": "SDA"}) is None
+    finally:
+        native_module._installed_units = original_loader
+
+
+def test_native_inspector_is_source_backed_and_requires_local_session(tmp_path: Path) -> None:
+    from zaptrace.studio import engine as studio_engine
+
+    source = FIXTURE.read_text()
+    document = tmp_path / "design.yaml"
+    document.write_text(source, encoding="utf-8")
+    server = create_studio_server(document, port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{server.server_port}/api/native/inspect"
+    req_body = json.dumps({"source": source, "component_ref": "U2"}).encode()
+    try:
+        request = Request(url, data=req_body, headers={"Content-Type": "application/json"}, method="POST")
+        with pytest.raises(HTTPError) as forbidden:
+            urlopen(request, timeout=5)
+        assert forbidden.value.code == 403
+        request.add_header("X-ZapTrace-Studio-Token", server.session_token)
+        with urlopen(request, timeout=12) as response:
+            result = json.load(response)
+        # KiCad is optional in CI; no manufactured pin verification is assumed there.
+        if result["native"] is not None:
+            assert result["native"]["id"] == "Sensor.BME280"
+            assert result["native"]["mapped_pads"] == 8
+            assert result["native"]["library_pins"] == 8
+        changed = source.replace('"3": "SDA"', '"3": "SCK"')
+        assert changed != source
+        try:
+            mismatch = studio_engine.inspect_native_symbol(changed, component_ref="U2")
+        except StudioInputError:
+            pass  # Parser may reject contradictory physical pin ownership.
+        else:
+            assert mismatch["native"] is None
+        assert document.read_text(encoding="utf-8") == source
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=10)

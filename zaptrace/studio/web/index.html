@@ -401,8 +401,8 @@
             .native-symbol img {
                 display: block;
                 width: 100%;
-                max-width: 135px;
-                height: 90px;
+                max-width: 185px;
+                height: 150px;
                 object-fit: contain;
                 filter: invert(90%);
                 margin: 0 auto;
@@ -412,6 +412,30 @@
                 color: #a2c5ce;
                 line-height: 1.45;
                 font-size: 10px;
+            }
+            .native-pin-mappings {
+                margin-top: 8px;
+                display: grid;
+                gap: 4px;
+            }
+            .native-pin-row {
+                text-align: left;
+                border: 1px solid #416470;
+                border-radius: 5px;
+                background: #193a46;
+                color: #e4f3f4;
+                padding: 6px;
+                font:
+                    10px ui-monospace,
+                    Consolas,
+                    monospace;
+                cursor: pointer;
+                min-height: 27px;
+            }
+            .native-pin-row:hover,
+            .native-pin-row:focus-visible {
+                border-color: #90dfd1;
+                background: #255260;
             }
             .pin-editor {
                 margin-top: 13px;
@@ -952,11 +976,15 @@
                             id="native-symbol-preview"
                             alt="KiCad symbol from locally installed library"
                         />
-                        <small>
-                            Native KiCad Device library artwork. Pin 1→P1, 2→P2
-                            comes from this YAML design, not independently
-                            verified.
+                        <small id="native-symbol-coverage">
+                            Native artwork · source pin mappings are not
+                            fabrication proof.
                         </small>
+                        <div
+                            id="native-pin-mappings"
+                            class="native-pin-mappings"
+                            aria-label="Verified local KiCad pin label matches"
+                        ></div>
                     </div>
                     <div class="row">
                         <span>Footprint</span><b id="fp">—</b>
