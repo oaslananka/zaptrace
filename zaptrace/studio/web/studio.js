@@ -8,6 +8,7 @@ const state = {
     diskHash: "",
     selection: "U1",
     net: null,
+    netInitialized: false,
     pinSelection: null,
     wireStart: null,
     view: "circuit",
@@ -61,6 +62,22 @@ async function update() {
             return;
         }
         state.data = data;
+        if (!state.netInitialized) {
+            // On first open, show one real multi-component logical connection
+            // instead of an apparently unwired board. Avoid power rails when
+            // a signal net exists; never infer verified copper from this view.
+            const connected = data.nets.filter(
+                (net) => new Set(net.nodes.map((pin) => pin.ref)).size > 1,
+            );
+            const signal = connected.filter(
+                (net) => !/^(GND|VCC|VBUS|PWR|POWER|3V3|5V)(?:$|_)/i.test(net.id),
+            );
+            const candidates = signal.length ? signal : connected;
+            state.net =
+                [...candidates].sort((a, b) => b.nodes.length - a.nodes.length)[0]?.id ??
+                null;
+            state.netInitialized = true;
+        }
         if (!data.components.some((c) => c.ref === state.selection)) {
             state.selection = data.components[0]?.ref;
         }
@@ -1788,8 +1805,46 @@ function inspector() {
         list.append(e);
     }
 }
+function drawNetExplorer() {
+    const explorer = $("net-explorer");
+    explorer.hidden = state.view !== "circuit";
+    if (explorer.hidden) return;
+    const choices = $("net-choices");
+    choices.replaceChildren();
+    function addChoice(label, id, count) {
+        const choice = node("button", "net-choice" + (state.net === id ? " on" : ""));
+        choice.type = "button";
+        choice.setAttribute("aria-pressed", String(state.net === id));
+        choice.setAttribute(
+            "aria-label",
+            id === null
+                ? "Show circuit without highlighted net"
+                : "Trace " + id + ", " + count + " source pin connections",
+        );
+        if (id !== null) {
+            const marker = node("i", "net-marker");
+            marker.style.backgroundColor = netStroke(id);
+            marker.setAttribute("aria-hidden", "true");
+            choice.append(marker);
+        }
+        choice.append(node("span", "", label));
+        if (count !== null) choice.append(node("small", "", String(count)));
+        choice.onclick = () => {
+            state.net = id;
+            state.wireStart = null;
+            state.pinSelection = null;
+            draw();
+        };
+        choices.append(choice);
+    }
+    addChoice("Overview", null, null);
+    for (const net of state.data.nets) {
+        addChoice(net.id, net.id, net.nodes.length);
+    }
+}
 function draw() {
     if (!state.data) return;
+    drawNetExplorer();
     if (state.view === "circuit") drawCircuit();
     else if (state.view === "board") drawBoard();
     else draw3D();

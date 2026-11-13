@@ -237,6 +237,69 @@
                 background: #193740;
                 color: var(--aqua);
             }
+            .net-explorer {
+                position: absolute;
+                top: 59px;
+                left: 16px;
+                right: 16px;
+                z-index: 2;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                min-width: 0;
+                max-width: calc(100% - 32px);
+                border: 1px solid #3a5d69;
+                border-radius: 9px;
+                background: #102530f2;
+                padding: 6px 9px;
+                box-shadow: 0 5px 20px #050e1640;
+            }
+            .net-explorer[hidden] {
+                display: none;
+            }
+            .net-explorer > strong {
+                color: #a4bec7;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 0.7px;
+                white-space: nowrap;
+            }
+            .net-choices {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                min-width: 0;
+                overflow-x: auto;
+                scrollbar-width: thin;
+            }
+            .net-choice {
+                flex: 0 0 auto;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 8px;
+                border-color: #345666;
+                background: #1b3440;
+                color: #d7e9ef;
+                font-size: 10px;
+                white-space: nowrap;
+            }
+            .net-choice.on {
+                border-color: #9be4dc;
+                box-shadow: inset 0 0 0 1px #9be4dc;
+                background: #25545a;
+                color: #f7fffe;
+            }
+            .net-choice small {
+                color: #b5d1d7;
+                font-size: 9px;
+            }
+            .net-marker {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
             .canvas-stage {
                 position: absolute;
                 inset: 0;
@@ -931,6 +994,16 @@
                             >Actual source nets · not a native KiCad
                             schematic</small
                         >
+                    </div>
+                    <div
+                        class="net-explorer"
+                        id="net-explorer"
+                        role="group"
+                        aria-label="Trace a source electrical net"
+                        hidden
+                    >
+                        <strong>LIVE NETS</strong>
+                        <div class="net-choices" id="net-choices"></div>
                     </div>
                     <div class="canvas-stage" id="canvas-stage">
                         <svg
