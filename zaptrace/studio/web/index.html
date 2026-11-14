@@ -200,6 +200,29 @@
                 border-color: #2d5b62;
                 color: #acebe9;
             }
+            .inspector-skip {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                overflow: hidden;
+                clip-path: inset(50%);
+                white-space: nowrap;
+            }
+            .inspector-skip:focus-visible {
+                position: static;
+                width: auto;
+                height: auto;
+                overflow: visible;
+                clip-path: none;
+                padding: 4px 6px;
+                border: 2px solid var(--aqua);
+                border-radius: 4px;
+                background: var(--panel2);
+                color: var(--fg);
+            }
+            .shell.focus .inspector-skip {
+                display: none;
+            }
             .canvas {
                 background: radial-gradient(
                     ellipse at 40% 50%,
@@ -837,6 +860,59 @@
                     display: none;
                 }
             }
+            @media (min-width: 691px) and (max-width: 1130px) {
+                body {
+                    overflow: auto;
+                }
+                .shell,
+                .shell.focus {
+                    height: auto;
+                    grid-template-columns: minmax(260px, 34%) minmax(0, 1fr);
+                    grid-template-rows: minmax(510px, calc(100vh - 65px)) minmax(320px, 60vh) 110px;
+                }
+                .inspector-panel {
+                    display: flex;
+                    grid-column: 1 / -1;
+                    min-height: 320px;
+                }
+                .shell.focus {
+                    grid-template-rows: minmax(510px, calc(100vh - 65px)) 110px;
+                }
+                .shell.focus .inspector-panel {
+                    display: none;
+                }
+            }
+            @media (min-width: 691px) and (max-width: 950px) {
+                header {
+                    height: auto;
+                    min-height: 65px;
+                    padding: 12px;
+                    gap: 10px;
+                    align-items: stretch;
+                    flex-direction: column;
+                }
+                .actions {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    width: 100%;
+                    gap: 8px;
+                }
+                .actions > span {
+                    display: none;
+                }
+                .actions strong {
+                    grid-column: 1 / -1;
+                    min-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .actions button {
+                    min-width: 0;
+                    min-height: 40px;
+                    padding: 8px;
+                }
+            }
             @media (max-width: 690px) {
                 body {
                     overflow: auto;
@@ -1255,7 +1331,7 @@
             <section class="panel">
                 <div class="section">
                     <strong>Source editor</strong
-                    ><span id="source-status">YAML · Loading</span>
+                    ><span id="source-status" role="status" aria-live="polite">YAML · Loading</span>
                 </div>
                 <div class="file">
                     <i></i><span id="file-name">design.yaml</span
@@ -1268,6 +1344,7 @@
                 ></textarea>
                 <div class="editorfoot">
                     <span id="elapsed">Waiting for source</span
+                    ><a id="inspector-skip" class="inspector-skip" href="#value-input">Skip to Inspector</a
                     ><button id="apply">↗ Update preview</button>
                 </div>
             </section>
@@ -1361,8 +1438,9 @@
                         Select a component to inspect its real pins
                     </div>
                     <div class="zoom">
-                        <button id="plus">+</button><button id="minus">−</button
-                        ><button id="fit">⌖</button>
+                        <button id="plus" type="button" aria-label="Zoom in on circuit">+</button
+                        ><button id="minus" type="button" aria-label="Zoom out of circuit">−</button
+                        ><button id="fit" type="button" aria-label="Fit circuit to view">⌖</button>
                     </div>
                 </div>
             </section>
@@ -1372,7 +1450,7 @@
                 </div>
                 <div class="inside">
                     <div class="kicker">Selected component</div>
-                    <div class="obj" id="obj">—</div>
+                    <div class="obj" id="obj" role="status" aria-live="polite">—</div>
                     <div class="sub" id="type">Choose a component</div>
                     <div class="row"><span>Value</span><b id="val">—</b></div>
                     <div class="value-editor">
@@ -1455,7 +1533,7 @@
             <div class="foot">
                 <section>
                     <div class="foot-caption">Live build</div>
-                    <p id="status">
+                    <p id="status" role="status" aria-live="polite" aria-atomic="true">
                         <i class="okdot"></i
                         ><span id="status-text">Loading example…</span>
                     </p>

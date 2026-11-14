@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Improve Studio keyboard/screen-reader navigation: give zoom controls meaningful names, announce source/selection/build status updates, provide a direct keyboard jump from YAML to Inspector, and keep Inspector reachable on medium-width screens without horizontal overflow.
 - Fix fresh Windows Studio demos and existing CRLF/mixed-line-ending YAML: avoid fake textarea drafts, preserve untouched raw source bytes on Save, and support real Inspector value, Board placement, pin-net and schematic-wire edits, retaining original per-line endings even across multiple separate edits, without weakening source-hash conflict protection.
 - Let Studio users double-click a real Circuit, Board or conceptual 3D component (or press F2) to edit its source value directly, with Enter/Apply to persist and Escape to cancel; preserve unsaved-draft and concurrent-agent conflict safeguards without changing YAML merely to open the editor.
 - Recover an unsaved Studio YAML draft on tab refresh or session restoration where browser tab storage survives, without overwriting disk; bind recovery to the exact project identity and block unsafe save when another tab/agent edited the source.

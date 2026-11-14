@@ -568,6 +568,18 @@ def test_web_assets_are_packaged_and_no_remote_scripts() -> None:
         assert action in script
 
 
+def test_studio_keyboard_zoom_and_live_feedback_have_accessible_names() -> None:
+    from importlib.resources import files
+
+    html = files("zaptrace.studio").joinpath("web", "index.html").read_text()
+    for accessible_name in ("Zoom in on circuit", "Zoom out of circuit", "Fit circuit to view"):
+        assert f'aria-label="{accessible_name}"' in html
+    assert 'id="inspector-skip" class="inspector-skip" href="#value-input"' in html
+    assert "@media (min-width: 691px) and (max-width: 1130px)" in html
+    for element_id in ("source-status", "obj", "status"):
+        assert f'id="{element_id}" role="status" aria-live="polite"' in html
+
+
 def test_studio_json_html_delimiters_are_escaped_without_losing_source(tmp_path: Path) -> None:
     """Untrusted source may contain markup; JSON must remain data, not HTML."""
     source = FIXTURE.read_text().replace(
