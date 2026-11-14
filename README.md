@@ -51,6 +51,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 
 - **A Python SDK** for programmatic electronics design — parse, validate, place, route, export.
 - **A CLI** (`zaptrace`) for quick design iteration from the terminal.
+- **A local-first visual Studio** (`zaptrace studio`) for source-driven circuit exploration, linked component selection, preliminary board placement and safe YAML editing; not yet a full professional PCB CAD editor.
 - **An MCP server** (`zaptrace-mcp`) whose default `expert` surface exposes 93 design tools plus 3 session-administration tools, with smaller task-oriented `inspect`, `design`, `verify`, `repair`, and `release` surfaces for bounded workflows.
 - **A REST API** for web-based design workflows.
 - **A verification engine** — Electrical Rule Checking (ERC) + Design Rule Checking (DRC) baked in.
@@ -59,7 +60,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 
 ## What ZapTrace Is Not
 
-- ❌ **Not a replacement for KiCad, Altium, or Eagle** — ZapTrace is a *backend engine*, not a full PCB editor GUI.
+- ❌ **Not a full replacement for KiCad, Altium, or Eagle** — the initial Studio provides a live source and provisional-placement workspace, not full native CAD editing or manufacturing approval.
 - ❌ **Not a general-purpose SPICE simulator or solver-grade sign-off tool** — ZapTrace can export SPICE and run bounded ngspice-backed evidence gates, but these do not replace full analog verification or qualified engineering review.
 - ❌ **Not a replacement for human engineering judgment** — all outputs require review before fabrication.
 - ❌ **Not fabrication-proven** — ZapTrace is pre-1.0. Manufacturing outputs are experimental.
@@ -103,6 +104,7 @@ Intent → normalized design → schematic → ERC → placement → routing →
 | Proof-pack system | ✅ Implemented — evidence/sign-off foundation; not a correctness guarantee |
 | Plugin system | 🚧 Experimental — signed runtime policy documented; production sandboxing still required |
 | Review Studio | ✅ Implemented — human-review panels, proof-pack evidence, benchmark readiness |
+| Live Code-to-Circuit Studio | 🧪 Initial local browser workspace — real YAML editing, source-linked connectivity/placement preview, save/undo and agent-aware revision tracking; native schematic editing and production CAD not yet supported |
 | SPICE netlist export | ✅ Implemented foundation — DC gate is evidence/skip aware, not full analog sign-off |
 | DFM (Design for Manufacturing) | ✅ Implemented foundation — fab profiles, manufacturing evidence, current/thermal/SI risk reports |
 | Multi-board design | 🔮 Planned — post-0.3.0 |
@@ -117,6 +119,23 @@ ZapTrace 0.3.0 is an evidence-hardening release. It adds bounded autonomous sign
 This release still makes no fabrication-readiness claim. A pass means the configured evidence gates did not block; it does **not** mean the design is manufacturer-approved, production-ready, or safe to fabricate without human engineering review.
 
 ---
+
+## Live Code-to-Circuit Studio
+
+Open a real, editable ESP32 design example in a local browser workspace without manually exporting a static viewer:
+
+**Development builds only for now:** the previously published PyPI 0.3.5 package does not include Studio.
+
+```bash
+zaptrace studio
+
+# Or open an existing design.yaml directly (edits affect this file):
+zaptrace studio --project path/to/design.yaml
+```
+
+Unsaved Studio YAML drafts can be recovered on a tab refresh when the browser retains tab session storage; they are never silently saved to the design file. If an agent changes the YAML while you have unsaved edits, **Compare versions** and **Download my draft** protect your work before you choose to load the agent's version. The **Following your source component** navigator links the selected YAML component to its exact Circuit, Board and illustrative 3D concept object, with keyboard focus and a return-to-source action; it never saves or invents unverified copper. **Double-click a component** in Circuit/Board/3D (or press **F2**) to edit its real YAML value; **Enter/Apply** saves and **Esc** cancels without writing. On first open, the **Start here** guide makes three real actions discoverable: select a source-linked component, trace a genuine net, or import your own YAML copy. It stays out of the way after a choice, is keyboard-accessible, and can be reopened from the header. Once Studio is running, choose **+ Open YAML copy** to select a local design in the browser without typing its path, or **Recent projects** to reopen a saved personal copy. Each import validates the source, opens in its own local session and leaves the original YAML untouched; the imported copy is an independent project, not synchronized back to the original. A running Studio also offers **Recent projects → Add Studio to your apps**, explicitly installing a local Linux Applications or Windows Start menu shortcut for later one-click launches, and **Quit desktop Studio** for app-menu-launched sessions. This uses the installed Python runtime (no Tauri/Electron or additional provider), and does not change desktop settings until clicked. Initial source installation still requires setup. The Studio keeps **one YAML file** as the authoritative design. On systems with KiCad installed, source-mapped resistors and capacitors show genuine local KiCad Device library artwork; selected ESP32/BME280/AMS1117 components can also display verified source-to-library pad matches in Inspector and jump into an interactive native pinout on the Circuit canvas for source-linked pin and net editing. The main Circuit cards also display local, source-matched KiCad ESP32/BME280/AMS1117 symbol artwork when available, with accurate mapped-pad coverage; cold library inspection runs after the fast YAML preview, never as a blocking prerequisite. Missing KiCad libraries keep the safe illustrative fallback. Partial source mappings are clearly reported and never treated as fabrication proof. Edit component values or nets in the code pane and see the corresponding source-linked logical schematic (including two-sided source pins, recognisable passive glyphs, and real net labels) update; select components, inspect source package pad mappings, and highlight logical net links across code and canvas, reassign a logical pin through Inspector or by selecting two schematic pins, trace real source net endpoints, explore board placement by dragging unrouted components, and use **Save design** to persist changes. Invalid drafts retain the last valid visual preview. An external agent/editor edit is detected without silently overwriting unsaved work. Use **↓ KiCad schematic** to download a real KiCad `.kicad_sch` from the current YAML draft (including unsaved net edits), with native KiCad wire segments/global net labels and embedded generated connectivity symbols; this does not save YAML or qualify ERC/DRC. The **3D concept** tab is now a source-linked, selectable isometric placement sketch of the actual board outline and component XY footprints; it does **not** assert native CAD 3D geometry, routed copper or physical validation. For the UI workflow and current engineering limitations, see [Studio user guide](docs/studio.md).
+
+Source-backed pin-to-pin wire paths may now be drawn and adjusted within Studio and exported as real KiCad schematic segments; this is limited route geometry with unqualified generated symbols, not a full native schematic editor or verified copper.\n\nA local visual preview does **not** replace KiCad-native schematic, ERC, DRC, routing verification or qualified fabrication review.
 
 ## Quickstart
 

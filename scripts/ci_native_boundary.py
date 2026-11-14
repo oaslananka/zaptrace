@@ -11,6 +11,7 @@ import math
 import os
 import platform
 import subprocess
+import sys
 import sysconfig
 import tomllib
 from collections.abc import Callable
@@ -273,9 +274,17 @@ def _process_survival(core: Any) -> dict[str, Any]:
     }
 
 
-def _source_clean(source: dict[str, Any]) -> dict[str, Any]:
+def _source_clean(source: dict[str, Any], source_root: Path) -> dict[str, Any]:
     if source["dirty"]:
-        raise NativeBoundaryError("source tree is dirty; native evidence cannot be bound to the recorded commit")
+        # Show only bounded Git status entries, never file contents or credentials.
+        # This detects build-tool side effects without weakening the source
+        # identity gate or silently ignoring generated files.
+        entries = _git(source_root, "status", "--porcelain", "--untracked-files=all").splitlines()
+        summary = "; ".join(entry[:140] for entry in entries[:12])
+        raise NativeBoundaryError(
+            "source tree is dirty; native evidence cannot be bound to the recorded commit"
+            + (f" (git status: {summary})" if summary else "")
+        )
     return {"commit": source["commit"], "ref": source["ref"]}
 
 
@@ -324,7 +333,7 @@ def build_report(
     versions = _versions(source_root)
     runtime = _runtime(target)
     checks = [
-        _check("source-clean", lambda: _source_clean(source)),
+        _check("source-clean", lambda: _source_clean(source, source_root)),
         _check("module-contract", lambda: _module_contract(core)),
         _check("version-consistency", lambda: _version_consistency(versions)),
         _check("valid-placement", lambda: _valid_placement(core)),
@@ -436,6 +445,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.markdown:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         args.markdown.write_text(render_markdown(report), encoding="utf-8")
+    if report["status"] != "pass":
+        # CI must fail closed AND identify the failed check, even when the
+        # evidence artifact cannot be uploaded because an earlier step failed.
+        print("Native boundary verification failed:", file=sys.stderr)
+        if error := report.get("error"):
+            print(f"- initialization: {error}", file=sys.stderr)
+        for check in report.get("checks", []):
+            if check["status"] == "fail":
+                print(f"- {check['name']}: {check['detail']}", file=sys.stderr)
     return exit_code(report, args.strict)
 
 

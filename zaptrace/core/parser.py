@@ -26,6 +26,7 @@ from zaptrace.core.models import (
     NetNode,
     Pin,
     RouteResult,
+    SchematicWire,
     TraceSegment,
     Via,
 )
@@ -83,6 +84,7 @@ _ALLOWED_TOP_LEVEL_KEYS = {
     "nets",
     "blocks",
     "placement",
+    "schematic_wires",
     "routing",
     "net_classes",
     "drc_result",
@@ -194,6 +196,7 @@ def _build_design(raw: dict[str, Any]) -> Design:
         meta=DesignMeta(**raw.get("meta", {"name": "Untitled"})),
         components=_parse_components(raw),
         nets=_parse_nets(raw),
+        schematic_wires=[SchematicWire.model_validate(item) for item in raw.get("schematic_wires", [])],
         blocks=[Block(**block) for block in raw.get("blocks", [])],
         board=BoardConfig(**raw.get("board", {})),
         board_def=board_def,
@@ -310,6 +313,9 @@ def design_to_dict(design: Design) -> dict[str, Any]:
         nd.pop("id", None)
         nets[nid] = nd
     out["nets"] = nets
+
+    if design.schematic_wires:
+        out["schematic_wires"] = [wire.model_dump(mode="json") for wire in design.schematic_wires]
 
     constraints = design.constraints.model_dump(mode="json", exclude_none=True)
     if any(constraints.get(key) for key in ("voltage_domains", "placement", "routing")) or constraints.get(

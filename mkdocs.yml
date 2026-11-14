@@ -202,6 +202,7 @@ nav:
 
   - Product:
       - Manifesto: product/manifesto.md
+      - Live Code-to-Circuit Studio: studio.md
       - Review Studio: product/review-studio.md
       - Static Review Viewer: product/static-review-viewer.md
       - Competitor Matrix: strategy/competitor-matrix.md

@@ -22,6 +22,7 @@ from zaptrace.core.models import (
     MountingHole,
     Pad,
     PadShape,
+    SchematicWire,
     TraceSegment,
 )
 from zaptrace.core.net_identity import canonical_routing_net_ids
@@ -465,6 +466,144 @@ def _schematic_symbol_instance(
     return lines, labels
 
 
+def _verified_schematic_wires(design: Design) -> list[tuple[SchematicWire, str, str, str]]:
+    """Fail closed on stale wire source references before native KiCad generation."""
+    if len(design.schematic_wires) > 64:
+        raise ValueError("At most 64 source-authored schematic wires are supported")
+    verified: list[tuple[SchematicWire, str, str, str]] = []
+    seen: set[frozenset[str]] = set()
+    for wire in design.schematic_wires:
+        if wire.start == wire.end:
+            raise ValueError("A schematic wire must join two different source pins")
+        ends = []
+        for endpoint in (wire.start, wire.end):
+            ref, logical = endpoint.split(".", 1)
+            component = design.get_component(ref)
+            if component is None or logical not in component.pins:
+                raise ValueError(f"Schematic wire refers to a missing source pin: {endpoint}")
+            pads = [pad for pad, pin in component.package_pin_map.items() if pin == logical]
+            if len(pads) > 1:
+                raise ValueError(f"Ambiguous physical pad mapping for schematic wire: {endpoint}")
+            nodes = _schematic_nodes_for_component(design, component)
+            exported_pad = pads[0] if pads else logical
+            if (exported_pad, component.pins[logical].net) not in nodes:
+                raise ValueError(f"Schematic wire pin is not represented by the KiCad export: {endpoint}")
+            ends.append((component, exported_pad, component.pins[logical].net))
+        first, second = ends
+        if first[0].ref == second[0].ref:
+            raise ValueError("Schematic wire routing between pins of one symbol is unsupported")
+        if not first[2] or first[2] != second[2]:
+            raise ValueError("Schematic wire ends must share one existing source net")
+        key = frozenset((wire.start, wire.end))
+        if key in seen:
+            raise ValueError("Duplicate schematic wire endpoints")
+        seen.add(key)
+        verified.append((wire, first[1], second[1], first[2]))
+    return verified
+
+
+def _orthogonal_segments_touch(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    c: tuple[float, float],
+    d: tuple[float, float],
+) -> bool:
+    """Conservatively reject foreign-net overlap/crossing, including endpoints."""
+    tolerance = 1e-4
+    ax, ay = a
+    bx, by = b
+    cx, cy = c
+    dx, dy = d
+    first_horizontal = abs(ay - by) < tolerance
+    second_horizontal = abs(cy - dy) < tolerance
+    if first_horizontal and second_horizontal:
+        return abs(ay - cy) < tolerance and max(min(ax, bx), min(cx, dx)) <= min(max(ax, bx), max(cx, dx)) + tolerance
+    if not first_horizontal and not second_horizontal:
+        return abs(ax - cx) < tolerance and max(min(ay, by), min(cy, dy)) <= min(max(ay, by), max(cy, dy)) + tolerance
+    if first_horizontal:
+        return (
+            min(ax, bx) - tolerance <= cx <= max(ax, bx) + tolerance
+            and min(cy, dy) - tolerance <= ay <= max(cy, dy) + tolerance
+        )
+    return (
+        min(cx, dx) - tolerance <= ax <= max(cx, dx) + tolerance
+        and min(ay, by) - tolerance <= cy <= max(ay, by) + tolerance
+    )
+
+
+def _source_schematic_wire_geometry(
+    design: Design,
+    component_nodes: list[tuple[Component, list[tuple[str, str]]]],
+    *,
+    columns: int,
+    row_spacing: float,
+) -> list[str]:
+    """Convert persisted pin-to-pin elbow routes into native KiCad wire segments."""
+    wire_defs = _verified_schematic_wires(design)
+    if not wire_defs:
+        return []
+    anchors: dict[tuple[str, str], tuple[float, float, bool]] = {}
+    for index, (component, nodes) in enumerate(component_nodes):
+        cx, cy = _schematic_component_position(index, columns=columns, row_spacing=row_spacing)
+        half_width, _, _ = _schematic_geometry(nodes)
+        if component.package_pin_map:
+            width = max((len(component.package_pin_map.get(pin, pin)) for pin, _ in nodes), default=0)
+            half_width = max(half_width, width * 0.9 + 6.35)
+        for pin_index, (pad, _net) in enumerate(nodes):
+            lx, ly, _ = _schematic_pin_geometry(pin_index, len(nodes), half_width)
+            anchors[(component.ref, pad)] = (cx + lx, cy - ly, lx < 0)
+    forbidden: list[tuple[str, tuple[float, float], tuple[float, float]]] = []
+    for component, nodes in component_nodes:
+        for pad, net in nodes:
+            pin_x, pin_y, left = anchors[(component.ref, pad)]
+            label_x = pin_x + (-7.62 if left else 7.62)
+            forbidden.append((net, (pin_x, pin_y), (label_x, pin_y)))
+    segments: list[str] = []
+    for wire, start_pad, end_pad, net in wire_defs:
+        start_ref, _ = wire.start.split(".", 1)
+        end_ref, _ = wire.end.split(".", 1)
+        start_x, start_y, start_left = anchors[(start_ref, start_pad)]
+        end_x, end_y, end_left = anchors[(end_ref, end_pad)]
+        # Escape beyond the existing 7.62 mm global-label stubs before
+        # travelling vertically, so unrelated pins on the same symbol row
+        # cannot be inadvertently shorted by a horizontal shortcut.
+        source_escape = start_x + (-10.16 if start_left else 10.16)
+        target_escape = end_x + (-10.16 if end_left else 10.16)
+        clearance = 12.7 + 12.7 * abs(wire.bend)
+        corridor_y = max(start_y, end_y) + clearance if wire.bend > 0 else min(start_y, end_y) - clearance
+        corridor = round(corridor_y / 1.27) * 1.27
+        coords = [
+            (start_x, start_y),
+            (source_escape, start_y),
+            (source_escape, corridor),
+            (target_escape, corridor),
+            (target_escape, end_y),
+            (end_x, end_y),
+        ]
+        clean: list[tuple[float, float]] = []
+        for point in coords:
+            if not clean or abs(clean[-1][0] - point[0]) > 1e-6 or abs(clean[-1][1] - point[1]) > 1e-6:
+                clean.append(point)
+        for number, (first, last) in enumerate(zip(clean, clean[1:], strict=False)):
+            if any(
+                other_net != net and _orthogonal_segments_touch(first, last, other_start, other_end)
+                for other_net, other_start, other_end in forbidden
+            ):
+                raise ValueError(
+                    f"Schematic route {wire.start} to {wire.end} crosses another net; "
+                    "move the bend or choose another route"
+                )
+            forbidden.append((net, first, last))
+            segments.append(
+                "  (wire (pts "
+                f"(xy {_schematic_number(first[0])} {_schematic_number(first[1])}) "
+                f"(xy {_schematic_number(last[0])} {_schematic_number(last[1])})) "
+                "(stroke (width 0) (type default)) "
+                f'(uuid "{_schematic_uuid(design, "route", wire.start, wire.end, str(number))}"))'
+            )
+    return segments
+
+
 def _build_schematic(design: Design) -> str:
     """Build a self-contained, deterministic KiCad schematic.
 
@@ -508,6 +647,7 @@ def _build_schematic(design: Design) -> str:
         lines.extend(instance_lines)
         labels.extend(instance_labels)
     lines.extend(labels)
+    lines.extend(_source_schematic_wire_geometry(design, component_nodes, columns=columns, row_spacing=row_spacing))
     lines.extend(['  (sheet_instances (path "/" (page "1")))', ")"])
     return "\n".join(lines) + "\n"
 

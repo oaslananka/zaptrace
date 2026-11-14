@@ -282,6 +282,29 @@ def test_simulation_install_does_not_require_kicad_ppa(tmp_path: Path) -> None:
         assert packages[-1] in calls
 
 
+def test_issue35_native_oracle_uses_matching_kicad_cli_and_python_modes() -> None:
+    """The signed AppImage CI mode must not demand absent /usr/bin KiCad."""
+    script = Path("scripts/issue35_native_grid_oracle.sh")
+    source = script.read_text(encoding="utf-8")
+    assert 'case "${ZAPTRACE_KICAD_PYTHON:-}" in' in source
+    assert "readonly CLI=/usr/local/bin/kicad-cli" in source
+    assert "readonly PYTHON=/usr/local/bin/kicad-python" in source
+    assert "readonly CLI=/usr/bin/kicad-cli" in source
+    assert "readonly PYTHON=/usr/bin/python3" in source
+    assert '"$PCBNEW_VERSION" == "$KICAD_VERSION"' in source
+    assert subprocess.run(["bash", "-n", str(script)], check=False, capture_output=True).returncode == 0
+    invalid = subprocess.run(
+        ["bash", str(script)],
+        env={**os.environ, "ZAPTRACE_KICAD_PYTHON": "unsupported"},
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert invalid.returncode == 2
+    assert "Unsupported KiCad Python install mode" in invalid.stderr
+
+
 def test_kicad_official_appimage_ci_selection_is_pinned_and_scoped(tmp_path: Path) -> None:
     """Keep original PPA behavior unless a KiCad-requiring CI step opts in."""
     installer = Path("scripts/ci_install_kicad_appimage.sh").read_text(encoding="utf-8")

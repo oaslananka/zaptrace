@@ -1,0 +1,156 @@
+# ZapTrace Studio — Live Code-to-Circuit (early access)
+
+**Availability:** this Studio feature is part of the current development work and is **not present in the previously published PyPI 0.3.5 build**. Use a checkout/build that includes Studio until a release ships it.
+
+ZapTrace Studio is a **local-first visual authoring workspace** for engineers and hardware teams who want to change circuit source and see the result immediately. It does not claim a finished KiCad editor, an electrically verified routed PCB, manufacturing approval, or an external AI service connection.
+
+## Open a design
+
+Run `zaptrace studio` to open an editable, **personal copy** of the bundled ESP32 sensor example in the browser. Your changes are stored under `~/ZapTrace Studio Projects/`; first-run setup never overwrites an existing saved demo.
+
+**Open another design without a terminal path:** Once Studio is running, choose **+ Open YAML copy** in the header, then pick a local `.yaml` or `.yml` design (up to 200 KB). Studio validates the source before creating a **separate personal editable copy** under `~/ZapTrace Studio Projects/zaptrace-studio/imports/`, and opens that copy in its own locally bound browser session. Your selected original YAML, the existing demo and any other open Studio file are **not overwritten**. A different port and session token keep each project's saves separate. Unsupported or invalid designs do not create a copy; save or Undo any current unsaved draft before switching.
+
+Choose **Recent projects** to reopen personal copies after a browser reload or after restarting Studio. The list contains only Studio-managed copies; selecting one opens a separate editing session and retains prior saved changes. The copy itself is the persisted project from then on, *not* a live link back to the original file; any referenced external assets may need manual attention. This is local file import, not cloud project sync. Up to eight imported-project sessions can be opened per Studio process; stop and restart Studio to free the temporary sessions. The personal YAML files remain on disk.
+
+To **directly edit the original file** instead of a personal copy, start `zaptrace studio --project path/to/design.yaml`; that explicit CLI option edits the selected file, so make a repository commit/backup as appropriate. Studio itself is still initially launched via the CLI; the browser controls remove the need to type file paths for imported projects. The browser runs on a randomly chosen **127.0.0.1 loopback port** and opens automatically. If the system browser should not be launched, add `--no-browser`; `--port 12345` selects a particular loopback port. Stop Studio with `Ctrl+C`.
+
+**Windows and existing YAML line endings:** On a clean Windows install, the
+personal ESP32 sample is created with consistent LF line endings. Existing
+YAML files with CRLF or mixed LF/CRLF remain usable: the browser editor
+shows its normal LF text without incorrectly reporting an unsaved draft.
+When you actually change and Save the source, untouched portions of the
+original file retain their exact line endings instead of having the entire
+design rewritten. Multiple changes on separate lines also keep each
+existing line's original ending, including mixed LF/CRLF files. The
+source-backed Inspector value editor, visual
+placement editor, pin-net changes and schematic wire authoring also accept
+Windows CRLF declarations; new lines follow the local source style instead
+of introducing unexpected mixed endings. A real edit still uses the saved
+source hash to prevent concurrent agent overwrite.
+
+## Recover an unsaved draft after refreshing the tab
+
+Studio keeps a bounded **temporary draft in the browser tab's session storage**
+while the YAML editor has unsaved changes. If you refresh that same tab or
+restore a browser session that retains tab storage, Studio restores the
+unsaved source **without writing to the project file** and tells you it was
+recovered. Save design explicitly to make the change permanent. Saving or
+Undo back to the saved file clears the temporary recovery copy.
+
+The recovery is tied to an opaque identifier for the exact local YAML
+project, not merely the reused localhost port or design name. If an agent or
+another Studio tab saved a newer version during your absence, your recovered
+draft remains visible but **Save is blocked**; compare the recovered draft
+against the latest disk source or download it first. There is no automatic
+merge. Browser session storage may be cleared when you close a tab or end
+a browsing session, and private mode, quota limits or storage restrictions
+can disable it. Use **Save design** or **Download my draft** for durable
+copies. This temporary browser copy is not a second authoritative design
+store or a cloud backup.
+
+## Concurrent agent edits — compare and recover safely
+
+Studio checks the local YAML for agent and editor changes. If the file changes
+while you have an unsaved draft, Studio preserves your editor text and disables
+Save to avoid overwriting the agent's work. **Compare versions** opens a
+read-only view of **My current editor draft** and **Latest source on disk**.
+The comparison does not modify or automatically merge the two versions.
+**Download my draft** creates a local YAML download from the current editor
+without saving to the original project. **Keep editing my draft** closes the
+comparison without discarding changes. **Load latest** replaces the draft
+only with explicit user confirmation.
+
+If the source-check or reload response is delayed and the user starts
+typing, the newer editor text takes precedence. With no local draft, Studio
+automatically adopts the changed local file. This is edit and overwrite
+protection, not an automatic semantic merge or verified PCB review.
+
+## Follow a component from code to circuit, board and 3D concept
+
+The **Following your source component** strip above the live drawing identifies the currently selected real component and value. Select a component by clicking its YAML declaration or moving the editor caret with the arrow keys, then use **Circuit**, **Board** and **3D concept** in the strip to find that same part. The target diagram item receives keyboard focus, and **Source** returns to its exact YAML component key. This also works when a YAML key (component `id`) differs from the visible PCB reference (`ref`). The source editor's focus is not stolen while selecting with arrow keys.
+
+This navigation never changes or saves the YAML; edits still require explicit action. The strip labels an *unsaved preview* and *last valid preview* truthfully. A Board item with generated coordinates is not saved placement or routed copper; the 3D concept is an illustrative courtyard-based view, not a validated native 3D model. Use Save to persist an actual value or placement edit, then reload and trace that exact part again.
+
+## Change a component value directly from its visual
+
+Double-click a component on **Circuit**, **Board**, or **3D concept** to jump
+straight to its **Change selected value** field in Inspector. The component
+remains selected and its actual parsed YAML value is highlighted; the first
+click can redraw the source-linked diagram without losing the double-click.
+For a keyboard-only flow, select the source component and press **F2**. At
+320px mobile width the value field is brought into the visible central area.
+The same field is available from Inspector; you can also select a part in
+its component list and press **F2**.
+
+Opening the editor **does not modify the YAML**. Enter a new value and press
+**Enter** or choose **Apply** to commit it to the canonical local YAML file;
+**Escape** restores the existing value without saving. A pending Apply
+disables the field until the write finishes. Studio refuses a direct value
+commit while another YAML draft is unsaved or when an external editor/agent
+changed the source; resolve or back up the draft first. This is a
+source-backed value edit, not proof of correct electrical behavior, copper,
+ERC/DRC or fabrication readiness.
+
+## The first three real actions
+
+When the initial live sample opens, the small **Start here** guide provides three executable choices. **Edit a real component** highlights a component in the circuit and focuses its exact YAML declaration without changing the source. **Trace a source signal** selects a real multi-component net and focuses its accessible net control (the initial highlighted signal is reused when available). **Open my YAML file** uses the same validated personal-copy import described above, and refuses to switch while an unsaved/stale draft exists. No guided button pretends to create copper, solve routing or save without an explicit edit.
+
+The card sits within the main circuit on desktop and remains in the viewport on narrow screens. Dismiss it with **×** and reopen it through **Start here** in the header; after dismissal it stays closed for the current browser-tab session. An imported personal YAML project opens **without automatically displaying** the sample guide, but can opt in. The guide does not modify YAML or contact a service.
+
+## Open Studio from your application menu
+
+After opening Studio once with `zaptrace studio`, select **Recent projects → Add Studio to your apps**. This is an **explicit, opt-in user action**: the source/package installation itself never changes desktop settings. On Linux this adds a per-user XDG Applications entry; on Windows it creates a per-user Start menu shortcut. Choose **ZapTrace Studio** from the operating-system application menu on your next visit — no terminal command is needed for repeated launches.
+
+The shortcut launches the **same local Python installation** as your current Studio. If you move/remove the development checkout or virtual environment, you may need to install Studio as a package and recreate the shortcut (on Windows, remove the old Start menu entry first so unrelated entries are never overwritten); the action does *not* download an installer or bundle Python. The installed Python distribution also provides a GUI entry point named `zaptrace-studio` (no terminal window on Windows). The browser starts at loopback and still uses your personal, editable ESP32 example and saved projects.
+
+From an application-menu launch, choose **Recent projects → Quit desktop Studio** to close the local Studio process and any project tabs it serves. Save or Undo the draft in the active tab first. Existing CLI sessions keep their normal `Ctrl+C` behavior. Closing only the browser tab does not necessarily stop a desktop-mode background process; use **Quit desktop Studio**. Other open browser tabs may have unsaved work, so save them before quitting.
+
+**Limits:** The feature is currently in this development branch, not the published PyPI 0.3.5 release. Initial installation from source still needs Python/CLI setup; the one-click shortcut removes **repeated** terminal launches, not the need to install the program in the first place. Windows shortcut creation uses the installed Python GUI executable (or pythonw fallback) and is not a signed Windows installer. macOS shortcut creation is not yet supported. No new desktop runtime, account or network service is introduced.
+
+## Design in one workspace
+
+The source pane is the real ZapTrace YAML file, not a simulated second model. Edit component values, net membership or other supported fields. After a short pause, the **Circuit** tab refreshes the **live logical schematic** from the real parsed source: symbols are grouped by their source-derived roles, **two-terminal resistors/capacitors/protection devices and test points display a central schematic-style glyph with their source pins at either end**, and **multi-pin devices distribute their declared logical pins to both sides**. Each pin remains a keyboard-selectable source-linked control showing its actual net and declared electrical type on inspection. The visual shapes are **representational**, not verified native KiCad library symbols or electrical pin-layout evidence. The component groups now size their rows from the actual source pin count to avoid crowding; selecting a net draws **color-coded source-derived logical links** from the actual pin ends and highlights the matching accessible endpoint cards. These are logical traces for understanding connectivity, **not** qualified KiCad-native schematic wire coordinates. The Inspector and pin tooltips show any **source-provided package pad numbers** associated with the chosen logical pin (including multiple pads for one ground pin). Such numbers are declarations in the source file, **not an independent manufacturer pinout verification or a validated physical footprint**. On machines with KiCad and its installed Device symbol library, Studio can display **actual KiCad Device:R and Device:C artwork** for eligible two-pin resistors/capacitors. It reads only the locally installed KiCad Device symbol library through ZapTrace's existing S-expression parser, displaying its native rectangle/line geometry in the circuit and Inspector without executing a shell command or requiring a cloud service. The native artwork is used **only if the source explicitly maps physical pad 1 to logical P1 and pad 2 to P2**; when KiCad is absent or the mapping is unsupported, Studio keeps the existing illustrative glyph instead. That source-to-symbol association is not independent physical footprint or ERC/DRC certification. Other components still use representative shapes **on the editable canvas**, rather than claiming their incomplete source pin sets are the full KiCad symbol. When an ESP32-WROOM-32, BME280 or AMS1117-3.3 is selected, the Inspector independently checks its **current YAML package pad numbers and logical pin names against the locally installed KiCad library**, including explicit name aliases such as GPIO21 / IO21, SDA / SDI, INPUT / VI, and inherited AMS1117 symbol definitions. On a match, it shows the installed native library geometry and a clickable pad-by-pad matching list; each row selects that actual source pin. It reports how many KiCad pads are absent from the source model (for example ESP32 8 of 39 mapped, **31 unmodeled**) and does **not** infer any missing connections. This lookup happens only when a component is selected, so large KiCad symbol libraries do not delay the first design preview. The list disappears for mismatched mappings, missing local libraries or unsupported symbols. The Inspector provides **Open interactive pins on circuit** for matched ICs: this jumps to a dedicated **native KiCad pinout** area within the Circuit canvas. It displays the real installed symbol geometry and source-matched pin markers at the exact library coordinates, plus large keyboard-accessible labeled pad targets. **Drag from a source pin to a target pin** (native KiCad pin hotspot, large labeled pad card, or ordinary schematic pin) to see a temporary orthogonal cable and assign the target to the source's logical net when you release. This also works with the mouse or touchscreen. Drop on empty space, move away, or press **Escape** to cancel without editing. Ordinary click or keyboard Enter/Space selection still works: choose **Connect by selecting another pin** to connect with two clicks if you prefer. **Undo** restores the prior YAML; **Save design** persists the edit. Pins missing from YAML are **not selectable** and multiple physical GND pads sharing the same library coordinates remain a single hotspot with separately labeled pad cards. The pinout is source-linked logical authoring, not editable KiCad-native wire geometry, ERC/DRC or fabrication approval. This uses labeled electrical membership rather than drawing speculative component-centre wires. Select a pin (mouse or keyboard Enter/Space) to highlight **all source pins on that net** and jump to its parent component in YAML; the Inspector also offers net selection. Edit a net name in YAML and its associated labels update across the schematic immediately. To **reconnect a pin visually**, choose that schematic pin, select an **existing net** under Inspector → **Connect to an existing net**, then click **Connect pin**. Studio updates the pin declaration and both explicit net node lists in the same YAML draft, highlights the new logical net, and leaves the edit **unsaved** until **Save design**. **Undo** reverts the draft; Save followed by reopening preserves it. For a faster **two-pin connection**, select a source pin and choose **Connect by selecting another pin**. The canvas shows the source net and a Cancel action; click or keyboard-select the destination pin to reassign that destination to the source's existing logical net. **Escape** or Cancel stops this mode without editing. Selecting two pins already on the same net makes no source change. When a net is focused, scroll the canvas to its **logical net topology rail**: real source endpoints are grouped on a labeled shared rail, and each endpoint is keyboard-selectable to jump back to its YAML definition. That rail is *not* fabricated copper or a KiCad wire drawing. The canvas scrolls internally on larger designs; narrow screens allow horizontal panning instead of shrinking symbols to unreadable sizes. Unsupported YAML structures or a routed copper design are rejected rather than silently rewritten. A logical pin reassignment does **not** validate electrical compatibility, ERC, DRC, PCB wiring, or fabrication. Undo also reverts ordinary unsaved source edits. Select a component in Circuit or Inspector to jump to its source definition; click within a component's source definition to select the corresponding visual item.
+
+### Explore live source connections
+
+The **LIVE NETS** strip across the Circuit canvas shows each parsed source net and its actual declared pin count. On first open, Studio spotlights one multi-component signal (if present) so the schematic immediately reveals real connectivity. Select another net to follow its colored source-linked endpoints, or choose **Overview** to clear the highlight. The strip scrolls horizontally on narrow screens, supports keyboard focus and updates when the source draft changes. The drawn connection paths are **logical source topology, not user-routed native KiCad wire coordinates or verified PCB copper**.
+
+### Source-checked native symbol artwork on the live canvas
+
+With installed KiCad symbol libraries, Studio checks ESP32-WROOM-32, BME280 and AMS1117-3.3 source package mappings against the actual library pin numbers and names. When matched, each Circuit component card displays **genuine locally installed KiCad symbol artwork** and an accurate source-pad count (such as **8/39 mapped**). Selecting a card reveals its detailed native pinout in the Inspector. These optional library lookups run **after the immediate source preview**, not during each source parse; a cold library cannot block live code editing. Missing libraries or inconsistent mappings keep the clearly illustrative fallback. No external lookup or source mutation is involved.
+
+**Geometry boundary:** the compact cards' colored surrounding pin rows show source-logical net endpoints; they are **not** the KiCad library symbol's physical pin positions. The detailed native pinout separately exposes matched native library coordinates. Artwork and a partial source-to-library mapping do not qualify unused pads, supplier pinout, KiCad ERC/DRC, PCB copper or fabrication.
+
+### Draw and edit source-backed KiCad wire paths
+
+Drag from a labeled source pin to a pin on a **different component**. Studio updates the destination's logical net membership when necessary and saves a proposed orthogonal wire **path in the same source YAML draft** under the optional `schematic_wires` section. The path is a real source-to-source pin pair with a signed bend parameter; it is not a second design database. A **solid colored wire** appears on the circuit canvas. Drag its round bend handle to reshape the path, or focus it and use **Up/Down**. **Delete/Backspace** removes the stored wire path *without disconnecting the electrical net*. **Undo** rolls back the draft, **Save design** persists it, and reopening the same project restores the wire. Existing projects without this optional field still open unchanged.
+
+The **↓ KiCad schematic** command converts these source wire paths into actual KiCad orthogonal `wire` segments attached to exported physical pin locations and snapped to the KiCad grid. Export checks for crossings of **different** source nets and refuses unsafe geometry; if an initial lower corridor intersects another net, Studio also tries an upper corridor. On a selected wire handle, Up/Down adjusts clearance and Left/Right chooses above/below. The same YAML file remains authoritative and stale external edits still block a destructive save. The visual canvas uses simplified symbol shapes and normalized display coordinates: the exported KiCad schematic remains an **unqualified, generated review layout**, not a full-fidelity bidirectional KiCad editor. Local native KiCad netlist parity was independently tested on the ESP32 example. No ERC/DRC, PCB copper, real supplier pinout or fabrication approval is implied. A same-component pin drag still edits only logical net membership when permitted; it does not create a physically routed wire.
+
+### Download a real KiCad schematic from the current draft
+
+The top-bar **↓ KiCad schematic** button downloads a portable `.kicad_sch` file **directly from the current valid YAML text**, including any unsaved pin/net edits. The Studio backend reuses ZapTrace's existing native KiCad exporter: the file contains genuine KiCad schematic `wire` segments and `global_label` elements representing the source netlist, and embedded **generated rectangular connectivity symbols**. It is not a native-vendor-library schematic and is not evidence of an ERC/DRC pass. The original YAML stays untouched by the download; save it separately using **Save design** when you wish to persist the design edit. An invalid draft, source conflict or invalid native export produces an error without overwriting the local source. Open the downloaded file in KiCad to inspect and use native wire/netlist tooling. This is native KiCad interchange with limited source-authored wire geometry, **not** a full bidirectional KiCad schematic editor.
+
+The **3D concept** tab provides an immediate, selectable **isometric board placement illustration** from the *same* source preview rather than an empty "3D preview not generated" screen. It uses the source board outline and component footprint courtyards, highlights saved versus generated placements, and allows clicking or keyboard-selecting a component to locate its YAML source. Move a component in the Board tab and return to see the changed placement; Save/reopen restores it. Heights, components' top surfaces, pads and materials are *not* native KiCad/STEP meshes, verified physical parts, routed copper or fabrication readiness. The tab remains named **3D concept** explicitly to avoid that false claim.
+
+The **Board** tab uses source positions where supplied; any missing positions are filled using a *deterministic exploratory placement*, not validated board geometry. Drag an unrouted component to propose coordinates (0.25 mm steps) in source YAML. The change is initially **unsaved**. Press **Save design** or `Ctrl+S` to save the same original design file; **Undo** returns to the previous draft or saved version. Reopen the design to confirm that the saved position/value persisted. Studio refuses to reposition an already routed design without rerouting copper.
+
+The **Inspector** can update a component value through a limited source-backed local transaction; this operation is explicitly saved when **Apply** is pressed. Other local agents can use the same guarded API or edit the file through existing authorized means. Studio monitors external source changes and shows them live when there are no pending user edits. If another process changes the file during an unsaved draft, Studio warns and **preserves that draft** rather than overwriting it. Loading the external version is an explicit choice.
+
+The **Focus canvas** control expands the circuit/board workspace. The design remains usable in light and dark themes; components are keyboard-selectable, and zoom controls work without requiring a mouse wheel.
+
+## Engineering truth and first-release limitations
+
+- Circuit is a **source-derived logical schematic with real pin/net labels**; only explicitly source-mapped Device:R and Device:C use locally read native KiCad *artwork on the canvas*; matching ESP32/BME280/AMS1117 parts additionally expose installed library geometry and mapped-pad evidence in Inspector. Other canvas icons remain illustrative, and even native artwork is *not* proof of independent manufacturer pinout verification, native editable KiCad wire topology or physical package-pin numbering. Same-name net labels indicate the same electrical net; visual grouping is not proof of physical layout. The same source can still be exported for independent engineering review through existing ZapTrace/KiCad tools.
+- The Board tab shows the board dimensions and exploratory component position, **not** confirmed copper routing, manufacturing clearance or electrical connectivity.
+- The **3D concept** tab is an interactive, **source-linked isometric placement sketch**, not a generated native board model. The board outline comes from source dimensions; component outlines come from the declared footprint courtyard dimensions and their source/suggested XY placements. Solid/dashed tops distinguish saved positions from automatically proposed, unsaved positions. Graphic extrusion height, shading and materials are **illustrative**, not physical Z, vendor packages, true native STEP/VRML geometry or verified manufacturing output. Select a component by mouse or keyboard Enter/Space to locate it in Inspector/YAML; to move one, switch to **Board**, drag it and return to see the exact source XY update. Save and reopen persist the placement in both views. No routed copper, pads, holes, thickness or fabrication proof is asserted.
+- ERC, DRC and fabrication statuses are not inferred from a valid YAML parse. **Not checked** is never displayed as a pass.
+- The first release deliberately does not add a new DSL, full PCB CAD parity, remote/cloud account handling, or a bundled AI model. Existing CLI/MCP/API workflows remain available.
+
+## Local session boundary
+
+Studio listens only on loopback and uses a browser session token for saved mutations. It does not upload your design to a cloud service, call a paid AI provider, or add new project credentials. Browser previews are provisional drafts; saved writes require the disk version to match the revision opened by the user and preserve the original YAML text outside supported edits.
+
+If a conflict warning appears, do not assume your draft was saved. Decide whether to load the external version or preserve your changes separately before continuing.
+
+The first user milestone is tracked in [issue #199](https://github.com/oaslananka/zaptrace/issues/199). Real user task acceptance, full schematic integration and broader CAD capabilities remain distinct gates; this local editor alone is not a declaration that the entire milestone is complete.
