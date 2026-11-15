@@ -97,7 +97,7 @@ Dependency PRs should include:
 
 ## License awareness
 
-The repository uses PolyForm Noncommercial 1.0.0 for current project-authored files and explicit SPDX overrides for vendored third-party assets. Earlier MIT-licensed releases remain under their original terms. REUSE 6.2.0 is invoked through an exact, reproducible `uvx --from reuse==6.2.0` command. Run:
+The repository uses AGPL-3.0-only for current project-authored files and explicit SPDX overrides for vendored third-party assets. Earlier MIT-licensed releases remain under their original terms. REUSE 6.2.0 is invoked through an exact, reproducible `uvx --from reuse==6.2.0` command. Run:
 
 ```bash
 python scripts/ci_reuse_check.py --strict

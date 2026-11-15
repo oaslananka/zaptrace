@@ -5,7 +5,7 @@
 This kit contains a source-verified engineering design review application for
 **Ubuntu 24.04 LTS (amd64) and native KiCad 10.x**. It is not a PCB autorouter,
 engineering design approval or fab-signoff system. Current software use is
-licensed under **PolyForm Noncommercial 1.0.0**; commercial rights are **not**
+licensed under **GNU AGPL v3.0**; commercial rights are
 automatically granted.
 
 ## Installation

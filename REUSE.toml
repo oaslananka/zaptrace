@@ -3,33 +3,33 @@ SPDX-PackageName = "ZapTrace"
 SPDX-PackageSupplier = "oaslananka <oaslananka@users.noreply.github.com>"
 SPDX-PackageDownloadLocation = "https://github.com/oaslananka/zaptrace"
 
-# Project-authored and generated tracked files use PolyForm Noncommercial 1.0.0.
+# Project-authored and generated tracked files use GNU AGPL 3.0.
 # More specific third-party overrides must appear after this annotation.
 [[annotations]]
 path = "**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
+SPDX-License-Identifier = "AGPL-3.0-only"
 
 [[annotations]]
 path = "data/library/**/*.yaml"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
+SPDX-License-Identifier = "AGPL-3.0-only"
 SPDX-FileComment = "Generated library part entries. Manufacturer names, part numbers, and datasheet URLs are factual data."
 
 [[annotations]]
 path = "tests/fixtures/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
+SPDX-License-Identifier = "AGPL-3.0-only"
 SPDX-FileComment = "Synthetic test fixtures created for the ZapTrace test suite."
 
 [[annotations]]
 path = ["uv.lock", "Cargo.lock", "**/*.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Osman Aslan (oaslananka)"
-SPDX-License-Identifier = "PolyForm-Noncommercial-1.0.0"
+SPDX-License-Identifier = "AGPL-3.0-only"
 SPDX-FileComment = "Automatically generated dependency or tool lock file."
 
 # These land patterns are vendored verbatim from the KiCad and Espressif

@@ -1,6 +1,6 @@
 # OpenSSF Evidence Map
 
-This page preserves high-value OpenSSF Best Practices and OSPS Baseline engineering evidence. Licensing-related Best Practices evidence is historical to the MIT-licensed period because current project-authored ZapTrace code uses PolyForm Noncommercial 1.0.0.
+This page preserves high-value OpenSSF Best Practices and OSPS Baseline engineering evidence. Licensing-related Best Practices evidence is historical to the MIT-licensed period because current project-authored ZapTrace code uses AGPL-3.0-only.
 
 ## Passing badge evidence
 
@@ -11,7 +11,7 @@ This page preserves high-value OpenSSF Best Practices and OSPS Baseline engineer
 | Feedback and bugs | GitHub Issues, `CONTRIBUTING.md`, `SECURITY.md` |
 | Contribution process | `CONTRIBUTING.md`, pull request template, CI checks |
 | Contribution requirements | `CONTRIBUTING.md`, `docs/development/coding-standards.md`, `docs/development/testing-policy.md` |
-| License | Historical Passing-era evidence: MIT. Current project-authored code uses PolyForm Noncommercial 1.0.0; see `LICENSING.md`. |
+| License | Historical Passing-era evidence: MIT. Current project-authored code uses AGPL-3.0-only; see `LICENSING.md`. |
 | Interface docs | README CLI examples, REST docs, MCP tools reference |
 | Maintained | Recent commits, issues, release workflows, roadmap |
 | Release notes | `CHANGELOG.md` |
@@ -46,7 +46,7 @@ This page preserves high-value OpenSSF Best Practices and OSPS Baseline engineer
 | Build instructions | README, `CONTRIBUTING.md`, `Taskfile.yml`, validation environment docs |
 | Member list and roles | `MAINTAINERS.md`, `GOVERNANCE.md` |
 | Contributor requirements | `CONTRIBUTING.md` |
-| DCO assertion | `CONTRIBUTING.md`, `scripts/ci_dco_check.py` |
+| Contributor licensing (no DCO/CLA) | `CONTRIBUTING.md`, `CONTRIBUTOR-LICENSING.md` |
 | Required status checks | branch protection and quality workflows |
 | Test policy | `docs/quality/testing-policy.md` |
 | Vulnerability response | `docs/security/vulnerability-response.md` |

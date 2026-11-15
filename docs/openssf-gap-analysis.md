@@ -7,7 +7,7 @@
 - Current: preserve OpenSSF/OSPS engineering evidence without claiming current FLOSS-license eligibility.
 - Historical: the MIT-licensed period can retain its Passing/Silver readiness evidence as a dated record.
 - Engineering target: continue Baseline-style security, release, dependency, and governance controls where they remain useful.
-- Do not claim current OpenSSF Best Practices status, Gold, or foundation-grade maturity while the project uses PolyForm Noncommercial 1.0.0 and remains solo-maintainer.
+- Do not claim current OpenSSF Best Practices status, Gold, or foundation-grade maturity while independent evidence is unverified and the project remains solo-maintainer.
 
 ## Passing and Baseline status
 

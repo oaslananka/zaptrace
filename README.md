@@ -12,12 +12,11 @@ Intent → normalized design → schematic → ERC → placement → routing →
   <a href="https://github.com/oaslananka/zaptrace/actions/workflows/security-scan.yml"><img src="https://github.com/oaslananka/zaptrace/actions/workflows/security-scan.yml/badge.svg?branch=main" alt="Security" /></a>
   <a href="https://github.com/oaslananka/zaptrace/actions/workflows/docs.yml"><img src="https://github.com/oaslananka/zaptrace/actions/workflows/docs.yml/badge.svg?branch=main" alt="Docs" /></a>
   <a href="https://github.com/oaslananka/zaptrace/actions/workflows/scorecard.yml"><img src="https://github.com/oaslananka/zaptrace/actions/workflows/scorecard.yml/badge.svg?branch=main" alt="OpenSSF Scorecard" /></a>
-  <a href="https://gitgem.org/github/oaslananka/zaptrace"><img src="https://gitgem.org/api/badge/github/oaslananka/zaptrace.svg" alt="GitGem" /></a>
 </p>
 
 <p>
   <a href="https://oaslananka.github.io/zaptrace"><img src="https://img.shields.io/badge/docs-mkdocs-0A7BBB?logo=materialformkdocs&amp;logoColor=white" alt="Documentation" /></a>
-  <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blueviolet.svg" alt="License: PolyForm Noncommercial 1.0.0" /></a>
+  <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-AGPL-3.0-only-blueviolet.svg" alt="AGPL-3.0-only license" /></a>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/MCP-96%20exposed-7c3aed" alt="MCP: 96 exposed tools" />
   <img src="https://img.shields.io/badge/status-pre--1.0-orange.svg" alt="Status: pre-1.0" />
@@ -33,8 +32,17 @@ Intent → normalized design → schematic → ERC → placement → routing →
   <a href="docs/SAFETY.md">Safety</a>
 </p>
 
-<p>
-  <a href="https://www.buymeacoffee.com/oaslananka"><img src="https://img.shields.io/badge/support-Buy%20me%20a%20coffee-ffdd00?style=flat&logo=buymeacoffee&logoColor=000&labelColor=111" alt="Buy me a coffee" /></a>
+
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-3.0-only-blue" alt="AGPL-3.0-only license" /></a>
+
+<p align="center">
+  <a href="https://gitgem.org/github/oaslananka/zaptrace"><img src="https://gitgem.org/api/badge/github/oaslananka/zaptrace.svg" alt="GitGem" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/sponsors/oaslananka"><img src="https://img.shields.io/badge/GitHub-Sponsors-ea4aaa?logo=githubsponsors" alt="GitHub Sponsors" /></a>
+  <a href="https://www.buymeacoffee.com/oaslananka"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-ffdd00?logo=buymeacoffee&amp;logoColor=black" alt="Buy Me a Coffee" /></a>
+  <a href="https://github.com/oaslananka/zaptrace"><img src="https://img.shields.io/github/stars/oaslananka/zaptrace?label=Stars&amp;color=8e65d3" alt="Stars" /></a>
 </p>
 
 </div>
@@ -466,7 +474,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Current project-authored ZapTrace source code is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Commercial use requires a separate written license from the copyright holder; see [COMMERCIAL-LICENSING.md](COMMERCIAL-LICENSING.md) and [LICENSING.md](LICENSING.md).
+Current project-authored ZapTrace source code is licensed under [GNU AGPL v3.0](LICENSE), including commercial use under its terms. See [LICENSING.md](LICENSING.md).
 
 Earlier versions and revisions already released under MIT remain available under the MIT terms that applied when they were published. Third-party material keeps its own license terms.
 
@@ -491,7 +499,7 @@ Earlier versions and revisions already released under MIT remain available under
 <!-- repo-maturity-links -->
 ## Repository Maturity and Community Health
 
-ZapTrace is managed as a pre-1.0 professional source-available project. The repository keeps its maturity evidence, governance, contribution expectations, release process, and security posture public so users and contributors can review the project's operating model.
+ZapTrace is managed as a pre-1.0 professional open-source project. The repository keeps its maturity evidence, governance, contribution expectations, release process, and security posture public so users and contributors can review the project's operating model.
 
 - [Repository maturity report](docs/repo-maturity-report.md)
 - [OpenSSF evidence](docs/openssf-evidence.md)
@@ -505,4 +513,4 @@ ZapTrace is managed as a pre-1.0 professional source-available project. The repo
 - [Dependency management](docs/development/dependency-management.md)
 - [Release integrity verification](docs/security/release-integrity.md)
 
-Current maturity target: **professional source-available engineering maturity**. Earlier OpenSSF/FLOSS evidence describes the MIT-licensed period and should not be read as a current FLOSS-license claim; governance limitations such as solo maintenance also remain explicit.
+Current maturity target: **professional open-source engineering maturity**. Earlier assessment evidence is historical and should not be treated as current independent verification; solo-maintainer governance limitations remain explicit.

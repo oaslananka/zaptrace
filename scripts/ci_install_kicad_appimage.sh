@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2026 Osman Aslan <info@oaslananka.dev>
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # KiCad 10 CI toolchain, independent of the Launchpad PPA package endpoint.
 # Every downloadable byte is SHA-256 pinned and the AppImage is upstream-signed.
