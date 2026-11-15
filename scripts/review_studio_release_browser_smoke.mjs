@@ -39,7 +39,7 @@ console.log('RELEASE END-USER UI',initial);
 ok(initial.url.startsWith('http://127.0.0.1:')&&initial.active&&initial.fallback&&initial.intro&&initial.staticIntro&&initial.steps&&initial.picker==='file',
  'end-user binary opens actual native file pickers and three-step onboarding with no developer commands');
 ok(initial.help>=4&&initial.legal.includes('0.1.0')&&initial.legal.includes('Noncommercial')&&initial.stop,
- 'in-app Help, user privacy, noncommercial license, version and visible session Stop are present');
+ 'in-app Help, user privacy, AGPL license, version and visible session Stop are present');
 ok(initial.fabrication.includes('NOT FABRICATION APPROVED'),
  'end-user install cannot misrepresent review evidence as PCB production authorization');
 if(initial.real===1)ok(initial.compare===true,'one local project does not offer an unusable comparison checkbox');

@@ -15,7 +15,7 @@ living, reviewable list of newcomer-friendly work in the repository itself.
    [`good first issue`](https://github.com/oaslananka/zaptrace/labels/good%20first%20issue)).
 2. Comment on the matching issue — or open one referencing this catalog entry —
    so work is not duplicated.
-3. Read [`CONTRIBUTING.md`](https://github.com/oaslananka/zaptrace/blob/main/CONTRIBUTING.md) for branch naming, DCO
+3. Read [`CONTRIBUTING.md`](https://github.com/oaslananka/zaptrace/blob/main/CONTRIBUTING.md) for branch naming, licensing
    sign-off, and the quality gates every PR must pass.
 4. Open a pull request against `main`. Keep the change focused on the single
    task.
@@ -79,7 +79,7 @@ tool is absent, so a pure-Python environment is enough.
 - `uv run ruff check .` and `uv run ruff format --check .` pass.
 - Any touched code has a passing targeted test
   (`uv run pytest tests/<file>.py`).
-- The commit carries a DCO `Signed-off-by` line (see `CONTRIBUTING.md`).
+- No DCO or signed-off commit is required; see `CONTRIBUTING.md`.
 
 ## Maintainer notes
 

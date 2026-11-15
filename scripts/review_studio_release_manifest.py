@@ -97,8 +97,8 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
                     raise ValueError("Private KiCad user source or Python cache found in package")
                 installed.append({"path": relative, "sha256": sha256(path), "bytes": path.stat().st_size})
         legal = extracted / "usr/share/doc/zaptrace-review-studio/copyright"
-        if "PolyForm Noncommercial License 1.0.0" not in legal.read_text(encoding="utf-8"):
-            raise ValueError("PolyForm Noncommercial license is absent from package")
+        if "GNU AFFERO GENERAL PUBLIC LICENSE" not in legal.read_text(encoding="utf-8"):
+            raise ValueError("AGPL license is absent from package")
         if not any(
             entry["path"] == "usr/lib/zaptrace-review-studio/scripts/review_studio_library.py" for entry in installed
         ):
@@ -136,7 +136,7 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
             "declared_architecture": fields["Architecture"],
             "declared_dependencies": fields["Depends"],
         },
-        "license": "PolyForm Noncommercial 1.0.0 (package includes complete license)",
+        "license": "AGPL-3.0-only (package includes complete license)",
         "bundled_files": installed,
         "validation": {
             "nine_stage_release_gate": True,
@@ -181,7 +181,7 @@ def manifest(package: Path, gate_log: Path, container_qa: Path | None = None) ->
             "3D model completeness and mechanical assembly fit are NOT verified",
             "Not tested on Windows or macOS; KiCad 11 is unsupported",
             "Actual PCB fabrication requires separate DRC, ERC and DFM signoff",
-            "Commercial use requires separate license review",
+            "Commercial use permitted subject to AGPL-3.0-only terms",
         ],
     }
 

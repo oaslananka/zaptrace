@@ -3,7 +3,7 @@ name = "zaptrace-eda"
 version = "0.3.6.dev0"
 description = "Agent-native electronics design core"
 requires-python = ">=3.12"
-license = {text = "PolyForm-Noncommercial-1.0.0"}
+license = {text = "AGPL-3.0-only"}
 readme = "README.md"
 keywords = ["electronics", "eda", "pcb", "mcp", "agent"]
 classifiers = [

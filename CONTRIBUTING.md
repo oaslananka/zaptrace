@@ -175,30 +175,10 @@ Required before requesting review:
 
 Use the conventional commit format documented in [commit conventions](docs/development/commit-conventions.md). Common prefixes are `feat:`, `fix:`, `docs:`, `test:`, `ci:`, `refactor:`, `chore:`, and `security:`.
 
-### DCO and contributor licensing
+### Contributor licensing
 
-ZapTrace uses a Developer Certificate of Origin style assertion for non-trivial code contributions. By contributing, you certify that you have the right to submit the work. Add a sign-off line to non-trivial commits:
-
-```text
-Signed-off-by: Your Name <you@example.com>
-```
-
-Current project-authored code is source-available under PolyForm Noncommercial 1.0.0 and may also be offered under separate commercial licenses. Before a non-trivial external code contribution is merged, the maintainer must have a reviewed CLA on record as described in [CONTRIBUTOR-LICENSING.md](CONTRIBUTOR-LICENSING.md). DCO sign-off does not replace the CLA requirement. The draft agreement template is in [CLA.md](CLA.md).
-
-### Code review expectations
-
-The current solo-maintainer model does not permit claiming regular independent human review. Pull requests should still be structured for review: small diffs, clear evidence, and explicit risk. If additional maintainers are added, branch protection should require at least one non-author human approval before merge.
-
-### Security-sensitive changes
-
-Security-sensitive work must follow [SECURITY.md](SECURITY.md), [release integrity](docs/security/release-integrity.md), and [input validation](docs/security/input-validation.md). Do not disclose private vulnerabilities in public issues or pull requests until coordinated disclosure is complete.
-
-A DCO check is provided by `scripts/ci_dco_check.py` and is intended to enforce sign-offs for pull requests that modify code or workflow-sensitive files.
-
-### Where to find deeper guidance
-
-- [Coding standards](docs/development/coding-standards.md)
-- [Testing policy](docs/development/testing-policy.md)
-- [Release process](docs/development/release-process.md)
-- [Dependency management](docs/development/dependency-management.md)
-- [Governance](GOVERNANCE.md)
+Contributions are submitted under [GNU AGPL v3.0](LICENSE) by regular GitHub
+pull request. No CLA, DCO sign-off, `Signed-off-by` trailer, or copyright
+assignment is required. Contributors retain copyright and should identify
+any third-party components and their license. See [Contributor Licensing](CONTRIBUTOR-LICENSING.md)
+for details.

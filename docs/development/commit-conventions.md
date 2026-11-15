@@ -28,11 +28,3 @@ docs: add release integrity verification guide
 ci: add dependency review workflow
 security: document input validation boundaries
 ```
-
-## Sign-off
-
-For non-trivial contributions, include a DCO-style sign-off when possible:
-
-```text
-Signed-off-by: Your Name <you@example.com>
-```

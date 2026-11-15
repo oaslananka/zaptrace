@@ -225,7 +225,7 @@ KiCad 9/11, Windows and macOS are not qualified by this package. For each new
 platform, run independent end-to-end installation and real-board tests before
 claiming support.
 
-**License: PolyForm Noncommercial 1.0.0.** See the installed full terms at
+**License: GNU AGPL v3.0.** See the installed full terms at
 `/usr/share/doc/zaptrace-review-studio/copyright`. Do not assume commercial
 usage or redistribution rights beyond that license. This package includes no
 user PCB, source project, Gerber, private evidence, or development checkout.
@@ -249,7 +249,7 @@ bash scripts/review_studio_release_gate.sh | tee build/distribution/RELEASE_GATE
 ```
 
 This creates `build/distribution/RELEASE_MANIFEST.json`. It lists the exact
-SHA-256 and byte size for every bundled file, the PolyForm license, target
+SHA-256 and byte size for every bundled file, the AGPL license, target
 architecture/dependencies, passed **local** validations, and remaining
 conditions for public distribution (independent fresh Ubuntu APT install,
 package signing and external end-user acceptance). Neither a checksum nor

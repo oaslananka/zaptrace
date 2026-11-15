@@ -95,7 +95,7 @@ def create(distribution: Path, evidence: Path) -> Path:
         "guarded copper multinet/through-via, schematic & PCB ECO, parity, local import/ZIP backup/delete/restore, "
         "real disposable Ubuntu 24.04 APT install, 0.1.12→0.1.13 upgrade, "
         "and APT removal with preserved private user data.\n\n"
-        "**Not public GA, unsigned, noncommercial license, "
+        "**Not public GA, unsigned, AGPL-3.0-only license, "
         "no independent clean physical machine acceptance or fabrication authorization.** "
         "Original example PCB retains 16 native physical DRC findings, incomplete connectivity, "
         "no validated full bidirectional EDA synchronization, and unverified 3D/assembly model coverage. "

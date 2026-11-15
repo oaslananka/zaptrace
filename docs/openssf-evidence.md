@@ -1,6 +1,6 @@
 # OpenSSF Evidence
 
-This file preserves repository engineering evidence against OpenSSF Best Practices and Baseline-style criteria. It is not a current FLOSS-license self-certification: ZapTrace project-authored code now uses PolyForm Noncommercial 1.0.0, so licensing-related Best Practices evidence is historical to the MIT-licensed period.
+This file preserves repository engineering evidence against OpenSSF Best Practices and Baseline-style criteria. The current AGPL-3.0-only license is open source; historic BadgeApp evidence is not a current independent certification.
 
 ## Project metadata
 
@@ -8,9 +8,9 @@ This file preserves repository engineering evidence against OpenSSF Best Practic
 |-------|----------|
 | Project name | ZapTrace |
 | Repository | `https://github.com/oaslananka/zaptrace` |
-| License | `LICENSE`, PolyForm Noncommercial 1.0.0 for current project-authored code; historical MIT releases retain prior terms |
+| License | `LICENSE`, AGPL-3.0-only for current project-authored code; historical MIT releases retain prior terms |
 | Languages | Python, Rust, Dockerfile |
-| Status | Pre-1.0, human-review-required source-available EDA kernel |
+| Status | Pre-1.0, human-review-required open-source EDA kernel |
 
 ## Historical Passing-era engineering evidence
 
@@ -20,8 +20,8 @@ This file preserves repository engineering evidence against OpenSSF Best Practic
 | Obtain software | Passed | README quickstart and source install instructions. |
 | Provide feedback | Passed | GitHub issue templates and support policy. |
 | Contribute | Passed | `CONTRIBUTING.md`, PR template, issue templates. |
-| Contribution requirements | Passed | Coding standards, test policy, DCO-style assertion, CI requirements. |
-| FLOSS license | Historical only | Earlier MIT-licensed revisions satisfied this criterion; current project-authored code uses PolyForm Noncommercial 1.0.0 and is source-available rather than FLOSS. |
+| Contribution requirements | Passed | Coding standards, test policy, no DCO or CLA requirement, CI requirements. |
+| FLOSS license | Current license | Current project-authored code uses AGPL-3.0-only; older licenses remain historical. |
 | Basic documentation | Passed | README, docs site, getting started, CLI/SDK/MCP docs. |
 | Interface documentation | Passed | CLI examples, REST/API docs, MCP tools reference, and docs site navigation provide external interface documentation. |
 | HTTPS project sites | Passed | GitHub and docs URLs use HTTPS. |
@@ -33,7 +33,7 @@ This file preserves repository engineering evidence against OpenSSF Best Practic
 | Criterion family | Status | Evidence / gap |
 |------------------|--------|----------------|
 | Passing prerequisite | Partial | Requires BadgeApp completion. |
-| DCO/legal contribution mechanism | Passed | DCO-style assertion documented in `CONTRIBUTING.md`. |
+| Contributor rights | Documented | No DCO or CLA requirement; see `CONTRIBUTING.md`. |
 | Governance | Passed | `GOVERNANCE.md`. |
 | Code of conduct | Passed | `CODE_OF_CONDUCT.md`. |
 | Roles/responsibilities | Passed | `GOVERNANCE.md`, `MAINTAINERS.md`. |

@@ -102,7 +102,7 @@ def test_separately_versioned_013_candidate_has_matching_executable_and_preserve
         packager.build(SCRIPTS.parent, tmp_path / "unsupported", version="9999.0.0")
 
 
-def test_package_declares_native_kicad_and_noncommercial_license(release_pkg: Path, tmp_path: Path) -> None:
+def test_package_declares_native_kicad_and_agpl_license(release_pkg: Path, tmp_path: Path) -> None:
     for field, value in (("Package", "zaptrace-review-studio"), ("Version", "0.1.12"), ("Architecture", "all")):
         got = subprocess.run(
             ["dpkg-deb", "-f", str(release_pkg), field], check=True, capture_output=True, text=True, timeout=10
@@ -118,8 +118,8 @@ def test_package_declares_native_kicad_and_noncommercial_license(release_pkg: Pa
     subprocess.run(["desktop-file-validate", str(desktop)], check=True, capture_output=True, timeout=10)
     assert "Terminal=false" in desktop.read_text() and "Exec=zaptrace-review-studio" in desktop.read_text()
     license_text = (extracted / "usr/share/doc/zaptrace-review-studio/copyright").read_text()
-    assert "PolyForm Noncommercial License 1.0.0" in license_text
-    assert "Noncommercial Purposes" in license_text
+    assert "GNU AFFERO GENERAL PUBLIC LICENSE" in license_text
+    assert "Version 3, 19 November 2007" in license_text
     assert not (extracted / "usr/lib/zaptrace-review-studio/build").exists()
 
 
@@ -192,7 +192,7 @@ def test_fresh_package_single_instance_shutdown_and_private_workspace(release_pk
                 document = resp.read().decode("utf-8")
             assert "No native KiCad boards yet" in document
             assert "desktopOnboardingSteps" in document
-            assert "PolyForm Noncommercial 1.0.0" in document
+            assert "GNU AGPL v3.0" in document
             assert "stopLocalStudio" in document
             second = subprocess.run(
                 ["/usr/bin/python3", str(app), "--no-browser"],
