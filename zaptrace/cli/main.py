@@ -1255,6 +1255,37 @@ def init_project(name: str, template: str, target_dir: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Live local-first design Studio
+# ---------------------------------------------------------------------------
+
+
+@cli.command(name="studio")
+@click.option(
+    "--project",
+    "-p",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="Open an existing local design.yaml; omitted: editable personal ESP32 demo copy.",
+)
+@click.option("--port", type=click.IntRange(0, 65535), default=0, help="Loopback port (0 selects a free port).")
+@click.option("--no-browser", is_flag=True, default=False, help="Only print the local Studio URL.")
+def studio(project: Path | None, port: int, no_browser: bool) -> None:
+    """Open a live visual code-to-circuit editing workspace in your browser."""
+    from zaptrace.studio.engine import StudioInputError
+    from zaptrace.studio.launcher import serve_studio
+
+    def announce(url: str, path: str) -> None:
+        console.print(f"[green]ZapTrace Studio ready[/] · [bold cyan]{url}[/]")
+        console.print(f"[dim]Project:[/] {escape(path)}")
+        console.print("[dim]Source edits and local agent changes use one YAML file; Ctrl+C closes Studio.[/]")
+
+    try:
+        serve_studio(project, port=port, no_browser=no_browser, announce=announce)
+    except (OSError, StudioInputError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

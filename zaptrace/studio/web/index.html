@@ -1,0 +1,1560 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="studio-token" content="__STUDIO_TOKEN__" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>ZapTrace Studio · Live Code-to-Circuit</title>
+        <style>
+            :root {
+                --bg: #080e15;
+                --panel: #101a23;
+                --panel2: #13202a;
+                --line: #263541;
+                --fg: #ecf5f7;
+                --muted: #879ba7;
+                --aqua: #75d2cf;
+                --gold: #efb778;
+                --red: #f58f95;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                background: var(--bg);
+                color: var(--fg);
+                font:
+                    13px/1.45 -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                overflow: hidden;
+            }
+            header {
+                height: 65px;
+                border-bottom: 1px solid var(--line);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 24px;
+                background: linear-gradient(115deg, #14222d, #0a1119);
+            }
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                font-weight: 770;
+                font-size: 19px;
+                letter-spacing: -0.6px;
+            }
+            .mark {
+                border: 1px solid #438184;
+                color: var(--aqua);
+                box-shadow: inset 0 0 20px #58afbf22;
+                border-radius: 9px;
+                display: grid;
+                place-items: center;
+                width: 35px;
+                height: 35px;
+                font-size: 24px;
+            }
+            .brand .light {
+                font-weight: 400;
+                color: #9db1bd;
+                margin-left: -7px;
+            }
+            .tag {
+                font-size: 9px;
+                letter-spacing: 2px;
+                border: 1px solid #426169;
+                color: var(--aqua);
+                border-radius: 4px;
+                padding: 4px 7px;
+                margin-left: 9px;
+            }
+            .actions {
+                display: flex;
+                gap: 14px;
+                align-items: center;
+                color: var(--muted);
+                font-size: 11px;
+            }
+            .actions strong {
+                color: #e5f5f3;
+                font-size: 12px;
+                font-weight: 520;
+            }
+            button {
+                cursor: pointer;
+                font: inherit;
+                border: 1px solid #365263;
+                border-radius: 7px;
+                color: #cde4e8;
+                background: #1b303d;
+                padding: 7px 10px;
+            }
+            button:hover {
+                border-color: var(--aqua);
+                color: white;
+            }
+            button:focus-visible {
+                outline: 2px solid var(--aqua);
+                outline-offset: 2px;
+            }
+            .shell {
+                height: calc(100vh - 65px);
+                display: grid;
+                grid-template-columns:
+                    minmax(270px, 25%) minmax(450px, 1fr)
+                    230px;
+                grid-template-rows: minmax(0, 1fr) 110px;
+            }
+            .panel {
+                min-width: 0;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                background: var(--panel);
+                border-right: 1px solid var(--line);
+            }
+            .section {
+                height: 50px;
+                min-height: 50px;
+                border-bottom: 1px solid var(--line);
+                padding: 0 18px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .section strong {
+                font-size: 12px;
+                letter-spacing: 0.3px;
+            }
+            .section span {
+                font-size: 11px;
+                color: var(--muted);
+            }
+            .file {
+                padding: 12px 16px;
+                background: #15212b;
+                border-bottom: 1px solid #243645;
+                color: #a5c6d4;
+                font:
+                    12px ui-monospace,
+                    Consolas,
+                    monospace;
+                display: flex;
+                gap: 9px;
+            }
+            .file i {
+                width: 7px;
+                height: 7px;
+                background: var(--gold);
+                border-radius: 50%;
+                display: block;
+                margin-top: 5px;
+            }
+            .file small {
+                margin-left: auto;
+                color: #76929e;
+            }
+            textarea {
+                min-height: 0;
+                flex: 1;
+                width: 100%;
+                border: 0;
+                resize: none;
+                outline: 0;
+                padding: 20px 20px 22px 42px;
+                background: repeating-linear-gradient(
+                    to bottom,
+                    #101b24 0px,
+                    #101b24 21px,
+                    #15212c 21px,
+                    #15212c 22px
+                );
+                color: #d2e6ed;
+                font:
+                    12px/22px ui-monospace,
+                    Consolas,
+                    monospace;
+                tab-size: 2;
+                white-space: pre;
+            }
+            textarea:focus {
+                box-shadow: inset 3px 0 0 #388d91;
+            }
+            .editorfoot {
+                height: 47px;
+                border-top: 1px solid var(--line);
+                padding: 0 14px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                color: var(--muted);
+                font-size: 10px;
+            }
+            .editorfoot button {
+                background: #13323c;
+                border-color: #2d5b62;
+                color: #acebe9;
+            }
+            .inspector-skip {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                overflow: hidden;
+                clip-path: inset(50%);
+                white-space: nowrap;
+            }
+            .inspector-skip:focus-visible {
+                position: static;
+                width: auto;
+                height: auto;
+                overflow: visible;
+                clip-path: none;
+                padding: 4px 6px;
+                border: 2px solid var(--aqua);
+                border-radius: 4px;
+                background: var(--panel2);
+                color: var(--fg);
+            }
+            .shell.focus .inspector-skip {
+                display: none;
+            }
+            .canvas {
+                background: radial-gradient(
+                    ellipse at 40% 50%,
+                    #182936,
+                    #0b141c 72%
+                );
+                position: relative;
+                min-height: 0;
+                flex: 1;
+                overflow: hidden;
+            }
+            .canvas::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background-image:
+                    linear-gradient(#4056682b 1px, transparent 1px),
+                    linear-gradient(90deg, #4056682b 1px, transparent 1px);
+                background-size: 30px 30px;
+                pointer-events: none;
+            }
+            .tabs {
+                display: flex;
+                gap: 4px;
+            }
+            .tabs button {
+                font-size: 11px;
+                padding: 6px 11px;
+                background: transparent;
+                border-color: transparent;
+                color: #859cab;
+            }
+            .tabs button.on {
+                border-color: #315760;
+                background: #193740;
+                color: var(--aqua);
+            }
+            .selection-bridge {
+                min-height: 63px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 14px;
+                padding: 9px 17px;
+                border-bottom: 1px solid #35515a;
+                background: linear-gradient(110deg, #142f36, #10232b);
+                min-width: 0;
+            }
+            .bridge-identity { display: grid; gap: 3px; min-width: 0; }
+            .bridge-eyebrow {
+                font-size: 9px;
+                font-weight: 760;
+                letter-spacing: 1.25px;
+                color: #8fc6ca;
+                text-transform: uppercase;
+            }
+            #bridge-part {
+                font-size: 14px;
+                font-weight: 720;
+                color: #ebfcf8;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .bridge-actions {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 5px;
+                flex: none;
+            }
+            .bridge-actions button {
+                min-height: 36px;
+                padding: 7px 9px;
+                background: #1b3b44;
+                border-color: #365c63;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            .bridge-actions button[aria-current="true"] {
+                background: #245f5b;
+                color: #d5fff3;
+                border-color: #77c6b7;
+            }
+            .bridge-actions button:disabled { opacity: 0.56; cursor: default; }
+            body[data-theme="light"] .selection-bridge {
+                background: #d4e8eb; border-bottom-color: #8faeb8;
+            }
+            body[data-theme="light"] #bridge-part { color: #183945; }
+            body[data-theme="light"] .bridge-eyebrow { color: #426c79; }
+            body[data-theme="light"] .bridge-actions button {
+                background: #e6f5f4; color: #17454b; border-color: #98b8bd;
+            }
+            body[data-theme="light"] .bridge-actions button[aria-current="true"] {
+                background: #80c9be; border-color: #478c80;
+            }
+            @media (max-width: 980px) {
+                .selection-bridge { flex-direction: column; align-items: stretch; gap: 7px; }
+                .bridge-actions { flex-wrap: nowrap; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+                .bridge-actions button { min-width: 0; padding: 8px 3px; min-height: 44px; }
+            }
+            .net-explorer {
+                position: absolute;
+                top: 59px;
+                left: 16px;
+                right: 16px;
+                z-index: 2;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                min-width: 0;
+                max-width: calc(100% - 32px);
+                border: 1px solid #3a5d69;
+                border-radius: 9px;
+                background: #102530f2;
+                padding: 6px 9px;
+                box-shadow: 0 5px 20px #050e1640;
+            }
+            .net-explorer[hidden] {
+                display: none;
+            }
+            .net-explorer > strong {
+                color: #a4bec7;
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 0.7px;
+                white-space: nowrap;
+            }
+            .net-choices {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                min-width: 0;
+                overflow-x: auto;
+                scrollbar-width: thin;
+            }
+            .net-choice {
+                flex: 0 0 auto;
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 8px;
+                border-color: #345666;
+                background: #1b3440;
+                color: #d7e9ef;
+                font-size: 10px;
+                white-space: nowrap;
+            }
+            .net-choice.on {
+                border-color: #9be4dc;
+                box-shadow: inset 0 0 0 1px #9be4dc;
+                background: #25545a;
+                color: #f7fffe;
+            }
+            .net-choice small {
+                color: #b5d1d7;
+                font-size: 9px;
+            }
+            .net-marker {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+            .canvas-stage {
+                position: absolute;
+                inset: 0;
+                overflow-y: auto;
+                overflow-x: auto;
+                padding: 77px 12px 66px;
+                scrollbar-width: thin;
+                scrollbar-color: #46717d #132732;
+            }
+            #drawing {
+                display: block;
+                width: 100%;
+                height: 100%;
+                position: relative;
+            }
+            #drawing .concept-component { cursor: pointer; }
+            #drawing .concept-component:focus-visible {
+                outline: none;
+                filter: drop-shadow(0 0 7px #ffe3af);
+            }
+            .canvas-title {
+                position: absolute;
+                left: 20px;
+                top: 19px;
+                pointer-events: none;
+                font-size: 16px;
+                font-weight: 690;
+            }
+            .canvas-title small {
+                display: block;
+                font-weight: 400;
+                margin-top: 4px;
+                color: #849ba9;
+                font-size: 11px;
+            }
+            .canvas-note {
+                position: absolute;
+                bottom: 19px;
+                left: 20px;
+                padding: 9px 11px;
+                border: 1px solid #31525a;
+                background: #0d222bd9;
+                color: #b3d4da;
+                font-size: 11px;
+                border-radius: 8px;
+            }
+            .zoom {
+                position: absolute;
+                bottom: 19px;
+                right: 20px;
+                display: flex;
+                gap: 5px;
+            }
+            .zoom button {
+                width: 33px;
+                height: 33px;
+                font-size: 18px;
+                padding: 0;
+                background: #142b36dd;
+            }
+            .inside {
+                background: var(--panel2);
+                padding: 20px 16px;
+                overflow-y: auto;
+                min-height: 0;
+            }
+            .kicker {
+                font-size: 10px;
+                letter-spacing: 1.6px;
+                font-weight: 750;
+                text-transform: uppercase;
+                color: var(--aqua);
+                margin-bottom: 8px;
+            }
+            .obj {
+                font-size: 27px;
+                letter-spacing: -0.9px;
+                font-weight: 750;
+            }
+            .sub {
+                font-size: 12px;
+                color: var(--muted);
+            }
+            .row {
+                border-bottom: 1px solid #2a3d49;
+                padding: 12px 0;
+                display: flex;
+                justify-content: space-between;
+                gap: 8px;
+                font-size: 11px;
+            }
+            .row span {
+                color: #91a4b0;
+            }
+            .row b {
+                max-width: 130px;
+                text-align: right;
+                overflow-wrap: anywhere;
+                font-weight: 550;
+            }
+            .inside h3 {
+                font-size: 10px;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                margin: 25px 0 9px;
+                color: #a9c2ca;
+            }
+            .wire-hint {
+                position: absolute;
+                z-index: 3;
+                top: 58px;
+                left: 14px;
+                right: 14px;
+                border-radius: 8px;
+                border: 1px solid #91dcd0;
+                background: #174a4d;
+                color: #f1fcf9;
+                font-size: 12px;
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px;
+            }
+            .wire-hint[hidden] {
+                display: none;
+            }
+            .wire-hint button {
+                flex-shrink: 0;
+                border: 1px solid #8ed5ca;
+                color: #f7fffd;
+                background: #235a5c;
+                padding: 6px 11px;
+                border-radius: 6px;
+            }
+            svg .schematic-pin[data-wire-start="true"] .pin-hit {
+                fill: #74f3cb;
+                fill-opacity: 0.3;
+                stroke: #95f6d5;
+                stroke-width: 1;
+            }
+            svg .net-topology-endpoint {
+                cursor: pointer;
+            }
+            svg .net-topology-endpoint:hover .net-node-card,
+            svg .net-topology-endpoint:focus-visible .net-node-card {
+                stroke: #f3fafa;
+                stroke-width: 2;
+            }
+            .native-symbol {
+                margin: 11px 0;
+                padding: 11px;
+                border: 1px solid #426576;
+                border-radius: 9px;
+                background: #162f3b;
+            }
+            .native-symbol[hidden] {
+                display: none;
+            }
+            .native-symbol-header {
+                color: #91dfd0;
+                font-size: 10px;
+                font-weight: 750;
+                margin-bottom: 8px;
+                letter-spacing: 0.5px;
+            }
+            .native-symbol img {
+                display: block;
+                width: 100%;
+                max-width: 185px;
+                height: 150px;
+                object-fit: contain;
+                filter: invert(90%);
+                margin: 0 auto;
+            }
+            .native-symbol small {
+                display: block;
+                color: #a2c5ce;
+                line-height: 1.45;
+                font-size: 10px;
+            }
+            .native-pinout-jump {
+                width: 100%;
+                margin-top: 9px;
+                padding: 9px 8px;
+                border: 1px solid #6daea6;
+                border-radius: 6px;
+                color: #def5f2;
+                background: #24636a;
+                cursor: pointer;
+                font-weight: 700;
+            }
+            .native-pinout-jump[hidden] {
+                display: none;
+            }
+            .schematic-pin,
+            .native-pinout-hotspot,
+            .native-pinout-pad {
+                cursor: crosshair;
+                touch-action: none;
+            }
+            .native-pinout-hotspot:focus-visible circle,
+            .native-pinout-pad:focus-visible rect {
+                stroke: #ffd99a;
+                stroke-width: 2;
+            }
+            .native-pin-mappings {
+                margin-top: 8px;
+                display: grid;
+                gap: 4px;
+            }
+            .native-pin-row {
+                text-align: left;
+                border: 1px solid #416470;
+                border-radius: 5px;
+                background: #193a46;
+                color: #e4f3f4;
+                padding: 6px;
+                font:
+                    10px ui-monospace,
+                    Consolas,
+                    monospace;
+                cursor: pointer;
+                min-height: 27px;
+            }
+            .native-pin-row:hover,
+            .native-pin-row:focus-visible {
+                border-color: #90dfd1;
+                background: #255260;
+            }
+            .pin-editor {
+                margin-top: 13px;
+                padding: 12px;
+                border: 1px solid #3c6472;
+                border-radius: 9px;
+                background: #17303c;
+            }
+            .pin-editor[hidden] {
+                display: none;
+            }
+            .pin-editor-title {
+                color: #9ac4ce;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+            }
+            .pin-editor strong {
+                display: block;
+                margin: 7px 0 12px;
+                color: #ecfbfc;
+                font:
+                    13px ui-monospace,
+                    Consolas,
+                    monospace;
+            }
+            .pin-editor label {
+                display: block;
+                color: #afcfd5;
+                font-size: 11px;
+                margin-bottom: 8px;
+            }
+            .pin-editor-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .pin-editor select {
+                width: 100%;
+                background: #0f2430;
+                color: #dcf3f4;
+                border: 1px solid #4b7882;
+                border-radius: 6px;
+                padding: 9px;
+                font:
+                    11px ui-monospace,
+                    Consolas,
+                    monospace;
+            }
+            .pin-editor button {
+                background: #22595d;
+                color: #ecffff;
+                border-color: #438a8a;
+                min-height: 37px;
+            }
+            .pin-editor button:disabled {
+                color: #a9bcc3;
+                background: #2c4048;
+                border-color: #48616b;
+                cursor: not-allowed;
+            }
+            .pin-editor small {
+                display: block;
+                margin-top: 9px;
+                font-size: 10px;
+                line-height: 1.5;
+                color: #a5bec8;
+            }
+            .netpill {
+                display: inline-flex;
+                padding: 5px 8px;
+                font-size: 10px;
+                margin: 3px 2px 3px 0;
+                border-radius: 5px;
+                border: 1px solid #366373;
+                color: #a8dad9;
+                background: #17353e;
+                cursor: pointer;
+            }
+            .netpill:hover {
+                background: #24505b;
+            }
+            .netpill[aria-pressed="true"] {
+                background: #235b62;
+                border-color: #8ae0d5;
+                color: #f0fffc;
+            }
+            .item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+                min-height: 34px;
+                padding: 8px;
+                border: 0;
+                border-radius: 6px;
+                background: transparent;
+                color: var(--fg);
+                font-size: 11px;
+                text-align: left;
+                cursor: pointer;
+            }
+            .item:hover,
+            .item.sel {
+                background: #203643;
+            }
+            .item em {
+                font-style: normal;
+                color: #83a3b2;
+                font-size: 10px;
+            }
+            .foot {
+                grid-column: 1/-1;
+                background: #0c151c;
+                border-top: 1px solid var(--line);
+                display: grid;
+                grid-template-columns: 1fr 1.45fr 1fr;
+            }
+            .foot section {
+                padding: 17px 18px;
+                border-right: 1px solid var(--line);
+            }
+            .foot section:last-child {
+                border: 0;
+            }
+            .foot .foot-caption {
+                display: block;
+                text-transform: uppercase;
+                color: #8097a5;
+                font-size: 10px;
+                letter-spacing: 1.3px;
+                margin-bottom: 9px;
+            }
+            .foot p {
+                margin: 0;
+                color: #c4d5dd;
+                font-size: 12px;
+            }
+            .okdot {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                background: #83d4b2;
+                border-radius: 50%;
+                box-shadow: 0 0 13px #60c79a66;
+                margin-right: 7px;
+            }
+            .bad .okdot {
+                background: var(--red);
+            }
+            .bar {
+                height: 4px;
+                background: #233744;
+                border-radius: 5px;
+                margin-top: 12px;
+                overflow: hidden;
+            }
+            .bar > span {
+                height: 100%;
+                width: 65%;
+                display: block;
+                background: linear-gradient(90deg, #4f9ba2, #89d7cb);
+            }
+            svg .component {
+                cursor: pointer;
+            }
+            svg .component:hover {
+                filter: drop-shadow(0px 0px 8px #7ad8cf55);
+            }
+            svg .board-component {
+                touch-action: none;
+                cursor: grab;
+            }
+            svg .wire-bend-handle {
+                cursor: ns-resize;
+                touch-action: none;
+                outline: none;
+            }
+            svg .wire-bend-handle:hover,
+            svg .wire-bend-handle:focus-visible {
+                stroke-width: 3;
+                fill: #255668;
+            }
+            svg .schematic-pin {
+                cursor: pointer;
+            }
+            svg .schematic-pin:hover .pin-hit {
+                fill: #6ebdb6;
+                fill-opacity: 0.19;
+            }
+            svg .schematic-pin:focus-visible .pin-hit {
+                fill: #86e2dd;
+                fill-opacity: 0.27;
+                stroke: #b2f5ed;
+                stroke-width: 1;
+            }
+            svg text {
+                user-select: none;
+            }
+            body[data-theme="light"] {
+                --bg: #e2edf2;
+                --panel: #eff6f9;
+                --panel2: #e5eef3;
+                --line: #bfd2de;
+                --fg: #1a3445;
+                --muted: #637c8b;
+            }
+            body[data-theme="light"] header {
+                background: #e0ebf3;
+            }
+            body[data-theme="light"] textarea {
+                background: #e8f2f7;
+                color: #164057;
+            }
+            body[data-theme="light"] .canvas {
+                background: #cfdfe8;
+            }
+            body[data-theme="light"] .foot {
+                background: #e6f1f6;
+            }
+            body[data-theme="light"] .foot p {
+                color: #2d5061;
+            }
+            .shell.focus {
+                grid-template-columns: minmax(300px, 35%) minmax(460px, 1fr);
+            }
+            .shell.focus .inspector-panel {
+                display: none;
+            }
+            .shell.focus .canvas-title {
+                font-size: 19px;
+            }
+            .shell.focus #drawing {
+                filter: drop-shadow(0 0 8px #7ad9d20b);
+            }
+            @media (max-width: 1130px) {
+                .shell {
+                    grid-template-columns: 320px 1fr;
+                }
+                .inspector-panel {
+                    display: none;
+                }
+            }
+            @media (min-width: 691px) and (max-width: 1130px) {
+                body {
+                    overflow: auto;
+                }
+                .shell,
+                .shell.focus {
+                    height: auto;
+                    grid-template-columns: minmax(260px, 34%) minmax(0, 1fr);
+                    grid-template-rows: minmax(510px, calc(100vh - 65px)) minmax(320px, 60vh) 110px;
+                }
+                .inspector-panel {
+                    display: flex;
+                    grid-column: 1 / -1;
+                    min-height: 320px;
+                }
+                .shell.focus {
+                    grid-template-rows: minmax(510px, calc(100vh - 65px)) 110px;
+                }
+                .shell.focus .inspector-panel {
+                    display: none;
+                }
+            }
+            @media (min-width: 691px) and (max-width: 950px) {
+                header {
+                    height: auto;
+                    min-height: 65px;
+                    padding: 12px;
+                    gap: 10px;
+                    align-items: stretch;
+                    flex-direction: column;
+                }
+                .actions {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    width: 100%;
+                    gap: 8px;
+                }
+                .actions > span {
+                    display: none;
+                }
+                .actions strong {
+                    grid-column: 1 / -1;
+                    min-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .actions button {
+                    min-width: 0;
+                    min-height: 40px;
+                    padding: 8px;
+                }
+            }
+            @media (max-width: 690px) {
+                body {
+                    overflow: auto;
+                }
+                header {
+                    height: auto;
+                    min-height: 65px;
+                    padding: 12px;
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 10px;
+                }
+                .brand {
+                    min-width: 0;
+                    flex-wrap: wrap;
+                    font-size: 18px;
+                }
+                .actions {
+                    width: 100%;
+                    min-width: 0;
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 8px;
+                }
+                .actions > span {
+                    display: none;
+                }
+                .actions strong {
+                    grid-column: 1 / -1;
+                    min-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .actions button {
+                    min-width: 0;
+                    min-height: 40px;
+                    padding: 8px;
+                }
+                .inspector-panel {
+                    display: flex;
+                    min-height: 490px;
+                }
+                .shell {
+                    height: auto;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .panel {
+                    height: 490px;
+                }
+                .foot {
+                    display: block;
+                }
+                .foot section {
+                    border-bottom: 1px solid var(--line);
+                }
+            }
+
+            #projects-dialog {
+                width: min(460px, calc(100% - 32px));
+                max-height: min(640px, 85vh);
+                border: 1px solid #587d84;
+                border-radius: 14px;
+                background: #102731;
+                color: #e3f3f4;
+                padding: 20px;
+                box-shadow: 0 22px 55px #03141bcc;
+            }
+            #projects-dialog::backdrop {
+                background: #06151bc4;
+            }
+            .projects-dialog-title {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                font-size: 17px;
+            }
+            #projects-dialog p {
+                color: #accbd0;
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            .projects-list {
+                display: grid;
+                gap: 8px;
+                margin-top: 14px;
+                overflow-y: auto;
+                max-height: 55vh;
+            }
+            .projects-list button {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                min-height: 44px;
+                width: 100%;
+                padding: 11px;
+                background: #1a3843;
+                text-align: left;
+            }
+            .projects-list small { color: #95c4c6; }
+            .desktop-install-row {
+                display: grid;
+                gap: 8px;
+                border-top: 1px solid #34515b;
+                margin-top: 15px;
+                padding-top: 15px;
+            }
+            #desktop-install {
+                background: #205c59;
+                border-color: #6fbcb1;
+                min-height: 44px;
+                font-weight: 650;
+            }
+            #desktop-install-status {
+                color: #a6c5cf;
+                font-size: 11px;
+            }
+            #desktop-quit {
+                margin-top: 12px;
+                border-color: #b48d76;
+                color: #f2cfbb;
+                min-height: 40px;
+            }
+            .starter {
+                position: absolute;
+                z-index: 6;
+                right: 18px;
+                bottom: 68px;
+                width: min(342px, calc(100% - 36px));
+                padding: 20px;
+                background: radial-gradient(circle at 100% 0%, #286d6c48, transparent 55%),
+                    linear-gradient(155deg, #18313a, #0d1b25 90%);
+                border: 1px solid #5a9291;
+                border-radius: 16px;
+                box-shadow: 0 22px 52px #020d16b8, inset 0 1px 0 #8adbd521;
+            }
+            .starter[hidden] { display: none; }
+            .starter-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+            .starter-kicker { font-size: 10px; font-weight: 750; letter-spacing: 1.5px; color: #88e0d7; }
+            .starter h2 { font-size: 20px; line-height: 1.22; letter-spacing: -0.5px; color: #f0f9f6; margin: 8px 0; }
+            .starter p { font-size: 12px; line-height: 1.5; color: #b6d0d7; margin: 0 0 14px; }
+            #starter-close { width: 36px; height: 36px; padding: 0; flex: none; font-size: 17px; }
+            .starter-actions { display: grid; gap: 7px; }
+            .starter-actions button {
+                min-height: 44px; padding: 10px 12px; text-align: left;
+                border: 1px solid #446570; background: #213d48;
+                display: flex; align-items: center; gap: 12px;
+                color: #eaf8f6; font-weight: 650;
+            }
+            .starter-actions button:first-child {
+                border-color: #66bcb2; background: linear-gradient(115deg, #216d66, #23504f);
+            }
+            .starter-actions button > span:first-child {
+                font: 750 11px ui-monospace, Consolas, monospace; color: #9bece2;
+            }
+            .starter small { display: block; margin-top: 13px; color: #9ab7c4; font-size: 10px; line-height: 1.45; }
+            body[data-theme="light"] .starter {
+                background: linear-gradient(150deg, #e4f6f2, #cde7ed); border-color: #428d87;
+                box-shadow: 0 12px 35px #315a6a40;
+            }
+            body[data-theme="light"] .starter h2,
+            body[data-theme="light"] .starter-actions button { color: #133d47; }
+            body[data-theme="light"] .starter p, body[data-theme="light"] .starter small { color: #315864; }
+            body[data-theme="light"] .starter-actions button { background: #c0e2e2; border-color: #6fa4a4; }
+            body[data-theme="light"] .starter-actions button:first-child { background: #93d1c8; }
+            body[data-theme="light"] .starter-kicker,
+            body[data-theme="light"] .starter-actions button > span:first-child { color: #14544e; }
+            @media (max-width: 690px) {
+                .starter {
+                    position: fixed;
+                    right: 12px;
+                    bottom: 16px;
+                    z-index: 30;
+                    padding: 16px;
+                    width: min(342px, calc(100% - 24px));
+                    max-height: calc(100dvh - 32px);
+                    overflow-y: auto;
+                }
+            }
+            .actions .primary {
+                background: linear-gradient(130deg, #1e706f, #185454);
+                border: 1px solid #4cbeb0;
+                color: #eafffa;
+                font-weight: 700;
+                padding: 8px 15px;
+                box-shadow: 0 4px 17px #2b999b20;
+            }
+            .actions button:disabled {
+                opacity: 1;
+                color: #a9c2cd;
+                background: #263946;
+                cursor: not-allowed;
+            }
+            .warning {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                z-index: 15;
+                border: 1px solid #ad8462;
+                background: #493220f2;
+                color: #fff1d2;
+                border-radius: 8px;
+                padding: 11px 13px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                font-size: 11px;
+            }
+            .warning[hidden] {
+                display: none;
+            }
+            .warning button {
+                color: #fff3df;
+                border-color: #dbb07b;
+                background: #6b4428;
+            }
+            .warning { flex-wrap: wrap; }
+            .warning-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+            .warning button { min-height: 38px; }
+            #conflict-dialog {
+                width: min(1050px, calc(100% - 24px));
+                max-height: min(800px, 92dvh);
+                background: #102731; color: #e3f3f4;
+                border: 1px solid #749c99;
+                border-radius: 13px; padding: 19px;
+            }
+            #conflict-dialog::backdrop { background: #06151be0; }
+            #conflict-dialog p, #conflict-dialog small { color: #bdd5d8; }
+            #conflict-dialog .conflict-columns {
+                display: grid; grid-template-columns: repeat(2,minmax(0,1fr));
+                gap: 12px; margin: 12px 0;
+            }
+            .conflict-columns label { display: grid; gap: 8px; font-size: 12px; font-weight: 700; min-width: 0; }
+            .conflict-columns textarea {
+                width: 100%; min-height: 300px; height: min(48dvh, 460px);
+                resize: vertical; background: #091c24; color: #e0f6ed;
+                border: 1px solid #50717b; border-radius: 8px; padding: 11px;
+                font: 12px/1.4 ui-monospace, Consolas, monospace;
+            }
+            .conflict-dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+            .conflict-dialog-actions button { min-height: 44px; }
+            body[data-theme="light"] #conflict-dialog { background: #e4f1f3; color: #17333d; }
+            body[data-theme="light"] #conflict-dialog p,
+            body[data-theme="light"] #conflict-dialog small { color: #355864; }
+            body[data-theme="light"] .conflict-columns textarea {
+                background: #fbffff; color: #163744;
+            }
+            @media (max-width: 690px) {
+                .warning {
+                    position: fixed;
+                    top: 12px;
+                    left: 8px;
+                    right: 8px;
+                    z-index: 35;
+                    max-height: min(56dvh, 380px);
+                    overflow-y: auto;
+                    box-shadow: 0 12px 38px #020d16aa;
+                }
+                .warning-actions { width: 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+                .warning-actions button { min-width: 0; min-height: 44px; }
+                .warning-actions #reload { grid-column: 1 / -1; }
+                #conflict-dialog .conflict-columns { grid-template-columns: minmax(0,1fr); }
+                .conflict-columns textarea { height: 170px; min-height: 170px; }
+            }
+            .value-editor {
+                border: 1px solid #315765;
+                background: #142e3a;
+                padding: 12px;
+                border-radius: 9px;
+                margin-top: 16px;
+            }
+            .value-editor label {
+                display: block;
+                color: #a9cbd0;
+                font-size: 11px;
+                margin-bottom: 8px;
+            }
+            .value-editor div {
+                display: flex;
+                gap: 6px;
+            }
+            .value-editor input {
+                flex: 1;
+                min-width: 0;
+                background: #0d1c28;
+                color: #d4eaed;
+                border: 1px solid #3a6674;
+                border-radius: 6px;
+                padding: 8px;
+                font:
+                    12px ui-monospace,
+                    Consolas,
+                    monospace;
+            }
+            .value-editor button {
+                border: 1px solid #4f9795;
+                background: #215b5c;
+                color: #dcfffa;
+            }
+            .value-editor small {
+                display: block;
+                margin-top: 8px;
+                color: #81a9b1;
+                font-size: 10px;
+            }
+            body[data-theme="light"] .value-editor {
+                background: #d3eaf0;
+            }
+            body[data-theme="light"] .value-editor input {
+                color: #153545;
+                background: #fff;
+            }
+            #status[aria-busy="true"] .okdot {
+                background: var(--gold);
+            }
+            #source-status[data-dirty="true"] {
+                color: var(--gold);
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="brand">
+                <div class="mark">⌁</div>
+                ZapTrace <span class="light">Studio</span
+                ><span class="tag">LOCAL STUDIO</span>
+            </div>
+            <div class="actions">
+                <span>PROJECT</span
+                ><strong id="project-name">Loading project…</strong
+                ><button
+                    id="import-project"
+                    type="button"
+                    title="Select a local YAML design; Studio opens a separate editable personal copy"
+                >+ Open YAML copy</button
+                ><button
+                    id="recent-projects"
+                    type="button"
+                    title="Open saved personal projects or add Studio to your applications menu"
+                >Recent projects</button
+                ><input
+                    id="import-file"
+                    type="file"
+                    accept=".yaml,.yml"
+                    aria-label="Select local YAML design to open as a personal copy"
+                    hidden
+                /><button
+                    id="starter-open"
+                    type="button"
+                    aria-controls="starter"
+                    aria-expanded="false"
+                    title="Show the first useful actions in your live design"
+                >✦ Start here</button
+                ><button
+                    id="layout"
+                    aria-pressed="false"
+                    title="Give the live canvas more space"
+                >
+                    ◇ Focus canvas</button
+                ><button
+                    id="export-kicad"
+                    title="Download a genuine editable KiCad schematic from the current YAML draft"
+                    type="button"
+                >
+                    ↓ KiCad schematic</button
+                ><button id="theme">☼ Theme</button
+                ><button
+                    id="undo"
+                    title="Discard unsaved draft or last visual change"
+                >
+                    ↶ Undo</button
+                ><button id="save" class="primary" title="Save source design">
+                    Save design
+                </button>
+            </div>
+        </header>
+        <dialog id="projects-dialog" aria-labelledby="projects-dialog-title">
+            <div class="projects-dialog-title">
+                <strong id="projects-dialog-title">Your Studio projects</strong>
+                <button id="projects-close" type="button" aria-label="Close projects">×</button>
+            </div>
+            <p>Saved personal YAML copies. Your originally selected files are never overwritten by importing.</p>
+            <div id="projects-list" class="projects-list" aria-live="polite"></div>
+            <div class="desktop-install-row">
+                <button id="desktop-install" type="button">Add Studio to your apps</button>
+                <span id="desktop-install-status" role="status" aria-live="polite">One-time setup. No new framework or cloud service.</span>
+            </div>
+            <button id="desktop-quit" type="button" hidden>Quit desktop Studio</button>
+        </dialog>
+        <dialog id="conflict-dialog" aria-labelledby="conflict-dialog-title">
+            <div class="projects-dialog-title">
+                <strong id="conflict-dialog-title">Compare before replacing a draft</strong>
+                <button id="conflict-close" type="button" aria-label="Close source comparison">×</button>
+            </div>
+            <p id="conflict-info" role="status" aria-live="polite">Reading the latest local source…</p>
+            <div class="conflict-columns">
+                <label for="conflict-mine">My current editor draft
+                    <textarea id="conflict-mine" readonly spellcheck="false"></textarea>
+                </label>
+                <label for="conflict-theirs">Latest source on disk (agent/editor)
+                    <textarea id="conflict-theirs" readonly spellcheck="false"></textarea>
+                </label>
+            </div>
+            <div class="conflict-dialog-actions">
+                <button id="conflict-download" type="button">Download my current draft</button>
+                <button id="conflict-keep" type="button">Keep editing my draft</button>
+            </div>
+            <small>Comparison is read-only. No automatic merge or overwrite. Back up your draft before loading the latest version.</small>
+        </dialog>
+        <main class="shell">
+            <section class="panel">
+                <div class="section">
+                    <strong>Source editor</strong
+                    ><span id="source-status" role="status" aria-live="polite">YAML · Loading</span>
+                </div>
+                <div class="file">
+                    <i></i><span id="file-name">design.yaml</span
+                    ><small id="lines">0 lines</small>
+                </div>
+                <textarea
+                    id="editor"
+                    spellcheck="false"
+                    aria-label="Live source editor"
+                ></textarea>
+                <div class="editorfoot">
+                    <span id="elapsed">Waiting for source</span
+                    ><a id="inspector-skip" class="inspector-skip" href="#value-input">Skip to Inspector</a
+                    ><button id="apply">↗ Update preview</button>
+                </div>
+            </section>
+            <section class="panel">
+                <div class="section">
+                    <strong>Live design</strong>
+                    <div class="tabs">
+                        <button data-view="circuit" class="on">Circuit</button
+                        ><button data-view="board">Board</button
+                        ><button data-view="3d" title="Source-based isometric placement concept; no native board 3D model">3D concept</button>
+                    </div>
+                </div>
+                <div class="selection-bridge" role="group" aria-label="Find the selected source component across design views">
+                    <div class="bridge-identity">
+                        <span class="bridge-eyebrow">Following your source component</span>
+                        <strong id="bridge-part">Loading a real component…</strong>
+                    </div>
+                    <div class="bridge-actions">
+                        <button id="bridge-source" type="button" title="Focus this component's real YAML declaration">↗ Source</button>
+                        <button data-follow-view="circuit" type="button" title="Locate selected component in logical circuit">Circuit</button>
+                        <button data-follow-view="board" type="button" title="Locate selected component on source-derived PCB placement">Board</button>
+                        <button data-follow-view="3d" type="button" title="Locate selected component in illustrative 3D concept">3D concept</button>
+                    </div>
+                </div>
+                <div class="canvas">
+                    <div
+                        class="wire-hint"
+                        id="wire-hint"
+                        hidden
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span id="wire-hint-text">Choose a second pin</span>
+                        <button id="wire-cancel" type="button">Cancel</button>
+                    </div>
+                    <div class="warning" id="stale" hidden role="alert">
+                        <span id="stale-summary">Another editor changed the source. Your draft is preserved.</span>
+                        <div class="warning-actions">
+                            <button id="compare-versions" type="button">Compare versions</button>
+                            <button id="download-draft" type="button">Download my draft</button>
+                            <button id="reload" type="button">Load latest</button>
+                        </div>
+                    </div>
+                    <div id="title" class="canvas-title">
+                        Circuit connectivity<small
+                            >Actual source nets · not a native KiCad
+                            schematic</small
+                        >
+                    </div>
+                    <div
+                        class="net-explorer"
+                        id="net-explorer"
+                        role="group"
+                        aria-label="Trace a source electrical net"
+                        hidden
+                    >
+                        <strong>LIVE NETS</strong>
+                        <div class="net-choices" id="net-choices"></div>
+                    </div>
+                    <div class="canvas-stage" id="canvas-stage">
+                        <svg
+                            id="drawing"
+                            viewBox="0 0 920 650"
+                            role="group"
+                            aria-label="Source-linked electronic design workspace"
+                        ></svg>
+                    </div>
+                    <section
+                        id="starter"
+                        class="starter"
+                        role="region"
+                        aria-labelledby="starter-title"
+                        hidden
+                    >
+                        <div class="starter-heading">
+                            <div>
+                                <div class="starter-kicker">YOUR LIVE CIRCUIT</div>
+                                <h2 id="starter-title">Make your first change.</h2>
+                            </div>
+                            <button id="starter-close" type="button" aria-label="Dismiss getting started guide">×</button>
+                        </div>
+                        <p id="starter-summary">Loading your real design…</p>
+                        <div class="starter-actions">
+                            <button id="starter-edit" type="button"><span>01</span> Edit a real component</button>
+                            <button id="starter-trace" type="button"><span>02</span> Trace a source signal</button>
+                            <button id="starter-import" type="button"><span>03</span> Open my YAML file</button>
+                        </div>
+                        <small>Local source · actual net membership · PCB copper and ERC/DRC not verified</small>
+                    </section>
+                    <div class="canvas-note" id="note">
+                        Select a component to inspect its real pins
+                    </div>
+                    <div class="zoom">
+                        <button id="plus" type="button" aria-label="Zoom in on circuit">+</button
+                        ><button id="minus" type="button" aria-label="Zoom out of circuit">−</button
+                        ><button id="fit" type="button" aria-label="Fit circuit to view">⌖</button>
+                    </div>
+                </div>
+            </section>
+            <section class="panel inspector-panel">
+                <div class="section">
+                    <strong>Inspector</strong><span>Source-linked</span>
+                </div>
+                <div class="inside">
+                    <div class="kicker">Selected component</div>
+                    <div class="obj" id="obj" role="status" aria-live="polite">—</div>
+                    <div class="sub" id="type">Choose a component</div>
+                    <div class="row"><span>Value</span><b id="val">—</b></div>
+                    <div class="value-editor">
+                        <label for="value-input">Change selected value</label>
+                        <div>
+                            <input
+                                id="value-input"
+                                maxlength="120"
+                                aria-label="New component value"
+                                placeholder="e.g. 10k"
+                            /><button id="set-value">Apply</button>
+                        </div>
+                        <small>Double-click a part or press F2 to edit · Enter/Apply saves · Esc cancels</small>
+                    </div>
+                    <div class="pin-editor" id="pin-editor" hidden>
+                        <div class="pin-editor-title">
+                            Selected schematic pin
+                        </div>
+                        <strong id="pin-label" aria-live="polite">—</strong>
+                        <small id="pin-source-pads" aria-live="polite"></small>
+                        <label for="pin-target-net"
+                            >Connect to an existing net</label
+                        >
+                        <div class="pin-editor-actions">
+                            <select
+                                id="pin-target-net"
+                                aria-label="Target electrical net"
+                            ></select>
+                            <button id="pin-connect" type="button">
+                                Connect pin
+                            </button>
+                            <button id="pin-wire" type="button">
+                                Connect by selecting another pin
+                            </button>
+                        </div>
+                        <small
+                            >Source draft only · Save to persist · ERC and DRC
+                            not checked</small
+                        >
+                    </div>
+                    <div class="native-symbol" id="native-symbol" hidden>
+                        <div
+                            class="native-symbol-header"
+                            id="native-symbol-label"
+                        >
+                            Installed KiCad symbol
+                        </div>
+                        <img
+                            id="native-symbol-preview"
+                            alt="KiCad symbol from locally installed library"
+                        />
+                        <small id="native-symbol-coverage">
+                            Native artwork · source pin mappings are not
+                            fabrication proof.
+                        </small>
+                        <button
+                            id="native-pinout-jump"
+                            class="native-pinout-jump"
+                            type="button"
+                            hidden
+                        >
+                            Open interactive pins on circuit
+                        </button>
+                        <div
+                            id="native-pin-mappings"
+                            class="native-pin-mappings"
+                            aria-label="Verified local KiCad pin label matches"
+                        ></div>
+                    </div>
+                    <div class="row">
+                        <span>Footprint</span><b id="fp">—</b>
+                    </div>
+                    <div class="row"><span>Pins</span><b id="pins">—</b></div>
+                    <h3>Electrical nets</h3>
+                    <div id="nets"></div>
+                    <h3>Components</h3>
+                    <div id="items"></div>
+                </div>
+            </section>
+            <div class="foot">
+                <section>
+                    <div class="foot-caption">Live build</div>
+                    <p id="status" role="status" aria-live="polite" aria-atomic="true">
+                        <i class="okdot"></i
+                        ><span id="status-text">Loading example…</span>
+                    </p>
+                    <div class="bar"><span></span></div>
+                </section>
+                <section>
+                    <div class="foot-caption">Activity</div>
+                    <p id="activity">
+                        Change a component value in YAML; the circuit changes
+                        immediately. Drag a PCB component to propose placement.
+                    </p>
+                </section>
+                <section>
+                    <div class="foot-caption">Engineering status</div>
+                    <p>
+                        <span style="color: #edb679">●</span> ERC/DRC: Not
+                        checked<br />Fabrication: Human review required
+                    </p>
+                </section>
+            </div>
+        </main>
+        <script src="/studio.js"></script>
+    </body>
+</html>

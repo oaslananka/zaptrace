@@ -811,6 +811,27 @@ class DesignMeta(BaseModel):
     tags: list[str] = Field(default_factory=list, description="Free-form tags for categorization")
 
 
+class SchematicWire(BaseModel):
+    """Source-authored orthogonal KiCad schematic path between two real pins.
+
+    A signed bend selects an above (negative) or below (positive) channel;
+    it is presentation geometry only, never electrical evidence or PCB copper.
+    """
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    start: str = Field(min_length=3, max_length=140, pattern=r"^[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z][A-Za-z0-9_-]*$")
+    end: str = Field(min_length=3, max_length=140, pattern=r"^[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z][A-Za-z0-9_-]*$")
+    bend: float = Field(default=0.5, ge=-0.9, le=0.9)
+
+    @field_validator("bend")
+    @classmethod
+    def require_channel(cls, value: float) -> float:
+        if abs(value) < 0.1:
+            raise ValueError("Schematic wire bend needs a channel outside -0.1..0.1")
+        return value
+
+
 class Design(BaseModel):
     """Top-level PCB design model — the root object for all ZapTrace operations.
 
@@ -826,6 +847,9 @@ class Design(BaseModel):
         default_factory=dict, description="Component dictionary, keyed by component ID"
     )
     nets: dict[str, Net] = Field(default_factory=dict, description="Net dictionary, keyed by net ID")
+    schematic_wires: list[SchematicWire] = Field(
+        default_factory=list, description="Optional source-backed KiCad schematic wire geometry (not PCB copper)"
+    )
     blocks: list[Block] = Field(default_factory=list, description="Functional block groupings of components")
     board: BoardConfig = Field(
         default_factory=BoardConfig, description="Legacy board configuration (width, height, layers)"

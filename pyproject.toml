@@ -43,6 +43,9 @@ zaptrace-mcp = "zaptrace.mcp.server:run"
 zaptrace-mcp-http = "zaptrace.mcp.server:run_http"
 zaptrace-api = "zaptrace.api.server:run"
 
+[project.gui-scripts]
+zaptrace-studio = "zaptrace.studio.launcher:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

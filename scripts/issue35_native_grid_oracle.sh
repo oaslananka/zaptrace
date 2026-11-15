@@ -5,8 +5,24 @@ if (( $# > 2 )); then
   echo "Usage: $0 [output-dir] [--smd]" >&2
   exit 2
 fi
-readonly CLI=/usr/bin/kicad-cli
-readonly PYTHON=/usr/bin/python3
+# Follow the exact previously verified KiCad install mode, rather than
+# assuming every hosted runner puts KiCad under /usr/bin.  The signed
+# KiCad 10 AppImage installer exposes fixed, version-checked wrappers under
+# /usr/local/bin; native apt installs keep the original system paths.
+case "${ZAPTRACE_KICAD_PYTHON:-}" in
+  appimage)
+    readonly CLI=/usr/local/bin/kicad-cli
+    readonly PYTHON=/usr/local/bin/kicad-python
+    ;;
+  "")
+    readonly CLI=/usr/bin/kicad-cli
+    readonly PYTHON=/usr/bin/python3
+    ;;
+  *)
+    echo "Unsupported KiCad Python install mode: $ZAPTRACE_KICAD_PYTHON" >&2
+    exit 2
+    ;;
+esac
 readonly TIMEOUT=/usr/bin/timeout
 readonly ENV_BIN=/usr/bin/env
 for bin in "$CLI" "$PYTHON" "$TIMEOUT" "$ENV_BIN"; do
@@ -21,6 +37,14 @@ readonly DEST
 KICAD_VERSION="$("$CLI" version)"
 readonly KICAD_VERSION
 [[ "$KICAD_VERSION" == 10.* ]] || { echo "KiCad 10 required: $KICAD_VERSION" >&2; exit 2; }
+# Verify pcbnew is from the same real KiCad major line before generating
+# native copper.  Never silently fall back to another Python installation.
+PCBNEW_VERSION="$("$PYTHON" -c 'import pcbnew; print(pcbnew.Version())')"
+readonly PCBNEW_VERSION
+[[ "$PCBNEW_VERSION" == "$KICAD_VERSION" ]] || {
+  echo "KiCad CLI/pcbnew version mismatch: $KICAD_VERSION != $PCBNEW_VERSION" >&2
+  exit 2
+}
 mkdir -p -- "$DEST"
 # Use a clean temporary output directory rather than trusting cached reports.
 TEMP="$(mktemp -d "$DEST/.native-XXXXXXXX")"

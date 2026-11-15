@@ -1,0 +1,3 @@
+# KiCad footprint assets contain mixed LF/CRLF byte sequences, some SHA-256 pinned.
+# Treat as byte-exact assets: never normalize source bytes on any platform.
+data/footprints/vendor/*.kicad_mod -text

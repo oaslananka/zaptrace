@@ -84,7 +84,7 @@ python scripts/ci_container_reproducibility.py check-lock \
   --strict
 ```
 
-The workflow currently pins `uv 0.11.29`. A resolver-version update and any resulting manifest change must be reviewed together. Update the Alpine manifest only after confirming the package version against the exact pinned base image and its generated SBOM.
+The workflow currently pins `uv 0.13.4`. A resolver-version update and any resulting manifest change must be reviewed together. Update the Alpine manifest only after confirming the package version against the exact pinned base image and its generated SBOM.
 
 ## Review expectations
 
