@@ -180,4 +180,5 @@ Use the conventional commit format documented in [commit conventions](docs/devel
 Contributions are submitted under [GNU AGPL v3.0](LICENSE) by regular GitHub
 pull request. No CLA, DCO sign-off, `Signed-off-by` trailer, or copyright
 assignment is required. Contributors retain copyright and should identify
-any third-party components and their license.
+any third-party components and their license. See [Contributor Licensing](CONTRIBUTOR-LICENSING.md)
+for details.
