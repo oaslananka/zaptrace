@@ -13,6 +13,7 @@
 | Nets | 3 |
 | Board size | 100.0 x 80.0 mm |
 | Layers | 2 |
+| Fabrication readiness | NOT VERIFIED — report is not native KiCad DRC or fabrication approval |
 
 ## Components
 

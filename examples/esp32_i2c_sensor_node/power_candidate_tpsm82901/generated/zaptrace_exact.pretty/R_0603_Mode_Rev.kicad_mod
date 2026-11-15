@@ -1,0 +1,66 @@
+(footprint "R_0603_Mode_Rev"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "R3"
+		(at 0 -2 0)
+		(layer "F.SilkS")
+		(uuid "cffa489d-d83d-4465-8ef7-e623c9765d35")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "7.15k 1%"
+		(at 0 3 0)
+		(layer "F.Fab")
+		(uuid "b7816f2b-cb51-4f8d-8d25-8549f4caf397")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0afd3e32-f48a-45aa-8ccd-7cab2d092b49")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "ZapTrace generated connectivity symbol"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3181b887-5227-417f-b018-ae6c32f164f1")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(duplicate_pad_numbers_are_jumpers no)
+	(pad "1" smd roundrect
+		(at 0.825 0)
+		(size 0.8 0.95)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "8815d45b-1184-4675-ae82-2ac581b0755c")
+	)
+	(pad "2" smd roundrect
+		(at -0.825 0)
+		(size 0.8 0.95)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "cabc3a1a-9861-4eed-9b2d-cabc758fc3cf")
+	)
+	(embedded_fonts no)
+)

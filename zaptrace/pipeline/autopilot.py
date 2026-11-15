@@ -10,6 +10,7 @@ from typing import Any
 from zaptrace.algo.grid_router import GridRouter
 from zaptrace.algo.placer import place_components
 from zaptrace.algo.router import RoutingResult, route_design_smart
+from zaptrace.core.board import canonical_board_definition
 from zaptrace.core.models import Design, NetClass
 from zaptrace.core.parser import parse_file, parse_str
 from zaptrace.ee.classifier import get_net_class
@@ -283,12 +284,34 @@ class Autopilot:
         # router (route_design_smart) ignores obstacles and overlaps freely, so
         # it is kept only as a fallback when A* routes nothing (e.g. a
         # degenerate board where every terminal collapses onto one grid cell).
-        route_result = GridRouter().route(design, positions)
+        physical_assets = any(comp.footprint_asset for comp in design.components.values())
+        qualified_geometry = physical_assets and all(
+            comp.footprint_def is not None and comp.footprint_def.pads for comp in design.components.values()
+        )
+        # Geometry-aware routing uses actual pad ownership, layer masks and
+        # NPTH holes. Bound its A* search to keep the first-user CLI responsive.
+        # The old graph-only router must never produce published physical copper.
+        route_result = GridRouter(
+            pad_aware=qualified_geometry,
+            max_iterations=20_000 if qualified_geometry else 200_000,
+        ).route(design, positions)
+        if physical_assets:
+            from zaptrace.pipeline.physical_route_preflight import retain_verified_partial_copper
+
+            # Retain only *complete individual nets* whose pad contacts,
+            # copper islands and full-board DRC add no new violation. Every
+            # unrouted net remains an explicit blocker to fabrication.
+            route_result = retain_verified_partial_copper(design, route_result, positions)
         routed_net_ids = {trace.net_id for trace in route_result.traces}
         unresolved_net_ids = [
             net.id
             for net in design.nets.values()
-            if len(net.nodes) > 1 and get_net_class(design, net.id) != NetClass.GROUND and net.id not in routed_net_ids
+            if len(net.nodes) > 1
+            and (
+                get_net_class(design, net.id) != NetClass.GROUND
+                or not canonical_board_definition(design).copper_pour_gnd
+            )
+            and net.id not in routed_net_ids
         ]
         if route_result.routed_net_count > 0:
             ctx.routing = RoutingResult(
@@ -326,7 +349,11 @@ class Autopilot:
         design = ctx.design
         if design is None:
             raise PipelineHaltError("No design for report generation")
-        ctx.report = generate_report(design, erc_result=ctx.erc_result)
+        ctx.report = generate_report(
+            design,
+            erc_result=ctx.erc_result,
+            unrouted_net_count=len(ctx.routing.unrouted_nets) if ctx.routing is not None else None,
+        )
 
         report_path = self._output_dir / f"{design.meta.name}_report.md"
         self._output_dir.mkdir(parents=True, exist_ok=True)

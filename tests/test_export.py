@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from zaptrace.core.models import (
     BoardConfig,
     BoardDefinition,
@@ -114,6 +116,15 @@ class TestReport:
         assert "TestDesign" in report
         assert "R1" in report
         assert "VCC" in report
+
+    def test_report_never_conflates_erc_or_generated_artifacts_with_fabrication_signoff(self) -> None:
+        report = generate_report(_design(), unrouted_net_count=6)
+        assert "| Copper routing | 6 net(s) unrouted; not native-verified |" in report
+        assert "| Fabrication readiness | NOT VERIFIED" in report
+
+    def test_report_rejects_negative_unrouted_net_count(self) -> None:
+        with pytest.raises(ValueError, match="cannot be negative"):
+            generate_report(_design(), unrouted_net_count=-1)
 
     def test_report_with_erc(self) -> None:
         erc = ERCResult(

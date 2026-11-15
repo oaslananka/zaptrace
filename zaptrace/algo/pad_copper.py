@@ -33,6 +33,35 @@ def copper_layers(pad: Pad, layer_count: int) -> tuple[int, ...]:
     raise ValueError("Unknown copper pad layer")
 
 
+def point_in_pad_copper(
+    pad: Pad,
+    center: tuple[float, float],
+    endpoint: tuple[float, float],
+    footprint_rotation_deg: float = 0.0,
+) -> bool:
+    """Check actual rotated pad copper, not an oval/circle bounding rectangle.
+
+    A source trace ending near the corner of the bounding box does not make
+    electrical contact with curved copper. Unsupported or non-finite geometry
+    is never counted as a connection.
+    """
+    if pad.shape not in (PadShape.RECT, PadShape.CIRCLE, PadShape.OVAL, PadShape.ROUNDRECT):
+        return False
+    if not all(
+        math.isfinite(float(value)) for value in (*center, *endpoint, *pad.size, pad.rotation, footprint_rotation_deg)
+    ):
+        return False
+    angle = math.radians(-(float(pad.rotation) + footprint_rotation_deg))
+    cosine, sine = math.cos(angle), math.sin(angle)
+    dx, dy = endpoint[0] - center[0], endpoint[1] - center[1]
+    local_x = cosine * dx + sine * dy
+    local_y = -sine * dx + cosine * dy
+    try:
+        return _distance_in_local_shape(local_x, local_y, pad) <= 1e-6
+    except ValueError:
+        return False
+
+
 def _distance_in_local_shape(dx: float, dy: float, pad: Pad) -> float:
     """Distance to copper shape: signed inside values are clamped to zero."""
     w, h = pad.size
@@ -42,6 +71,18 @@ def _distance_in_local_shape(dx: float, dy: float, pad: Pad) -> float:
         return max(0.0, math.hypot(dx, dy) - max(w, h) / 2)
     if pad.shape == PadShape.RECT:
         return math.hypot(max(abs(dx) - w / 2, 0), max(abs(dy) - h / 2, 0))
+    if pad.shape == PadShape.ROUNDRECT:
+        # KiCad corner radius is a fraction of the shorter pad dimension.
+        # With no known ratio, use the largest possible corner radius:
+        # this may reject a legitimate connection, but cannot invent copper.
+        ratio = pad.roundrect_rratio if pad.roundrect_rratio is not None else 0.5
+        if not math.isfinite(ratio) or not 0 <= ratio <= 0.5:
+            raise ValueError("Invalid rounded-rectangle corner ratio")
+        radius = min(w, h) * ratio
+        return max(
+            0.0,
+            math.hypot(max(abs(dx) - (w / 2 - radius), 0), max(abs(dy) - (h / 2 - radius), 0)) - radius,
+        )
     if pad.shape == PadShape.OVAL:
         if w >= h:
             return max(0.0, math.hypot(max(abs(dx) - (w - h) / 2, 0), dy) - h / 2)

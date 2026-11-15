@@ -184,7 +184,7 @@ class TestComputeEscapePointHappy:
         footprint = load_kicad_footprint(path)
         assert footprint is not None
         comp = _make_comp(ref="U1", footprint_def=footprint)
-        # ESP32-WROOM-32 (not 32E) datasheet: IO21=33, IO22=36.
+        # ESP32-WROOM-32E v2.1 datasheet: IO21=33, IO22=36.
         comp.package_pin_map = {"2": "VCC", "33": "GPIO21", "36": "GPIO22"}
         gpio21 = compute_escape_point(comp, "GPIO21", (25.0, 20.0))
         gpio22 = compute_escape_point(comp, "GPIO22", (25.0, 20.0))

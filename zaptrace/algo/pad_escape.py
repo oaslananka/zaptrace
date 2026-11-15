@@ -43,7 +43,7 @@ def classify_pad(pad: Pad) -> PadType:
 
     layer_name = str(layer.value if hasattr(layer, "value") else layer).lower()
 
-    if drill is not None and drill > 0:
+    if (drill is not None and drill > 0) or pad.drill_slot is not None:
         return "tht"
 
     # Thermal pads sit on all copper layers (layer == "all")

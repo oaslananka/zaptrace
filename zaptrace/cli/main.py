@@ -565,6 +565,54 @@ def pipeline(source: str | None, intent: str | None, output: str | None) -> None
                     f"[bold yellow]ROUTING INCOMPLETE:[/] {len(unrouted)} net(s) without routed copper:"
                     f" {', '.join(visible)}{suffix}"
                 )
+            constraints = routing_evidence.get("physical_constraints", [])
+            if isinstance(constraints, list) and constraints:
+                console.print("[yellow]Physical pad review (not a routing or fabrication approval):[/]")
+                for detail in constraints[:6]:
+                    if not isinstance(detail, dict):
+                        continue
+                    net_id = escape(str(detail.get("net_id", "?")))
+                    width = detail.get("trace_width_mm")
+                    if not isinstance(width, (float, int)):
+                        continue
+                    narrow_lands = detail.get("narrow_pad_lands", [])
+                    narrow_labels = [
+                        (
+                            escape(str(land.get("component_ref", "?")))
+                            + "."
+                            + escape(str(land.get("pin_name", "?")))
+                            + f" ({land['short_dimension_mm']:.2f} mm)"
+                        )
+                        for land in narrow_lands[:3]
+                        if isinstance(land, dict) and isinstance(land.get("short_dimension_mm"), (int, float))
+                    ]
+                    if narrow_labels:
+                        rest = f" +{len(narrow_lands) - 3} more" if len(narrow_lands) > 3 else ""
+                        console.print(
+                            f"  {net_id}: local fanout review, nominal {width:.2f} mm trace: "
+                            f"{', '.join(narrow_labels)}{rest}"
+                        )
+                    contacts = detail.get("multi_pad_terminals", [])
+                    contact_labels = [
+                        (
+                            escape(str(contact.get("component_ref", "?")))
+                            + "."
+                            + escape(str(contact.get("pin_name", "?")))
+                            + f" x{contact['physical_contact_count']}"
+                        )
+                        for contact in contacts[:2]
+                        if isinstance(contact, dict) and isinstance(contact.get("physical_contact_count"), int)
+                    ]
+                    if contact_labels:
+                        rest = f" +{len(contacts) - 2} more" if len(contacts) > 2 else ""
+                        console.print(f"  {net_id}: multiple pad contacts: {', '.join(contact_labels)}{rest}")
+                    unmapped = detail.get("unmapped_terminals", [])
+                    if unmapped:
+                        console.print(f"  {net_id}: {len(unmapped)} physical pin mapping(s) unavailable")
+                    if detail.get("ground_pour_disabled"):
+                        console.print(f"  {net_id}: GND copper pour disabled; return path not verified")
+                if len(constraints) > 6:
+                    console.print(f"  (+{len(constraints) - 6} further net reviews in MCP evidence)")
             console.print(
                 "[yellow]Physical continuity and fabrication readiness NOT VERIFIED.[/] "
                 "Review the Proof Pack and native KiCad DRC/ERC; generated files are inspection-only."

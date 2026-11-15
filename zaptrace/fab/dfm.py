@@ -95,6 +95,8 @@ def _trace_clearance_violations(
 
 
 def _pad_drill_diameter(pad: Pad) -> float | None:
+    if pad.drill_slot is not None:
+        return min(pad.drill_slot)
     if pad.drill is None:
         return None
     diameter = float(pad.drill)
@@ -643,7 +645,7 @@ class DFMChecker:
         footprint: FootprintDef,
         result: DFMCheckResult,
     ) -> None:
-        has_drilled_pad = any((pad.drill or 0) > 0 for pad in footprint.pads)
+        has_drilled_pad = any((pad.drill or 0) > 0 or pad.drill_slot is not None for pad in footprint.pads)
         if not has_drilled_pad or self.profile.assembly.supports_through_hole_assembly:
             return
         result._add(

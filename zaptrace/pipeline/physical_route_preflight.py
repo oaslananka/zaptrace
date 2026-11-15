@@ -1,0 +1,377 @@
+"""Conservative evidence gate for routing against verified physical footprints.
+
+Neither the grid router's graph success count nor this inexpensive check is
+fabrication acceptance. An insufficient/violating candidate is never exported
+as though it were routed copper; native KiCad DRC remains authoritative.
+"""
+
+from __future__ import annotations
+
+import math
+from collections import Counter, defaultdict
+
+from zaptrace.algo.grid_router import GridRouter
+from zaptrace.algo.pad_copper import point_in_pad_copper, rotated_offset
+from zaptrace.core.board import canonical_board_definition
+from zaptrace.core.models import Design, DRCViolation, LayerSet, NetClass, Pad, RouteResult, TraceSegment, Via
+from zaptrace.ee.classifier import get_net_class
+from zaptrace.ee.drc.engine import DRCEngine
+from zaptrace.ee.knowledge import KnowledgeBase
+
+
+def _trace_layer_compatible(pad: Pad, layer: str) -> bool:
+    if pad.drill is not None or pad.drill_slot is not None or pad.layer == LayerSet.ALL:
+        return True
+    if pad.layer == LayerSet.TOP:
+        return layer in {"F.Cu", "top", "layer_0"}
+    if pad.layer == LayerSet.BOTTOM:
+        return layer in {"B.Cu", "bottom", "layer_1"}
+    return False
+
+
+def _physical_pad_terminal_coverage(
+    design: Design,
+    routed: RouteResult,
+    positions: dict[str, tuple[float, float]],
+) -> bool:
+    """Every represented routed net terminal must touch physical pad copper.
+
+    Poured GND with no candidate tracks is out of scope for this trace
+    predicate. GND with candidate tracks must never bypass pad checks.
+    """
+    endpoint_by_net: dict[str, list[tuple[str, tuple[float, float]]]] = defaultdict(list)
+    for trace in routed.traces:
+        endpoint_by_net[trace.net_id].extend(((trace.layer, trace.start), (trace.layer, trace.end)))
+
+    components_by_ref = {comp.ref: comp for comp in design.components.values()}
+    for net in design.nets.values():
+        if len(net.nodes) < 2 or (get_net_class(design, net.id) == NetClass.GROUND and not endpoint_by_net.get(net.id)):
+            continue
+        if not endpoint_by_net.get(net.id):
+            return False
+        for node in net.nodes:
+            comp = components_by_ref.get(node.component_ref)
+            if comp is None or comp.footprint_def is None:
+                return False
+            location = positions.get(comp.id) or positions.get(comp.ref) or comp.position
+            if location is None:
+                return False
+            matching = [
+                pad
+                for pad in comp.footprint_def.pads
+                if (comp.package_pin_map.get(pad.id, pad.id) if comp.package_pin_map else pad.id) == node.pin_name
+            ]
+            if not matching:
+                return False
+            footprint_rotation = GridRouter._footprint_rotation(design, comp)
+            for pad in matching:
+                offset = rotated_offset(*pad.position, footprint_rotation)
+                center = (location[0] + offset[0], location[1] + offset[1])
+                if not any(
+                    _trace_layer_compatible(pad, layer)
+                    and point_in_pad_copper(pad, center, endpoint, footprint_rotation)
+                    for layer, endpoint in endpoint_by_net[net.id]
+                ):
+                    return False
+    return True
+
+
+def _root(parents: list[int], index: int) -> int:
+    while parents[index] != index:
+        parents[index] = parents[parents[index]]
+        index = parents[index]
+    return index
+
+
+def _join(parents: list[int], first: int, second: int) -> None:
+    parents[_root(parents, first)] = _root(parents, second)
+
+
+def _physical_net_continuity(
+    design: Design,
+    routed: RouteResult,
+    positions: dict[str, tuple[float, float]],
+) -> bool:
+    """Require all real terminal pads on each net to join one copper island.
+
+    Counting a touched endpoint on each pad is not enough: two isolated
+    stubs can touch different pads yet never connect to one another.
+    This conservative graph only joins trace endpoints with identical
+    layer/coordinates, contacts on the *same physical pad*, and explicit
+    correctly owned via coordinates. Unsupported mid-segment T-junctions
+    remain unverified until native KiCad can confirm them.
+    """
+    by_net: dict[str, list[TraceSegment]] = defaultdict(list)
+    for trace in routed.traces:
+        by_net[trace.net_id].append(trace)
+
+    components_by_ref = {comp.ref: comp for comp in design.components.values()}
+    for net in design.nets.values():
+        if len(net.nodes) < 2 or (get_net_class(design, net.id) == NetClass.GROUND and not by_net.get(net.id)):
+            continue
+        traces = by_net.get(net.id, [])
+        if not traces:
+            return False
+
+        parents = list(range(len(traces)))
+
+        # A segment connects its own two ends; different segments connect
+        # only where actual endpoints meet on the same copper layer.
+        endpoints: dict[tuple[str, float, float], int] = {}
+        for index, trace in enumerate(traces):
+            for point in (trace.start, trace.end):
+                if not all(math.isfinite(value) for value in point):
+                    return False
+                layer = trace.layer
+                if layer in {"layer_0", "top"}:
+                    layer = "F.Cu"
+                elif layer in {"layer_1", "bottom"}:
+                    layer = "B.Cu"
+                key = (layer, point[0], point[1])
+                other = endpoints.setdefault(key, index)
+                _join(parents, index, other)
+
+        # A via must be actual, net-owned physical copper. Merely sharing
+        # (x,y) between two layers is not an electrical connection.
+        for via in routed.vias:
+            if len(via) != 5 or via[4] != net.id:
+                continue
+            vx, vy, diameter, drill, _ = via
+            if not all(math.isfinite(value) for value in (vx, vy, diameter, drill)):
+                return False
+            if drill <= 0 or diameter <= drill:
+                return False
+            touched = [index for (layer, x, y), index in endpoints.items() if (x, y) == (vx, vy)]
+            if touched:
+                for other in touched[1:]:
+                    _join(parents, touched[0], other)
+
+        contact_roots: list[int] = []
+        for node in net.nodes:
+            comp = components_by_ref.get(node.component_ref)
+            if comp is None or comp.footprint_def is None:
+                return False
+            location = positions.get(comp.id) or positions.get(comp.ref) or comp.position
+            if location is None:
+                return False
+            rotation = GridRouter._footprint_rotation(design, comp)
+            matching = [
+                pad
+                for pad in comp.footprint_def.pads
+                if (comp.package_pin_map.get(pad.id, pad.id) if comp.package_pin_map else pad.id) == node.pin_name
+            ]
+            if not matching:
+                return False
+            for pad in matching:
+                offset = rotated_offset(*pad.position, rotation)
+                center = (location[0] + offset[0], location[1] + offset[1])
+                touched = [
+                    index
+                    for index, trace in enumerate(traces)
+                    if _trace_layer_compatible(pad, trace.layer)
+                    and (
+                        point_in_pad_copper(pad, center, trace.start, rotation)
+                        or point_in_pad_copper(pad, center, trace.end, rotation)
+                    )
+                ]
+                if not touched:
+                    return False
+                for other in touched[1:]:
+                    _join(parents, touched[0], other)
+                contact_roots.append(touched[0])
+        if not contact_roots or len({_root(parents, index) for index in contact_roots}) != 1:
+            return False
+        # Dangling disconnected copper from this net is not complete routing,
+        # even when a different copper island joins every required pad.
+        if any(_root(parents, index) != _root(parents, contact_roots[0]) for index in range(len(traces))):
+            return False
+    return True
+
+
+def verified_route_candidate_safe(
+    design: Design,
+    candidate: RouteResult,
+    positions: dict[str, tuple[float, float]],
+) -> bool:
+    """Fail closed if physical terminals or local DRC evidence are incomplete.
+
+    This is a rejection predicate, NOT clearance/fabricability certification.
+    Native KiCad may reveal extra conflicts; those always remain blocking.
+    """
+    if (
+        not candidate.traces
+        or not _physical_pad_terminal_coverage(design, candidate, positions)
+        or not _physical_net_continuity(design, candidate, positions)
+    ):
+        return False
+    trial = design.model_copy(deep=True)
+    trial.placement = dict(positions)
+    trial.routing = candidate
+    return DRCEngine().run(trial).passed
+
+
+def retain_verified_partial_copper(
+    design: Design,
+    candidate: RouteResult,
+    positions: dict[str, tuple[float, float]],
+) -> RouteResult:
+    """Publish only individually connected nets with no new local DRC faults.
+
+    Partial physical routing is NOT whole-board approval. Keep all missing
+    physical nets in the denominator and all their DRC-005 findings visible.
+    Each accepted net must touch every pad, join exactly one copper island,
+    and coexist safely with every previously accepted net. Independent
+    native KiCad DRC/continuity is still authoritative.
+    """
+    empty = RouteResult(net_count=candidate.net_count)
+    if not candidate.traces or candidate.net_count <= 0:
+        return empty
+    all_net_ids = set(design.nets)
+    if any(t.net_id not in all_net_ids for t in candidate.traces):
+        return empty
+    owned_vias: list[Via] = []
+    for via in candidate.vias:
+        if len(via) != 5 or via[4] not in all_net_ids:
+            return empty
+        owned_vias.append(via)
+
+    def signature(violation: DRCViolation) -> tuple:
+        return (
+            violation.rule_id,
+            violation.severity,
+            violation.net_id,
+            violation.component_id,
+            violation.location,
+            violation.message,
+        )
+
+    unchanged = design.model_copy(deep=True)
+    unchanged.placement = dict(positions)
+    unchanged.routing = empty
+    baseline_violations = Counter(signature(v) for v in DRCEngine().run(unchanged).violations if v.rule_id != "DRC-005")
+    accepted_traces: list[TraceSegment] = []
+    accepted_vias: list[Via] = []
+    accepted_ids: set[str] = set()
+    for net_id, net in design.nets.items():
+        net_traces = [t for t in candidate.traces if t.net_id == net_id]
+        if not net_traces or len(net.nodes) < 2:
+            continue
+        net_vias: list[Via] = []
+        for via in owned_vias:
+            if len(via) == 5 and via[4] == net_id:
+                net_vias.append(via)
+        single = RouteResult(traces=net_traces, vias=net_vias, net_count=1, routed_net_count=1)
+        # Validate all logical terminals of this single physical net. The
+        # existing strict predicates inspect *every* net in their design;
+        # use an isolated model for this connectivity decision only, while
+        # full-board DRC below always retains the real unmodified netlist.
+        one_net = design.model_copy(deep=True)
+        one_net.nets = {net_id: net}
+        if not (
+            _physical_pad_terminal_coverage(one_net, single, positions)
+            and _physical_net_continuity(one_net, single, positions)
+        ):
+            continue
+        combined = RouteResult(
+            traces=[*accepted_traces, *net_traces],
+            vias=[*accepted_vias, *net_vias],
+            net_count=candidate.net_count,
+            routed_net_count=len(accepted_ids) + 1,
+        )
+        trial = design.model_copy(deep=True)
+        trial.placement = dict(positions)
+        trial.routing = combined
+        result = DRCEngine().run(trial)
+        connected = accepted_ids | {net_id}
+        # DRC-005 is not cleared or suppressed: a missing net remains an
+        # explicit error in the exported whole-board evidence. Other
+        # warnings/errors, including sharp angles and copper overlap, are
+        # release blockers even for a proposed partial net.
+        if any(v.rule_id == "DRC-005" and v.net_id in connected for v in result.violations):
+            continue
+        new_violations = Counter(signature(v) for v in result.violations if v.rule_id != "DRC-005")
+        if new_violations - baseline_violations:
+            continue
+        accepted_ids.add(net_id)
+        accepted_traces.extend(net_traces)
+        accepted_vias.extend(net_vias)
+
+    return RouteResult(
+        traces=accepted_traces,
+        vias=accepted_vias,
+        layers_used=sorted({seg.layer for seg in accepted_traces}),
+        total_trace_length_mm=round(sum(math.dist(seg.start, seg.end) for seg in accepted_traces), 3),
+        net_count=candidate.net_count,
+        routed_net_count=len(accepted_ids),
+    )
+
+
+def physical_constraints_for_unrouted_nets(design: Design, unrouted_net_ids: list[str]) -> list[dict[str, object]]:
+    """Report measurable source-land constraints, never guess routing feasibility.
+
+    A land's shortest dimension below the net's standard trace width means
+    the present constant-width fanout needs qualified local geometry/current
+    review. It does NOT establish that the PCB is impossible to manufacture
+    or that global trace-width/clearance rules may be relaxed.
+
+    Preserve every distinct physical pad occurrence, including duplicate
+    KiCad pad numbers. This is useful to users and agents troubleshooting
+    unresolved routes, but it is NOT independent KiCad DRC or approval.
+    """
+    kb = KnowledgeBase()
+    board = canonical_board_definition(design)
+    components = {component.ref: component for component in design.components.values()}
+    details: list[dict[str, object]] = []
+    for net_id in unrouted_net_ids:
+        net = design.nets.get(net_id)
+        if net is None or len(net.nodes) < 2:
+            continue
+        net_class = get_net_class(design, net_id)
+        trace_width = kb.get_rule(net_class).trace_width
+        narrow: list[dict[str, object]] = []
+        multiple: list[dict[str, object]] = []
+        missing: list[dict[str, str]] = []
+        for node in net.nodes:
+            comp = components.get(node.component_ref)
+            if comp is None or comp.footprint_def is None:
+                missing.append({"component_ref": node.component_ref, "pin_name": node.pin_name})
+                continue
+            pads = [
+                pad
+                for pad in comp.footprint_def.pads
+                if (comp.package_pin_map.get(pad.id, pad.id) if comp.package_pin_map else pad.id) == node.pin_name
+            ]
+            if not pads:
+                missing.append({"component_ref": comp.ref, "pin_name": node.pin_name})
+                continue
+            if len(pads) > 1:
+                multiple.append(
+                    {
+                        "component_ref": comp.ref,
+                        "pin_name": node.pin_name,
+                        "physical_contact_count": len(pads),
+                    }
+                )
+            for pad in pads:
+                short_dimension = min(pad.size)
+                if short_dimension + 1e-6 < trace_width:
+                    narrow.append(
+                        {
+                            "component_ref": comp.ref,
+                            "pin_name": node.pin_name,
+                            "pad_id": str(pad.id),
+                            "short_dimension_mm": short_dimension,
+                        }
+                    )
+        details.append(
+            {
+                "net_id": net_id,
+                "trace_width_mm": trace_width,
+                "narrow_pad_lands": narrow,
+                "multi_pad_terminals": multiple,
+                "unmapped_terminals": missing,
+                "ground_pour_disabled": net_class == NetClass.GROUND and not board.copper_pour_gnd,
+                "physical_routing_verified": False,
+            }
+        )
+    return details

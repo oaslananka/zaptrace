@@ -16,7 +16,7 @@ from zaptrace.kicad.importer import import_kicad_pcb
 from zaptrace.kicad.verified_vendor import resolve_verified_footprint, verified_footprint_bytes
 
 _ROOT = Path(__file__).resolve().parents[1]
-_DESIGN = _ROOT / "build" / "source-reference-readonly" / "issue91-design.yaml"
+_DESIGN = _ROOT / "examples" / "esp32_i2c_sensor_node" / "design.yaml"
 
 
 def test_real_connector_preserves_four_routed_slots_and_two_npth_locating_holes() -> None:

@@ -1,0 +1,66 @@
+(footprint "C_0603_SS_Rev"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "C4"
+		(at 0 -2 0)
+		(layer "F.SilkS")
+		(uuid "c83bf316-7c20-4fdf-b858-894688343809")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "3.3nF (EVM SS/TR capacitor)"
+		(at 0 3 0)
+		(layer "F.Fab")
+		(uuid "b7168dfc-2216-4aaf-a4ef-c0a9de34656a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "476d8052-5cda-47a5-a594-528e4fd9c966")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "ZapTrace generated connectivity symbol"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "e766861b-c4c8-4f4e-9fd3-947f93c77c06")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(duplicate_pad_numbers_are_jumpers no)
+	(pad "1" smd roundrect
+		(at 0.775 0)
+		(size 0.9 0.95)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "8067f20a-6eb3-4873-8409-13729b83a351")
+	)
+	(pad "2" smd roundrect
+		(at -0.775 0)
+		(size 0.9 0.95)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.25)
+		(uuid "5dac26a0-b2a8-4ad4-bc35-17e9af117952")
+	)
+	(embedded_fonts no)
+)

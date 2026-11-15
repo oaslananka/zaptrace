@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from zaptrace.viewer.interactive import generate_interactive_viewer
 
@@ -37,7 +38,15 @@ def test_source_bound_mobile_jump_preserves_real_vs_synthetic_evidence(source: s
     assert data["review"]["fabrication_state"] == "human_review_required"
     if source == "real":
         assert len(data["components"]) == 14
-        assert all(not item["placed"] for item in data["components"])
+        # This repository's real ESP32 design has explicit provisional
+        # source placement. The preview must reflect the exact source
+        # coordinates, not silently claim components are unplaced.
+        placement = yaml.safe_load(design.read_text())["placement"]
+        assert {item["ref"]: (item["x"], item["y"]) for item in data["components"] if item["placed"]} == {
+            ref: (float(coords[0]), float(coords[1])) for ref, coords in placement.items()
+        }
+        assert all(item["placed"] for item in data["components"])
+        # Placement is not manufactured copper or a measured DRC result.
         assert len(data["traces"]) == 0
         assert data["review"]["drc_state"] == "not_checked"
         assert data["review"]["proof_state"] == "not_provided"

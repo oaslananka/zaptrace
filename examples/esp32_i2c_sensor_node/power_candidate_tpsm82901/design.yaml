@@ -1,0 +1,369 @@
+meta:
+  name: ESP32 Sensor Node — TPSM82901 Review-Only Power Stage
+  version: 0.1.0-review-only
+  description: Four-layer isolated TPSM82901SISR candidate with TI package land dimensions,
+    EVM values, compact passive placement and first-pass current/thermal copper topology.
+    Not yet electrically, EMI or thermally qualified.
+  tags:
+  - power
+  - buck
+  - tpsm82901
+  - review-only
+  - not-for-fabrication
+board:
+  width_mm: 40
+  height_mm: 30
+  layers: 4
+placement:
+  TP_IN:
+  - 3
+  - 12
+  TP_OUT:
+  - 37
+  - 12
+  TP_GND:
+  - 20
+  - 27
+  U3:
+  - 20
+  - 14
+  C1:
+  - 16.4
+  - 12.8
+  C2:
+  - 23.0
+  - 12.8
+  R1:
+  - 26.0
+  - 14.0
+  R2:
+  - 25.0
+  - 17.0
+  R3:
+  - 17.2
+  - 14.5
+  C3:
+  - 22.5
+  - 16.5
+  C4:
+  - 17.2
+  - 16.5
+  R4:
+  - 26.5
+  - 18.5
+components:
+  TP_IN:
+    id: TP_IN
+    ref: TP_IN
+    type: TESTPOINT
+    value: VIN boundary
+    footprint: TestPoint_Pad_1.0mm
+    footprint_asset: testpoint-pad-d1
+    pins:
+      P1:
+        type: power
+        net: VCC_5V
+    package_pin_map:
+      '1': P1
+  TP_OUT:
+    id: TP_OUT
+    ref: TP_OUT
+    type: TESTPOINT
+    value: 3V3 boundary
+    footprint: TestPoint_Pad_1.0mm
+    footprint_asset: testpoint-pad-d1
+    pins:
+      P1:
+        type: power
+        net: VCC_3V3
+    package_pin_map:
+      '1': P1
+  TP_GND:
+    id: TP_GND
+    ref: TP_GND
+    type: TESTPOINT
+    value: GND boundary
+    footprint: TestPoint_Pad_1.0mm
+    footprint_asset: testpoint-pad-d1
+    pins:
+      P1:
+        type: power
+        net: GND
+    package_pin_map:
+      '1': P1
+  U3:
+    id: U3
+    ref: U3
+    type: TPSM82901
+    value: TPSM82901SISR
+    mpn: TPSM82901SISR
+    manufacturer: Texas Instruments
+    footprint: TPSM82901
+    datasheet_url: https://www.ti.com/lit/ds/symlink/tpsm82901.pdf
+    voltage_supply: 3.0-17V
+    current_rating: 1.0
+    properties:
+      candidate_status: review-only
+      package: SIS0011A MicroSiP 11-pin
+      vout_nominal_v: 3.322
+      switching_frequency_hz: 2500000
+      mode: Auto PFM/PWM with AEE
+      reference_design: TI TPSM82901EVM BSR188-001
+      land_pattern_status: DRAFT; perimeter pad dimensions and center thermal land
+        reconciled to TI example drawing; stencil split is approximate; optional thermal
+        vias not yet added
+      fb_mode: external feedback
+      vout_calculated_v: 3.322892
+      mode_setting: '7.15k to GND: 2.5MHz Auto PFM/PWM with AEE; output discharge
+        disabled'
+      sw_nc_pad: '8: intentionally unconnected'
+      exposed_ground_pad: '11: solder to common ground plane'
+      thermal_layout_status: four copper layers with GND reference zones, local VIN/VOUT
+        copper, GND stitching vias and one extra GND via at (20.0, 15.8) adjacent
+        to exposed pad 11; via is outside the EP land/paste aperture; optional 0.2
+        mm via-in-pad pattern omitted pending assembly definition; copper weight is
+        unspecified; not thermally qualified
+      placement_status: compact first-pass aligned to TI layout example; detailed
+        current loops/EMI/thermal acceptance still open
+      power_budget_status: 1 A is converter rating, not available USB-C board current;
+        5 V input budget and Type-C source current advertisement are not measured
+        or monitored; effective input/output capacitance under DC bias and temperature
+        remains to be qualified
+    package_pin_map:
+      '1': VIN_A
+      '2': VIN_B
+      '3': EN
+      '4': MODE_SCONF
+      '5': SS_TR
+      '6': PG
+      '7': FB_VSET
+      '8': SW_NC
+      '9': VOUT_A
+      '10': VOUT_B
+      '11': GND
+    pins:
+      VIN_A:
+        type: power
+        net: VCC_5V
+      VIN_B:
+        type: power
+        net: VCC_5V
+      EN:
+        type: input
+        net: VCC_5V
+      MODE_SCONF:
+        type: input
+        net: MODE_CFG
+      SS_TR:
+        type: input
+        net: SS_NODE
+      PG:
+        type: output
+        net: PG_NODE
+      FB_VSET:
+        type: input
+        net: FB_NODE
+      SW_NC:
+        type: no_connect
+      VOUT_A:
+        type: output
+        net: VCC_3V3
+      VOUT_B:
+        type: output
+        net: VCC_3V3
+      GND:
+        type: power
+        net: GND
+  C1:
+    id: C1
+    ref: C1
+    type: C_1206_3216Metric
+    value: 10uF 25V X7R TDK C3216X7R1E106K160AE
+    footprint: '1206'
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: GND
+      P2:
+        type: passive
+        net: VCC_5V
+  C2:
+    id: C2
+    ref: C2
+    type: C_0805_2012Metric
+    value: 22uF 10V X7S TDK C2012X7S1A226M125AC
+    footprint: 0805
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: VCC_3V3
+      P2:
+        type: passive
+        net: GND
+  R1:
+    id: R1
+    ref: R1
+    type: R_0603_1608Metric
+    value: 113k 1%
+    footprint: '0603'
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: VCC_3V3
+      P2:
+        type: passive
+        net: FB_NODE
+  R2:
+    id: R2
+    ref: R2
+    type: R_0603_1608Metric
+    value: 24.9k 1%
+    footprint: '0603'
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: FB_NODE
+      P2:
+        type: passive
+        net: GND
+  R3:
+    id: R3
+    ref: R3
+    type: R_0603_Mode_Rev
+    value: 7.15k 1%
+    footprint: zaptrace:R_0603_Mode_Rev
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: MODE_CFG
+      P2:
+        type: passive
+        net: GND
+  C3:
+    id: C3
+    ref: C3
+    type: C_0603_1608Metric
+    value: 22pF C0G (EVM optional feed-forward)
+    footprint: '0603'
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: VCC_3V3
+      P2:
+        type: passive
+        net: FB_NODE
+  C4:
+    id: C4
+    ref: C4
+    type: C_0603_SS_Rev
+    value: 3.3nF (EVM SS/TR capacitor)
+    footprint: zaptrace:C_0603_SS_Rev
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: SS_NODE
+      P2:
+        type: passive
+        net: GND
+  R4:
+    id: R4
+    ref: R4
+    type: R_0603_1608Metric
+    value: 1M 1% (EVM PG pull-up)
+    footprint: '0603'
+    package_pin_map:
+      '1': P1
+      '2': P2
+    pins:
+      P1:
+        type: passive
+        net: VCC_3V3
+      P2:
+        type: passive
+        net: PG_NODE
+nets:
+  VCC_5V:
+    id: VCC_5V
+    name: VCC_5V
+    type: power
+    nodes:
+    - TP_IN.P1
+    - U3.VIN_A
+    - U3.VIN_B
+    - U3.EN
+    - C1.P2
+  VCC_3V3:
+    id: VCC_3V3
+    name: VCC_3V3
+    type: power
+    nodes:
+    - TP_OUT.P1
+    - U3.VOUT_A
+    - U3.VOUT_B
+    - C2.P1
+    - R1.P1
+    - C3.P1
+    - R4.P1
+  GND:
+    id: GND
+    name: GND
+    type: ground
+    nodes:
+    - TP_GND.P1
+    - U3.GND
+    - C2.P2
+    - R2.P2
+    - R3.P2
+    - C4.P2
+    - C1.P1
+  FB_NODE:
+    id: FB_NODE
+    name: FB_NODE
+    type: analog
+    nodes:
+    - U3.FB_VSET
+    - R1.P2
+    - R2.P1
+    - C3.P2
+  MODE_CFG:
+    id: MODE_CFG
+    name: MODE_CFG
+    type: signal
+    nodes:
+    - U3.MODE_SCONF
+    - R3.P1
+  SS_NODE:
+    id: SS_NODE
+    name: SS_NODE
+    type: analog
+    nodes:
+    - U3.SS_TR
+    - C4.P1
+  PG_NODE:
+    id: PG_NODE
+    name: PG_NODE
+    type: signal
+    nodes:
+    - U3.PG
+    - R4.P2
