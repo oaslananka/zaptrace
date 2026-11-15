@@ -16,7 +16,6 @@ Intent → normalized design → schematic → ERC → placement → routing →
 
 <p>
   <a href="https://oaslananka.github.io/zaptrace"><img src="https://img.shields.io/badge/docs-mkdocs-0A7BBB?logo=materialformkdocs&amp;logoColor=white" alt="Documentation" /></a>
-  <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-AGPL-3.0-only-blueviolet.svg" alt="AGPL-3.0-only license" /></a>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/MCP-96%20exposed-7c3aed" alt="MCP: 96 exposed tools" />
   <img src="https://img.shields.io/badge/status-pre--1.0-orange.svg" alt="Status: pre-1.0" />
@@ -33,9 +32,9 @@ Intent → normalized design → schematic → ERC → placement → routing →
 </p>
 
 
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-3.0-only-blue" alt="AGPL-3.0-only license" /></a>
 
 <p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="AGPL-3.0-only license" /></a>
   <a href="https://gitgem.org/github/oaslananka/zaptrace"><img src="https://gitgem.org/api/badge/github/oaslananka/zaptrace.svg" alt="GitGem" /></a>
 </p>
 
